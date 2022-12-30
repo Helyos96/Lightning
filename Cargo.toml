@@ -1,0 +1,17 @@
+[workspace]
+
+members = [
+    "lightning-model",
+    "lightning-app",
+]
+
+[profile.dev]
+debug=0
+opt-level=1
+
+[profile.prod]
+inherits = "release"
+lto=true
+codegen-units=1
+strip=true
+panic="abort"
