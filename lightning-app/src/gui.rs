@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use crate::config::Config;
 use crate::tree_gl::TreeGl;
 use rustc_hash::FxHashMap;
+use glutin::event::ElementState;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum UiState {
@@ -34,6 +35,12 @@ pub struct State {
     pub tree_gl: TreeGl,
     pub tree_translate: (i32, i32),
     pub zoom: f32,
+
+    // Controls
+    pub key_left: ElementState,
+    pub key_right: ElementState,
+    pub key_up: ElementState,
+    pub key_down: ElementState,
 }
 
 impl Default for State {
@@ -53,6 +60,10 @@ impl Default for State {
             tree_gl: Default::default(),
             zoom: 1.0,
             tree_translate: (0, 0),
+            key_left: ElementState::Released,
+            key_right: ElementState::Released,
+            key_up: ElementState::Released,
+            key_down: ElementState::Released,
         }
     }
 }

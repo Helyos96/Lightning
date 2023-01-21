@@ -13,7 +13,7 @@ use std::time::Instant;
 
 use glow::HasContext;
 use glutin::{event_loop::EventLoop, WindowedContext};
-use glutin::event::{Event, VirtualKeyCode};
+use glutin::event::{Event, VirtualKeyCode, ElementState};
 use imgui_winit_support::WinitPlatform;
 use lightning_model::{util, calc};
 use gui::{UiState, State};
@@ -89,6 +89,18 @@ fn main() {
                 match state.ui_state {
                     UiState::ChooseBuild => gui::draw_builds(ui, &mut state),
                     UiState::Main => { 
+                        if state.key_left == ElementState::Pressed {
+                            state.tree_translate.0 += 50;
+                        }
+                        if state.key_right == ElementState::Pressed {
+                            state.tree_translate.0 -= 50;
+                        }
+                        if state.key_up == ElementState::Pressed {
+                            state.tree_translate.1 -= 50;
+                        }
+                        if state.key_down == ElementState::Pressed {
+                            state.tree_translate.1 += 50;
+                        }
                         state.tree_gl.draw(/*&state, */ig_renderer.gl_context(), state.zoom, state.tree_translate);
                         gui::draw_main(ui, &mut state);
                     },
@@ -150,7 +162,7 @@ fn main() {
                             input:
                                 glutin::event::KeyboardInput {
                                     virtual_keycode: Some(key),
-                                    state: glutin::event::ElementState::Pressed,
+                                    state: key_state,
                                     ..
                                 },
                             ..
@@ -158,10 +170,10 @@ fn main() {
                         ..
                     } => {
                         match key {
-                            VirtualKeyCode::Left => state.tree_translate.0 += 100,
-                            VirtualKeyCode::Right => state.tree_translate.0 -= 100,
-                            VirtualKeyCode::Up => state.tree_translate.1 -= 100,
-                            VirtualKeyCode::Down => state.tree_translate.1 += 100,
+                            VirtualKeyCode::Left => state.key_left = key_state,
+                            VirtualKeyCode::Right => state.key_right = key_state,
+                            VirtualKeyCode::Up => state.key_up = key_state,
+                            VirtualKeyCode::Down => state.key_down = key_state,
                             _ => {},
                         }
                     },
