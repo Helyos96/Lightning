@@ -29,12 +29,21 @@ for (k,v) in tree['sprites'].items():
     sprites[k]['filename'] = new_filename + ".dds"
 tree['sprites'] = sprites
 
+# 'nodes' in groups string to int
 for v in tree['groups'].values():
     nodes = []
     for node in v['nodes']:
         nodes.append(int(node))
     v['nodes'] = nodes
 
+# 'out' nodes string to int
+for node in tree['nodes'].values():
+    if 'out' not in node:
+        continue
+    out = []
+    for n in node['out']:
+        out.append(int(n))
+    node['out'] = out
 
 print(json.dumps(tree,indent=2))
 

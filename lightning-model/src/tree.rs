@@ -59,6 +59,7 @@ pub struct Node {
     pub orbit: Option<u16>,
     #[serde(rename = "orbitIndex")]
     pub orbit_index: Option<u16>,
+    pub out: Option<Vec<u16>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -77,6 +77,7 @@ fn nodes_gl() -> [(Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>); 2] {
     let mut tex_coords_frames = vec![];
     let mut indices_frames = vec![];
     let orbit_angles = calc_angles();
+
     for node in TREE.nodes.values().filter(|n| n.group.is_some()) {
         let typ = {
             if node.is_notable.is_some() {
@@ -111,6 +112,12 @@ fn nodes_gl() -> [(Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>); 2] {
             }
         };
         append_to(x, y, &rect, &sprite, &mut vertices_frames, &mut tex_coords_frames, &mut indices_frames, false);
+
+        if let Some(out) = &node.out {
+            for _out_id in out {
+                // todo connectors
+            }
+        }
     }
     [
         (vertices, tex_coords, indices),
@@ -333,7 +340,6 @@ impl TreeGl {
             if textures.contains_key(&sprite.filename) {
                 continue;
             }
-            //let img = image::open("assets/".to_string() + &sprite.filename).unwrap().into_rgba8();
             let img = ddsfile::Dds::read(File::open("assets/".to_string() + &sprite.filename).unwrap()).unwrap();
             textures.insert(sprite.filename.clone(), Texture {
                 gl_texture: load_texture(&img, gl),
