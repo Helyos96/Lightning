@@ -41,18 +41,12 @@ fn get_rect(icon: &str, typ: NodeType) -> Option<(&'static tree::Rect, &'static 
     Some((rect, sprite))
 }
 
-lazy_static! {
-    /// Final node positions; Normalized -1.0;1.0
-    static ref TREE_W: i32 = TREE.min_x.abs() + TREE.max_x.abs();
-    static ref TREE_H: i32 = TREE.min_y.abs() + TREE.max_y.abs();
-}
-
-fn append_to(x: f32, y: f32, w: f32, h: f32, rect: &tree::Rect, sprite: &tree::Sprite, vertices: &mut Vec<(f32, f32)>, tex_coords: &mut Vec<(f32, f32)>, indices: &mut Vec<u16>, vflip: bool) {
+fn append_to(x: f32, y: f32, rect: &tree::Rect, sprite: &tree::Sprite, vertices: &mut Vec<(f32, f32)>, tex_coords: &mut Vec<(f32, f32)>, indices: &mut Vec<u16>, vflip: bool) {
     vertices.extend([
-        norm(x - rect.w as f32 / 2.0, y - rect.h as f32 / 2.0, w, h), // Bottom Left
-        norm(x - rect.w as f32 / 2.0, y + rect.h as f32 / 2.0, w, h), // Top Left
-        norm(x + rect.w as f32 / 2.0, y + rect.h as f32 / 2.0, w, h), // Top Right
-        norm(x + rect.w as f32 / 2.0, y - rect.h as f32 / 2.0, w, h), // Bottom Right
+        norm(x - rect.w as f32 / 2.0, y - rect.h as f32 / 2.0), // Bottom Left
+        norm(x - rect.w as f32 / 2.0, y + rect.h as f32 / 2.0), // Top Left
+        norm(x + rect.w as f32 / 2.0, y + rect.h as f32 / 2.0), // Top Right
+        norm(x + rect.w as f32 / 2.0, y - rect.h as f32 / 2.0), // Bottom Right
     ]);
 
     if vflip {
@@ -83,8 +77,6 @@ fn nodes_gl() -> [(Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>); 2] {
     let mut tex_coords_frames = vec![];
     let mut indices_frames = vec![];
     let orbit_angles = calc_angles();
-    let w = *TREE_W as f32;
-    let h = *TREE_H as f32;
     for node in TREE.nodes.values().filter(|n| n.group.is_some()) {
         let typ = {
             if node.is_notable.is_some() {
@@ -106,7 +98,7 @@ fn nodes_gl() -> [(Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>); 2] {
 
         let x = TREE.groups[&group].x + (angle.sin() * orbit_radius as f32) + TREE.min_x.abs() as f32;
         let y = TREE.groups[&group].y.neg() + (angle.cos() * orbit_radius as f32) + TREE.min_y.abs() as f32;
-        append_to(x, y, w, h, &rect, &sprite, &mut vertices, &mut tex_coords, &mut indices, false);
+        append_to(x, y, &rect, &sprite, &mut vertices, &mut tex_coords, &mut indices, false);
 
         let sprite = &TREE.sprites["frame"];
         let rect = {
@@ -118,7 +110,7 @@ fn nodes_gl() -> [(Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>); 2] {
                 &sprite.coords["PSSkillFrame"]
             }
         };
-        append_to(x, y, w, h, &rect, &sprite, &mut vertices_frames, &mut tex_coords_frames, &mut indices_frames, false);
+        append_to(x, y, &rect, &sprite, &mut vertices_frames, &mut tex_coords_frames, &mut indices_frames, false);
     }
     [
         (vertices, tex_coords, indices),
@@ -130,8 +122,6 @@ fn group_background_gl() -> (Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>) {
     let mut vertices = vec![];
     let mut tex_coords = vec![];
     let mut indices = vec![];
-    let w = *TREE_W as f32;
-    let h = *TREE_H as f32;
     let sprite = &TREE.sprites["groupBackground"];
     for group in TREE.groups.values().filter(|g| g.background.is_some()) {
         let background = group.background.as_ref().unwrap();
@@ -143,25 +133,28 @@ fn group_background_gl() -> (Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>) {
         let x = group.x + TREE.min_x.abs() as f32;
         let mut y = group.y.neg() + TREE.min_y.abs() as f32;
         if background.is_half_image.is_some() {
+            // Need to draw upper half and then bottom half (vertically flipped)
             y += rect.h as f32 / 2.0;
-            append_to(x, y, w, h, &rect, &sprite, &mut vertices, &mut tex_coords, &mut indices, false);
+            append_to(x, y, &rect, &sprite, &mut vertices, &mut tex_coords, &mut indices, false);
             y -= rect.h as f32;
-            append_to(x, y, w, h, &rect, &sprite, &mut vertices, &mut tex_coords, &mut indices, true);
+            append_to(x, y, &rect, &sprite, &mut vertices, &mut tex_coords, &mut indices, true);
         } else {
-            append_to(x, y, w, h, &rect, &sprite, &mut vertices, &mut tex_coords, &mut indices, background.is_half_image.is_some());
+            append_to(x, y, &rect, &sprite, &mut vertices, &mut tex_coords, &mut indices, false);
         }
     }
     (vertices, tex_coords, indices)
 }
 
-fn norm(mut x: f32, mut y: f32, w: f32, h: f32) -> (f32, f32) {
-    x /= w / 2.0;
-    y /= h / 2.0;
+/// Normalize tree coords to GL normalized coords
+fn norm(mut x: f32, mut y: f32) -> (f32, f32) {
+    x /= 12500.0;
+    y /= 12500.0;
     x -= 1.0;
     y -= 1.0;
     (x.clamp(-1.0, 1.0), y.clamp(-1.0, 1.0))
 }
 
+/// Normalize sprite coords to GL texture coords
 fn norm_tex(mut x: f32, mut y: f32, w: f32, h: f32) -> (f32, f32) {
     x /= w;
     y /= h;
@@ -367,13 +360,14 @@ impl TreeGl {
         // todo destroy buffers
     }
 
-    pub fn draw(&mut self/*, state: &State*/, zoom: f32, gl: &glow::Context) {
+    pub fn draw(&mut self/*, state: &State*/, gl: &glow::Context, zoom: f32, translate: (i32, i32)) {
         let draw_order = [
             ("background", "group-background-3.dds"),
             ("nodes", "skills-3.dds"),
             ("frames", "frame-3.dds"),
         ];
-        /*for dd in self.draw_data.values_mut() {
+        /*// Uncomment block to recompute draw buffers every frame
+        for dd in self.draw_data.values_mut() {
             dd.destroy(gl);
         }
         let data = nodes_gl();
@@ -390,10 +384,10 @@ impl TreeGl {
             gl.use_program(self.program);
             let scale = glam::Mat4::from_scale(glam::Vec3::new(zoom, zoom, 0.0));
             let ortho = glam::Mat4::orthographic_rh_gl(-aspect_ratio, aspect_ratio, -1.0, 1.0, -1.0, 1.0);
-            gl.uniform_matrix_4_f32_slice(self.uniform_zoom.as_ref(), false, &(scale * ortho).to_cols_array());
+            let translate = glam::Mat4::from_translation(glam::Vec3::new(translate.0 as f32 / 12500.0, translate.1 as f32 / 12500.0, 0.0));
+            gl.uniform_matrix_4_f32_slice(self.uniform_zoom.as_ref(), false, &(scale * ortho * translate).to_cols_array());
 
             for to_draw in draw_order {
-            //println!("Drawing {}: {}", to_draw.0, self.draw_data[to_draw.0].len);
                 gl.bind_vertex_array(self.draw_data[to_draw.0].vao);
                 gl.bind_texture(glow::TEXTURE_2D, Some(self.textures[to_draw.1].gl_texture));
                 gl.draw_elements(glow::TRIANGLES, self.draw_data[to_draw.0].len, glow::UNSIGNED_SHORT, 0);

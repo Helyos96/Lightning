@@ -13,6 +13,7 @@ use std::time::Instant;
 
 use glow::HasContext;
 use glutin::{event_loop::EventLoop, WindowedContext};
+use glutin::event::{Event, VirtualKeyCode};
 use imgui_winit_support::WinitPlatform;
 use lightning_model::{util, calc};
 use gui::{UiState, State};
@@ -67,20 +68,20 @@ fn main() {
     // Standard winit event loop
     event_loop.run(move |event, _, control_flow| {
         match event {
-            glutin::event::Event::NewEvents(_) => {
+            Event::NewEvents(_) => {
                 let now = Instant::now();
                 imgui_context
                     .io_mut()
                     .update_delta_time(now.duration_since(last_frame));
                 last_frame = now;
             }
-            glutin::event::Event::MainEventsCleared => {
+            Event::MainEventsCleared => {
                 winit_platform
                     .prepare_frame(imgui_context.io_mut(), window.window())
                     .unwrap();
                 window.window().request_redraw();
             }
-            glutin::event::Event::RedrawRequested(_) => {
+            Event::RedrawRequested(_) => {
                 // The renderer assumes you'll be clearing the buffer yourself
                 unsafe { ig_renderer.gl_context().clear(glow::COLOR_BUFFER_BIT) };
 
@@ -88,7 +89,7 @@ fn main() {
                 match state.ui_state {
                     UiState::ChooseBuild => gui::draw_builds(ui, &mut state),
                     UiState::Main => { 
-                        state.tree_gl.draw(/*&state, */state.zoom, ig_renderer.gl_context());
+                        state.tree_gl.draw(/*&state, */ig_renderer.gl_context(), state.zoom, state.tree_translate);
                         gui::draw_main(ui, &mut state);
                     },
                     _ => eprintln!("Can't draw state {:?}", state.ui_state),
@@ -115,7 +116,7 @@ fn main() {
 
                 window.swap_buffers().unwrap();
             }
-            glutin::event::Event::WindowEvent {
+            Event::WindowEvent {
                 event: glutin::event::WindowEvent::CloseRequested,
                 ..
             } => {
@@ -123,7 +124,7 @@ fn main() {
             }
             event => {
                 match event {
-                    glutin::event::Event::WindowEvent {
+                    Event::WindowEvent {
                         event: glutin::event::WindowEvent::MouseWheel {
                             delta,
                             phase: glutin::event::TouchPhase::Moved,
@@ -138,11 +139,31 @@ fn main() {
                             _ => {},
                         }
                     },
-                    glutin::event::Event::WindowEvent {
+                    Event::WindowEvent {
                         event: glutin::event::WindowEvent::Resized(physical_size),
                         ..
                     } => {
                         unsafe { ig_renderer.gl_context().viewport(0, 0, physical_size.width as i32, physical_size.height as i32) };
+                    },
+                    Event::WindowEvent {
+                        event: glutin::event::WindowEvent::KeyboardInput {
+                            input:
+                                glutin::event::KeyboardInput {
+                                    virtual_keycode: Some(key),
+                                    state: glutin::event::ElementState::Pressed,
+                                    ..
+                                },
+                            ..
+                        },
+                        ..
+                    } => {
+                        match key {
+                            VirtualKeyCode::Left => state.tree_translate.0 += 100,
+                            VirtualKeyCode::Right => state.tree_translate.0 -= 100,
+                            VirtualKeyCode::Up => state.tree_translate.1 -= 100,
+                            VirtualKeyCode::Down => state.tree_translate.1 += 100,
+                            _ => {},
+                        }
                     },
                     _ => {},
                 }

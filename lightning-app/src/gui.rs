@@ -32,6 +32,7 @@ pub struct State {
 
     // OpenGL stuff
     pub tree_gl: TreeGl,
+    pub tree_translate: (i32, i32),
     pub zoom: f32,
 }
 
@@ -51,6 +52,7 @@ impl Default for State {
 
             tree_gl: Default::default(),
             zoom: 1.0,
+            tree_translate: (0, 0),
         }
     }
 }
