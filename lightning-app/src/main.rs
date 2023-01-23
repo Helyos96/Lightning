@@ -115,6 +115,9 @@ fn main() {
                 });*/
                 if let Err(err) = process_state(&mut state) {
                     println!("State Error: {}", err);
+                    if state.ui_state == UiState::ImportBuild {
+                        state.ui_state = UiState::ChooseBuild;
+                    }
                 }
                 //ui.show_demo_window(&mut true);
 

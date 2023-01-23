@@ -58,6 +58,7 @@ pub struct Node {
     pub is_keystone: bool,
     #[serde(default)]
     pub is_ascendancy_start: bool,
+    pub class_start_index: Option<i32>,
     #[serde(default)]
     pub mastery_effects: Vec<MasteryEffect>,
     pub group: Option<u16>,

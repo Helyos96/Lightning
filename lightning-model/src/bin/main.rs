@@ -1,8 +1,25 @@
 use lightning_model::calc::*;
-use lightning_model::util;
+use lightning_model::import;
+use lightning_model::build::Build;
+use std::fs;
+
+fn fetch() -> Result<Build, Box<dyn std::error::Error>>
+{
+    const BUILD_PATH: &str = "build.json";
+
+    if let Ok(data) = fs::read_to_string(BUILD_PATH) {
+        if let Ok(player) = serde_json::from_str(&data) {
+            return Ok(player);
+        }
+    }
+
+    let player = import::character("Steelmage", "SteelMyTink")?;
+    serde_json::to_writer(&fs::File::create(BUILD_PATH)?, &player)?;
+    Ok(player)
+}
 
 fn main() {
-    let player = match util::load_or_fetch() {
+    let player = match fetch() {
         Ok(b) => b,
         Err(err) => {
             println!("{}", err);

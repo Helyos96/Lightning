@@ -76,39 +76,46 @@ fn get_rect(icon: &str, typ: NodeType) -> Option<(&'static tree::Rect, &'static 
     Some((rect, sprite))
 }
 
-fn append_to(x: f32, y: f32, rect: &tree::Rect, sprite: &tree::Sprite, vertices: &mut Vec<(f32, f32)>, tex_coords: &mut Vec<(f32, f32)>, indices: &mut Vec<u16>, vflip: bool) {
-    vertices.extend([
-        norm(x - rect.w as f32 / 2.0, y - rect.h as f32 / 2.0), // Bottom Left
-        norm(x - rect.w as f32 / 2.0, y + rect.h as f32 / 2.0), // Top Left
-        norm(x + rect.w as f32 / 2.0, y + rect.h as f32 / 2.0), // Top Right
-        norm(x + rect.w as f32 / 2.0, y - rect.h as f32 / 2.0), // Bottom Right
-    ]);
+#[derive(Default)]
+struct DrawData {
+    vertices: Vec<(f32,f32)>,
+    tex_coords: Vec<(f32,f32)>,
+    indices: Vec<u16>,
+}
 
-    if vflip {
-        tex_coords.extend([
-            norm_tex(rect.x, rect.y, sprite.w, sprite.h),
-            norm_tex(rect.x, rect.y + rect.h, sprite.w, sprite.h),
-            norm_tex(rect.x + rect.w, rect.y + rect.h, sprite.w, sprite.h),
-            norm_tex(rect.x + rect.w, rect.y, sprite.w, sprite.h),
+impl DrawData {
+    fn append(&mut self, x: f32, y: f32, rect: &tree::Rect, sprite: &tree::Sprite, vflip: bool) {
+        self.vertices.extend([
+            norm(x - rect.w as f32 / 2.0, y - rect.h as f32 / 2.0), // Bottom Left
+            norm(x - rect.w as f32 / 2.0, y + rect.h as f32 / 2.0), // Top Left
+            norm(x + rect.w as f32 / 2.0, y + rect.h as f32 / 2.0), // Top Right
+            norm(x + rect.w as f32 / 2.0, y - rect.h as f32 / 2.0), // Bottom Right
         ]);
-    } else {
-        tex_coords.extend([
-            norm_tex(rect.x, rect.y + rect.h, sprite.w, sprite.h),
-            norm_tex(rect.x, rect.y, sprite.w, sprite.h),
-            norm_tex(rect.x + rect.w, rect.y, sprite.w, sprite.h),
-            norm_tex(rect.x + rect.w, rect.y + rect.h, sprite.w, sprite.h),
-        ]);
+
+        if vflip {
+            self.tex_coords.extend([
+                norm_tex(rect.x, rect.y, sprite.w, sprite.h),
+                norm_tex(rect.x, rect.y + rect.h, sprite.w, sprite.h),
+                norm_tex(rect.x + rect.w, rect.y + rect.h, sprite.w, sprite.h),
+                norm_tex(rect.x + rect.w, rect.y, sprite.w, sprite.h),
+            ]);
+        } else {
+            self.tex_coords.extend([
+                norm_tex(rect.x, rect.y + rect.h, sprite.w, sprite.h),
+                norm_tex(rect.x, rect.y, sprite.w, sprite.h),
+                norm_tex(rect.x + rect.w, rect.y, sprite.w, sprite.h),
+                norm_tex(rect.x + rect.w, rect.y + rect.h, sprite.w, sprite.h),
+            ]);
+        }
+
+        let start = self.vertices.len() as u16 - 4;
+        self.indices.extend([start, start + 1, start + 2, start + 3, start, start + 2]);
     }
-
-    let start = vertices.len() as u16 - 4;
-    indices.extend([start, start + 1, start + 2, start + 3, start, start + 2]);
 }
 
 /// Very simple straight connectors. todo: arcs
-fn connectors_gl() -> (Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>) {
-    let mut vertices = vec![];
-    let mut tex_coords = vec![];
-    let mut indices = vec![];
+fn connectors_gl() -> DrawData {
+    let mut dd = DrawData::default();
     let sprite = &TREE.sprites["line"];
     let rect = &sprite.coords["LineConnectorActive"];
 
@@ -116,41 +123,34 @@ fn connectors_gl() -> (Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>) {
         let (x1, y1) = node_pos(node);
         for out in node.out.iter().flatten().map(|id| &TREE.nodes[id]).filter(|n| !n.is_ascendancy_start && !n.is_mastery) {
             let (x2, y2) = node_pos(out);
-            vertices.extend([
+            dd.vertices.extend([
                 // todo: better than this +5 / -5. Some angles don't render.
                 norm(x1 - 5.0, y1 + 5.0),
                 norm(x1 + 5.0, y1 - 5.0),
                 norm(x2 + 5.0, y2 - 5.0),
                 norm(x2 - 5.0, y2 + 5.0),
             ]);
-            tex_coords.extend([
+            dd.tex_coords.extend([
                 norm_tex(rect.x, rect.y + rect.h, sprite.w, sprite.h),
                 norm_tex(rect.x, rect.y, sprite.w, sprite.h),
                 norm_tex(rect.x + rect.w, rect.y, sprite.w, sprite.h),
                 norm_tex(rect.x + rect.w, rect.y + rect.h, sprite.w, sprite.h),
             ]);
 
-            let start = vertices.len() as u16 - 4;
-            indices.extend([start, start + 1, start + 2, start + 3, start, start + 2]);
+            let start = dd.vertices.len() as u16 - 4;
+            dd.indices.extend([start, start + 1, start + 2, start + 3, start, start + 2]);
         }
     }
-
-    (vertices, tex_coords, indices)
+    dd
 }
 
 /// Nodes, Frames and Masteries
-fn nodes_gl() -> [(Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>); 3] {
-    let mut vertices = vec![];
-    let mut tex_coords = vec![];
-    let mut indices = vec![];
-    let mut vertices_frames = vec![];
-    let mut tex_coords_frames = vec![];
-    let mut indices_frames = vec![];
-    let mut vertices_masteries = vec![];
-    let mut tex_coords_masteries = vec![];
-    let mut indices_masteries = vec![];
+fn nodes_gl() -> [DrawData; 3] {
+    let mut dd_nodes = DrawData::default();
+    let mut dd_frames = DrawData::default();
+    let mut dd_masteries = DrawData::default();
 
-    for node in TREE.nodes.values().filter(|n| n.group.is_some()) {
+    for node in TREE.nodes.values().filter(|n| n.group.is_some() && n.class_start_index.is_none() && !n.is_ascendancy_start) {
         let typ = {
             if node.is_notable {
                 NodeType::Notable
@@ -174,9 +174,9 @@ fn nodes_gl() -> [(Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>); 3] {
         let (x, y) = node_pos(node);
 
         if typ == NodeType::Mastery {
-            append_to(x, y, rect, sprite, &mut vertices_masteries, &mut tex_coords_masteries, &mut indices_masteries, false);
+            dd_masteries.append(x, y, rect, sprite, false);
         } else {
-            append_to(x, y, rect, sprite, &mut vertices, &mut tex_coords, &mut indices, false);
+            dd_nodes.append(x, y, rect, sprite, false);
             let sprite = &TREE.sprites["frame"];
             let rect = match typ {
                 NodeType::Normal => &sprite.coords["PSSkillFrame"],
@@ -184,20 +184,14 @@ fn nodes_gl() -> [(Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>); 3] {
                 NodeType::Keystone => &sprite.coords["KeystoneFrameUnallocated"],
                 NodeType::Mastery => panic!("No frame for masteries"),
             };
-            append_to(x, y, rect, sprite, &mut vertices_frames, &mut tex_coords_frames, &mut indices_frames, false);
+            dd_frames.append(x, y, rect, sprite, false);
         }
     }
-    [
-        (vertices, tex_coords, indices),
-        (vertices_frames, tex_coords_frames, indices_frames),
-        (vertices_masteries, tex_coords_masteries, indices_masteries),
-    ]
+    [dd_nodes, dd_frames, dd_masteries]
 }
 
-fn group_background_gl() -> (Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>) {
-    let mut vertices = vec![];
-    let mut tex_coords = vec![];
-    let mut indices = vec![];
+fn group_background_gl() -> DrawData {
+    let mut dd = DrawData::default();
     let sprite = &TREE.sprites["groupBackground"];
     for group in TREE.groups.values().filter(|g| g.background.is_some()) {
         let background = group.background.as_ref().unwrap();
@@ -212,14 +206,24 @@ fn group_background_gl() -> (Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>) {
             // Need to draw upper half and then bottom half (vertically flipped)
             // todo: fix seams that appear sometimes
             y += rect.h as f32 / 2.0;
-            append_to(x, y, rect, sprite, &mut vertices, &mut tex_coords, &mut indices, false);
+            dd.append(x, y, rect, sprite, false);
             y -= rect.h as f32;
-            append_to(x, y, rect, sprite, &mut vertices, &mut tex_coords, &mut indices, true);
+            dd.append(x, y, rect, sprite, true);
         } else {
-            append_to(x, y, rect, sprite, &mut vertices, &mut tex_coords, &mut indices, false);
+            dd.append(x, y, rect, sprite, false);
         }
     }
-    (vertices, tex_coords, indices)
+    let sprite = &TREE.sprites["startNode"];
+    let rect = &sprite.coords["PSStartNodeBackgroundInactive"];
+    for node in TREE.nodes.values().filter(|n| n.class_start_index.is_some()) {
+        let (x, y) = node_pos(node);
+        dd.append(x, y, rect, sprite, false);
+    }
+    dd
+}
+
+fn ascendancies_gl() -> DrawData {
+    todo!()
 }
 
 fn load_texture(img: &ddsfile::Dds, gl: &glow::Context) -> glow::Texture {
@@ -272,7 +276,7 @@ void main() {
 "#;
 
 #[derive(Default)]
-pub struct DrawData {
+pub struct GlDrawData {
     vao: Option<glow::VertexArray>,
     vbo: Option<glow::Buffer>,
     tbo: Option<glow::Buffer>,
@@ -280,8 +284,8 @@ pub struct DrawData {
     len: i32,
 }
 
-impl DrawData {
-    fn new(gl: &glow::Context, vertices: &[(f32,f32)], tex_coords: &[(f32,f32)], indices: &[u16]) -> DrawData {
+impl GlDrawData {
+    fn new(gl: &glow::Context, dd: &DrawData) -> Self {
         unsafe {
             let vao = Some(gl.create_vertex_array().unwrap());
             gl.bind_vertex_array(vao);
@@ -291,7 +295,7 @@ impl DrawData {
             gl.bind_buffer(glow::ARRAY_BUFFER, vbo);
             gl.buffer_data_u8_slice(
                 glow::ARRAY_BUFFER,
-                std::slice::from_raw_parts(vertices.as_ptr() as *const u8, vertices.len() * 8),
+                std::slice::from_raw_parts(dd.vertices.as_ptr() as *const u8, dd.vertices.len() * 8),
                 glow::STATIC_DRAW
             );
             gl.vertex_attrib_pointer_f32(0, 2, glow::FLOAT, false, 0, 0);
@@ -302,7 +306,7 @@ impl DrawData {
             gl.bind_buffer(glow::ARRAY_BUFFER, tbo);
             gl.buffer_data_u8_slice(
                 glow::ARRAY_BUFFER,
-                std::slice::from_raw_parts(tex_coords.as_ptr() as *const u8, vertices.len() * 8),
+                std::slice::from_raw_parts(dd.tex_coords.as_ptr() as *const u8, dd.vertices.len() * 8),
                 glow::STATIC_DRAW
             );
             gl.vertex_attrib_pointer_f32(1, 2, glow::FLOAT, false, 0, 0);
@@ -313,11 +317,11 @@ impl DrawData {
             gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, idx);
             gl.buffer_data_u8_slice(
                 glow::ELEMENT_ARRAY_BUFFER,
-                std::slice::from_raw_parts(indices.as_ptr() as *const u8, indices.len() * 2),
+                std::slice::from_raw_parts(dd.indices.as_ptr() as *const u8, dd.indices.len() * 2),
                 glow::STATIC_DRAW
             );
 
-            DrawData { vao, vbo, tbo, idx, len: indices.len() as i32 }
+            Self { vao, vbo, tbo, idx, len: dd.indices.len() as i32 }
         }
     }
 
@@ -348,7 +352,7 @@ pub struct TreeGl {
     textures: FxHashMap<String, Texture>,
     program: Option<glow::Program>,
     uniform_zoom: Option<glow::UniformLocation>,
-    draw_data: FxHashMap<String, DrawData>,
+    draw_data: FxHashMap<String, GlDrawData>,
 }
 
 impl TreeGl {
@@ -405,13 +409,13 @@ impl TreeGl {
         self.textures = textures;
 
         let data = nodes_gl();
-        self.draw_data.insert("nodes".to_string(), DrawData::new(gl, &data[0].0, &data[0].1, &data[0].2));
-        self.draw_data.insert("frames".to_string(), DrawData::new(gl, &data[1].0, &data[1].1, &data[1].2));
-        self.draw_data.insert("masteries".to_string(), DrawData::new(gl, &data[2].0, &data[2].1, &data[2].2));
-        let (vertices, tex_coords, indices) = group_background_gl();
-        self.draw_data.insert("background".to_string(), DrawData::new(gl, &vertices, &tex_coords, &indices));
-        let (vertices, tex_coords, indices) = connectors_gl();
-        self.draw_data.insert("connectors".to_string(), DrawData::new(gl, &vertices, &tex_coords, &indices));
+        self.draw_data.insert("nodes".to_string(), GlDrawData::new(gl, &data[0]));
+        self.draw_data.insert("frames".to_string(), GlDrawData::new(gl, &data[1]));
+        self.draw_data.insert("masteries".to_string(), GlDrawData::new(gl, &data[2]));
+        let data = group_background_gl();
+        self.draw_data.insert("background".to_string(), GlDrawData::new(gl, &data));
+        let data = connectors_gl();
+        self.draw_data.insert("connectors".to_string(), GlDrawData::new(gl, &data));
         self.init_shaders(gl);
     }
 
@@ -431,15 +435,6 @@ impl TreeGl {
             ("frames", "frame-3.dds"),
             ("masteries", "mastery-connected-3.dds"),
         ];
-        /*// Uncomment block to recompute draw buffers every frame
-        for dd in self.draw_data.values_mut() {
-            dd.destroy(gl);
-        }
-        let data = nodes_gl();
-        self.draw_data.insert("nodes".to_string(), DrawData::new(gl, &data[0].0, &data[0].1, &data[0].2));
-        self.draw_data.insert("frames".to_string(), DrawData::new(gl, &data[1].0, &data[1].1, &data[1].2));
-        let (vertices, tex_coords, indices) = group_background_gl();
-        self.draw_data.insert("background".to_string(), DrawData::new(gl, &vertices, &tex_coords, &indices));*/
         unsafe {
             let mut viewport = [0; 4];
             gl.get_parameter_i32_slice(glow::VIEWPORT, &mut viewport);
