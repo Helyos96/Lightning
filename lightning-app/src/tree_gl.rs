@@ -119,9 +119,9 @@ fn connectors_gl() -> DrawData {
     let sprite = &TREE.sprites["line"];
     let rect = &sprite.coords["LineConnectorActive"];
 
-    for node in TREE.nodes.values().filter(|n| n.group.is_some() && !n.name.starts_with("Path of the")) {
+    for node in TREE.nodes.values().filter(|n| n.group.is_some() && !n.name.starts_with("Path of the") && n.class_start_index.is_none()) {
         let (x1, y1) = node_pos(node);
-        for out in node.out.iter().flatten().map(|id| &TREE.nodes[id]).filter(|n| !n.is_ascendancy_start && !n.is_mastery) {
+        for out in node.out.iter().flatten().map(|id| &TREE.nodes[id]).filter(|n| !n.is_ascendancy_start && !n.is_mastery && n.class_start_index.is_none()) {
             let (x2, y2) = node_pos(out);
             dd.vertices.extend([
                 // todo: better than this +5 / -5. Some angles don't render.
@@ -150,7 +150,7 @@ fn nodes_gl() -> [DrawData; 3] {
     let mut dd_frames = DrawData::default();
     let mut dd_masteries = DrawData::default();
 
-    for node in TREE.nodes.values().filter(|n| n.group.is_some() && n.class_start_index.is_none() && !n.is_ascendancy_start) {
+    for node in TREE.nodes.values().filter(|n| n.group.is_some() && n.class_start_index.is_none()) {
         let typ = {
             if node.is_notable {
                 NodeType::Notable
@@ -223,7 +223,14 @@ fn group_background_gl() -> DrawData {
 }
 
 fn ascendancies_gl() -> DrawData {
-    todo!()
+    let mut dd = DrawData::default();
+    for node in TREE.nodes.values().filter(|n| n.is_ascendancy_start) {
+        let sprite = &TREE.sprites["ascendancyBackground"];
+        let rect = &sprite.coords[&("Classes".to_string() + node.ascendancy_name.as_ref().unwrap())];
+        let (x, y) = node_pos(node);
+        dd.append(x, y, rect, sprite, false);
+    }
+    dd
 }
 
 fn load_texture(img: &ddsfile::Dds, gl: &glow::Context) -> glow::Texture {
@@ -416,6 +423,8 @@ impl TreeGl {
         self.draw_data.insert("background".to_string(), GlDrawData::new(gl, &data));
         let data = connectors_gl();
         self.draw_data.insert("connectors".to_string(), GlDrawData::new(gl, &data));
+        let data = ascendancies_gl();
+        self.draw_data.insert("ascendancy_background".to_string(), GlDrawData::new(gl, &data));
         self.init_shaders(gl);
     }
 
@@ -430,6 +439,7 @@ impl TreeGl {
     pub fn draw(&mut self/*, state: &State*/, gl: &glow::Context, zoom: f32, translate: (i32, i32)) {
         let draw_order = [
             ("background", "group-background-3.dds"),
+            ("ascendancy_background", "ascendancy-background-3.dds"),
             ("connectors", "line-3.dds"),
             ("nodes", "skills-3.dds"),
             ("frames", "frame-3.dds"),
