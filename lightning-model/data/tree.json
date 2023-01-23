@@ -39,8 +39,8 @@
   },
   "groups": {
     "1": {
-      "x": -11294.2,
-      "y": 3798.7,
+      "x": -10400.0,
+      "y": 3700.0,
       "orbits": [
         0,
         2,
@@ -70,8 +70,8 @@
       ]
     },
     "2": {
-      "x": -11162,
-      "y": -4709.71,
+      "x": -10400,
+      "y": -5200.0,
       "orbits": [
         0,
         2,
@@ -101,8 +101,8 @@
       ]
     },
     "3": {
-      "x": -10908,
-      "y": 2363.24,
+      "x": -10585.5,
+      "y": 2507.24,
       "orbits": [
         2
       ],
@@ -118,8 +118,8 @@
       ]
     },
     "4": {
-      "x": -10860,
-      "y": 4824.9,
+      "x": -10403.7,
+      "y": 5198.65,
       "orbits": [
         2,
         3
@@ -138,8 +138,8 @@
       ]
     },
     "5": {
-      "x": -10856.3,
-      "y": 4826.25,
+      "x": -10400.0,
+      "y": 5200.0,
       "orbits": [
         0,
         2,
@@ -163,8 +163,8 @@
       ]
     },
     "6": {
-      "x": -10740.6,
-      "y": -3165.47,
+      "x": -10400.0,
+      "y": -3700.0,
       "orbits": [
         0,
         2,
@@ -196,8 +196,8 @@
       ]
     },
     "7": {
-      "x": -10722.5,
-      "y": 2056,
+      "x": -10400.0,
+      "y": 2200,
       "orbits": [
         0,
         2,
@@ -225,8 +225,8 @@
       ]
     },
     "8": {
-      "x": -10501.4,
-      "y": -2113.2,
+      "x": -10400.0,
+      "y": -2200.0,
       "orbits": [
         0,
         2,
@@ -313,8 +313,8 @@
       ]
     },
     "13": {
-      "x": -9224.29,
-      "y": 8635.09,
+      "x": -8397.960000000001,
+      "y": 7384.120000000001,
       "orbits": [
         0
       ],
@@ -353,8 +353,8 @@
       ]
     },
     "16": {
-      "x": -9135.17,
-      "y": 8558.6,
+      "x": -8308.84,
+      "y": 7307.630000000001,
       "orbits": [
         1
       ],
@@ -366,8 +366,8 @@
       ]
     },
     "17": {
-      "x": -9089.87,
-      "y": 8023.15,
+      "x": -8263.54,
+      "y": 6772.18,
       "orbits": [
         0
       ],
@@ -376,8 +376,8 @@
       ]
     },
     "18": {
-      "x": -9044.79,
-      "y": 8635.83,
+      "x": -8218.460000000001,
+      "y": 7384.860000000001,
       "orbits": [
         0
       ],
@@ -386,8 +386,8 @@
       ]
     },
     "19": {
-      "x": -8996.04,
-      "y": 8185.75,
+      "x": -8169.710000000001,
+      "y": 6934.780000000001,
       "orbits": [
         0
       ],
@@ -396,8 +396,8 @@
       ]
     },
     "20": {
-      "x": -8996.04,
-      "y": 8239.33,
+      "x": -8169.710000000001,
+      "y": 6988.360000000001,
       "orbits": [
         2
       ],
@@ -413,8 +413,8 @@
       ]
     },
     "21": {
-      "x": -8994.88,
-      "y": 8664.64,
+      "x": -8168.549999999999,
+      "y": 7413.67,
       "orbits": [
         2
       ],
@@ -440,8 +440,8 @@
       ]
     },
     "23": {
-      "x": -8903.87,
-      "y": 8024.11,
+      "x": -8077.540000000001,
+      "y": 6773.14,
       "orbits": [
         0
       ],
@@ -450,8 +450,8 @@
       ]
     },
     "24": {
-      "x": -8858.54,
-      "y": 8904.92,
+      "x": -8032.210000000001,
+      "y": 7653.950000000001,
       "orbits": [
         0
       ],
@@ -488,8 +488,8 @@
       ]
     },
     "27": {
-      "x": -8766.63,
-      "y": 8981.3,
+      "x": -7940.299999999999,
+      "y": 7730.33,
       "orbits": [
         1
       ],
@@ -501,8 +501,8 @@
       ]
     },
     "28": {
-      "x": -8672.7,
-      "y": 8903.74,
+      "x": -7846.370000000001,
+      "y": 7652.77,
       "orbits": [
         0
       ],
@@ -511,8 +511,8 @@
       ]
     },
     "29": {
-      "x": -8626.33,
-      "y": 8450.97,
+      "x": -7800.0,
+      "y": 7200.0,
       "orbits": [
         0
       ],
@@ -521,8 +521,8 @@
       ]
     },
     "30": {
-      "x": -8626.33,
-      "y": 8876.97,
+      "x": -7800.0,
+      "y": 7626.0,
       "orbits": [
         2
       ],
@@ -538,8 +538,8 @@
       ]
     },
     "31": {
-      "x": -8625.18,
-      "y": 8024.98,
+      "x": -7798.85,
+      "y": 6774.01,
       "orbits": [
         2
       ],
@@ -555,8 +555,8 @@
       ]
     },
     "32": {
-      "x": -8576.06,
-      "y": 7996.61,
+      "x": -7749.73,
+      "y": 6745.64,
       "orbits": [
         0
       ],
@@ -565,8 +565,8 @@
       ]
     },
     "33": {
-      "x": -8484.88,
-      "y": 7837.44,
+      "x": -7658.549999999999,
+      "y": 6586.47,
       "orbits": [
         0
       ],
@@ -575,8 +575,8 @@
       ]
     },
     "34": {
-      "x": -8394.33,
-      "y": 7996.25,
+      "x": -7568.0,
+      "y": 6745.280000000001,
       "orbits": [
         0
       ],
@@ -585,8 +585,8 @@
       ]
     },
     "35": {
-      "x": -8347.59,
-      "y": 8878.04,
+      "x": -7521.26,
+      "y": 7627.0700000000015,
       "orbits": [
         0
       ],
@@ -670,8 +670,8 @@
       ]
     },
     "39": {
-      "x": -8257.41,
-      "y": 8237.97,
+      "x": -7431.08,
+      "y": 6987.0,
       "orbits": [
         2
       ],
@@ -687,8 +687,8 @@
       ]
     },
     "40": {
-      "x": -8257.41,
-      "y": 8663.97,
+      "x": -7431.08,
+      "y": 7413.0,
       "orbits": [
         2
       ],
@@ -704,8 +704,8 @@
       ]
     },
     "41": {
-      "x": -8257.41,
-      "y": 8718.16,
+      "x": -7431.08,
+      "y": 7467.1900000000005,
       "orbits": [
         0
       ],
@@ -724,8 +724,8 @@
       ]
     },
     "43": {
-      "x": -8235.58,
-      "y": 8838.58,
+      "x": -7409.25,
+      "y": 7587.610000000001,
       "orbits": [
         1
       ],
@@ -737,8 +737,8 @@
       ]
     },
     "44": {
-      "x": -8207.47,
-      "y": 8266.8,
+      "x": -7381.139999999999,
+      "y": 7015.83,
       "orbits": [
         0
       ],
@@ -772,8 +772,8 @@
       ]
     },
     "46": {
-      "x": -8117.1,
-      "y": 8424.97,
+      "x": -7290.77,
+      "y": 7174.0,
       "orbits": [
         0
       ],
@@ -843,8 +843,8 @@
       ]
     },
     "51": {
-      "x": -8024.25,
-      "y": 8265.35,
+      "x": -7197.92,
+      "y": 7014.380000000001,
       "orbits": [
         0
       ],
@@ -3728,8 +3728,8 @@
       ]
     },
     "248": {
-      "x": -2365.45,
-      "y": 9506.97,
+      "x": -1500.0,
+      "y": 9800.0,
       "orbits": [
         0,
         2,
@@ -3935,8 +3935,8 @@
       ]
     },
     "260": {
-      "x": -1907.16,
-      "y": -10461,
+      "x": -1500.0,
+      "y": -9850,
       "orbits": [
         0,
         2,
@@ -4740,8 +4740,8 @@
       ]
     },
     "312": {
-      "x": -140.875,
-      "y": -10537.2,
+      "x": 0.0,
+      "y": -9850.0,
       "orbits": [
         0,
         2,
@@ -4773,8 +4773,8 @@
       ]
     },
     "313": {
-      "x": -54.435,
-      "y": 10023.8,
+      "x": 0.0,
+      "y": 9800.0,
       "orbits": [
         0,
         2,
@@ -5642,8 +5642,8 @@
       ]
     },
     "365": {
-      "x": 1281.8,
-      "y": -10697.8,
+      "x": 1138.37,
+      "y": -9858.0,
       "orbits": [
         0
       ],
@@ -5841,8 +5841,8 @@
       ]
     },
     "379": {
-      "x": 1643.43,
-      "y": -10689.8,
+      "x": 1500.0,
+      "y": -9850.0,
       "orbits": [
         0,
         2,
@@ -6051,8 +6051,8 @@
       ]
     },
     "393": {
-      "x": 2077.88,
-      "y": 9526.54,
+      "x": 1500.0,
+      "y": 9800.0,
       "orbits": [
         0,
         3,
@@ -9744,8 +9744,8 @@
       ]
     },
     "641": {
-      "x": 10840.6,
-      "y": -5107.4,
+      "x": 10200.0,
+      "y": -5200.0,
       "orbits": [
         0,
         2,
@@ -9775,8 +9775,8 @@
       ]
     },
     "642": {
-      "x": 10975.2,
-      "y": 2859.09,
+      "x": 10200.0,
+      "y": 3700.0,
       "orbits": [
         0,
         2,
@@ -9806,8 +9806,8 @@
       ]
     },
     "643": {
-      "x": 11032,
-      "y": -3721.64,
+      "x": 10200,
+      "y": -3700.0,
       "orbits": [
         0,
         2,
@@ -9837,8 +9837,8 @@
       ]
     },
     "644": {
-      "x": 11352.8,
-      "y": -1818.33,
+      "x": 10200.0,
+      "y": -2200.0,
       "orbits": [
         0,
         2,
@@ -9868,8 +9868,8 @@
       ]
     },
     "645": {
-      "x": 11985.8,
-      "y": 4326.27,
+      "x": 10200.0,
+      "y": 5200.0,
       "orbits": [
         0,
         2,
@@ -9897,8 +9897,8 @@
       ]
     },
     "646": {
-      "x": 12430.9,
-      "y": 2653.38,
+      "x": 10200.0,
+      "y": 2200.0,
       "orbits": [
         0,
         2,
@@ -9929,6 +9929,76 @@
         28995,
         45313,
         56856
+      ]
+    },
+    "44472": {
+      "x": 0,
+      "y": -10850,
+      "orbits": [
+        0
+      ],
+      "nodes": [
+        27602
+      ]
+    },
+    "50933": {
+      "x": -11400,
+      "y": -3700,
+      "orbits": [
+        0
+      ],
+      "nodes": [
+        57568
+      ]
+    },
+    "25519": {
+      "x": -11400,
+      "y": 3700,
+      "orbits": [
+        0
+      ],
+      "nodes": [
+        52435
+      ]
+    },
+    "60495": {
+      "x": -8800,
+      "y": 8200,
+      "orbits": [
+        0
+      ],
+      "nodes": [
+        19355
+      ]
+    },
+    "63033": {
+      "x": 0,
+      "y": 10800,
+      "orbits": [
+        0
+      ],
+      "nodes": [
+        42469
+      ]
+    },
+    "56600": {
+      "x": 11200,
+      "y": 3700,
+      "orbits": [
+        0
+      ],
+      "nodes": [
+        18054
+      ]
+    },
+    "37841": {
+      "x": 11200,
+      "y": -3700,
+      "orbits": [
+        0
+      ],
+      "nodes": [
+        57331
       ]
     }
   },
@@ -73542,6 +73612,132 @@
       "stats": [
         "2% increased Effect of your Curses"
       ]
+    },
+    "27602": {
+      "name": "Nine Lives",
+      "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Int.png",
+      "isNotable": true,
+      "skill": 27602,
+      "group": 44472,
+      "ascendancyName": "Necromancer",
+      "orbit": 0,
+      "orbitIndex": 0,
+      "out": [],
+      "in": [],
+      "stats": [
+        "25% of Damage taken Recouped as Life, Mana and Energy Shield",
+        "Recoup Effects instead occur over 3 seconds"
+      ],
+      "reminderText": [
+        "(Only Damage from Hits can be Recouped, over 4 seconds following the Hit)"
+      ]
+    },
+    "57568": {
+      "name": "Searing Purity",
+      "icon": "Art/2DArt/SkillIcons/passives/Ascendants/StrInt.png",
+      "isNotable": true,
+      "skill": 57568,
+      "group": 50933,
+      "ascendancyName": "Guardian",
+      "orbit": 0,
+      "orbitIndex": 0,
+      "out": [],
+      "in": [],
+      "stats": [
+        "45% of Chaos Damage taken as Fire Damage",
+        "45% of Chaos Damage taken as Lightning Damage"
+      ],
+      "reminderText": []
+    },
+    "52435": {
+      "name": "Indomitable Resolve",
+      "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Str.png",
+      "isNotable": true,
+      "skill": 52435,
+      "group": 25519,
+      "ascendancyName": "Berserker",
+      "orbit": 0,
+      "orbitIndex": 0,
+      "out": [],
+      "in": [],
+      "stats": [
+        "Deal 10% less Damage",
+        "Take 25% less Damage"
+      ],
+      "reminderText": []
+    },
+    "19355": {
+      "name": "Unleashed Potential",
+      "icon": "Art/2DArt/SkillIcons/passives/Ascendants/SkillPoint.png",
+      "skill": 19355,
+      "group": 60495,
+      "ascendancyName": "Ascendant",
+      "orbit": 0,
+      "orbitIndex": 0,
+      "out": [],
+      "in": [],
+      "stats": [
+        "400% increased Endurance, Frenzy and Power Charge Duration",
+        "25% chance to gain a Power, Frenzy or Endurance Charge on Kill",
+        "+1 to Maximum Endurance Charges",
+        "+1 to Maximum Frenzy Charges",
+        "+1 to Maximum Power Charges"
+      ],
+      "reminderText": []
+    },
+    "42469": {
+      "name": "Fatal Flourish",
+      "icon": "Art/2DArt/SkillIcons/passives/Ascendants/StrDex.png",
+      "isNotable": true,
+      "skill": 42469,
+      "group": 63033,
+      "ascendancyName": "Champion",
+      "orbit": 0,
+      "orbitIndex": 0,
+      "out": [],
+      "in": [],
+      "stats": [
+        "Final Repeat of Attack Skills deals 60% more Damage",
+        "Non-Travel Attack Skills Repeat an additional Time"
+      ],
+      "reminderText": []
+    },
+    "18054": {
+      "name": "Fury of Nature",
+      "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Dex.png",
+      "isNotable": true,
+      "skill": 18054,
+      "group": 56600,
+      "ascendancyName": "Raider",
+      "orbit": 0,
+      "orbitIndex": 0,
+      "out": [],
+      "in": [],
+      "stats": [
+        "Non-Damaging Elemental Ailments you inflict spread to nearby enemies in a radius of 20",
+        "Non-Damaging Elemental Ailments you inflict have 100% more Effect"
+      ],
+      "reminderText": [
+        "(Elemental Ailments are Ignited, Scorched, Chilled, Frozen, Brittled, Shocked, and Sapped)"
+      ]
+    },
+    "57331": {
+      "name": "Harness the Void",
+      "icon": "Art/2DArt/SkillIcons/passives/Ascendants/DexInt.png",
+      "isNotable": true,
+      "skill": 57331,
+      "group": 37841,
+      "ascendancyName": "Saboteur",
+      "orbit": 0,
+      "orbitIndex": 0,
+      "out": [],
+      "in": [],
+      "stats": [
+        "27% chance to gain 25% of Non-Chaos Damage with Hits as Extra Chaos Damage",
+        "13% chance to gain 50% of Non-Chaos Damage with Hits as Extra Chaos Damage",
+        "7% chance to gain 100% of Non-Chaos Damage with Hits as Extra Chaos Damage"
+      ],
+      "reminderText": []
     }
   },
   "jewelSlots": [

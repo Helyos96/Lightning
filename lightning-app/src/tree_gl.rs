@@ -84,12 +84,12 @@ struct DrawData {
 }
 
 impl DrawData {
-    fn append(&mut self, x: f32, y: f32, rect: &tree::Rect, sprite: &tree::Sprite, vflip: bool) {
+    fn append(&mut self, x: f32, y: f32, rect: &tree::Rect, sprite: &tree::Sprite, vflip: bool, scale: f32) {
         self.vertices.extend([
-            norm(x - rect.w as f32 / 2.0, y - rect.h as f32 / 2.0), // Bottom Left
-            norm(x - rect.w as f32 / 2.0, y + rect.h as f32 / 2.0), // Top Left
-            norm(x + rect.w as f32 / 2.0, y + rect.h as f32 / 2.0), // Top Right
-            norm(x + rect.w as f32 / 2.0, y - rect.h as f32 / 2.0), // Bottom Right
+            norm(x - (rect.w as f32 * scale) / 2.0, y - (rect.h as f32 * scale) / 2.0), // Bottom Left
+            norm(x - (rect.w as f32 * scale) / 2.0, y + (rect.h as f32 * scale) / 2.0), // Top Left
+            norm(x + (rect.w as f32 * scale) / 2.0, y + (rect.h as f32 * scale) / 2.0), // Top Right
+            norm(x + (rect.w as f32 * scale) / 2.0, y - (rect.h as f32 * scale) / 2.0), // Bottom Right
         ]);
 
         if vflip {
@@ -174,9 +174,9 @@ fn nodes_gl() -> [DrawData; 3] {
         let (x, y) = node_pos(node);
 
         if typ == NodeType::Mastery {
-            dd_masteries.append(x, y, rect, sprite, false);
+            dd_masteries.append(x, y, rect, sprite, false, 1.0);
         } else {
-            dd_nodes.append(x, y, rect, sprite, false);
+            dd_nodes.append(x, y, rect, sprite, false, 1.0);
             let sprite = &TREE.sprites["frame"];
             let rect = match typ {
                 NodeType::Normal => &sprite.coords["PSSkillFrame"],
@@ -184,7 +184,7 @@ fn nodes_gl() -> [DrawData; 3] {
                 NodeType::Keystone => &sprite.coords["KeystoneFrameUnallocated"],
                 NodeType::Mastery => panic!("No frame for masteries"),
             };
-            dd_frames.append(x, y, rect, sprite, false);
+            dd_frames.append(x, y, rect, sprite, false, 1.0);
         }
     }
     [dd_nodes, dd_frames, dd_masteries]
@@ -206,18 +206,18 @@ fn group_background_gl() -> DrawData {
             // Need to draw upper half and then bottom half (vertically flipped)
             // todo: fix seams that appear sometimes
             y += rect.h as f32 / 2.0;
-            dd.append(x, y, rect, sprite, false);
+            dd.append(x, y, rect, sprite, false, 1.0);
             y -= rect.h as f32;
-            dd.append(x, y, rect, sprite, true);
+            dd.append(x, y, rect, sprite, true, 1.0);
         } else {
-            dd.append(x, y, rect, sprite, false);
+            dd.append(x, y, rect, sprite, false, 1.0);
         }
     }
     let sprite = &TREE.sprites["startNode"];
     let rect = &sprite.coords["PSStartNodeBackgroundInactive"];
     for node in TREE.nodes.values().filter(|n| n.class_start_index.is_some()) {
         let (x, y) = node_pos(node);
-        dd.append(x, y, rect, sprite, false);
+        dd.append(x, y, rect, sprite, false, 2.5);
     }
     dd
 }
@@ -228,7 +228,7 @@ fn ascendancies_gl() -> DrawData {
         let sprite = &TREE.sprites["ascendancyBackground"];
         let rect = &sprite.coords[&("Classes".to_string() + node.ascendancy_name.as_ref().unwrap())];
         let (x, y) = node_pos(node);
-        dd.append(x, y, rect, sprite, false);
+        dd.append(x, y, rect, sprite, false, 2.5);
     }
     dd
 }
