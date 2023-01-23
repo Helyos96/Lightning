@@ -28,13 +28,15 @@ enum NodeType {
     Normal,
     Notable,
     Keystone,
+    Mastery,
 }
 
-fn get_rect(icon: &str, typ: NodeType) -> Option<(&'static tree::Rect, &'static tree::Sprite)> {
+fn get_rect(mut icon: &str, typ: NodeType) -> Option<(&'static tree::Rect, &'static tree::Sprite)> {
     let key = match typ {
         NodeType::Normal => "normalActive",
         NodeType::Notable => "notableActive",
         NodeType::Keystone => "keystoneActive",
+        NodeType::Mastery => "masteryConnected",
     };
     let sprite = &TREE.sprites[key];
     let rect = sprite.coords.get(icon)?;
@@ -69,27 +71,36 @@ fn append_to(x: f32, y: f32, rect: &tree::Rect, sprite: &tree::Sprite, vertices:
     indices.extend([start, start + 1, start + 2, start + 3, start, start + 2]);
 }
 
-fn nodes_gl() -> [(Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>); 2] {
+fn nodes_gl() -> [(Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>); 3] {
     let mut vertices = vec![];
     let mut tex_coords = vec![];
     let mut indices = vec![];
     let mut vertices_frames = vec![];
     let mut tex_coords_frames = vec![];
     let mut indices_frames = vec![];
+    let mut vertices_masteries = vec![];
+    let mut tex_coords_masteries = vec![];
+    let mut indices_masteries = vec![];
     let orbit_angles = calc_angles();
 
     for node in TREE.nodes.values().filter(|n| n.group.is_some()) {
         let typ = {
-            if node.is_notable.is_some() {
+            if node.is_notable {
                 NodeType::Notable
-            } else if node.is_keystone.is_some() {
+            } else if node.is_keystone {
                 NodeType::Keystone
+            } else if node.is_mastery {
+                NodeType::Mastery
             } else {
                 NodeType::Normal
             }
         };
-        let (rect,sprite) = match get_rect(&node.icon, typ) {
-            None => { println!("No rect for {}", &node.icon); continue },
+        let icon = match typ {
+            NodeType::Mastery => node.inactive_icon.as_ref().unwrap(),
+            _ => &node.icon,
+        };
+        let (rect,sprite) = match get_rect(icon, typ) {
+            None => { println!("No rect for {}", icon); continue },
             Some(res) => res,
         };
         let group = node.group.unwrap();
@@ -99,19 +110,20 @@ fn nodes_gl() -> [(Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>); 2] {
 
         let x = TREE.groups[&group].x + (angle.sin() * orbit_radius as f32) + TREE.min_x.abs() as f32;
         let y = TREE.groups[&group].y.neg() + (angle.cos() * orbit_radius as f32) + TREE.min_y.abs() as f32;
-        append_to(x, y, &rect, &sprite, &mut vertices, &mut tex_coords, &mut indices, false);
 
-        let sprite = &TREE.sprites["frame"];
-        let rect = {
-            if node.is_notable.is_some() {
-                &sprite.coords["NotableFrameUnallocated"]
-            } else if node.is_keystone.is_some() {
-                &sprite.coords["KeystoneFrameUnallocated"]
-            } else {
-                &sprite.coords["PSSkillFrame"]
-            }
-        };
-        append_to(x, y, &rect, &sprite, &mut vertices_frames, &mut tex_coords_frames, &mut indices_frames, false);
+        if typ == NodeType::Mastery {
+            append_to(x, y, &rect, &sprite, &mut vertices_masteries, &mut tex_coords_masteries, &mut indices_masteries, false);
+        } else {
+            append_to(x, y, &rect, &sprite, &mut vertices, &mut tex_coords, &mut indices, false);
+            let sprite = &TREE.sprites["frame"];
+            let rect = match typ {
+                NodeType::Normal => &sprite.coords["PSSkillFrame"],
+                NodeType::Notable => &sprite.coords["NotableFrameUnallocated"],
+                NodeType::Keystone => &sprite.coords["KeystoneFrameUnallocated"],
+                NodeType::Mastery => panic!("No frame for masteries"),
+            };
+            append_to(x, y, &rect, &sprite, &mut vertices_frames, &mut tex_coords_frames, &mut indices_frames, false);
+        }
 
         if let Some(out) = &node.out {
             for _out_id in out {
@@ -122,6 +134,7 @@ fn nodes_gl() -> [(Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>); 2] {
     [
         (vertices, tex_coords, indices),
         (vertices_frames, tex_coords_frames, indices_frames),
+        (vertices_masteries, tex_coords_masteries, indices_masteries),
     ]
 }
 
@@ -353,6 +366,7 @@ impl TreeGl {
         let data = nodes_gl();
         self.draw_data.insert("nodes".to_string(), DrawData::new(gl, &data[0].0, &data[0].1, &data[0].2));
         self.draw_data.insert("frames".to_string(), DrawData::new(gl, &data[1].0, &data[1].1, &data[1].2));
+        self.draw_data.insert("masteries".to_string(), DrawData::new(gl, &data[2].0, &data[2].1, &data[2].2));
         let (vertices, tex_coords, indices) = group_background_gl();
         self.draw_data.insert("background".to_string(), DrawData::new(gl, &vertices, &tex_coords, &indices));
         self.init_shaders(gl);
@@ -371,6 +385,7 @@ impl TreeGl {
             ("background", "group-background-3.dds"),
             ("nodes", "skills-3.dds"),
             ("frames", "frame-3.dds"),
+            ("masteries", "mastery-connected-3.dds"),
         ];
         /*// Uncomment block to recompute draw buffers every frame
         for dd in self.draw_data.values_mut() {

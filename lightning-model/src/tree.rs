@@ -44,20 +44,21 @@ pub struct MasteryEffect {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Node {
     pub stats: Vec<String>,
     pub icon: String,
-    #[serde(rename = "isMastery", default)]
+    pub inactive_icon: Option<String>,
+    #[serde(default)]
     pub is_mastery: bool,
-    #[serde(rename = "isNotable", default)]
-    pub is_notable: Option<bool>,
-    #[serde(rename = "isKeystone", default)]
-    pub is_keystone: Option<bool>,
-    #[serde(rename = "masteryEffects", default)]
+    #[serde(default)]
+    pub is_notable: bool,
+    #[serde(default)]
+    pub is_keystone: bool,
+    #[serde(default)]
     pub mastery_effects: Vec<MasteryEffect>,
     pub group: Option<u16>,
     pub orbit: Option<u16>,
-    #[serde(rename = "orbitIndex")]
     pub orbit_index: Option<u16>,
     pub out: Option<Vec<u16>>,
 }
