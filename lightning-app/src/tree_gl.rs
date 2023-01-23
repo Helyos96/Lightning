@@ -7,6 +7,7 @@ use crate::gui::State;
 use glow::HasContext;
 use std::fs::File;
 use std::ops::Neg;
+use lightning_model::tree::Node;
 
 fn calc_angles() -> Vec<Vec<f32>> {
     let mut ret = vec![];
@@ -23,6 +24,38 @@ fn calc_angles() -> Vec<Vec<f32>> {
     ret
 }
 
+lazy_static! {
+    static ref ORBIT_ANGLES: Vec<Vec<f32>> = calc_angles();
+}
+
+fn node_pos(node: &Node) -> (f32, f32) {
+    let group = node.group.unwrap();
+    let orbit = node.orbit.unwrap() as usize;
+    let angle = ORBIT_ANGLES[orbit][node.orbit_index.unwrap() as usize];
+    let orbit_radius = TREE.constants.orbit_radii[orbit];
+
+    (
+        TREE.groups[&group].x + (angle.sin() * orbit_radius as f32) + TREE.min_x.abs() as f32,
+        TREE.groups[&group].y.neg() + (angle.cos() * orbit_radius as f32) + TREE.min_y.abs() as f32,
+    )
+}
+
+/// Normalize tree coords to GL normalized coords
+fn norm(mut x: f32, mut y: f32) -> (f32, f32) {
+    x /= 12500.0;
+    y /= 12500.0;
+    x -= 1.0;
+    y -= 1.0;
+    (x.clamp(-1.0, 1.0), y.clamp(-1.0, 1.0))
+}
+
+/// Normalize sprite coords to GL texture coords
+fn norm_tex(x: u16, y: u16, w: u16, h: u16) -> (f32, f32) {
+    let x_norm = x as f32 / w as f32;
+    let y_norm = y as f32 / h as f32;
+    (x_norm.clamp(0.0, 1.0), y_norm.clamp(0.0, 1.0))
+}
+
 #[derive(Copy,Clone,Eq,PartialEq)]
 enum NodeType {
     Normal,
@@ -31,7 +64,7 @@ enum NodeType {
     Mastery,
 }
 
-fn get_rect(mut icon: &str, typ: NodeType) -> Option<(&'static tree::Rect, &'static tree::Sprite)> {
+fn get_rect(icon: &str, typ: NodeType) -> Option<(&'static tree::Rect, &'static tree::Sprite)> {
     let key = match typ {
         NodeType::Normal => "normalActive",
         NodeType::Notable => "notableActive",
@@ -53,17 +86,17 @@ fn append_to(x: f32, y: f32, rect: &tree::Rect, sprite: &tree::Sprite, vertices:
 
     if vflip {
         tex_coords.extend([
-            norm_tex(rect.x as f32, rect.y as f32, sprite.w as f32, sprite.h as f32),
-            norm_tex(rect.x as f32, (rect.y + rect.h) as f32, sprite.w as f32, sprite.h as f32),
-            norm_tex((rect.x + rect.w) as f32, (rect.y + rect.h) as f32, sprite.w as f32, sprite.h as f32),
-            norm_tex((rect.x + rect.w) as f32, rect.y as f32, sprite.w as f32, sprite.h as f32),
+            norm_tex(rect.x, rect.y, sprite.w, sprite.h),
+            norm_tex(rect.x, rect.y + rect.h, sprite.w, sprite.h),
+            norm_tex(rect.x + rect.w, rect.y + rect.h, sprite.w, sprite.h),
+            norm_tex(rect.x + rect.w, rect.y, sprite.w, sprite.h),
         ]);
     } else {
         tex_coords.extend([
-            norm_tex(rect.x as f32, (rect.y + rect.h) as f32, sprite.w as f32, sprite.h as f32),
-            norm_tex(rect.x as f32, rect.y as f32, sprite.w as f32, sprite.h as f32),
-            norm_tex((rect.x + rect.w) as f32, rect.y as f32, sprite.w as f32, sprite.h as f32),
-            norm_tex((rect.x + rect.w) as f32, (rect.y + rect.h) as f32, sprite.w as f32, sprite.h as f32),
+            norm_tex(rect.x, rect.y + rect.h, sprite.w, sprite.h),
+            norm_tex(rect.x, rect.y, sprite.w, sprite.h),
+            norm_tex(rect.x + rect.w, rect.y, sprite.w, sprite.h),
+            norm_tex(rect.x + rect.w, rect.y + rect.h, sprite.w, sprite.h),
         ]);
     }
 
@@ -71,6 +104,41 @@ fn append_to(x: f32, y: f32, rect: &tree::Rect, sprite: &tree::Sprite, vertices:
     indices.extend([start, start + 1, start + 2, start + 3, start, start + 2]);
 }
 
+/// Very simple straight connectors. todo: arcs
+fn connectors_gl() -> (Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>) {
+    let mut vertices = vec![];
+    let mut tex_coords = vec![];
+    let mut indices = vec![];
+    let sprite = &TREE.sprites["line"];
+    let rect = &sprite.coords["LineConnectorActive"];
+
+    for node in TREE.nodes.values().filter(|n| n.group.is_some() && !n.name.starts_with("Path of the")) {
+        let (x1, y1) = node_pos(node);
+        for out in node.out.iter().flatten().map(|id| &TREE.nodes[id]).filter(|n| !n.is_ascendancy_start && !n.is_mastery) {
+            let (x2, y2) = node_pos(out);
+            vertices.extend([
+                // todo: better than this +5 / -5. Some angles don't render.
+                norm(x1 - 5.0, y1 + 5.0),
+                norm(x1 + 5.0, y1 - 5.0),
+                norm(x2 + 5.0, y2 - 5.0),
+                norm(x2 - 5.0, y2 + 5.0),
+            ]);
+            tex_coords.extend([
+                norm_tex(rect.x, rect.y + rect.h, sprite.w, sprite.h),
+                norm_tex(rect.x, rect.y, sprite.w, sprite.h),
+                norm_tex(rect.x + rect.w, rect.y, sprite.w, sprite.h),
+                norm_tex(rect.x + rect.w, rect.y + rect.h, sprite.w, sprite.h),
+            ]);
+
+            let start = vertices.len() as u16 - 4;
+            indices.extend([start, start + 1, start + 2, start + 3, start, start + 2]);
+        }
+    }
+
+    (vertices, tex_coords, indices)
+}
+
+/// Nodes, Frames and Masteries
 fn nodes_gl() -> [(Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>); 3] {
     let mut vertices = vec![];
     let mut tex_coords = vec![];
@@ -81,7 +149,6 @@ fn nodes_gl() -> [(Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>); 3] {
     let mut vertices_masteries = vec![];
     let mut tex_coords_masteries = vec![];
     let mut indices_masteries = vec![];
-    let orbit_angles = calc_angles();
 
     for node in TREE.nodes.values().filter(|n| n.group.is_some()) {
         let typ = {
@@ -103,18 +170,13 @@ fn nodes_gl() -> [(Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>); 3] {
             None => { println!("No rect for {}", icon); continue },
             Some(res) => res,
         };
-        let group = node.group.unwrap();
-        let orbit = node.orbit.unwrap() as usize;
-        let angle = orbit_angles[orbit][node.orbit_index.unwrap() as usize];
-        let orbit_radius = TREE.constants.orbit_radii[orbit];
 
-        let x = TREE.groups[&group].x + (angle.sin() * orbit_radius as f32) + TREE.min_x.abs() as f32;
-        let y = TREE.groups[&group].y.neg() + (angle.cos() * orbit_radius as f32) + TREE.min_y.abs() as f32;
+        let (x, y) = node_pos(node);
 
         if typ == NodeType::Mastery {
-            append_to(x, y, &rect, &sprite, &mut vertices_masteries, &mut tex_coords_masteries, &mut indices_masteries, false);
+            append_to(x, y, rect, sprite, &mut vertices_masteries, &mut tex_coords_masteries, &mut indices_masteries, false);
         } else {
-            append_to(x, y, &rect, &sprite, &mut vertices, &mut tex_coords, &mut indices, false);
+            append_to(x, y, rect, sprite, &mut vertices, &mut tex_coords, &mut indices, false);
             let sprite = &TREE.sprites["frame"];
             let rect = match typ {
                 NodeType::Normal => &sprite.coords["PSSkillFrame"],
@@ -122,13 +184,7 @@ fn nodes_gl() -> [(Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>); 3] {
                 NodeType::Keystone => &sprite.coords["KeystoneFrameUnallocated"],
                 NodeType::Mastery => panic!("No frame for masteries"),
             };
-            append_to(x, y, &rect, &sprite, &mut vertices_frames, &mut tex_coords_frames, &mut indices_frames, false);
-        }
-
-        if let Some(out) = &node.out {
-            for _out_id in out {
-                // todo connectors
-            }
+            append_to(x, y, rect, sprite, &mut vertices_frames, &mut tex_coords_frames, &mut indices_frames, false);
         }
     }
     [
@@ -154,31 +210,16 @@ fn group_background_gl() -> (Vec<(f32,f32)>, Vec<(f32,f32)>, Vec<u16>) {
         let mut y = group.y.neg() + TREE.min_y.abs() as f32;
         if background.is_half_image.is_some() {
             // Need to draw upper half and then bottom half (vertically flipped)
+            // todo: fix seams that appear sometimes
             y += rect.h as f32 / 2.0;
-            append_to(x, y, &rect, &sprite, &mut vertices, &mut tex_coords, &mut indices, false);
+            append_to(x, y, rect, sprite, &mut vertices, &mut tex_coords, &mut indices, false);
             y -= rect.h as f32;
-            append_to(x, y, &rect, &sprite, &mut vertices, &mut tex_coords, &mut indices, true);
+            append_to(x, y, rect, sprite, &mut vertices, &mut tex_coords, &mut indices, true);
         } else {
-            append_to(x, y, &rect, &sprite, &mut vertices, &mut tex_coords, &mut indices, false);
+            append_to(x, y, rect, sprite, &mut vertices, &mut tex_coords, &mut indices, false);
         }
     }
     (vertices, tex_coords, indices)
-}
-
-/// Normalize tree coords to GL normalized coords
-fn norm(mut x: f32, mut y: f32) -> (f32, f32) {
-    x /= 12500.0;
-    y /= 12500.0;
-    x -= 1.0;
-    y -= 1.0;
-    (x.clamp(-1.0, 1.0), y.clamp(-1.0, 1.0))
-}
-
-/// Normalize sprite coords to GL texture coords
-fn norm_tex(mut x: f32, mut y: f32, w: f32, h: f32) -> (f32, f32) {
-    x /= w;
-    y /= h;
-    (x.clamp(0.0, 1.0), y.clamp(0.0, 1.0))
 }
 
 fn load_texture(img: &ddsfile::Dds, gl: &glow::Context) -> glow::Texture {
@@ -369,6 +410,8 @@ impl TreeGl {
         self.draw_data.insert("masteries".to_string(), DrawData::new(gl, &data[2].0, &data[2].1, &data[2].2));
         let (vertices, tex_coords, indices) = group_background_gl();
         self.draw_data.insert("background".to_string(), DrawData::new(gl, &vertices, &tex_coords, &indices));
+        let (vertices, tex_coords, indices) = connectors_gl();
+        self.draw_data.insert("connectors".to_string(), DrawData::new(gl, &vertices, &tex_coords, &indices));
         self.init_shaders(gl);
     }
 
@@ -383,6 +426,7 @@ impl TreeGl {
     pub fn draw(&mut self/*, state: &State*/, gl: &glow::Context, zoom: f32, translate: (i32, i32)) {
         let draw_order = [
             ("background", "group-background-3.dds"),
+            ("connectors", "line-3.dds"),
             ("nodes", "skills-3.dds"),
             ("frames", "frame-3.dds"),
             ("masteries", "mastery-connected-3.dds"),

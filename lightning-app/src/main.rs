@@ -13,7 +13,7 @@ use std::time::Instant;
 
 use glow::HasContext;
 use glutin::{event_loop::EventLoop, WindowedContext};
-use glutin::event::{Event, VirtualKeyCode, ElementState};
+use glutin::event::{self, Event, VirtualKeyCode, ElementState};
 use imgui_winit_support::WinitPlatform;
 use lightning_model::{util, calc};
 use gui::{UiState, State};
@@ -27,7 +27,7 @@ type Window = WindowedContext<glutin::PossiblyCurrent>;
 fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
     state.ui_state = match &state.ui_state {
         UiState::LoadBuild(path) => {
-            state.build = util::load_build(&path)?;
+            state.build = util::load_build(path)?;
             println!("Loaded build from {}", &path.display());
             dbg!(&state.build.class);
             UiState::Main
@@ -137,30 +137,25 @@ fn main() {
             event => {
                 match event {
                     Event::WindowEvent {
-                        event: glutin::event::WindowEvent::MouseWheel {
-                            delta,
-                            phase: glutin::event::TouchPhase::Moved,
+                        event: event::WindowEvent::MouseWheel {
+                            delta: event::MouseScrollDelta::LineDelta(_h, v),
+                            phase: event::TouchPhase::Moved,
                             ..
                         },
                         ..
                     } => {
-                        match delta {
-                            glutin::event::MouseScrollDelta::LineDelta(_h, v) => {
-                                state.zoom = f32::max(0.25, state.zoom + v);
-                            },
-                            _ => {},
-                        }
+                        state.zoom = f32::max(0.25, state.zoom + v);
                     },
                     Event::WindowEvent {
-                        event: glutin::event::WindowEvent::Resized(physical_size),
+                        event: event::WindowEvent::Resized(physical_size),
                         ..
                     } => {
                         unsafe { ig_renderer.gl_context().viewport(0, 0, physical_size.width as i32, physical_size.height as i32) };
                     },
                     Event::WindowEvent {
-                        event: glutin::event::WindowEvent::KeyboardInput {
+                        event: event::WindowEvent::KeyboardInput {
                             input:
-                                glutin::event::KeyboardInput {
+                                event::KeyboardInput {
                                     virtual_keycode: Some(key),
                                     state: key_state,
                                     ..

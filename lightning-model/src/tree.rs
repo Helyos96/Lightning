@@ -48,6 +48,7 @@ pub struct MasteryEffect {
 pub struct Node {
     pub stats: Vec<String>,
     pub icon: String,
+    pub name: String,
     pub inactive_icon: Option<String>,
     #[serde(default)]
     pub is_mastery: bool,
@@ -55,6 +56,8 @@ pub struct Node {
     pub is_notable: bool,
     #[serde(default)]
     pub is_keystone: bool,
+    #[serde(default)]
+    pub is_ascendancy_start: bool,
     #[serde(default)]
     pub mastery_effects: Vec<MasteryEffect>,
     pub group: Option<u16>,
