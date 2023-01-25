@@ -13,6 +13,7 @@ pub enum UiState {
     ChooseBuild,
     LoadBuild(PathBuf),
     ImportBuild,
+    NewBuild,
     Main,
 }
 
@@ -87,6 +88,10 @@ pub fn draw_builds(ui: &mut Ui, state: &mut State) {
     ui.window("Build Selection")
         .size([500.0, 500.0], imgui::Condition::FirstUseEver)
         .build(|| {
+            if ui.button("New Build") {
+                state.ui_state = UiState::NewBuild;
+            }
+            ui.separator();
             let build_files = get_build_files(&state.config.builds_dir);
             ListBox::new("Local saves").build(ui, || {
                 for (index, item) in build_files.iter().enumerate() {

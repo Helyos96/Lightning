@@ -17,7 +17,7 @@ use glutin::{event_loop::EventLoop, WindowedContext};
 use gui::{State, UiState};
 use imgui::ConfigFlags;
 use imgui_winit_support::WinitPlatform;
-use lightning_model::{calc, util};
+use lightning_model::{build, calc, util};
 use std::error::Error;
 
 const TITLE: &str = "Lightning";
@@ -36,6 +36,10 @@ fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
             state.build = util::fetch_build(&state.import_account, &state.import_character)?;
             println!("Fetched build: {} {}", &state.import_account, &state.import_character);
             dbg!(&state.build.class);
+            UiState::Main
+        }
+        UiState::NewBuild => {
+            state.build = build::Build::new_player();
             UiState::Main
         }
         _ => state.ui_state.clone(),
