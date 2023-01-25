@@ -4,21 +4,21 @@
 //! A basic self-contained example to get you from zero-to-demo-window as fast
 //! as possible.
 
-mod tree_gl;
 mod clipboard;
 mod config;
 mod gui;
+mod tree_gl;
 
 use std::time::Instant;
 
 use glow::HasContext;
+use glutin::event::{self, ElementState, Event, VirtualKeyCode};
 use glutin::{event_loop::EventLoop, WindowedContext};
-use glutin::event::{self, Event, VirtualKeyCode, ElementState};
-use imgui_winit_support::WinitPlatform;
-use lightning_model::{util, calc};
-use gui::{UiState, State};
-use std::error::Error;
+use gui::{State, UiState};
 use imgui::ConfigFlags;
+use imgui_winit_support::WinitPlatform;
+use lightning_model::{calc, util};
+use std::error::Error;
 
 const TITLE: &str = "Lightning";
 
@@ -38,7 +38,7 @@ fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
             dbg!(&state.build.class);
             UiState::Main
         }
-        _ => { state.ui_state.clone() },
+        _ => state.ui_state.clone(),
     };
     Ok(())
 }
@@ -54,8 +54,8 @@ fn main() {
     let gl = glow_context(&window);
 
     // OpenGL renderer from this crate
-    let mut ig_renderer = imgui_glow_renderer::AutoRenderer::initialize(gl, &mut imgui_context)
-        .expect("failed to create renderer");
+    let mut ig_renderer =
+        imgui_glow_renderer::AutoRenderer::initialize(gl, &mut imgui_context).expect("failed to create renderer");
 
     let mut last_frame = Instant::now();
 
@@ -70,9 +70,7 @@ fn main() {
         match event {
             Event::NewEvents(_) => {
                 let now = Instant::now();
-                imgui_context
-                    .io_mut()
-                    .update_delta_time(now.duration_since(last_frame));
+                imgui_context.io_mut().update_delta_time(now.duration_since(last_frame));
                 last_frame = now;
             }
             Event::MainEventsCleared => {
@@ -88,7 +86,7 @@ fn main() {
                 let ui = imgui_context.frame();
                 match state.ui_state {
                     UiState::ChooseBuild => gui::draw_builds(ui, &mut state),
-                    UiState::Main => { 
+                    UiState::Main => {
                         if state.key_left == ElementState::Pressed {
                             state.tree_translate.0 += 50;
                         }
@@ -101,9 +99,13 @@ fn main() {
                         if state.key_down == ElementState::Pressed {
                             state.tree_translate.1 += 50;
                         }
-                        state.tree_gl.draw(/*&state, */ig_renderer.gl_context(), state.zoom, state.tree_translate);
+                        state.tree_gl.draw(
+                            /*&state, */ ig_renderer.gl_context(),
+                            state.zoom,
+                            state.tree_translate,
+                        );
                         gui::draw_main(ui, &mut state);
-                    },
+                    }
                     _ => eprintln!("Can't draw state {:?}", state.ui_state),
                 };
                 /*ui.window("viewport")
@@ -125,9 +127,7 @@ fn main() {
                 let draw_data = imgui_context.render();
 
                 // This is the only extra render step to add
-                ig_renderer
-                    .render(draw_data)
-                    .expect("error rendering imgui");
+                ig_renderer.render(draw_data).expect("error rendering imgui");
 
                 window.swap_buffers().unwrap();
             }
@@ -140,42 +140,49 @@ fn main() {
             event => {
                 match event {
                     Event::WindowEvent {
-                        event: event::WindowEvent::MouseWheel {
-                            delta: event::MouseScrollDelta::LineDelta(_h, v),
-                            phase: event::TouchPhase::Moved,
-                            ..
-                        },
+                        event:
+                            event::WindowEvent::MouseWheel {
+                                delta: event::MouseScrollDelta::LineDelta(_h, v),
+                                phase: event::TouchPhase::Moved,
+                                ..
+                            },
                         ..
                     } => {
                         state.zoom = f32::max(0.25, state.zoom + v);
-                    },
+                    }
                     Event::WindowEvent {
                         event: event::WindowEvent::Resized(physical_size),
                         ..
                     } => {
-                        unsafe { ig_renderer.gl_context().viewport(0, 0, physical_size.width as i32, physical_size.height as i32) };
-                    },
+                        unsafe {
+                            ig_renderer.gl_context().viewport(
+                                0,
+                                0,
+                                physical_size.width as i32,
+                                physical_size.height as i32,
+                            )
+                        };
+                    }
                     Event::WindowEvent {
-                        event: event::WindowEvent::KeyboardInput {
-                            input:
-                                event::KeyboardInput {
-                                    virtual_keycode: Some(key),
-                                    state: key_state,
-                                    ..
-                                },
-                            ..
-                        },
+                        event:
+                            event::WindowEvent::KeyboardInput {
+                                input:
+                                    event::KeyboardInput {
+                                        virtual_keycode: Some(key),
+                                        state: key_state,
+                                        ..
+                                    },
+                                ..
+                            },
                         ..
-                    } => {
-                        match key {
-                            VirtualKeyCode::Left => state.key_left = key_state,
-                            VirtualKeyCode::Right => state.key_right = key_state,
-                            VirtualKeyCode::Up => state.key_up = key_state,
-                            VirtualKeyCode::Down => state.key_down = key_state,
-                            _ => {},
-                        }
+                    } => match key {
+                        VirtualKeyCode::Left => state.key_left = key_state,
+                        VirtualKeyCode::Right => state.key_right = key_state,
+                        VirtualKeyCode::Up => state.key_up = key_state,
+                        VirtualKeyCode::Down => state.key_down = key_state,
+                        _ => {}
                     },
-                    _ => {},
+                    _ => {}
                 }
                 winit_platform.handle_event(imgui_context.io_mut(), window.window(), &event);
             }
@@ -185,18 +192,13 @@ fn main() {
 
 fn create_window() -> (EventLoop<()>, Window) {
     let event_loop = glutin::event_loop::EventLoop::new();
-    let window = glutin::window::WindowBuilder::new()
-        .with_title(TITLE);
-        //.with_inner_size(glutin::dpi::LogicalSize::new(1024, 768));
+    let window = glutin::window::WindowBuilder::new().with_title(TITLE);
+    //.with_inner_size(glutin::dpi::LogicalSize::new(1024, 768));
     let window = glutin::ContextBuilder::new()
         .with_vsync(true)
         .build_windowed(window, &event_loop)
         .expect("could not create window");
-    let window = unsafe {
-        window
-            .make_current()
-            .expect("could not make window context current")
-    };
+    let window = unsafe { window.make_current().expect("could not make window context current") };
     (event_loop, window)
 }
 

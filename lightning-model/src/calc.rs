@@ -8,7 +8,7 @@ use rustc_hash::FxHashMap;
     int100(i64),
 }*/
 
-pub fn calc_gem(build: &Build, support_gems: &Vec<Gem>, active_gem: &Gem)-> FxHashMap<&'static str, i64> {
+pub fn calc_gem(build: &Build, support_gems: &Vec<Gem>, active_gem: &Gem) -> FxHashMap<&'static str, i64> {
     assert!(!active_gem.data().is_support);
     let mut ret = FxHashMap::default();
     let display_name = &active_gem.data().base_item.as_ref().unwrap().display_name;

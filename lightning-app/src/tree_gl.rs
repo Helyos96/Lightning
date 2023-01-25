@@ -1,13 +1,13 @@
-use lightning_model::data::TREE;
-use lightning_model::build::Build;
-use lightning_model::tree::{self, NodeType};
-use lazy_static::lazy_static;
-use rustc_hash::FxHashMap;
 use crate::gui::State;
 use glow::HasContext;
+use lazy_static::lazy_static;
+use lightning_model::build::Build;
+use lightning_model::data::TREE;
+use lightning_model::tree::Node;
+use lightning_model::tree::{self, NodeType};
+use rustc_hash::FxHashMap;
 use std::fs::File;
 use std::ops::Neg;
-use lightning_model::tree::Node;
 
 fn calc_angles() -> Vec<Vec<f32>> {
     let mut ret = vec![];
@@ -15,8 +15,11 @@ fn calc_angles() -> Vec<Vec<f32>> {
         ret.push({
             let angles = match skills {
                 16 => vec![0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 240, 270, 300, 315, 330],
-                40 => vec![0, 10, 20, 30, 40, 45, 50, 60, 70, 80, 90, 100, 110, 120, 130, 135, 140, 150, 160, 170, 180, 190, 200, 210, 220, 225, 230, 240, 250, 260, 270, 280, 290, 300, 310, 315, 320, 330, 340, 350],
-                n => (0..*n).into_iter().map(|i| (360 * i) / n).collect(), 
+                40 => vec![
+                    0, 10, 20, 30, 40, 45, 50, 60, 70, 80, 90, 100, 110, 120, 130, 135, 140, 150, 160, 170, 180, 190,
+                    200, 210, 220, 225, 230, 240, 250, 260, 270, 280, 290, 300, 310, 315, 320, 330, 340, 350,
+                ],
+                n => (0..*n).into_iter().map(|i| (360 * i) / n).collect(),
             };
             angles.into_iter().map(|a| (a as f32).to_radians()).collect()
         });
@@ -58,8 +61,8 @@ fn norm_tex(x: u16, y: u16, w: u16, h: u16) -> (f32, f32) {
 
 fn get_rect(node: &Node) -> Option<(&'static tree::Rect, &'static tree::Sprite)> {
     let (key, icon): (&str, &str) = match node.node_type() {
-        NodeType::Normal|NodeType::AscendancyNormal => ("normalActive", &node.icon),
-        NodeType::Notable|NodeType::AscendancyNotable => ("notableActive", &node.icon),
+        NodeType::Normal | NodeType::AscendancyNormal => ("normalActive", &node.icon),
+        NodeType::Notable | NodeType::AscendancyNotable => ("notableActive", &node.icon),
         NodeType::Keystone => ("keystoneActive", &node.icon),
         NodeType::Mastery => ("masteryConnected", node.inactive_icon.as_ref().unwrap()),
     };
@@ -70,8 +73,8 @@ fn get_rect(node: &Node) -> Option<(&'static tree::Rect, &'static tree::Sprite)>
 
 #[derive(Default)]
 struct DrawData {
-    vertices: Vec<(f32,f32)>,
-    tex_coords: Vec<(f32,f32)>,
+    vertices: Vec<(f32, f32)>,
+    tex_coords: Vec<(f32, f32)>,
     indices: Vec<u16>,
 }
 
@@ -101,7 +104,8 @@ impl DrawData {
         }
 
         let start = self.vertices.len() as u16 - 4;
-        self.indices.extend([start, start + 1, start + 2, start + 3, start, start + 2]);
+        self.indices
+            .extend([start, start + 1, start + 2, start + 3, start, start + 2]);
     }
 }
 
@@ -111,9 +115,19 @@ fn connectors_gl() -> DrawData {
     let sprite = &TREE.sprites["line"];
     let rect = &sprite.coords["LineConnectorActive"];
 
-    for node in TREE.nodes.values().filter(|n| n.group.is_some() && !n.name.starts_with("Path of the") && n.class_start_index.is_none()) {
+    for node in TREE
+        .nodes
+        .values()
+        .filter(|n| n.group.is_some() && !n.name.starts_with("Path of the") && n.class_start_index.is_none())
+    {
         let (x1, y1) = node_pos(node);
-        for out in node.out.iter().flatten().map(|id| &TREE.nodes[id]).filter(|n| !n.is_ascendancy_start && !n.is_mastery && n.class_start_index.is_none()) {
+        for out in node
+            .out
+            .iter()
+            .flatten()
+            .map(|id| &TREE.nodes[id])
+            .filter(|n| !n.is_ascendancy_start && !n.is_mastery && n.class_start_index.is_none())
+        {
             let (x2, y2) = node_pos(out);
             dd.vertices.extend([
                 // todo: better than this +5 / -5. Some angles don't render.
@@ -130,7 +144,8 @@ fn connectors_gl() -> DrawData {
             ]);
 
             let start = dd.vertices.len() as u16 - 4;
-            dd.indices.extend([start, start + 1, start + 2, start + 3, start, start + 2]);
+            dd.indices
+                .extend([start, start + 1, start + 2, start + 3, start, start + 2]);
         }
     }
     dd
@@ -143,9 +158,16 @@ fn nodes_gl() -> [DrawData; 4] {
     let mut dd_masteries = DrawData::default();
     let mut dd_asc_frames = DrawData::default();
 
-    for node in TREE.nodes.values().filter(|n| n.group.is_some() && n.class_start_index.is_none()) {
+    for node in TREE
+        .nodes
+        .values()
+        .filter(|n| n.group.is_some() && n.class_start_index.is_none())
+    {
         let (rect, sprite) = match get_rect(node) {
-            None => { println!("No rect for node {}", node.name); continue },
+            None => {
+                println!("No rect for node {}", node.name);
+                continue;
+            }
             Some(res) => res,
         };
 
@@ -154,8 +176,8 @@ fn nodes_gl() -> [DrawData; 4] {
         match node.node_type() {
             NodeType::Mastery => {
                 dd_masteries.append(x, y, rect, sprite, false, 1.0);
-            },
-            (NodeType::AscendancyNormal|NodeType::AscendancyNotable) => {
+            }
+            (NodeType::AscendancyNormal | NodeType::AscendancyNotable) => {
                 dd_nodes.append(x, y, rect, sprite, false, 2.0);
                 let sprite = &TREE.sprites["ascendancy"];
                 let rect = match node.node_type() {
@@ -164,7 +186,7 @@ fn nodes_gl() -> [DrawData; 4] {
                     _ => panic!("No frame"),
                 };
                 dd_asc_frames.append(x, y, rect, sprite, false, 2.0);
-            },
+            }
             _ => {
                 dd_nodes.append(x, y, rect, sprite, false, 1.0);
                 let sprite = &TREE.sprites["frame"];
@@ -229,7 +251,16 @@ fn load_texture(img: &ddsfile::Dds, gl: &glow::Context) -> glow::Texture {
         let tex = gl.create_texture().unwrap();
 
         gl.bind_texture(glow::TEXTURE_2D, Some(tex));
-        gl.compressed_tex_image_2d(glow::TEXTURE_2D, 0, glow::COMPRESSED_RGBA_BPTC_UNORM as i32, img.get_width() as i32, img.get_height() as i32, 0, img.data.len() as i32, &img.data);
+        gl.compressed_tex_image_2d(
+            glow::TEXTURE_2D,
+            0,
+            glow::COMPRESSED_RGBA_BPTC_UNORM as i32,
+            img.get_width() as i32,
+            img.get_height() as i32,
+            0,
+            img.data.len() as i32,
+            &img.data,
+        );
         gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MAG_FILTER, glow::LINEAR as i32);
         gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MIN_FILTER, glow::LINEAR as i32);
 
@@ -294,7 +325,7 @@ impl GlDrawData {
             gl.buffer_data_u8_slice(
                 glow::ARRAY_BUFFER,
                 std::slice::from_raw_parts(dd.vertices.as_ptr() as *const u8, dd.vertices.len() * 8),
-                glow::STATIC_DRAW
+                glow::STATIC_DRAW,
             );
             gl.vertex_attrib_pointer_f32(0, 2, glow::FLOAT, false, 0, 0);
             gl.enable_vertex_attrib_array(0);
@@ -305,7 +336,7 @@ impl GlDrawData {
             gl.buffer_data_u8_slice(
                 glow::ARRAY_BUFFER,
                 std::slice::from_raw_parts(dd.tex_coords.as_ptr() as *const u8, dd.vertices.len() * 8),
-                glow::STATIC_DRAW
+                glow::STATIC_DRAW,
             );
             gl.vertex_attrib_pointer_f32(1, 2, glow::FLOAT, false, 0, 0);
             gl.enable_vertex_attrib_array(1);
@@ -316,10 +347,16 @@ impl GlDrawData {
             gl.buffer_data_u8_slice(
                 glow::ELEMENT_ARRAY_BUFFER,
                 std::slice::from_raw_parts(dd.indices.as_ptr() as *const u8, dd.indices.len() * 2),
-                glow::STATIC_DRAW
+                glow::STATIC_DRAW,
             );
 
-            Self { vao, vbo, tbo, idx, len: dd.indices.len() as i32 }
+            Self {
+                vao,
+                vbo,
+                tbo,
+                idx,
+                len: dd.indices.len() as i32,
+            }
         }
     }
 
@@ -397,38 +434,50 @@ impl TreeGl {
                 continue;
             }
             let img = ddsfile::Dds::read(File::open("assets/".to_string() + &sprite.filename).unwrap()).unwrap();
-            textures.insert(sprite.filename.clone(), Texture {
-                gl_texture: load_texture(&img, gl),
-                w: img.get_width() as i32,
-                h: img.get_height() as i32,
-            });
+            textures.insert(
+                sprite.filename.clone(),
+                Texture {
+                    gl_texture: load_texture(&img, gl),
+                    w: img.get_width() as i32,
+                    h: img.get_height() as i32,
+                },
+            );
         }
 
         self.textures = textures;
 
         let data = nodes_gl();
-        self.draw_data.insert("nodes".to_string(), GlDrawData::new(gl, &data[0]));
-        self.draw_data.insert("frames".to_string(), GlDrawData::new(gl, &data[1]));
-        self.draw_data.insert("masteries".to_string(), GlDrawData::new(gl, &data[2]));
-        self.draw_data.insert("ascendancy_frames".to_string(), GlDrawData::new(gl, &data[3]));
+        self.draw_data
+            .insert("nodes".to_string(), GlDrawData::new(gl, &data[0]));
+        self.draw_data
+            .insert("frames".to_string(), GlDrawData::new(gl, &data[1]));
+        self.draw_data
+            .insert("masteries".to_string(), GlDrawData::new(gl, &data[2]));
+        self.draw_data
+            .insert("ascendancy_frames".to_string(), GlDrawData::new(gl, &data[3]));
         let data = group_background_gl();
-        self.draw_data.insert("background".to_string(), GlDrawData::new(gl, &data));
+        self.draw_data
+            .insert("background".to_string(), GlDrawData::new(gl, &data));
         let data = connectors_gl();
-        self.draw_data.insert("connectors".to_string(), GlDrawData::new(gl, &data));
+        self.draw_data
+            .insert("connectors".to_string(), GlDrawData::new(gl, &data));
         let data = ascendancies_gl();
-        self.draw_data.insert("ascendancy_background".to_string(), GlDrawData::new(gl, &data));
+        self.draw_data
+            .insert("ascendancy_background".to_string(), GlDrawData::new(gl, &data));
         self.init_shaders(gl);
     }
 
     pub fn destroy(&mut self, gl: &glow::Context) {
         for tex in self.textures.values() {
-            unsafe { gl.delete_texture(tex.gl_texture); }
+            unsafe {
+                gl.delete_texture(tex.gl_texture);
+            }
         }
         self.textures.clear();
         // todo destroy buffers
     }
 
-    pub fn draw(&mut self/*, state: &State*/, gl: &glow::Context, zoom: f32, translate: (i32, i32)) {
+    pub fn draw(&mut self /*, state: &State*/, gl: &glow::Context, zoom: f32, translate: (i32, i32)) {
         let draw_order = [
             ("background", "group-background-3.dds"),
             ("ascendancy_background", "ascendancy-background-3.dds"),
@@ -447,8 +496,16 @@ impl TreeGl {
             gl.use_program(self.program);
             let scale = glam::Mat4::from_scale(glam::Vec3::new(zoom, zoom, 0.0));
             let ortho = glam::Mat4::orthographic_rh_gl(-aspect_ratio, aspect_ratio, -1.0, 1.0, -1.0, 1.0);
-            let translate = glam::Mat4::from_translation(glam::Vec3::new(translate.0 as f32 / 12500.0, translate.1 as f32 / 12500.0, 0.0));
-            gl.uniform_matrix_4_f32_slice(self.uniform_zoom.as_ref(), false, &(scale * ortho * translate).to_cols_array());
+            let translate = glam::Mat4::from_translation(glam::Vec3::new(
+                translate.0 as f32 / 12500.0,
+                translate.1 as f32 / 12500.0,
+                0.0,
+            ));
+            gl.uniform_matrix_4_f32_slice(
+                self.uniform_zoom.as_ref(),
+                false,
+                &(scale * ortho * translate).to_cols_array(),
+            );
 
             for to_draw in draw_order {
                 gl.bind_vertex_array(self.draw_data[to_draw.0].vao);
@@ -458,4 +515,3 @@ impl TreeGl {
         }
     }
 }
-

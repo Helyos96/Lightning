@@ -130,11 +130,7 @@ impl Build {
         }
         if include_global {
             for gl in &self.gem_links {
-                for ag in gl
-                    .active_gems
-                    .iter()
-                    .filter(|g| g.data().tags.contains(&Tag::Aura))
-                {
+                for ag in gl.active_gems.iter().filter(|g| g.data().tags.contains(&Tag::Aura)) {
                     mods.extend(ag.calc_mods());
                 }
             }
@@ -142,13 +138,7 @@ impl Build {
         mods
     }
 
-    pub fn calc_stat_dmg(
-        &self,
-        stat_str: &str,
-        mods: &[Mod],
-        tags: &FxHashSet<Tag>,
-        dt: DamageType,
-    ) -> Stat {
+    pub fn calc_stat_dmg(&self, stat_str: &str, mods: &[Mod], tags: &FxHashSet<Tag>, dt: DamageType) -> Stat {
         self.calc_stat_priv(stat_str, mods, tags, &hset![dt])
     }
 
@@ -156,13 +146,7 @@ impl Build {
         self.calc_stat_priv(stat_str, mods, tags, &hset![])
     }
 
-    fn calc_stat_priv(
-        &self,
-        stat_str: &str,
-        mods: &[Mod],
-        tags: &FxHashSet<Tag>,
-        dts: &FxHashSet<DamageType>,
-    ) -> Stat {
+    fn calc_stat_priv(&self, stat_str: &str, mods: &[Mod], tags: &FxHashSet<Tag>, dts: &FxHashSet<DamageType>) -> Stat {
         let mut stat = Stat::default();
 
         for m in mods
@@ -197,18 +181,12 @@ impl Build {
         let mut mods_sec_pass = vec![];
         //let mut mods_third_pass = vec![];
 
-        for m in mods
-            .iter()
-            .filter(|m| tags.is_superset(&m.tags) || m.stat == "effect")
-        {
+        for m in mods.iter().filter(|m| tags.is_superset(&m.tags) || m.stat == "effect") {
             if !m.flags.is_empty() {
                 mods_sec_pass.push(m);
                 continue;
             }
-            stats
-                .entry(m.stat.clone())
-                .or_default()
-                .adjust(m.typ, m.amount, m);
+            stats.entry(m.stat.clone()).or_default().adjust(m.typ, m.amount, m);
             /*if m.stat == "effect" {
                 mods_third_pass.push(m);
             }*/
@@ -232,10 +210,7 @@ impl Build {
                     }
                 }
             }
-            stats
-                .entry(m.stat.clone())
-                .or_default()
-                .adjust(m.typ, amount, m);
+            stats.entry(m.stat.clone()).or_default().adjust(m.typ, amount, m);
             /*if m.stat == "effect" {
                 mods_third_pass.push(m);
             }*/

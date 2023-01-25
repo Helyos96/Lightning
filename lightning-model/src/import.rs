@@ -70,11 +70,7 @@ fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
             let gem_data = &GEMS[gem_id];
             // Parsing stuff is just beautiful
             let level = usize::from_str(
-                gem.properties
-                    .iter()
-                    .find(|p| p.name == "Level")
-                    .unwrap()
-                    .values[0]
+                gem.properties.iter().find(|p| p.name == "Level").unwrap().values[0]
                     .0
                     .split(' ')
                     .collect::<Vec<&str>>()[0],
@@ -110,8 +106,7 @@ fn conv_item(item: &Item) -> item::Item {
 
 pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>> {
     // Passive Tree
-    let url = "https://pathofexile.com/character-window/get-passive-skills?realm=pc&accountName="
-        .to_string()
+    let url = "https://pathofexile.com/character-window/get-passive-skills?realm=pc&accountName=".to_string()
         + account
         + "&character="
         + character;
@@ -119,8 +114,7 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
     let tree = reqwest::blocking::get(url)?.json::<PassiveTree>()?;
 
     // Items, Skills, CharData
-    let url = "https://pathofexile.com/character-window/get-items?realm=pc&accountName="
-        .to_string()
+    let url = "https://pathofexile.com/character-window/get-items?realm=pc&accountName=".to_string()
         + account
         + "&character="
         + character;
@@ -133,10 +127,7 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
 
     for mastery_str in &tree.mastery_effects {
         let mastery = u32::from_str(mastery_str)?;
-        build
-            .tree
-            .masteries
-            .push((mastery as u16, (mastery >> 16) as u16));
+        build.tree.masteries.push((mastery as u16, (mastery >> 16) as u16));
     }
 
     for item in tree.items {

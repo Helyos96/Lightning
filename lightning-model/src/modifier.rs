@@ -45,10 +45,7 @@ lazy_static! {
 }
 
 const ENDINGS: [(&str, Mutation); 4] = [
-    (
-        "per level",
-        Mutation::MultiplierProperty((1, Property::Level)),
-    ),
+    ("per level", Mutation::MultiplierProperty((1, Property::Level))),
     (
         "per frenzy charge",
         Mutation::MultiplierProperty((1, Property::FrenzyCharges)),
@@ -401,8 +398,12 @@ pub fn parse_mod(input: &str) -> Option<Vec<Mod>> {
     while let Some(ending) = parse_ending(&m.to_lowercase()) {
         m = &m[0..m.len() - ending.0 - 1];
         match ending.1 {
-            Ending::Mutation(flag) => { flags.push(flag); },
-            Ending::Tag(tag) => { tags.insert(tag); },
+            Ending::Mutation(flag) => {
+                flags.push(flag);
+            }
+            Ending::Tag(tag) => {
+                tags.insert(tag);
+            }
         }
     }
 
@@ -413,10 +414,7 @@ pub fn parse_mod(input: &str) -> Option<Vec<Mod>> {
                     modifier.tags.extend(tags.clone());
                     modifier.flags.extend(flags.clone());
                 }
-                CACHE
-                    .lock()
-                    .unwrap()
-                    .insert(input.to_string(), Some(mods.clone()));
+                CACHE.lock().unwrap().insert(input.to_string(), Some(mods.clone()));
                 println!("Success: {}: {:?}", input, &mods);
                 return Some(mods);
             }
@@ -424,10 +422,7 @@ pub fn parse_mod(input: &str) -> Option<Vec<Mod>> {
     }
 
     println!("failed: {}", input);
-    CACHE
-        .lock()
-        .unwrap()
-        .insert(input.to_string(), None);
+    CACHE.lock().unwrap().insert(input.to_string(), None);
     None
 }
 

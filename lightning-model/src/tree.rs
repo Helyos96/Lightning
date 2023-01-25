@@ -1,7 +1,7 @@
 use crate::data::TREE;
 use crate::modifier::{parse_mod, Mod, Source};
-use serde::{Deserialize, Serialize};
 use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Class {
@@ -19,7 +19,7 @@ pub struct Rect {
     pub x: u16,
     pub y: u16,
     pub w: u16,
-    pub h: u16
+    pub h: u16,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -37,7 +37,7 @@ pub struct ClassData {
     pub base_int: i64,
 }
 
-#[derive(Debug, Serialize,Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MasteryEffect {
     pub effect: u16,
     pub stats: Vec<String>,
@@ -82,9 +82,9 @@ impl Node {
     pub fn node_type(&self) -> NodeType {
         if self.ascendancy_name.is_some() {
             if self.is_notable {
-                return NodeType::AscendancyNotable
+                return NodeType::AscendancyNotable;
             } else {
-                return NodeType::AscendancyNormal
+                return NodeType::AscendancyNormal;
             }
         }
         if self.is_notable {

@@ -1,8 +1,8 @@
+use serde::{Deserialize, Serialize};
+use std::error::Error;
+use std::fs;
 /// config.json
 use std::path::PathBuf;
-use std::fs;
-use std::error::Error;
-use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct Config {
