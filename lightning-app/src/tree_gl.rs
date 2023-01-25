@@ -1,6 +1,6 @@
 use lightning_model::data::TREE;
 use lightning_model::build::Build;
-use lightning_model::tree;
+use lightning_model::tree::{self, NodeType};
 use lazy_static::lazy_static;
 use rustc_hash::FxHashMap;
 use crate::gui::State;
@@ -56,20 +56,12 @@ fn norm_tex(x: u16, y: u16, w: u16, h: u16) -> (f32, f32) {
     (x_norm.clamp(0.0, 1.0), y_norm.clamp(0.0, 1.0))
 }
 
-#[derive(Copy,Clone,Eq,PartialEq)]
-enum NodeType {
-    Normal,
-    Notable,
-    Keystone,
-    Mastery,
-}
-
-fn get_rect(icon: &str, typ: NodeType) -> Option<(&'static tree::Rect, &'static tree::Sprite)> {
-    let key = match typ {
-        NodeType::Normal => "normalActive",
-        NodeType::Notable => "notableActive",
-        NodeType::Keystone => "keystoneActive",
-        NodeType::Mastery => "masteryConnected",
+fn get_rect(node: &Node) -> Option<(&'static tree::Rect, &'static tree::Sprite)> {
+    let (key, icon): (&str, &str) = match node.node_type() {
+        NodeType::Normal|NodeType::AscendancyNormal => ("normalActive", &node.icon),
+        NodeType::Notable|NodeType::AscendancyNotable => ("notableActive", &node.icon),
+        NodeType::Keystone => ("keystoneActive", &node.icon),
+        NodeType::Mastery => ("masteryConnected", node.inactive_icon.as_ref().unwrap()),
     };
     let sprite = &TREE.sprites[key];
     let rect = sprite.coords.get(icon)?;
@@ -145,49 +137,48 @@ fn connectors_gl() -> DrawData {
 }
 
 /// Nodes, Frames and Masteries
-fn nodes_gl() -> [DrawData; 3] {
+fn nodes_gl() -> [DrawData; 4] {
     let mut dd_nodes = DrawData::default();
     let mut dd_frames = DrawData::default();
     let mut dd_masteries = DrawData::default();
+    let mut dd_asc_frames = DrawData::default();
 
     for node in TREE.nodes.values().filter(|n| n.group.is_some() && n.class_start_index.is_none()) {
-        let typ = {
-            if node.is_notable {
-                NodeType::Notable
-            } else if node.is_keystone {
-                NodeType::Keystone
-            } else if node.is_mastery {
-                NodeType::Mastery
-            } else {
-                NodeType::Normal
-            }
-        };
-        let icon = match typ {
-            NodeType::Mastery => node.inactive_icon.as_ref().unwrap(),
-            _ => &node.icon,
-        };
-        let (rect,sprite) = match get_rect(icon, typ) {
-            None => { println!("No rect for {}", icon); continue },
+        let (rect, sprite) = match get_rect(node) {
+            None => { println!("No rect for node {}", node.name); continue },
             Some(res) => res,
         };
 
         let (x, y) = node_pos(node);
 
-        if typ == NodeType::Mastery {
-            dd_masteries.append(x, y, rect, sprite, false, 1.0);
-        } else {
-            dd_nodes.append(x, y, rect, sprite, false, 1.0);
-            let sprite = &TREE.sprites["frame"];
-            let rect = match typ {
-                NodeType::Normal => &sprite.coords["PSSkillFrame"],
-                NodeType::Notable => &sprite.coords["NotableFrameUnallocated"],
-                NodeType::Keystone => &sprite.coords["KeystoneFrameUnallocated"],
-                NodeType::Mastery => panic!("No frame for masteries"),
-            };
-            dd_frames.append(x, y, rect, sprite, false, 1.0);
+        match node.node_type() {
+            NodeType::Mastery => {
+                dd_masteries.append(x, y, rect, sprite, false, 1.0);
+            },
+            (NodeType::AscendancyNormal|NodeType::AscendancyNotable) => {
+                dd_nodes.append(x, y, rect, sprite, false, 2.0);
+                let sprite = &TREE.sprites["ascendancy"];
+                let rect = match node.node_type() {
+                    NodeType::AscendancyNormal => &sprite.coords["AscendancyFrameSmallNormal"],
+                    NodeType::AscendancyNotable => &sprite.coords["AscendancyFrameLargeNormal"],
+                    _ => panic!("No frame"),
+                };
+                dd_asc_frames.append(x, y, rect, sprite, false, 2.0);
+            },
+            _ => {
+                dd_nodes.append(x, y, rect, sprite, false, 1.0);
+                let sprite = &TREE.sprites["frame"];
+                let rect = match node.node_type() {
+                    NodeType::Normal => &sprite.coords["PSSkillFrame"],
+                    NodeType::Notable => &sprite.coords["NotableFrameUnallocated"],
+                    NodeType::Keystone => &sprite.coords["KeystoneFrameUnallocated"],
+                    _ => panic!("No frame"),
+                };
+                dd_frames.append(x, y, rect, sprite, false, 1.0);
+            }
         }
     }
-    [dd_nodes, dd_frames, dd_masteries]
+    [dd_nodes, dd_frames, dd_masteries, dd_asc_frames]
 }
 
 fn group_background_gl() -> DrawData {
@@ -419,6 +410,7 @@ impl TreeGl {
         self.draw_data.insert("nodes".to_string(), GlDrawData::new(gl, &data[0]));
         self.draw_data.insert("frames".to_string(), GlDrawData::new(gl, &data[1]));
         self.draw_data.insert("masteries".to_string(), GlDrawData::new(gl, &data[2]));
+        self.draw_data.insert("ascendancy_frames".to_string(), GlDrawData::new(gl, &data[3]));
         let data = group_background_gl();
         self.draw_data.insert("background".to_string(), GlDrawData::new(gl, &data));
         let data = connectors_gl();
@@ -443,6 +435,7 @@ impl TreeGl {
             ("connectors", "line-3.dds"),
             ("nodes", "skills-3.dds"),
             ("frames", "frame-3.dds"),
+            ("ascendancy_frames", "ascendancy-3.dds"),
             ("masteries", "mastery-connected-3.dds"),
         ];
         unsafe {

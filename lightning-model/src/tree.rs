@@ -43,6 +43,16 @@ pub struct MasteryEffect {
     pub stats: Vec<String>,
 }
 
+#[derive(Copy, Clone)]
+pub enum NodeType {
+    Normal,
+    Notable,
+    Keystone,
+    Mastery,
+    AscendancyNormal,
+    AscendancyNotable,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Node {
@@ -66,6 +76,27 @@ pub struct Node {
     pub orbit: Option<u16>,
     pub orbit_index: Option<u16>,
     pub out: Option<Vec<u16>>,
+}
+
+impl Node {
+    pub fn node_type(&self) -> NodeType {
+        if self.ascendancy_name.is_some() {
+            if self.is_notable {
+                return NodeType::AscendancyNotable
+            } else {
+                return NodeType::AscendancyNormal
+            }
+        }
+        if self.is_notable {
+            NodeType::Notable
+        } else if self.is_keystone {
+            NodeType::Keystone
+        } else if self.is_mastery {
+            NodeType::Mastery
+        } else {
+            NodeType::Normal
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
