@@ -177,7 +177,7 @@ fn nodes_gl() -> [DrawData; 4] {
             NodeType::Mastery => {
                 dd_masteries.append(x, y, rect, sprite, false, 1.0);
             }
-            (NodeType::AscendancyNormal | NodeType::AscendancyNotable) => {
+            NodeType::AscendancyNormal | NodeType::AscendancyNotable => {
                 dd_nodes.append(x, y, rect, sprite, false, 2.0);
                 let sprite = &TREE.sprites["ascendancy"];
                 let rect = match node.node_type() {

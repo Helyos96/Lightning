@@ -9,9 +9,9 @@ use std::io;
 
 lazy_static! {
     pub static ref GEMS: FxHashMap<String, GemData> =
-        { bincode::deserialize(include_bytes!("../data/gems.bc")).expect("Failed to deserialize GEMS") };
+        bincode::deserialize(include_bytes!("../data/gems.bc")).expect("Failed to deserialize GEMS");
     pub static ref ITEMS: FxHashMap<String, BaseItem> =
-        { bincode::deserialize(include_bytes!("../data/base_items.bc")).expect("Failed to deserialize base items") };
+        bincode::deserialize(include_bytes!("../data/base_items.bc")).expect("Failed to deserialize base items");
     pub static ref TREE: TreeData =
-        { bincode::deserialize(include_bytes!("../data/tree.bc")).expect("Failed to deserialize tree") };
+        bincode::deserialize(include_bytes!("../data/tree.bc")).expect("Failed to deserialize tree");
 }
