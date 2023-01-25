@@ -61,9 +61,9 @@ fn norm_tex(x: u16, y: u16, w: u16, h: u16) -> (f32, f32) {
 
 fn get_rect(node: &Node) -> Option<(&'static tree::Rect, &'static tree::Sprite)> {
     let (key, icon): (&str, &str) = match node.node_type() {
-        NodeType::Normal | NodeType::AscendancyNormal => ("normalActive", &node.icon),
-        NodeType::Notable | NodeType::AscendancyNotable => ("notableActive", &node.icon),
-        NodeType::Keystone => ("keystoneActive", &node.icon),
+        NodeType::Normal | NodeType::AscendancyNormal => ("normalInactive", &node.icon),
+        NodeType::Notable | NodeType::AscendancyNotable => ("notableInactive", &node.icon),
+        NodeType::Keystone => ("keystoneInactive", &node.icon),
         NodeType::Mastery => ("masteryConnected", node.inactive_icon.as_ref().unwrap()),
     };
     let sprite = &TREE.sprites[key];
@@ -113,7 +113,7 @@ impl DrawData {
 fn connectors_gl() -> DrawData {
     let mut dd = DrawData::default();
     let sprite = &TREE.sprites["line"];
-    let rect = &sprite.coords["LineConnectorActive"];
+    let rect = &sprite.coords["LineConnectorNormal"];
 
     for node in TREE
         .nodes
@@ -482,7 +482,7 @@ impl TreeGl {
             ("background", "group-background-3.dds"),
             ("ascendancy_background", "ascendancy-background-3.dds"),
             ("connectors", "line-3.dds"),
-            ("nodes", "skills-3.dds"),
+            ("nodes", "skills-disabled-3.dds"),
             ("frames", "frame-3.dds"),
             ("ascendancy_frames", "ascendancy-3.dds"),
             ("masteries", "mastery-connected-3.dds"),
