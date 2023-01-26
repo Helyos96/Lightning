@@ -11,6 +11,7 @@ mod tree_gl;
 
 use std::time::Instant;
 
+use crate::tree_gl::TreeGl;
 use glow::HasContext;
 use glutin::event::{self, ElementState, Event, VirtualKeyCode};
 use glutin::{event_loop::EventLoop, WindowedContext};
@@ -68,7 +69,8 @@ fn main() {
         eprintln!("Failed to save config: {:?}", err);
     }
 
-    state.tree_gl.init(ig_renderer.gl_context());
+    let mut tree_gl = TreeGl::default();
+    tree_gl.init(ig_renderer.gl_context());
     // Standard winit event loop
     event_loop.run(move |event, _, control_flow| {
         match event {
@@ -103,8 +105,9 @@ fn main() {
                         if state.key_down == ElementState::Pressed {
                             state.tree_translate.1 += 50;
                         }
-                        state.tree_gl.draw(
-                            /*&state, */ ig_renderer.gl_context(),
+                        tree_gl.draw(
+                            &state.build.tree,
+                            ig_renderer.gl_context(),
                             state.zoom,
                             state.tree_translate,
                         );

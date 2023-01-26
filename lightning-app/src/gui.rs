@@ -33,7 +33,6 @@ pub struct State {
     active_skill_cur: usize,
 
     // OpenGL stuff
-    pub tree_gl: TreeGl,
     pub tree_translate: (i32, i32),
     pub zoom: f32,
 
@@ -58,7 +57,6 @@ impl Default for State {
             builds_list_cur: 0,
             active_skill_cur: 0,
 
-            tree_gl: Default::default(),
             zoom: 1.0,
             tree_translate: (0, 0),
             key_left: ElementState::Released,

@@ -3,8 +3,7 @@ use glow::HasContext;
 use lazy_static::lazy_static;
 use lightning_model::build::Build;
 use lightning_model::data::TREE;
-use lightning_model::tree::Node;
-use lightning_model::tree::{self, NodeType};
+use lightning_model::tree::{self, Node, NodeType, PassiveTree, Rect, Sprite};
 use rustc_hash::FxHashMap;
 use std::fs::File;
 use std::ops::Neg;
@@ -103,6 +102,26 @@ impl DrawData {
     }
 }
 
+fn connector_gl(x1: f32, y1: f32, x2: f32, y2: f32, rect: &Rect, sprite: &Sprite, dd: &mut DrawData) {
+    dd.vertices.extend([
+        // todo: better than this +5 / -5. Some angles don't render.
+        norm(x1 - 5.0, y1 + 5.0),
+        norm(x1 + 5.0, y1 - 5.0),
+        norm(x2 + 5.0, y2 - 5.0),
+        norm(x2 - 5.0, y2 + 5.0),
+    ]);
+    dd.tex_coords.extend([
+        norm_tex(rect.x, rect.y + rect.h, sprite.w, sprite.h),
+        norm_tex(rect.x, rect.y, sprite.w, sprite.h),
+        norm_tex(rect.x + rect.w, rect.y, sprite.w, sprite.h),
+        norm_tex(rect.x + rect.w, rect.y + rect.h, sprite.w, sprite.h),
+    ]);
+
+    let start = dd.vertices.len() as u16 - 4;
+    dd.indices
+        .extend([start, start + 1, start + 2, start + 3, start, start + 2]);
+}
+
 /// Very simple straight connectors. todo: arcs
 fn connectors_gl() -> DrawData {
     let mut dd = DrawData::default();
@@ -123,28 +142,103 @@ fn connectors_gl() -> DrawData {
             .filter(|n| !n.is_ascendancy_start && !n.is_mastery && n.class_start_index.is_none())
         {
             let (x2, y2) = node_pos(out);
-            dd.vertices.extend([
-                // todo: better than this +5 / -5. Some angles don't render.
-                norm(x1 - 5.0, y1 + 5.0),
-                norm(x1 + 5.0, y1 - 5.0),
-                norm(x2 + 5.0, y2 - 5.0),
-                norm(x2 - 5.0, y2 + 5.0),
-            ]);
-            dd.tex_coords.extend([
-                norm_tex(rect.x, rect.y + rect.h, sprite.w, sprite.h),
-                norm_tex(rect.x, rect.y, sprite.w, sprite.h),
-                norm_tex(rect.x + rect.w, rect.y, sprite.w, sprite.h),
-                norm_tex(rect.x + rect.w, rect.y + rect.h, sprite.w, sprite.h),
-            ]);
-
-            let start = dd.vertices.len() as u16 - 4;
-            dd.indices
-                .extend([start, start + 1, start + 2, start + 3, start, start + 2]);
+            connector_gl(x1, y1, x2, y2, rect, sprite, &mut dd);
         }
     }
     dd
 }
 
+fn connectors_gl_active(nodes: &[u16]) -> DrawData {
+    let mut dd = DrawData::default();
+    let sprite = &TREE.sprites["line"];
+    let rect = &sprite.coords["LineConnectorActive"];
+
+    for node in nodes
+        .iter()
+        .map(|id| &TREE.nodes[id])
+        .filter(|n| n.group.is_some() && !n.name.starts_with("Path of the") && n.class_start_index.is_none())
+    {
+        let (x1, y1) = node_pos(node);
+        for out in node
+            .out
+            .iter()
+            .flatten()
+            .filter(|id| nodes.contains(id))
+            .map(|id| &TREE.nodes[id])
+            .filter(|n| !n.is_ascendancy_start && !n.is_mastery && n.class_start_index.is_none())
+        {
+            let (x2, y2) = node_pos(out);
+            connector_gl(x1, y1, x2, y2, rect, sprite, &mut dd);
+        }
+    }
+    dd
+}
+const ACTIVE_STRINGS: [&str; 5] = [
+    "AscendancyFrameSmallAllocated",
+    "AscendancyFrameLargeAllocated",
+    "PSSkillFrameActive",
+    "NotableFrameAllocated",
+    "KeystoneFrameAllocated",
+];
+
+const INACTIVE_STRINGS: [&str; 5] = [
+    "AscendancyFrameSmallNormal",
+    "AscendancyFrameLargeNormal",
+    "PSSkillFrame",
+    "NotableFrameUnallocated",
+    "KeystoneFrameUnallocated",
+];
+
+fn node_gl(
+    node: &Node,
+    dd_nodes: &mut DrawData,
+    dd_frames: &mut DrawData,
+    dd_masteries: &mut DrawData,
+    dd_asc_frames: &mut DrawData,
+    is_active: bool,
+) {
+    let icon_strings = match is_active {
+        true => &ACTIVE_STRINGS,
+        false => &INACTIVE_STRINGS,
+    };
+
+    let (rect, sprite) = match get_rect(node) {
+        None => {
+            println!("No rect for node {}", node.name);
+            return;
+        }
+        Some(res) => res,
+    };
+
+    let (x, y) = node_pos(node);
+
+    match node.node_type() {
+        NodeType::Mastery => {
+            dd_masteries.append(x, y, rect, sprite, false, 1.0);
+        }
+        NodeType::AscendancyNormal | NodeType::AscendancyNotable => {
+            dd_nodes.append(x, y, rect, sprite, false, 2.0);
+            let sprite = &TREE.sprites["ascendancy"];
+            let rect = match node.node_type() {
+                NodeType::AscendancyNormal => &sprite.coords[icon_strings[0]],
+                NodeType::AscendancyNotable => &sprite.coords[icon_strings[1]],
+                _ => panic!("No frame"),
+            };
+            dd_asc_frames.append(x, y, rect, sprite, false, 2.0);
+        }
+        _ => {
+            dd_nodes.append(x, y, rect, sprite, false, 1.0);
+            let sprite = &TREE.sprites["frame"];
+            let rect = match node.node_type() {
+                NodeType::Normal => &sprite.coords[icon_strings[2]],
+                NodeType::Notable => &sprite.coords[icon_strings[3]],
+                NodeType::Keystone => &sprite.coords[icon_strings[4]],
+                _ => panic!("No frame"),
+            };
+            dd_frames.append(x, y, rect, sprite, false, 1.0);
+        }
+    }
+}
 /// Nodes, Frames and Masteries
 fn nodes_gl() -> [DrawData; 4] {
     let mut dd_nodes = DrawData::default();
@@ -157,43 +251,36 @@ fn nodes_gl() -> [DrawData; 4] {
         .values()
         .filter(|n| n.group.is_some() && n.class_start_index.is_none())
     {
-        let (rect, sprite) = match get_rect(node) {
-            None => {
-                println!("No rect for node {}", node.name);
-                continue;
-            }
-            Some(res) => res,
-        };
-
-        let (x, y) = node_pos(node);
-
-        match node.node_type() {
-            NodeType::Mastery => {
-                dd_masteries.append(x, y, rect, sprite, false, 1.0);
-            }
-            NodeType::AscendancyNormal | NodeType::AscendancyNotable => {
-                dd_nodes.append(x, y, rect, sprite, false, 2.0);
-                let sprite = &TREE.sprites["ascendancy"];
-                let rect = match node.node_type() {
-                    NodeType::AscendancyNormal => &sprite.coords["AscendancyFrameSmallNormal"],
-                    NodeType::AscendancyNotable => &sprite.coords["AscendancyFrameLargeNormal"],
-                    _ => panic!("No frame"),
-                };
-                dd_asc_frames.append(x, y, rect, sprite, false, 2.0);
-            }
-            _ => {
-                dd_nodes.append(x, y, rect, sprite, false, 1.0);
-                let sprite = &TREE.sprites["frame"];
-                let rect = match node.node_type() {
-                    NodeType::Normal => &sprite.coords["PSSkillFrame"],
-                    NodeType::Notable => &sprite.coords["NotableFrameUnallocated"],
-                    NodeType::Keystone => &sprite.coords["KeystoneFrameUnallocated"],
-                    _ => panic!("No frame"),
-                };
-                dd_frames.append(x, y, rect, sprite, false, 1.0);
-            }
-        }
+        node_gl(
+            node,
+            &mut dd_nodes,
+            &mut dd_frames,
+            &mut dd_masteries,
+            &mut dd_asc_frames,
+            false,
+        );
     }
+    [dd_nodes, dd_frames, dd_masteries, dd_asc_frames]
+}
+
+/// Player-selected Nodes, Frames and Masteries
+fn nodes_gl_active(tree: &PassiveTree) -> [DrawData; 4] {
+    let mut dd_nodes = DrawData::default();
+    let mut dd_frames = DrawData::default();
+    let mut dd_masteries = DrawData::default();
+    let mut dd_asc_frames = DrawData::default();
+
+    for node in tree.nodes.iter().map(|id| &TREE.nodes[id]) {
+        node_gl(
+            node,
+            &mut dd_nodes,
+            &mut dd_frames,
+            &mut dd_masteries,
+            &mut dd_asc_frames,
+            true,
+        );
+    }
+
     [dd_nodes, dd_frames, dd_masteries, dd_asc_frames]
 }
 
@@ -471,15 +558,43 @@ impl TreeGl {
         // todo destroy buffers
     }
 
-    pub fn draw(&mut self /*, state: &State*/, gl: &glow::Context, zoom: f32, translate: (i32, i32)) {
+    pub fn draw(&mut self, tree: &PassiveTree, gl: &glow::Context, zoom: f32, translate: (i32, i32)) {
+        const REDRAW: [&str; 5] = [
+            "nodes_active",
+            "frames_active",
+            "masteries_active",
+            "ascendancy_frames_active",
+            "connectors_active",
+        ];
+        for dd in self.draw_data.iter_mut().filter(|(k, _v)| REDRAW.contains(&k.as_str())) {
+            dd.1.destroy(gl);
+        }
+        let data = nodes_gl_active(tree);
+        self.draw_data
+            .insert("nodes_active".to_string(), GlDrawData::new(gl, &data[0]));
+        self.draw_data
+            .insert("frames_active".to_string(), GlDrawData::new(gl, &data[1]));
+        self.draw_data
+            .insert("masteries_active".to_string(), GlDrawData::new(gl, &data[2]));
+        self.draw_data
+            .insert("ascendancy_frames_active".to_string(), GlDrawData::new(gl, &data[3]));
+        let data = connectors_gl_active(&tree.nodes);
+        self.draw_data
+            .insert("connectors_active".to_string(), GlDrawData::new(gl, &data));
+
         let draw_order = [
             ("background", "group-background-3.dds"),
             ("ascendancy_background", "ascendancy-background-3.dds"),
             ("connectors", "line-3.dds"),
+            ("connectors_active", "line-3.dds"),
             ("nodes", "skills-disabled-3.dds"),
+            ("nodes_active", "skills-3.dds"),
             ("frames", "frame-3.dds"),
+            ("frames_active", "frame-3.dds"),
             ("ascendancy_frames", "ascendancy-3.dds"),
-            ("masteries", "mastery-connected-3.dds"),
+            ("ascendancy_frames_active", "ascendancy-3.dds"),
+            ("masteries", "mastery-disabled-3.dds"),
+            ("masteries_active", "mastery-connected-3.dds"),
         ];
         unsafe {
             let mut viewport = [0; 4];
