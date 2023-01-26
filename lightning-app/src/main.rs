@@ -1,5 +1,5 @@
 // todo: remove this once stable-ish
-#![allow(dead_code, unused_imports)]
+#![allow(dead_code)]
 
 //! A basic self-contained example to get you from zero-to-demo-window as fast
 //! as possible.
@@ -18,7 +18,7 @@ use glutin::{event_loop::EventLoop, WindowedContext};
 use gui::{State, UiState};
 use imgui::ConfigFlags;
 use imgui_winit_support::WinitPlatform;
-use lightning_model::{build, calc, util};
+use lightning_model::{build, util};
 use std::error::Error;
 
 const TITLE: &str = "Lightning";
@@ -91,7 +91,7 @@ fn main() {
 
                 let ui = imgui_context.frame();
                 match state.ui_state {
-                    UiState::ChooseBuild => gui::draw_builds(ui, &mut state),
+                    UiState::ChooseBuild => gui::build_selection::draw(ui, &mut state),
                     UiState::Main => {
                         if state.key_left == ElementState::Pressed {
                             state.tree_translate.0 += 50;
@@ -111,7 +111,7 @@ fn main() {
                             state.zoom,
                             state.tree_translate,
                         );
-                        gui::draw_main(ui, &mut state);
+                        gui::left_panel::draw(ui, &mut state);
                     }
                     _ => eprintln!("Can't draw state {:?}", state.ui_state),
                 };
