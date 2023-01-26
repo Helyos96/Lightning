@@ -44,19 +44,13 @@ fn node_pos(node: &Node) -> (f32, f32) {
 }
 
 /// Normalize tree coords to GL normalized coords
-fn norm(mut x: f32, mut y: f32) -> (f32, f32) {
-    x /= 12500.0;
-    y /= 12500.0;
-    x -= 1.0;
-    y -= 1.0;
-    (x.clamp(-1.0, 1.0), y.clamp(-1.0, 1.0))
+fn norm(x: f32, y: f32) -> (f32, f32) {
+    (x / 12500.0 - 1.0, y / 12500.0 - 1.0)
 }
 
 /// Normalize sprite coords to GL texture coords
 fn norm_tex(x: u16, y: u16, w: u16, h: u16) -> (f32, f32) {
-    let x_norm = x as f32 / w as f32;
-    let y_norm = y as f32 / h as f32;
-    (x_norm.clamp(0.0, 1.0), y_norm.clamp(0.0, 1.0))
+    (x as f32 / w as f32, y as f32 / h as f32)
 }
 
 fn get_rect(node: &Node) -> Option<(&'static tree::Rect, &'static tree::Sprite)> {
