@@ -1,4 +1,4 @@
-mod draw_data;
+pub mod draw_data;
 
 use glow::HasContext;
 use lightning_model::data::TREE;
@@ -241,7 +241,7 @@ impl TreeGl {
         self.draw_data.clear();
     }
 
-    pub fn draw(&mut self, tree: &PassiveTree, gl: &glow::Context, zoom: f32, translate: (i32, i32)) {
+    pub fn regen_active(&mut self, gl: &glow::Context, tree: &PassiveTree) {
         const REDRAW: [&str; 5] = [
             "nodes_active",
             "frames_active",
@@ -253,6 +253,7 @@ impl TreeGl {
         for dd in self.draw_data.iter_mut().filter(|(k, _v)| REDRAW.contains(&k.as_str())) {
             dd.1.destroy(gl);
         }
+
         let data = nodes_gl_active(tree);
         self.draw_data
             .insert("nodes_active".to_string(), GlDrawData::new(gl, &data[0]));
@@ -265,6 +266,12 @@ impl TreeGl {
         let data = connectors_gl_active(&tree.nodes);
         self.draw_data
             .insert("connectors_active".to_string(), GlDrawData::new(gl, &data));
+    }
+
+    pub fn draw(&mut self, tree: &PassiveTree, gl: &glow::Context, zoom: f32, translate: (i32, i32)) {
+        if self.draw_data.get("nodes_active").is_none() {
+            self.regen_active(gl, tree);
+        }
 
         let draw_order = [
             ("background", "group-background-3.dds"),
@@ -280,6 +287,7 @@ impl TreeGl {
             ("masteries", "mastery-disabled-3.dds"),
             ("masteries_active", "mastery-connected-3.dds"),
         ];
+
         unsafe {
             let mut viewport = [0; 4];
             gl.get_parameter_i32_slice(glow::VIEWPORT, &mut viewport);

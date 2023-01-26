@@ -25,21 +25,21 @@ lazy_static! {
     static ref ORBIT_ANGLES: Vec<Vec<f32>> = calc_angles();
 }
 
-fn node_pos(node: &Node) -> (f32, f32) {
+pub fn node_pos(node: &Node) -> (f32, f32) {
     let group = node.group.unwrap();
     let orbit = node.orbit.unwrap() as usize;
     let angle = ORBIT_ANGLES[orbit][node.orbit_index.unwrap() as usize];
     let orbit_radius = TREE.constants.orbit_radii[orbit];
 
     (
-        TREE.groups[&group].x + (angle.sin() * orbit_radius as f32) + TREE.min_x.abs() as f32,
-        TREE.groups[&group].y.neg() + (angle.cos() * orbit_radius as f32) + TREE.min_y.abs() as f32,
+        TREE.groups[&group].x + (angle.sin() * orbit_radius as f32),
+        TREE.groups[&group].y.neg() + (angle.cos() * orbit_radius as f32),
     )
 }
 
 /// Normalize tree coords to GL normalized coords
 fn norm(x: f32, y: f32) -> (f32, f32) {
-    (x / 12500.0 - 1.0, y / 12500.0 - 1.0)
+    (x / 12500.0, y / 12500.0)
 }
 
 /// Normalize sprite coords to GL texture coords
@@ -47,7 +47,7 @@ fn norm_tex(x: u16, y: u16, w: u16, h: u16) -> (f32, f32) {
     (x as f32 / w as f32, y as f32 / h as f32)
 }
 
-fn get_rect(node: &Node) -> Option<(&'static tree::Rect, &'static tree::Sprite)> {
+pub fn get_rect(node: &Node) -> Option<(&'static tree::Rect, &'static tree::Sprite)> {
     let (key, icon): (&str, &str) = match node.node_type() {
         NodeType::Normal | NodeType::AscendancyNormal => ("normalInactive", &node.icon),
         NodeType::Notable | NodeType::AscendancyNotable => ("notableInactive", &node.icon),
@@ -290,8 +290,8 @@ pub fn group_background_gl() -> DrawData {
             Some(res) => res,
         };
 
-        let x = group.x + TREE.min_x.abs() as f32;
-        let mut y = group.y.neg() + TREE.min_y.abs() as f32;
+        let x = group.x;
+        let mut y = group.y.neg();
         if background.is_half_image.is_some() {
             // Need to draw upper half and then bottom half (vertically flipped)
             // todo: fix seams that appear sometimes

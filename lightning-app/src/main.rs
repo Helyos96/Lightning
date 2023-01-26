@@ -8,9 +8,10 @@ mod clipboard;
 mod config;
 mod gui;
 mod tree_gl;
+mod quadtree;
 
 use std::time::Instant;
-
+use std::ops::Neg;
 use crate::tree_gl::TreeGl;
 use glow::HasContext;
 use glutin::event::{self, ElementState, Event, VirtualKeyCode};
@@ -111,7 +112,7 @@ fn main() {
                             state.zoom,
                             state.tree_translate,
                         );
-                        gui::left_panel::draw(ui, &mut state);
+                        gui::tree_view::draw(ui, &mut state);
                     }
                     _ => eprintln!("Can't draw state {:?}", state.ui_state),
                 };
@@ -155,13 +156,14 @@ fn main() {
                             },
                         ..
                     } => {
-                        state.zoom = f32::max(0.25, state.zoom + v);
+                        state.zoom = f32::max(0.50, state.zoom + v);
                     }
                     Event::WindowEvent {
                         event: event::WindowEvent::Resized(physical_size),
                         ..
                     } => {
                         unsafe {
+                            state.dimensions = (physical_size.width, physical_size.height);
                             ig_renderer.gl_context().viewport(
                                 0,
                                 0,
@@ -188,7 +190,32 @@ fn main() {
                         VirtualKeyCode::Up => state.key_up = key_state,
                         VirtualKeyCode::Down => state.key_down = key_state,
                         _ => {}
-                    },
+                    }
+                    Event::WindowEvent {
+                        event:
+                            event::WindowEvent::CursorMoved {
+                                position,
+                                ..
+                            },
+                        ..
+                    } => {
+                        let (mut x, mut y) = (position.x as f32, position.y as f32);
+                        let aspect_ratio = state.dimensions.0 as f32 / state.dimensions.1 as f32;
+                        state.mouse_pos = (x, y);
+
+                        x -= state.dimensions.0 as f32 / 2.0;
+                        y -= state.dimensions.1 as f32 / 2.0;
+                        y = y.neg();
+                        x /= state.dimensions.0 as f32 / 2.0;
+                        y /= state.dimensions.1 as f32 / 2.0;
+                        x -= state.tree_translate.0 as f32 * (state.zoom / aspect_ratio) / 12500.0;
+                        y -= state.tree_translate.1 as f32 * state.zoom / 12500.0;
+                        x *= aspect_ratio;
+                        x *= 12500.0 / state.zoom;
+                        y *= 12500.0 / state.zoom;
+
+                        state.hovered_node = quadtree::get_hovered_node(x, y);
+                    }
                     _ => {}
                 }
                 winit_platform.handle_event(imgui_context.io_mut(), window.window(), &event);
@@ -199,8 +226,9 @@ fn main() {
 
 fn create_window() -> (EventLoop<()>, Window) {
     let event_loop = glutin::event_loop::EventLoop::new();
-    let window = glutin::window::WindowBuilder::new().with_title(TITLE);
-    //.with_inner_size(glutin::dpi::LogicalSize::new(1024, 768));
+    let window = glutin::window::WindowBuilder::new()
+        .with_title(TITLE)
+        .with_inner_size(glutin::dpi::LogicalSize::new(1280, 720));
     let window = glutin::ContextBuilder::new()
         .with_vsync(true)
         .build_windowed(window, &event_loop)
