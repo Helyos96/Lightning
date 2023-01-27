@@ -241,20 +241,22 @@ impl TreeGl {
         self.draw_data.clear();
     }
 
-    pub fn regen_active(&mut self, gl: &glow::Context, tree: &PassiveTree) {
-        const REDRAW: [&str; 5] = [
+    pub fn regen_active(&mut self, gl: &glow::Context, tree: &PassiveTree, path_hovered: &Option<Vec<u16>>) {
+        const REDRAW: [&str; 6] = [
             "nodes_active",
             "frames_active",
             "masteries_active",
             "ascendancy_frames_active",
             "connectors_active",
+            "connectors_hovered",
         ];
 
         for dd in self.draw_data.iter_mut().filter(|(k, _v)| REDRAW.contains(&k.as_str())) {
             dd.1.destroy(gl);
         }
 
-        let data = nodes_gl_active(tree);
+        let last_node = path_hovered.as_ref().map(|path| path.first().unwrap());
+        let data = nodes_gl_active(&tree.nodes, last_node);
         self.draw_data
             .insert("nodes_active".to_string(), GlDrawData::new(gl, &data[0]));
         self.draw_data
@@ -266,14 +268,8 @@ impl TreeGl {
         let data = connectors_gl(&tree.nodes, &TREE.sprites["line"].coords["LineConnectorActive"]);
         self.draw_data
             .insert("connectors_active".to_string(), GlDrawData::new(gl, &data));
-    }
-
-    pub fn regen_hovered(&mut self, gl: &glow::Context, path_hovered: &Option<Vec<u16>>) {
-        if let Some(dd) = self.draw_data.get_mut("connectors_hovered") {
-            dd.destroy(gl);
-        }
         if let Some(path) = path_hovered {
-            let data = connectors_gl(&path, &TREE.sprites["line"].coords["LineConnectorActive"]);
+            let data = connectors_gl(path, &TREE.sprites["line"].coords["LineConnectorActive"]);
             self.draw_data
                 .insert("connectors_hovered".to_string(), GlDrawData::new(gl, &data));
         }
@@ -281,16 +277,15 @@ impl TreeGl {
 
     pub fn draw(&mut self, tree: &PassiveTree, gl: &glow::Context, zoom: f32, translate: (i32, i32), path_hovered: &Option<Vec<u16>>) {
         if self.draw_data.get("nodes_active").is_none() {
-            self.regen_active(gl, tree);
+            self.regen_active(gl, tree, path_hovered);
         }
-        self.regen_hovered(gl, path_hovered);
 
         const DRAW_ORDER: [(&str, &str); 13] = [
             ("background", "group-background-3.dds"),
             ("ascendancy_background", "ascendancy-background-3.dds"),
             ("connectors", "line-3.dds"),
-            ("connectors_hovered", "line-3.dds"),
             ("connectors_active", "line-3.dds"),
+            ("connectors_hovered", "line-3.dds"),
             ("nodes", "skills-disabled-3.dds"),
             ("nodes_active", "skills-3.dds"),
             ("frames", "frame-3.dds"),

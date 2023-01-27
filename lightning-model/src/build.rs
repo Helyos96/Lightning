@@ -38,7 +38,6 @@ pub struct Stat {
 
 #[derive(Serialize, Deserialize)]
 pub struct Build {
-    pub class: Class,
     pub ascendancy: i32,
     pub level: i64,
     pub gem_links: Vec<GemLink>,
@@ -48,16 +47,14 @@ pub struct Build {
 
 impl Build {
     pub fn new_player() -> Build {
-        
-
-        Build {
-            class: Class::Scion,
+        let mut build = Build {
             ascendancy: 0,
             level: 1,
             gem_links: vec![],
             equipment: vec![],
             tree: Default::default(),
-        }
+        };
+        build
     }
 
     /// Returns mods from the following sources:
@@ -65,7 +62,7 @@ impl Build {
     /// todo: add some caching to not parse & collect all mods
     /// every time.
     pub fn calc_mods(&self, include_global: bool) -> Vec<Mod> {
-        let class_data = &TREE.classes[&self.class];
+        let class_data = &TREE.classes[&self.tree.class];
         let mut mods = vec![
             Mod {
                 stat: "maximum life".to_string(),

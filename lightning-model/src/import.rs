@@ -3,6 +3,7 @@ use crate::build::{self, Build, GemLink};
 use crate::data::GEMS;
 use crate::gem;
 use crate::item;
+use crate::tree::Class;
 use serde::Deserialize;
 /// Import build data from pathofexile.com
 use std::collections::HashMap;
@@ -124,6 +125,19 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
     build.level = items.character.level;
     build.tree.nodes = tree.hashes;
     build.tree.nodes_ex = tree.hashes_ex;
+    build.tree.class = match items.character.classId {
+        0 => Class::Scion,
+        1 => Class::Marauder,
+        2 => Class::Ranger,
+        3 => Class::Witch,
+        4 => Class::Duelist,
+        5 => Class::Templar,
+        6 => Class::Shadow,
+        _ => {
+            println!("Bad class ID: {}, defaulting to Scion", items.character.classId);
+            Class::Scion
+        }
+    };
 
     for mastery_str in &tree.mastery_effects {
         let mastery = u32::from_str(mastery_str)?;

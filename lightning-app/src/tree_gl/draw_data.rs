@@ -1,6 +1,6 @@
 use lightning_model::data::TREE;
 use std::ops::Neg;
-use lightning_model::tree::{self, Node, NodeType, PassiveTree, Rect, Sprite};
+use lightning_model::tree::{self, Node, NodeType, Rect, Sprite};
 use lazy_static::lazy_static;
 
 fn calc_angles() -> Vec<Vec<f32>> {
@@ -266,15 +266,26 @@ pub fn nodes_gl() -> [DrawData; 4] {
 }
 
 /// Player-selected Nodes, Frames and Masteries
-pub fn nodes_gl_active(tree: &PassiveTree) -> [DrawData; 4] {
+pub fn nodes_gl_active(nodes: &[u16], hovered: Option<&u16>) -> [DrawData; 4] {
     let mut dd_nodes = DrawData::default();
     let mut dd_frames = DrawData::default();
     let mut dd_masteries = DrawData::default();
     let mut dd_asc_frames = DrawData::default();
 
-    for node in tree.nodes.iter().map(|id| &TREE.nodes[id]) {
+    for node in nodes.iter().map(|id| &TREE.nodes[id]) {
         node_gl(
             node,
+            &mut dd_nodes,
+            &mut dd_frames,
+            &mut dd_masteries,
+            &mut dd_asc_frames,
+            true,
+        );
+    }
+
+    if let Some(id) = hovered {
+        node_gl(
+            &TREE.nodes[id],
             &mut dd_nodes,
             &mut dd_frames,
             &mut dd_masteries,

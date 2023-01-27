@@ -2,16 +2,18 @@ use crate::data::TREE;
 use crate::modifier::{parse_mod, Mod, Source};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
-#[derive(Clone, Copy, Hash, Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Default, Clone, Copy, Hash, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Class {
+    #[default]
     Scion,
     Marauder,
-    Duelist,
     Ranger,
-    Shadow,
     Witch,
+    Duelist,
     Templar,
+    Shadow,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -145,16 +147,46 @@ pub struct TreeData {
 }
 
 /// Player tree used in Build
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PassiveTree {
+    pub class: Class,
     pub nodes: Vec<u16>,
     pub nodes_ex: Vec<u16>,
     pub masteries: Vec<(u16, u16)>,
 }
 
+impl Default for PassiveTree {
+    fn default() -> Self {
+        let mut pt = Self {
+            class: Default::default(),
+            nodes: Default::default(),
+            nodes_ex: Default::default(),
+            masteries: Default::default(),
+        };
+        pt.set_class(pt.class);
+        pt
+    }
+}
+
+fn get_class_node(class: Class) -> u16 {
+    TREE.nodes
+        .values()
+        .find(|n| n.class_start_index.is_some() && n.class_start_index.unwrap() == class as i32)
+        .unwrap()
+        .skill
+}
+
 impl PassiveTree {
     pub fn data() -> &'static TreeData {
         &TREE
+    }
+
+    pub fn set_class(&mut self, class: Class) {
+        if let Some(index) = self.nodes.iter().position(|id| *id == get_class_node(self.class)) {
+            self.nodes.remove(index);
+        }
+        self.nodes.push(get_class_node(class));
+        self.class = class;
     }
 
     pub fn calc_mods(&self) -> Vec<Mod> {

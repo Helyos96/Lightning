@@ -33,14 +33,12 @@ fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
             state.build = util::load_build(path)?;
             state.defence_calc = calc::calc_defence(&state.build);
             println!("Loaded build from {}", &path.display());
-            dbg!(&state.build.class);
             UiState::Main
         }
         UiState::ImportBuild => {
             state.build = util::fetch_build(&state.import_account, &state.import_character)?;
             state.defence_calc = calc::calc_defence(&state.build);
             println!("Fetched build: {} {}", &state.import_account, &state.import_character);
-            dbg!(&state.build.class);
             UiState::Main
         }
         UiState::NewBuild => {
@@ -112,9 +110,16 @@ fn main() {
                         }
                         if let Some(node) = state.hovered_node {
                             if !state.build.tree.nodes.contains(&node.skill) {
-                                state.path_hovered = tree_preview::find_path(node.skill, &state.build.tree);
+                                let path_hovered = tree_preview::find_path(node.skill, &state.build.tree);
+                                if state.path_hovered.is_none() && path_hovered.is_some() {
+                                    tree_gl.regen_active(ig_renderer.gl_context(), &state.build.tree, &path_hovered);
+                                }
+                                state.path_hovered = path_hovered;
                             }
                         } else {
+                            if state.path_hovered.is_some() {
+                                tree_gl.regen_active(ig_renderer.gl_context(), &state.build.tree, &None);
+                            }
                             state.path_hovered = None;
                         }
                         tree_gl.draw(
