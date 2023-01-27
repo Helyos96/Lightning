@@ -51,6 +51,7 @@ pub enum NodeType {
     Mastery,
     AscendancyNormal,
     AscendancyNotable,
+    JewelSocket,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -68,6 +69,8 @@ pub struct Node {
     pub is_keystone: bool,
     #[serde(default)]
     pub is_ascendancy_start: bool,
+    #[serde(default)]
+    pub is_jewel_socket: bool,
     pub ascendancy_name: Option<String>,
     pub class_start_index: Option<i32>,
     #[serde(default)]
@@ -93,6 +96,8 @@ impl Node {
             NodeType::Keystone
         } else if self.is_mastery {
             NodeType::Mastery
+        } else if self.is_jewel_socket {
+            NodeType::JewelSocket
         } else {
             NodeType::Normal
         }

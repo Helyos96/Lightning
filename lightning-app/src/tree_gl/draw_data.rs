@@ -49,7 +49,7 @@ fn norm_tex(x: u16, y: u16, w: u16, h: u16) -> (f32, f32) {
 
 pub fn get_rect(node: &Node) -> Option<(&'static tree::Rect, &'static tree::Sprite)> {
     let (key, icon): (&str, &str) = match node.node_type() {
-        NodeType::Normal | NodeType::AscendancyNormal => ("normalInactive", &node.icon),
+        NodeType::Normal | NodeType::AscendancyNormal | NodeType::JewelSocket => ("normalInactive", &node.icon),
         NodeType::Notable | NodeType::AscendancyNotable => ("notableInactive", &node.icon),
         NodeType::Keystone => ("keystoneInactive", &node.icon),
         NodeType::Mastery => ("masteryConnected", node.inactive_icon.as_ref().unwrap()),
@@ -168,20 +168,22 @@ pub fn connectors_gl_active(nodes: &[u16]) -> DrawData {
     }
     dd
 }
-const ACTIVE_STRINGS: [&str; 5] = [
+const ACTIVE_STRINGS: [&str; 6] = [
     "AscendancyFrameSmallAllocated",
     "AscendancyFrameLargeAllocated",
     "PSSkillFrameActive",
     "NotableFrameAllocated",
     "KeystoneFrameAllocated",
+    "JewelFrameAllocated",
 ];
 
-const INACTIVE_STRINGS: [&str; 5] = [
+const INACTIVE_STRINGS: [&str; 6] = [
     "AscendancyFrameSmallNormal",
     "AscendancyFrameLargeNormal",
     "PSSkillFrame",
     "NotableFrameUnallocated",
     "KeystoneFrameUnallocated",
+    "JewelFrameUnallocated",
 ];
 
 fn node_gl(
@@ -220,6 +222,11 @@ fn node_gl(
                 _ => panic!("No frame"),
             };
             dd_asc_frames.append(x, y, rect, sprite, false, 2.0);
+        }
+        NodeType::JewelSocket => {
+            let sprite = &TREE.sprites["frame"];
+            let rect = &sprite.coords[icon_strings[5]];
+            dd_frames.append(x, y, rect, sprite, false, 1.0);
         }
         _ => {
             dd_nodes.append(x, y, rect, sprite, false, 1.0);

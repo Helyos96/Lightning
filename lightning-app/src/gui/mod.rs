@@ -7,6 +7,8 @@ use lightning_model::build::{Build, Stat};
 use rustc_hash::FxHashMap;
 use std::path::PathBuf;
 use lightning_model::tree::Node;
+use lightning_model::calc;
+use imgui::Ui;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum UiState {
@@ -75,3 +77,45 @@ impl Default for State {
     }
 }
 
+pub fn draw_left_panel(ui: &mut Ui, state: &mut State) {
+    ui.window("##LeftPanel")
+        .position([0.0, 0.0], imgui::Condition::FirstUseEver)
+        .size([200.0, 1024.0], imgui::Condition::FirstUseEver)
+        .movable(false)
+        .resizable(false)
+        .title_bar(false)
+        .build(|| {
+            let preview = match state
+                .build
+                .gem_links
+                .iter()
+                .flat_map(|gl| &gl.active_gems)
+                .nth(state.active_skill_cur)
+            {
+                Some(gem) => &gem.data().base_item.as_ref().unwrap().display_name,
+                None => "",
+            };
+            if let Some(combo) = ui.begin_combo("##ActiveSkills", preview) {
+                for (index, gem) in state.build.gem_links.iter().flat_map(|gl| &gl.active_gems).enumerate() {
+                    let selected = index == state.active_skill_cur;
+                    if ui
+                        .selectable_config(&gem.data().base_item.as_ref().unwrap().display_name)
+                        .selected(selected)
+                        .build()
+                    {
+                        state.active_skill_cur = index;
+                        state.active_skill_calc = calc::calc_gem(&state.build, &vec![], gem);
+                    }
+                }
+                combo.end();
+            }
+            for (k, v) in &state.active_skill_calc {
+                ui.text(k.to_string() + ": " + &v.to_string());
+            }
+            ui.separator();
+            for stat in &state.defence_calc {
+                ui.text(stat.0.to_string() + ": " + &stat.1.val().to_string());
+            }
+        }
+    );
+}

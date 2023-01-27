@@ -97,6 +97,7 @@ fn main() {
                 match state.ui_state {
                     UiState::ChooseBuild => gui::build_selection::draw(ui, &mut state),
                     UiState::Main => {
+                        gui::draw_left_panel(ui, &mut state);
                         if state.key_left == ElementState::Pressed {
                             state.tree_translate.0 += 50;
                         }
