@@ -21,10 +21,10 @@ lazy_static! {
                 (
                     ItemId(*k as usize),
                     Item::Rect(quadtree_f32::Rect {
-                        max_x: x + (rect.w as f32 * scale) / 2.0 + (3.0 * scale),
-                        max_y: y + (rect.h as f32 * scale) / 2.0 + (3.0 * scale),
-                        min_x: x - (rect.w as f32 * scale) / 2.0 - (3.0 * scale),
-                        min_y: y - (rect.h as f32 * scale) / 2.0 - (3.0 * scale),
+                        max_x: x + (rect.w as f32 * scale) / 2.0 + (5.0 * scale),
+                        max_y: y + (rect.h as f32 * scale) / 2.0 + (5.0 * scale),
+                        min_x: x - (rect.w as f32 * scale) / 2.0 - (5.0 * scale),
+                        min_y: y - (rect.h as f32 * scale) / 2.0 - (5.0 * scale),
                     })
                 )
             });

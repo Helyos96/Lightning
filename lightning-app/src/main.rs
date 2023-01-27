@@ -234,6 +234,7 @@ fn create_window() -> (EventLoop<()>, Window) {
         .with_inner_size(glutin::dpi::LogicalSize::new(1280, 720));
     let window = glutin::ContextBuilder::new()
         .with_vsync(true)
+        .with_multisampling(4)
         .build_windowed(window, &event_loop)
         .expect("could not create window");
     let window = unsafe { window.make_current().expect("could not make window context current") };
