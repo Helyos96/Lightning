@@ -310,8 +310,8 @@ pub enum Source {
     Innate,
     Node(u16),
     Mastery((u16, u16)),
-    Item(Item),
-    Gem(Gem),
+    Item,
+    Gem,
 }
 
 impl Default for Source {
@@ -421,22 +421,22 @@ pub fn parse_mod(input: &str) -> Option<Vec<Mod>> {
         }
     }
 
-    println!("failed: {}", input);
+    println!("failed: {input}");
     CACHE.lock().unwrap().insert(input.to_string(), None);
     None
 }
 
 #[test]
 fn test_parse() {
-    assert!(parse_mod(&"50% increased damage").is_some());
-    assert!(parse_mod(&"50% decreased damage").is_some());
-    assert!(parse_mod(&"50% more damage").is_some());
-    assert!(parse_mod(&"50% less damage").is_some());
-    assert!(parse_mod(&"+5 damage").is_some());
-    assert!(parse_mod(&"-5 damage").is_some());
-    assert!(parse_mod(&"+1 maximum life per level").is_some());
-    assert!(parse_mod(&"+5% to cold resistance").is_some());
-    assert!(parse_mod(&"-5% fire resistance").is_some());
-    assert!(parse_mod(&"50% increased melee physical damage").is_some());
-    assert!(parse_mod(&"50% increased melee physical damage per level").is_some());
+    assert!(parse_mod("50% increased damage").is_some());
+    assert!(parse_mod("50% decreased damage").is_some());
+    assert!(parse_mod("50% more damage").is_some());
+    assert!(parse_mod("50% less damage").is_some());
+    assert!(parse_mod("+5 damage").is_some());
+    assert!(parse_mod("-5 damage").is_some());
+    assert!(parse_mod("+1 maximum life per level").is_some());
+    assert!(parse_mod("+5% to cold resistance").is_some());
+    assert!(parse_mod("-5% fire resistance").is_some());
+    assert!(parse_mod("50% increased melee physical damage").is_some());
+    assert!(parse_mod("50% increased melee physical damage per level").is_some());
 }

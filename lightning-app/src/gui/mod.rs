@@ -3,7 +3,7 @@ pub mod tree_view;
 
 use crate::config::Config;
 use glutin::event::ElementState;
-use lightning_model::build::Build;
+use lightning_model::build::{Build, Stat};
 use rustc_hash::FxHashMap;
 use std::path::PathBuf;
 use lightning_model::tree::Node;
@@ -25,8 +25,8 @@ pub struct State {
     pub import_account: String,
     pub import_character: String,
 
-    active_skill_calc_res: FxHashMap<&'static str, i64>,
-    defence_calc_res: FxHashMap<&'static str, i64>,
+    active_skill_calc: FxHashMap<&'static str, i64>,
+    pub defence_calc: Vec<(String, Stat)>,
     pub hovered_node: Option<&'static Node>,
 
     // widget-specific values
@@ -55,8 +55,8 @@ impl Default for State {
             import_account: String::new(),
             import_character: String::new(),
 
-            active_skill_calc_res: FxHashMap::default(),
-            defence_calc_res: FxHashMap::default(),
+            active_skill_calc: FxHashMap::default(),
+            defence_calc: vec![],
             hovered_node: None,
 
             builds_list_cur: 0,

@@ -10,7 +10,7 @@ lazy_static! {
     static ref QUADTREE: QuadTree = {
         let items = TREE.nodes
             .iter()
-            .filter(|(_k,n)| n.group.is_some() && n.class_start_index.is_none())
+            .filter(|(_k,n)| n.group.is_some() && n.class_start_index.is_none() && !n.is_ascendancy_start)
             .map(|(k,n)| {
                 let (x,y) = node_pos(n);
                 let (rect, _) = get_rect(n).unwrap();

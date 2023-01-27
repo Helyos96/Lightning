@@ -1,6 +1,6 @@
 use crate::data::GEMS;
 use crate::gemstats::GEMSTATS;
-use crate::modifier::Mod;
+use crate::modifier::{Mod, Source};
 use crate::util;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -160,6 +160,7 @@ impl Gem {
                     for m in stat_mods {
                         let mut modifier = m.to_owned();
                         modifier.amount = value;
+                        modifier.source = Source::Gem;
                         mods.push(modifier);
                     }
                 } else {

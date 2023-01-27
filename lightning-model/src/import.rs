@@ -110,7 +110,7 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
         + account
         + "&character="
         + character;
-    println!("{}", url);
+    println!("{url}");
     let tree = reqwest::blocking::get(url)?.json::<PassiveTree>()?;
 
     // Items, Skills, CharData

@@ -22,7 +22,7 @@ fn main() {
     let player = match fetch() {
         Ok(b) => b,
         Err(err) => {
-            println!("{}", err);
+            println!("{err}");
             return;
         }
     };

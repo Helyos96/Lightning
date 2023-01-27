@@ -1,4 +1,4 @@
-use crate::build::Build;
+use crate::build::{Build, Stat};
 use crate::gem::{Gem, Tag};
 use crate::modifier::DamageType;
 use rustc_hash::FxHashMap;
@@ -63,11 +63,15 @@ pub fn calc_gem(build: &Build, support_gems: &Vec<Gem>, active_gem: &Gem) -> FxH
     ret
 }
 
-pub fn calc_defence(build: &Build) {
+pub fn calc_defence(build: &Build) -> Vec<(String, Stat)> {
+    let mut ret = vec![];
     let mods = build.calc_mods(true);
     let stats = build.calc_stats(&mods, &hset![]);
-    //dbg!(&stats["maximum life"]);
-    dbg!(stats["maximum life"].val());
-    dbg!(stats["strength"].val());
-    //dbg!(&stats);
+
+    ret.push(("Maximum Life".to_string(), stats["maximum life"].clone()));
+    ret.push(("Fire Resistance".to_string(), build.calc_stat_dmg("resistance", &mods, &hset![], DamageType::Fire)));
+    ret.push(("Cold Resistance".to_string(), build.calc_stat_dmg("resistance", &mods, &hset![], DamageType::Cold)));
+    ret.push(("Lightning Resistance".to_string(), build.calc_stat_dmg("resistance", &mods, &hset![], DamageType::Lightning)));
+
+    ret
 }

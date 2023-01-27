@@ -28,7 +28,7 @@ pub struct GemLink {
     pub slot: Slot,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Stat {
     base: i64,
     inc: i64,
@@ -48,16 +48,16 @@ pub struct Build {
 
 impl Build {
     pub fn new_player() -> Build {
-        let player = Build {
+        
+
+        Build {
             class: Class::Scion,
             ascendancy: 0,
             level: 1,
             gem_links: vec![],
             equipment: vec![],
             tree: Default::default(),
-        };
-
-        player
+        }
     }
 
     /// Returns mods from the following sources:

@@ -29,13 +29,17 @@ fn draw_left_panel(ui: &mut Ui, state: &mut State) {
                         .build()
                     {
                         state.active_skill_cur = index;
-                        state.active_skill_calc_res = calc::calc_gem(&state.build, &vec![], gem);
+                        state.active_skill_calc = calc::calc_gem(&state.build, &vec![], gem);
                     }
                 }
                 combo.end();
             }
-            for (k, v) in &state.active_skill_calc_res {
+            for (k, v) in &state.active_skill_calc {
                 ui.text(k.to_string() + ": " + &v.to_string());
+            }
+            ui.separator();
+            for stat in &state.defence_calc {
+                ui.text(stat.0.to_string() + ": " + &stat.1.val().to_string());
             }
         }
     );

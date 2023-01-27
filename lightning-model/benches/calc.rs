@@ -4,7 +4,7 @@ extern crate bencher;
 use std::fs;
 use bencher::Bencher;
 use lightning_model::build::Build;
-use lightning_model::calc::*;
+
 use lightning_model::import;
 
 fn fetch() -> Result<Build, Box<dyn std::error::Error>>
@@ -26,7 +26,7 @@ fn calc_mods(bench: &mut Bencher)
 {
     let player = match fetch() {
         Ok(b) => b,
-        Err(err) => { println!("{}", err); return; }
+        Err(err) => { println!("{err}"); return; }
     };
     player.calc_mods(true);
 
@@ -39,7 +39,7 @@ fn calc_stats(bench: &mut Bencher)
 {
     let player = match fetch() {
         Ok(b) => b,
-        Err(err) => { println!("{}", err); return; }
+        Err(err) => { println!("{err}"); return; }
     };
     let mods = player.calc_mods(true);
 

@@ -1,5 +1,5 @@
 use crate::data::ITEMS;
-use crate::modifier::{parse_mod, Mod};
+use crate::modifier::{parse_mod, Mod, Source};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
@@ -35,12 +35,14 @@ impl Item {
         let mut mods = vec![];
 
         for m in &self.mods_impl {
-            if let Some(modifiers) = parse_mod(m) {
+            if let Some(mut modifiers) = parse_mod(m) {
+                for modifier in &mut modifiers { modifier.source = Source::Item; }
                 mods.extend(modifiers);
             }
         }
         for m in &self.mods_expl {
-            if let Some(modifiers) = parse_mod(m) {
+            if let Some(mut modifiers) = parse_mod(m) {
+                for modifier in &mut modifiers { modifier.source = Source::Item; }
                 mods.extend(modifiers);
             }
         }

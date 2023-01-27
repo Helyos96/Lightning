@@ -19,7 +19,7 @@ use glutin::{event_loop::EventLoop, WindowedContext};
 use gui::{State, UiState};
 use imgui::ConfigFlags;
 use imgui_winit_support::WinitPlatform;
-use lightning_model::{build, util};
+use lightning_model::{build, util, calc};
 use std::error::Error;
 
 const TITLE: &str = "Lightning";
@@ -30,18 +30,21 @@ fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
     state.ui_state = match &state.ui_state {
         UiState::LoadBuild(path) => {
             state.build = util::load_build(path)?;
+            state.defence_calc = calc::calc_defence(&state.build);
             println!("Loaded build from {}", &path.display());
             dbg!(&state.build.class);
             UiState::Main
         }
         UiState::ImportBuild => {
             state.build = util::fetch_build(&state.import_account, &state.import_character)?;
+            state.defence_calc = calc::calc_defence(&state.build);
             println!("Fetched build: {} {}", &state.import_account, &state.import_character);
             dbg!(&state.build.class);
             UiState::Main
         }
         UiState::NewBuild => {
             state.build = build::Build::new_player();
+            state.defence_calc = calc::calc_defence(&state.build);
             UiState::Main
         }
         _ => state.ui_state.clone(),
@@ -67,7 +70,7 @@ fn main() {
 
     let mut state = State::default();
     if let Err(err) = state.config.save() {
-        eprintln!("Failed to save config: {:?}", err);
+        eprintln!("Failed to save config: {err:?}");
     }
 
     let mut tree_gl = TreeGl::default();
@@ -124,7 +127,7 @@ fn main() {
                     ui.text(format!("{:?}", &viewport));
                 });*/
                 if let Err(err) = process_state(&mut state) {
-                    println!("State Error: {}", err);
+                    println!("State Error: {err}");
                     if state.ui_state == UiState::ImportBuild {
                         state.ui_state = UiState::ChooseBuild;
                     }
