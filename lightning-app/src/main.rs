@@ -9,6 +9,7 @@ mod config;
 mod gui;
 mod tree_gl;
 mod quadtree;
+mod tree_preview;
 
 use std::time::Instant;
 use std::ops::Neg;
@@ -97,7 +98,6 @@ fn main() {
                 match state.ui_state {
                     UiState::ChooseBuild => gui::build_selection::draw(ui, &mut state),
                     UiState::Main => {
-                        gui::draw_left_panel(ui, &mut state);
                         if state.key_left == ElementState::Pressed {
                             state.tree_translate.0 += 50;
                         }
@@ -110,23 +110,25 @@ fn main() {
                         if state.key_down == ElementState::Pressed {
                             state.tree_translate.1 += 50;
                         }
+                        if let Some(node) = state.hovered_node {
+                            if !state.build.tree.nodes.contains(&node.skill) {
+                                state.path_hovered = tree_preview::find_path(node.skill, &state.build.tree);
+                            }
+                        } else {
+                            state.path_hovered = None;
+                        }
                         tree_gl.draw(
                             &state.build.tree,
                             ig_renderer.gl_context(),
                             state.zoom,
                             state.tree_translate,
+                            &state.path_hovered,
                         );
+                        gui::draw_left_panel(ui, &mut state);
                         gui::tree_view::draw(ui, &mut state);
                     }
                     _ => eprintln!("Can't draw state {:?}", state.ui_state),
                 };
-                /*ui.window("viewport")
-                    .size([500.0, 500.0], imgui::Condition::FirstUseEver)
-                    .build(|| {
-                    let mut viewport = [0,0,0,0];
-                    unsafe { ig_renderer.gl_context().get_parameter_i32_slice(glow::VIEWPORT, &mut viewport); }
-                    ui.text(format!("{:?}", &viewport));
-                });*/
                 if let Err(err) = process_state(&mut state) {
                     println!("State Error: {err}");
                     if state.ui_state == UiState::ImportBuild {

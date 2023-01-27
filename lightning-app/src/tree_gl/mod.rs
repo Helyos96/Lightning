@@ -219,7 +219,7 @@ impl TreeGl {
         let data = group_background_gl();
         self.draw_data
             .insert("background".to_string(), GlDrawData::new(gl, &data));
-        let data = connectors_gl();
+        let data = connectors_gl_inactive();
         self.draw_data
             .insert("connectors".to_string(), GlDrawData::new(gl, &data));
         let data = ascendancies_gl();
@@ -263,20 +263,33 @@ impl TreeGl {
             .insert("masteries_active".to_string(), GlDrawData::new(gl, &data[2]));
         self.draw_data
             .insert("ascendancy_frames_active".to_string(), GlDrawData::new(gl, &data[3]));
-        let data = connectors_gl_active(&tree.nodes);
+        let data = connectors_gl(&tree.nodes, &TREE.sprites["line"].coords["LineConnectorActive"]);
         self.draw_data
             .insert("connectors_active".to_string(), GlDrawData::new(gl, &data));
     }
 
-    pub fn draw(&mut self, tree: &PassiveTree, gl: &glow::Context, zoom: f32, translate: (i32, i32)) {
+    pub fn regen_hovered(&mut self, gl: &glow::Context, path_hovered: &Option<Vec<u16>>) {
+        if let Some(dd) = self.draw_data.get_mut("connectors_hovered") {
+            dd.destroy(gl);
+        }
+        if let Some(path) = path_hovered {
+            let data = connectors_gl(&path, &TREE.sprites["line"].coords["LineConnectorActive"]);
+            self.draw_data
+                .insert("connectors_hovered".to_string(), GlDrawData::new(gl, &data));
+        }
+    }
+
+    pub fn draw(&mut self, tree: &PassiveTree, gl: &glow::Context, zoom: f32, translate: (i32, i32), path_hovered: &Option<Vec<u16>>) {
         if self.draw_data.get("nodes_active").is_none() {
             self.regen_active(gl, tree);
         }
+        self.regen_hovered(gl, path_hovered);
 
-        let draw_order = [
+        const DRAW_ORDER: [(&str, &str); 13] = [
             ("background", "group-background-3.dds"),
             ("ascendancy_background", "ascendancy-background-3.dds"),
             ("connectors", "line-3.dds"),
+            ("connectors_hovered", "line-3.dds"),
             ("connectors_active", "line-3.dds"),
             ("nodes", "skills-disabled-3.dds"),
             ("nodes_active", "skills-3.dds"),
@@ -308,7 +321,7 @@ impl TreeGl {
                 &(scale * ortho * translate).to_cols_array(),
             );
 
-            for to_draw in draw_order {
+            for to_draw in DRAW_ORDER.iter().filter(|d| self.draw_data.contains_key(d.0)) {
                 gl.bind_vertex_array(self.draw_data[to_draw.0].vao);
                 gl.bind_texture(glow::TEXTURE_2D, Some(self.textures[to_draw.1].gl_texture));
                 gl.draw_elements(glow::TRIANGLES, self.draw_data[to_draw.0].len, glow::UNSIGNED_SHORT, 0);

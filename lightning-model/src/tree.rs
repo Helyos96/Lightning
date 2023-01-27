@@ -57,6 +57,7 @@ pub enum NodeType {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Node {
+    pub skill: u16,
     pub stats: Vec<String>,
     pub icon: String,
     pub name: String,
@@ -79,6 +80,7 @@ pub struct Node {
     pub orbit: Option<u16>,
     pub orbit_index: Option<u16>,
     pub out: Option<Vec<u16>>,
+    pub r#in: Option<Vec<u16>>,
 }
 
 impl Node {

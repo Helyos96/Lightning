@@ -30,6 +30,7 @@ pub struct State {
     active_skill_calc: FxHashMap<&'static str, i64>,
     pub defence_calc: Vec<(String, Stat)>,
     pub hovered_node: Option<&'static Node>,
+    pub path_hovered: Option<Vec<u16>>,
 
     // widget-specific values
     builds_list_cur: usize,
@@ -60,6 +61,7 @@ impl Default for State {
             active_skill_calc: FxHashMap::default(),
             defence_calc: vec![],
             hovered_node: None,
+            path_hovered: None,
 
             builds_list_cur: 0,
             active_skill_cur: 0,

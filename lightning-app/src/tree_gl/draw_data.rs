@@ -118,7 +118,7 @@ fn connector_gl(x1: f32, y1: f32, x2: f32, y2: f32, rect: &Rect, sprite: &Sprite
 }
 
 /// Very simple straight connectors. todo: arcs
-pub fn connectors_gl() -> DrawData {
+pub fn connectors_gl_inactive() -> DrawData {
     let mut dd = DrawData::default();
     let sprite = &TREE.sprites["line"];
     let rect = &sprite.coords["LineConnectorNormal"];
@@ -143,10 +143,9 @@ pub fn connectors_gl() -> DrawData {
     dd
 }
 
-pub fn connectors_gl_active(nodes: &[u16]) -> DrawData {
+pub fn connectors_gl(nodes: &[u16], rect: &Rect) -> DrawData {
     let mut dd = DrawData::default();
     let sprite = &TREE.sprites["line"];
-    let rect = &sprite.coords["LineConnectorActive"];
 
     for node in nodes
         .iter()

@@ -45,5 +45,14 @@ for node in tree['nodes'].values():
         out.append(int(n))
     node['out'] = out
 
+# 'out' nodes string to int
+for node in tree['nodes'].values():
+    if 'in' not in node:
+        continue
+    nodes_in = []
+    for n in node['in']:
+        nodes_in.append(int(n))
+    node['in'] = nodes_in
+
 print(json.dumps(tree,indent=2))
 
