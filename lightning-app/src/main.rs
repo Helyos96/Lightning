@@ -8,8 +8,6 @@ mod clipboard;
 mod config;
 mod gui;
 mod tree_gl;
-mod quadtree;
-mod tree_preview;
 
 use std::time::Instant;
 use std::ops::Neg;
@@ -110,7 +108,7 @@ fn main() {
                         }
                         if let Some(node) = state.hovered_node {
                             if !state.build.tree.nodes.contains(&node.skill) {
-                                let path_hovered = tree_preview::find_path(node.skill, &state.build.tree);
+                                let path_hovered = tree_gl::hover::find_path(node.skill, &state.build.tree);
                                 if state.path_hovered.is_none() && path_hovered.is_some() {
                                     tree_gl.regen_active(ig_renderer.gl_context(), &state.build.tree, &path_hovered);
                                 }
@@ -225,7 +223,7 @@ fn main() {
                         x *= 12500.0 / state.zoom;
                         y *= 12500.0 / state.zoom;
 
-                        state.hovered_node = quadtree::get_hovered_node(x, y);
+                        state.hovered_node = tree_gl::hover::get_hovered_node(x, y);
                     }
                     _ => {}
                 }

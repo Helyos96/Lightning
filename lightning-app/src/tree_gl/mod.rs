@@ -1,4 +1,5 @@
 pub mod draw_data;
+pub mod hover;
 
 use glow::HasContext;
 use lightning_model::data::TREE;
