@@ -47,14 +47,13 @@ pub struct Build {
 
 impl Build {
     pub fn new_player() -> Build {
-        let mut build = Build {
+        Build {
             ascendancy: 0,
             level: 1,
             gem_links: vec![],
             equipment: vec![],
             tree: Default::default(),
-        };
-        build
+        }
     }
 
     /// Returns mods from the following sources:

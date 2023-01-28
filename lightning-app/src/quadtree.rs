@@ -3,7 +3,7 @@
 use quadtree_f32::{Item, ItemId, QuadTree};
 use lazy_static::lazy_static;
 use lightning_model::data::TREE;
-use lightning_model::tree::{Node, NodeType};
+use lightning_model::tree::Node;
 use crate::tree_gl::draw_data::{node_pos, get_rect};
 
 lazy_static! {
@@ -14,10 +14,7 @@ lazy_static! {
             .map(|(k,n)| {
                 let (x,y) = node_pos(n);
                 let (rect, _) = get_rect(n).unwrap();
-                let scale = match n.node_type() {
-                    NodeType::AscendancyNormal | NodeType::AscendancyNotable => 2.0,
-                    _ => 1.0
-                };
+                let scale = 2.0;
                 (
                     ItemId(*k as usize),
                     Item::Rect(quadtree_f32::Rect {

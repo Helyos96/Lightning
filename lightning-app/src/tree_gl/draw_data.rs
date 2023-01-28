@@ -210,7 +210,7 @@ fn node_gl(
 
     match node.node_type() {
         NodeType::Mastery => {
-            dd_masteries.append(x, y, rect, sprite, false, 1.0);
+            dd_masteries.append(x, y, rect, sprite, false, 2.0);
         }
         NodeType::AscendancyNormal | NodeType::AscendancyNotable => {
             dd_nodes.append(x, y, rect, sprite, false, 2.0);
@@ -225,10 +225,10 @@ fn node_gl(
         NodeType::JewelSocket => {
             let sprite = &TREE.sprites["frame"];
             let rect = &sprite.coords[icon_strings[5]];
-            dd_frames.append(x, y, rect, sprite, false, 1.0);
+            dd_frames.append(x, y, rect, sprite, false, 2.0);
         }
         _ => {
-            dd_nodes.append(x, y, rect, sprite, false, 1.0);
+            dd_nodes.append(x, y, rect, sprite, false, 2.0);
             let sprite = &TREE.sprites["frame"];
             let rect = match node.node_type() {
                 NodeType::Normal => &sprite.coords[icon_strings[2]],
@@ -236,7 +236,7 @@ fn node_gl(
                 NodeType::Keystone => &sprite.coords[icon_strings[4]],
                 _ => panic!("No frame"),
             };
-            dd_frames.append(x, y, rect, sprite, false, 1.0);
+            dd_frames.append(x, y, rect, sprite, false, 2.0);
         }
     }
 }
@@ -312,12 +312,12 @@ pub fn group_background_gl() -> DrawData {
         if background.is_half_image.is_some() {
             // Need to draw upper half and then bottom half (vertically flipped)
             // todo: fix seams that appear sometimes
-            y += rect.h as f32 / 2.0;
-            dd.append(x, y, rect, sprite, false, 1.0);
-            y -= rect.h as f32;
-            dd.append(x, y, rect, sprite, true, 1.0);
+            y += rect.h as f32;
+            dd.append(x, y, rect, sprite, false, 2.0);
+            y -= rect.h as f32 * 2.0;
+            dd.append(x, y, rect, sprite, true, 2.0);
         } else {
-            dd.append(x, y, rect, sprite, false, 1.0);
+            dd.append(x, y, rect, sprite, false, 2.0);
         }
     }
     let sprite = &TREE.sprites["startNode"];
