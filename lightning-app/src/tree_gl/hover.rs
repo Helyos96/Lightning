@@ -3,8 +3,6 @@ use lazy_static::lazy_static;
 use lightning_model::data::TREE;
 use lightning_model::tree::{Node, NodeType};
 use super::draw_data::{node_pos, get_rect};
-use pathfinding::prelude::bfs;
-use lightning_model::tree::PassiveTree;
 
 lazy_static! {
     /// This quadtree is used to know when tree nodes are hovered by the mouse cursor
@@ -46,23 +44,4 @@ pub fn get_hovered_node(x: f32, y: f32) -> Option<&'static Node> {
 
     if overlaps.is_empty() { return None; }
     Some(&TREE.nodes[&(overlaps[0].0 as u16)])
-}
-
-lazy_static! {
-    static ref PATH_OF_THE: Vec<u16> =
-        TREE.nodes.values().filter(|n| n.name.starts_with("Path of the") && n.ascendancy_name.is_some()).map(|n| n.skill).collect();
-}
-
-fn successors(node: u16) -> Vec<u16> {
-    if TREE.nodes[&node].class_start_index.is_some() { return vec![node]; }
-    let mut v: Vec<u16> = TREE.nodes[&node].out.as_ref().unwrap().iter().filter(|id| !TREE.nodes[id].is_mastery).map(|id| *id).collect();
-    let nodes_in: Vec<u16> = TREE.nodes[&node].r#in.as_ref().unwrap().iter().filter(|id| !PATH_OF_THE.contains(*id)).map(|id| *id).collect();
-    v.extend(nodes_in);
-    v
-}
-
-/// When an unallocated node is hovered, find the shortest path to link
-/// the rest of the tree. Using Breadth-First-Search.
-pub fn find_path(node: u16, tree: &PassiveTree) -> Option<Vec<u16>> {
-    bfs(&node, |p| successors(*p), |p| tree.nodes.contains(p))
 }

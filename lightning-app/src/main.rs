@@ -13,7 +13,7 @@ use std::time::Instant;
 use std::ops::Neg;
 use crate::tree_gl::TreeGl;
 use glow::HasContext;
-use glutin::event::{self, ElementState, Event, VirtualKeyCode};
+use glutin::event::{self, ElementState, Event, VirtualKeyCode, MouseButton};
 use glutin::{event_loop::EventLoop, WindowedContext};
 use gui::{State, UiState};
 use imgui::ConfigFlags;
@@ -94,21 +94,23 @@ fn main() {
                 match state.ui_state {
                     UiState::ChooseBuild => gui::build_selection::draw(ui, &mut state),
                     UiState::Main => {
-                        if state.key_left == ElementState::Pressed {
-                            state.tree_translate.0 += 50;
-                        }
-                        if state.key_right == ElementState::Pressed {
-                            state.tree_translate.0 -= 50;
-                        }
-                        if state.key_up == ElementState::Pressed {
-                            state.tree_translate.1 -= 50;
-                        }
-                        if state.key_down == ElementState::Pressed {
-                            state.tree_translate.1 += 50;
+                        if state.mouse_pos.0 >= 200.0 {
+                            if state.key_left == ElementState::Pressed {
+                                state.tree_translate.0 += 50;
+                            }
+                            if state.key_right == ElementState::Pressed {
+                                state.tree_translate.0 -= 50;
+                            }
+                            if state.key_up == ElementState::Pressed {
+                                state.tree_translate.1 -= 50;
+                            }
+                            if state.key_down == ElementState::Pressed {
+                                state.tree_translate.1 += 50;
+                            }
                         }
                         if let Some(node) = state.hovered_node {
                             if state.path_hovered.is_none() && !state.build.tree.nodes.contains(&node.skill) {
-                                let path_hovered = tree_gl::hover::find_path(node.skill, &state.build.tree);
+                                let path_hovered = state.build.tree.find_path(node.skill);
                                 if state.path_hovered.is_none() && path_hovered.is_some() {
                                     tree_gl.regen_active(ig_renderer.gl_context(), &state.build.tree, &path_hovered);
                                 }
@@ -165,7 +167,9 @@ fn main() {
                             },
                         ..
                     } => {
-                        state.zoom = f32::max(0.50, state.zoom + v);
+                        if state.ui_state == UiState::Main && state.mouse_pos.0 >= 200.0 {
+                            state.zoom = f32::max(0.50, state.zoom + v);
+                        }
                     }
                     Event::WindowEvent {
                         event: event::WindowEvent::Resized(physical_size),
@@ -180,6 +184,26 @@ fn main() {
                                 physical_size.height as i32,
                             )
                         };
+                    }
+                    Event::WindowEvent {
+                        event: event::WindowEvent::MouseInput {
+                            state: button_state,
+                            button,
+                            ..
+                        },
+                        ..
+                    } => {
+                        if button == MouseButton::Left && button_state == ElementState::Pressed {
+                            if state.ui_state == UiState::Main && state.mouse_pos.0 >= 200.0 {
+                                if state.hovered_node.is_some() {
+                                    state.build.tree.flip_node(state.hovered_node.as_ref().unwrap().skill);
+                                    state.defence_calc = calc::calc_defence(&state.build);
+                                    tree_gl.regen_active(ig_renderer.gl_context(), &state.build.tree, &None);
+                                } else {
+                                    // todo: Engage tree dragging
+                                }
+                            }
+                        }
                     }
                     Event::WindowEvent {
                         event:
@@ -209,21 +233,28 @@ fn main() {
                         ..
                     } => {
                         let (mut x, mut y) = (position.x as f32, position.y as f32);
-                        let aspect_ratio = state.dimensions.0 as f32 / state.dimensions.1 as f32;
                         state.mouse_pos = (x, y);
+                        // Don't process mouse events on left panel
+                        if x >= 200.0 {
+                            let aspect_ratio = state.dimensions.0 as f32 / state.dimensions.1 as f32;
 
-                        x -= state.dimensions.0 as f32 / 2.0;
-                        y -= state.dimensions.1 as f32 / 2.0;
-                        y = y.neg();
-                        x /= state.dimensions.0 as f32 / 2.0;
-                        y /= state.dimensions.1 as f32 / 2.0;
-                        x -= state.tree_translate.0 as f32 * (state.zoom / aspect_ratio) / 12500.0;
-                        y -= state.tree_translate.1 as f32 * state.zoom / 12500.0;
-                        x *= aspect_ratio;
-                        x *= 12500.0 / state.zoom;
-                        y *= 12500.0 / state.zoom;
+                            x -= state.dimensions.0 as f32 / 2.0;
+                            y -= state.dimensions.1 as f32 / 2.0;
+                            y = y.neg();
+                            x /= state.dimensions.0 as f32 / 2.0;
+                            y /= state.dimensions.1 as f32 / 2.0;
+                            x -= state.tree_translate.0 as f32 * (state.zoom / aspect_ratio) / 12500.0;
+                            y -= state.tree_translate.1 as f32 * state.zoom / 12500.0;
+                            x *= aspect_ratio;
+                            x *= 12500.0 / state.zoom;
+                            y *= 12500.0 / state.zoom;
 
-                        state.hovered_node = tree_gl::hover::get_hovered_node(x, y);
+                            state.hovered_node = tree_gl::hover::get_hovered_node(x, y);
+                        } else if state.hovered_node.is_some() {
+                            state.hovered_node = None;
+                            state.path_hovered = None;
+                            tree_gl.regen_active(ig_renderer.gl_context(), &state.build.tree, &None);
+                        }
                     }
                     _ => {}
                 }
