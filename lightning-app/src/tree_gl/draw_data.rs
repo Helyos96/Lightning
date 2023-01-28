@@ -97,19 +97,23 @@ impl DrawData {
     }
 }
 
-fn connector_gl(x1: f32, y1: f32, x2: f32, y2: f32, rect: &Rect, sprite: &Sprite, dd: &mut DrawData) {
+/// Very simple straight connectors. todo: arcs
+fn connector_gl(x1: f32, y1: f32, x2: f32, y2: f32, w: f32, rect: &Rect, sprite: &Sprite, dd: &mut DrawData) {
+    let (vx, vy) = (x2 - x1, y2 - y1);
+    let (px, py) = (vy, -vx);
+    let len = (px * px + (py * py)).sqrt();
+    let (nx, ny) = (px / len, py / len);
     dd.vertices.extend([
-        // todo: better than this +6 / -6. Some angles don't render.
-        norm(x1 - 6.0, y1 + 6.0),
-        norm(x1 + 6.0, y1 - 6.0),
-        norm(x2 + 6.0, y2 - 6.0),
-        norm(x2 - 6.0, y2 + 6.0),
+        norm(x1 - nx * w, y1 - ny * w),
+        norm(x1 + nx * w, y1 + ny * w),
+        norm(x2 + nx * w, y2 + ny * w),
+        norm(x2 - nx * w, y2 - ny * w),
     ]);
     dd.tex_coords.extend([
-        norm_tex(rect.x, rect.y + rect.h, sprite.w, sprite.h),
         norm_tex(rect.x, rect.y, sprite.w, sprite.h),
-        norm_tex(rect.x + rect.w, rect.y, sprite.w, sprite.h),
         norm_tex(rect.x + rect.w, rect.y + rect.h, sprite.w, sprite.h),
+        norm_tex(rect.x, rect.y + rect.h, sprite.w, sprite.h),
+        norm_tex(rect.x + rect.w, rect.y, sprite.w, sprite.h),
     ]);
 
     let start = dd.vertices.len() as u16 - 4;
@@ -117,7 +121,6 @@ fn connector_gl(x1: f32, y1: f32, x2: f32, y2: f32, rect: &Rect, sprite: &Sprite
         .extend([start, start + 1, start + 2, start + 3, start, start + 2]);
 }
 
-/// Very simple straight connectors. todo: arcs
 pub fn connectors_gl_inactive() -> DrawData {
     let mut dd = DrawData::default();
     let sprite = &TREE.sprites["line"];
@@ -137,13 +140,13 @@ pub fn connectors_gl_inactive() -> DrawData {
             .filter(|n| !n.is_ascendancy_start && !n.is_mastery && n.class_start_index.is_none())
         {
             let (x2, y2) = node_pos(out);
-            connector_gl(x1, y1, x2, y2, rect, sprite, &mut dd);
+            connector_gl(x1, y1, x2, y2, 10.0, rect, sprite, &mut dd);
         }
     }
     dd
 }
 
-pub fn connectors_gl(nodes: &[u16], rect: &Rect) -> DrawData {
+pub fn connectors_gl(nodes: &[u16], rect: &Rect, w: f32) -> DrawData {
     let mut dd = DrawData::default();
     let sprite = &TREE.sprites["line"];
 
@@ -162,7 +165,7 @@ pub fn connectors_gl(nodes: &[u16], rect: &Rect) -> DrawData {
             .filter(|n| !n.is_ascendancy_start && !n.is_mastery && n.class_start_index.is_none())
         {
             let (x2, y2) = node_pos(out);
-            connector_gl(x1, y1, x2, y2, rect, sprite, &mut dd);
+            connector_gl(x1, y1, x2, y2, w, rect, sprite, &mut dd);
         }
     }
     dd
