@@ -82,7 +82,7 @@ impl Default for State {
 pub fn draw_left_panel(ui: &mut Ui, state: &mut State) {
     ui.window("##LeftPanel")
         .position([0.0, 0.0], imgui::Condition::FirstUseEver)
-        .size([200.0, 1024.0], imgui::Condition::FirstUseEver)
+        .size([200.0, state.dimensions.1 as f32], imgui::Condition::Always)
         .movable(false)
         .resizable(false)
         .title_bar(false)

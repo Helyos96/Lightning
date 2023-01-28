@@ -125,7 +125,7 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
     build.level = items.character.level;
     build.tree.nodes = tree.hashes;
     build.tree.nodes_ex = tree.hashes_ex;
-    build.tree.class = match items.character.classId {
+    build.tree.set_class(match items.character.classId {
         0 => Class::Scion,
         1 => Class::Marauder,
         2 => Class::Ranger,
@@ -137,7 +137,7 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
             println!("Bad class ID: {}, defaulting to Scion", items.character.classId);
             Class::Scion
         }
-    };
+    });
 
     for mastery_str in &tree.mastery_effects {
         let mastery = u32::from_str(mastery_str)?;
