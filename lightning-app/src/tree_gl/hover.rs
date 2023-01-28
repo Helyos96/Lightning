@@ -50,7 +50,7 @@ pub fn get_hovered_node(x: f32, y: f32) -> Option<&'static Node> {
 
 lazy_static! {
     static ref PATH_OF_THE: Vec<u16> =
-        TREE.nodes.values().filter(|n| n.name.starts_with("Path of the")).map(|n| n.skill).collect();
+        TREE.nodes.values().filter(|n| n.name.starts_with("Path of the") && n.ascendancy_name.is_some()).map(|n| n.skill).collect();
 }
 
 fn successors(node: u16) -> Vec<u16> {

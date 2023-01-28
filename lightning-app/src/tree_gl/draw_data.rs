@@ -126,7 +126,7 @@ pub fn connectors_gl_inactive() -> DrawData {
     for node in TREE
         .nodes
         .values()
-        .filter(|n| n.group.is_some() && !n.name.starts_with("Path of the") && n.class_start_index.is_none())
+        .filter(|n| n.group.is_some() && (!n.name.starts_with("Path of the") || n.ascendancy_name.is_none()) && n.class_start_index.is_none())
     {
         let (x1, y1) = node_pos(node);
         for out in node
@@ -150,7 +150,7 @@ pub fn connectors_gl(nodes: &[u16], rect: &Rect) -> DrawData {
     for node in nodes
         .iter()
         .map(|id| &TREE.nodes[id])
-        .filter(|n| n.group.is_some() && !n.name.starts_with("Path of the") && n.class_start_index.is_none())
+        .filter(|n| n.group.is_some() && (!n.name.starts_with("Path of the") || n.ascendancy_name.is_none()) && n.class_start_index.is_none())
     {
         let (x1, y1) = node_pos(node);
         for out in node
