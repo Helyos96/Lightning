@@ -54,7 +54,7 @@ lazy_static! {
 }
 
 fn successors(node: u16) -> Vec<u16> {
-    let mut v = TREE.nodes[&node].out.as_ref().unwrap().clone();
+    let mut v: Vec<u16> = TREE.nodes[&node].out.as_ref().unwrap().iter().filter(|id| !TREE.nodes[id].is_mastery).map(|id| *id).collect();
     let nodes_in: Vec<u16> = TREE.nodes[&node].r#in.as_ref().unwrap().iter().filter(|id| !PATH_OF_THE.contains(*id)).map(|id| *id).collect();
     v.extend(nodes_in);
     v
