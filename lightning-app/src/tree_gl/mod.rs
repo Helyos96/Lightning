@@ -243,13 +243,14 @@ impl TreeGl {
     }
 
     pub fn regen_active(&mut self, gl: &glow::Context, tree: &PassiveTree, path_hovered: &Option<Vec<u16>>) {
-        const REDRAW: [&str; 6] = [
+        const REDRAW: [&str; 7] = [
             "nodes_active",
             "frames_active",
             "masteries_active",
             "ascendancy_frames_active",
             "connectors_active",
             "connectors_hovered",
+            "class_start",
         ];
 
         for dd in self.draw_data.iter_mut().filter(|(k, _v)| REDRAW.contains(&k.as_str())) {
@@ -269,6 +270,9 @@ impl TreeGl {
         let data = connectors_gl(&tree.nodes, &TREE.sprites["line"].coords["LineConnectorActive"]);
         self.draw_data
             .insert("connectors_active".to_string(), GlDrawData::new(gl, &data));
+        let data = class_start_gl(tree.class);
+        self.draw_data
+            .insert("class_start".to_string(), GlDrawData::new(gl, &data));
         if let Some(path) = path_hovered {
             let data = connectors_gl(path, &TREE.sprites["line"].coords["LineConnectorActive"]);
             self.draw_data
@@ -281,7 +285,7 @@ impl TreeGl {
             self.regen_active(gl, tree, path_hovered);
         }
 
-        const DRAW_ORDER: [(&str, &str); 13] = [
+        const DRAW_ORDER: [(&str, &str); 14] = [
             ("background", "group-background-3.dds"),
             ("ascendancy_background", "ascendancy-background-3.dds"),
             ("connectors", "line-3.dds"),
@@ -291,6 +295,7 @@ impl TreeGl {
             ("nodes_active", "skills-3.dds"),
             ("frames", "frame-3.dds"),
             ("frames_active", "frame-3.dds"),
+            ("class_start", "group-background-3.dds"),
             ("ascendancy_frames", "ascendancy-3.dds"),
             ("ascendancy_frames_active", "ascendancy-3.dds"),
             ("masteries", "mastery-disabled-3.dds"),

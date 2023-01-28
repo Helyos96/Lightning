@@ -1,7 +1,7 @@
 use quadtree_f32::{Item, ItemId, QuadTree};
 use lazy_static::lazy_static;
 use lightning_model::data::TREE;
-use lightning_model::tree::Node;
+use lightning_model::tree::{Node, NodeType};
 use super::draw_data::{node_pos, get_rect};
 use pathfinding::prelude::bfs;
 use lightning_model::tree::PassiveTree;
@@ -15,7 +15,10 @@ lazy_static! {
             .map(|(k,n)| {
                 let (x,y) = node_pos(n);
                 let (rect, _) = get_rect(n).unwrap();
-                let scale = 2.0;
+                let scale = match n.node_type() {
+                    NodeType::Mastery => 1.5,
+                    _ => 2.0,
+                };
                 (
                     ItemId(*k as usize),
                     Item::Rect(quadtree_f32::Rect {
@@ -45,9 +48,15 @@ pub fn get_hovered_node(x: f32, y: f32) -> Option<&'static Node> {
     Some(&TREE.nodes[&(overlaps[0].0 as u16)])
 }
 
+lazy_static! {
+    static ref PATH_OF_THE: Vec<u16> =
+        TREE.nodes.values().filter(|n| n.name.starts_with("Path of the")).map(|n| n.skill).collect();
+}
+
 fn successors(node: u16) -> Vec<u16> {
     let mut v = TREE.nodes[&node].out.as_ref().unwrap().clone();
-    v.extend(TREE.nodes[&node].r#in.as_ref().unwrap().clone());
+    let nodes_in: Vec<u16> = TREE.nodes[&node].r#in.as_ref().unwrap().iter().filter(|id| !PATH_OF_THE.contains(*id)).map(|id| *id).collect();
+    v.extend(nodes_in);
     v
 }
 

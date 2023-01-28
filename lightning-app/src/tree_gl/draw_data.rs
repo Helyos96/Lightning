@@ -1,6 +1,6 @@
 use lightning_model::data::TREE;
 use std::ops::Neg;
-use lightning_model::tree::{self, Node, NodeType, Rect, Sprite};
+use lightning_model::tree::{self, Node, NodeType, Rect, Sprite, Class};
 use lazy_static::lazy_static;
 
 fn calc_angles() -> Vec<Vec<f32>> {
@@ -99,11 +99,11 @@ impl DrawData {
 
 fn connector_gl(x1: f32, y1: f32, x2: f32, y2: f32, rect: &Rect, sprite: &Sprite, dd: &mut DrawData) {
     dd.vertices.extend([
-        // todo: better than this +5 / -5. Some angles don't render.
-        norm(x1 - 5.0, y1 + 5.0),
-        norm(x1 + 5.0, y1 - 5.0),
-        norm(x2 + 5.0, y2 - 5.0),
-        norm(x2 - 5.0, y2 + 5.0),
+        // todo: better than this +6 / -6. Some angles don't render.
+        norm(x1 - 6.0, y1 + 6.0),
+        norm(x1 + 6.0, y1 - 6.0),
+        norm(x2 + 6.0, y2 - 6.0),
+        norm(x2 - 6.0, y2 + 6.0),
     ]);
     dd.tex_coords.extend([
         norm_tex(rect.x, rect.y + rect.h, sprite.w, sprite.h),
@@ -272,7 +272,7 @@ pub fn nodes_gl_active(nodes: &[u16], hovered: Option<&u16>) -> [DrawData; 4] {
     let mut dd_masteries = DrawData::default();
     let mut dd_asc_frames = DrawData::default();
 
-    for node in nodes.iter().map(|id| &TREE.nodes[id]) {
+    for node in nodes.iter().map(|id| &TREE.nodes[id]).filter(|n| n.class_start_index.is_none()) {
         node_gl(
             node,
             &mut dd_nodes,
@@ -297,6 +297,33 @@ pub fn nodes_gl_active(nodes: &[u16], hovered: Option<&u16>) -> [DrawData; 4] {
     [dd_nodes, dd_frames, dd_masteries, dd_asc_frames]
 }
 
+fn get_class_coords(class: Class) -> &'static str {
+    match class {
+        Class::Witch => "centerwitch",
+        Class::Templar => "centertemplar",
+        Class::Shadow => "centershadow",
+        Class::Scion => "centerscion",
+        Class::Ranger => "centerranger",
+        Class::Marauder => "centermarauder",
+        Class::Duelist => "centerduelist",
+    }
+}
+
+pub fn class_start_gl(class: Class) -> DrawData {
+    let mut dd = DrawData::default();
+    let sprite = &TREE.sprites["startNode"];
+    for node in TREE.nodes.values().filter(|n| n.class_start_index.is_some()) {
+        let rect = if class as i32 == node.class_start_index.unwrap() {
+            &sprite.coords[get_class_coords(class)]
+        } else { 
+            &sprite.coords["PSStartNodeBackgroundInactive"]
+        };
+        let (x, y) = node_pos(node);
+        dd.append(x, y, rect, sprite, false, 2.7);
+    }
+    dd
+}
+
 pub fn group_background_gl() -> DrawData {
     let mut dd = DrawData::default();
     let sprite = &TREE.sprites["groupBackground"];
@@ -314,17 +341,11 @@ pub fn group_background_gl() -> DrawData {
             // todo: fix seams that appear sometimes
             y += rect.h as f32;
             dd.append(x, y, rect, sprite, false, 2.0);
-            y -= rect.h as f32 * 2.0;
+            y -= (rect.h as f32 - 1.0) * 2.0;
             dd.append(x, y, rect, sprite, true, 2.0);
         } else {
             dd.append(x, y, rect, sprite, false, 2.0);
         }
-    }
-    let sprite = &TREE.sprites["startNode"];
-    let rect = &sprite.coords["PSStartNodeBackgroundInactive"];
-    for node in TREE.nodes.values().filter(|n| n.class_start_index.is_some()) {
-        let (x, y) = node_pos(node);
-        dd.append(x, y, rect, sprite, false, 2.5);
     }
     dd
 }
