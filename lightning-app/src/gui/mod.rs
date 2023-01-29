@@ -31,6 +31,7 @@ pub struct State {
     pub defence_calc: Vec<(String, Stat)>,
     pub hovered_node: Option<&'static Node>,
     pub path_hovered: Option<Vec<u16>>,
+    pub mouse_tree_drag: Option<(f32, f32)>,
 
     // widget-specific values
     builds_list_cur: usize,
@@ -62,6 +63,7 @@ impl Default for State {
             defence_calc: vec![],
             hovered_node: None,
             path_hovered: None,
+            mouse_tree_drag: None,
 
             builds_list_cur: 0,
             active_skill_cur: 0,

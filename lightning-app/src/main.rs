@@ -74,6 +74,10 @@ fn main() {
     tree_gl.init(ig_renderer.gl_context());
     // Standard winit event loop
     event_loop.run(move |event, _, control_flow| {
+        // Consider making the line below work someday.
+        // It suspends redrawing until there's an event.
+        // Pretty good cpu/gpu savings.
+        //*control_flow = glutin::event_loop::ControlFlow::Wait;
         match event {
             Event::NewEvents(_) => {
                 let now = Instant::now();
@@ -196,16 +200,20 @@ fn main() {
                         },
                         ..
                     } => {
-                        if button == MouseButton::Left && button_state == ElementState::Pressed {
-                            if state.ui_state == UiState::Main && gui::is_over_tree(&state.mouse_pos) {
-                                forward_event = false;
-                                if state.hovered_node.is_some() {
-                                    state.build.tree.flip_node(state.hovered_node.as_ref().unwrap().skill);
-                                    state.defence_calc = calc::calc_defence(&state.build);
-                                    tree_gl.regen_active(ig_renderer.gl_context(), &state.build.tree, &None);
-                                } else {
-                                    // todo: Engage tree dragging
+                        if button == MouseButton::Left {
+                            if button_state == ElementState::Pressed {
+                                if state.ui_state == UiState::Main && gui::is_over_tree(&state.mouse_pos) {
+                                    forward_event = false;
+                                    if state.hovered_node.is_some() {
+                                        state.build.tree.flip_node(state.hovered_node.as_ref().unwrap().skill);
+                                        state.defence_calc = calc::calc_defence(&state.build);
+                                        tree_gl.regen_active(ig_renderer.gl_context(), &state.build.tree, &None);
+                                    } else {
+                                        state.mouse_tree_drag = Some(state.mouse_pos);
+                                    }
                                 }
+                            } else {
+                                state.mouse_tree_drag = None;
                             }
                         }
                     }
@@ -238,10 +246,14 @@ fn main() {
                     } => {
                         let (mut x, mut y) = (position.x as f32, position.y as f32);
                         state.mouse_pos = (x, y);
-                        // Don't process mouse events on left panel
-                        if gui::is_over_tree(&state.mouse_pos) {
-                            let aspect_ratio = state.dimensions.0 as f32 / state.dimensions.1 as f32;
-
+                        let aspect_ratio = state.dimensions.0 as f32 / state.dimensions.1 as f32;
+                        if let Some(drag) = state.mouse_tree_drag {
+                            let (dx, dy) = (x - drag.0, y - drag.1);
+                            state.tree_translate.0 += (dx * 12500.0 / (state.dimensions.0 as f32 / 2.0) / (state.zoom / aspect_ratio)) as i32;
+                            state.tree_translate.1 -= (dy * 12500.0 / (state.dimensions.1 as f32 / 2.0) / state.zoom) as i32;
+                            state.mouse_tree_drag = Some(state.mouse_pos);
+                        } else if gui::is_over_tree(&state.mouse_pos) {
+                            // There's gotta be simpler computations for this
                             x -= state.dimensions.0 as f32 / 2.0;
                             y -= state.dimensions.1 as f32 / 2.0;
                             y = y.neg();
