@@ -253,8 +253,11 @@ impl TreeGl {
             "class_start",
         ];
 
-        for dd in self.draw_data.iter_mut().filter(|(k, _v)| REDRAW.contains(&k.as_str())) {
-            dd.1.destroy(gl);
+        for &s in &REDRAW {
+            match self.draw_data.get_mut(s) {
+                Some(dd) => dd.destroy(gl),
+                None => {},
+            }
         }
 
         let last_node = path_hovered.as_ref().map(|path| path.first().unwrap());

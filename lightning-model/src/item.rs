@@ -35,14 +35,12 @@ impl Item {
         let mut mods = vec![];
 
         for m in &self.mods_impl {
-            if let Some(mut modifiers) = parse_mod(m) {
-                for modifier in &mut modifiers { modifier.source = Source::Item; }
+            if let Some(modifiers) = parse_mod(m, Source::Item) {
                 mods.extend(modifiers);
             }
         }
         for m in &self.mods_expl {
-            if let Some(mut modifiers) = parse_mod(m) {
-                for modifier in &mut modifiers { modifier.source = Source::Item; }
+            if let Some(modifiers) = parse_mod(m, Source::Item) {
                 mods.extend(modifiers);
             }
         }

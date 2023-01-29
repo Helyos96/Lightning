@@ -233,10 +233,7 @@ impl PassiveTree {
         for node_id in &self.nodes {
             for mod_lines in &Self::data().nodes[node_id].stats {
                 for mod_str in mod_lines.split('\n') {
-                    if let Some(mut modifiers) = parse_mod(mod_str) {
-                        for m in &mut modifiers {
-                            m.source = Source::Node(*node_id);
-                        }
+                    if let Some(modifiers) = parse_mod(mod_str, Source::Node(*node_id)) {
                         mods.extend(modifiers);
                     }
                 }
@@ -250,10 +247,7 @@ impl PassiveTree {
                 .find(|m| m.effect == *effect_id)
             {
                 for mod_str in &effect.stats {
-                    if let Some(mut modifiers) = parse_mod(mod_str) {
-                        for m in &mut modifiers {
-                            m.source = Source::Mastery((*node_id, *effect_id));
-                        }
+                    if let Some(modifiers) = parse_mod(mod_str, Source::Mastery((*node_id, *effect_id))) {
                         mods.extend(modifiers);
                     }
                 }

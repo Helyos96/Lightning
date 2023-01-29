@@ -305,19 +305,14 @@ pub enum DamageType {
     Chaos,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone, Copy)]
 pub enum Source {
+    #[default]
     Innate,
     Node(u16),
     Mastery((u16, u16)),
     Item,
     Gem,
-}
-
-impl Default for Source {
-    fn default() -> Self {
-        Self::Innate
-    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -383,7 +378,7 @@ lazy_static! {
 /// 2. if not special, parse right to left:
 /// 2.1. any amount of ENDINGS
 /// 2.2. a BEGINNING
-pub fn parse_mod(input: &str) -> Option<Vec<Mod>> {
+pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
     if let Some(mods_opt) = CACHE.lock().unwrap().get(input) {
         match mods_opt {
             Some(mods) => return Some(mods.to_owned()),
@@ -413,6 +408,7 @@ pub fn parse_mod(input: &str) -> Option<Vec<Mod>> {
                 for modifier in &mut mods {
                     modifier.tags.extend(tags.clone());
                     modifier.flags.extend(flags.clone());
+                    modifier.source = source;
                 }
                 CACHE.lock().unwrap().insert(input.to_string(), Some(mods.clone()));
                 println!("Success: {}: {:?}", input, &mods);
