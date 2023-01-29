@@ -129,6 +129,7 @@ fn main() {
                             state.tree_translate,
                             &state.path_hovered,
                         );
+                        gui::draw_top_panel(ui, &mut state);
                         gui::draw_left_panel(ui, &mut state);
                         gui::tree_view::draw(ui, &mut state);
                     }
@@ -157,6 +158,7 @@ fn main() {
                 *control_flow = glutin::event_loop::ControlFlow::Exit;
             }
             event => {
+                let mut forward_event = true;
                 match event {
                     Event::WindowEvent {
                         event:
@@ -167,7 +169,8 @@ fn main() {
                             },
                         ..
                     } => {
-                        if state.ui_state == UiState::Main && state.mouse_pos.0 >= 200.0 {
+                        if state.ui_state == UiState::Main && gui::is_over_tree(&state.mouse_pos) {
+                            forward_event = false;
                             state.zoom = f32::max(0.50, state.zoom + v);
                         }
                     }
@@ -194,7 +197,8 @@ fn main() {
                         ..
                     } => {
                         if button == MouseButton::Left && button_state == ElementState::Pressed {
-                            if state.ui_state == UiState::Main && state.mouse_pos.0 >= 200.0 {
+                            if state.ui_state == UiState::Main && gui::is_over_tree(&state.mouse_pos) {
+                                forward_event = false;
                                 if state.hovered_node.is_some() {
                                     state.build.tree.flip_node(state.hovered_node.as_ref().unwrap().skill);
                                     state.defence_calc = calc::calc_defence(&state.build);
@@ -235,7 +239,7 @@ fn main() {
                         let (mut x, mut y) = (position.x as f32, position.y as f32);
                         state.mouse_pos = (x, y);
                         // Don't process mouse events on left panel
-                        if x >= 200.0 {
+                        if gui::is_over_tree(&state.mouse_pos) {
                             let aspect_ratio = state.dimensions.0 as f32 / state.dimensions.1 as f32;
 
                             x -= state.dimensions.0 as f32 / 2.0;
@@ -258,7 +262,10 @@ fn main() {
                     }
                     _ => {}
                 }
-                winit_platform.handle_event(imgui_context.io_mut(), window.window(), &event);
+
+                if forward_event {
+                    winit_platform.handle_event(imgui_context.io_mut(), window.window(), &event);
+                }
             }
         }
     });

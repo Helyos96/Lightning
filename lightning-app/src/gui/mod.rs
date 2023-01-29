@@ -79,10 +79,13 @@ impl Default for State {
     }
 }
 
+const LEFT_PANEL_WIDTH: f32 = 200.0;
+const TOP_PANEL_HEIGHT: f32 = 40.0;
+
 pub fn draw_left_panel(ui: &mut Ui, state: &mut State) {
     ui.window("##LeftPanel")
-        .position([0.0, 0.0], imgui::Condition::FirstUseEver)
-        .size([200.0, state.dimensions.1 as f32], imgui::Condition::Always)
+        .position([0.0, TOP_PANEL_HEIGHT], imgui::Condition::FirstUseEver)
+        .size([LEFT_PANEL_WIDTH, state.dimensions.1 as f32 - TOP_PANEL_HEIGHT], imgui::Condition::Always)
         .movable(false)
         .resizable(false)
         .title_bar(false)
@@ -120,4 +123,26 @@ pub fn draw_left_panel(ui: &mut Ui, state: &mut State) {
             }
         }
     );
+}
+
+pub fn draw_top_panel(ui: &mut Ui, state: &mut State) {
+    ui.window("##TopPanel")
+        .position([0.0, 0.0], imgui::Condition::FirstUseEver)
+        .size([state.dimensions.0 as f32, TOP_PANEL_HEIGHT], imgui::Condition::Always)
+        .movable(false)
+        .resizable(false)
+        .title_bar(false)
+        .build(|| {
+            if ui.button("<< Builds") {
+                state.ui_state = UiState::ChooseBuild;
+            }
+            ui.same_line();
+            if ui.button("Save") {
+            }
+        }
+    );
+}
+
+pub fn is_over_tree(pos: &(f32, f32)) -> bool {
+    pos.0 >= LEFT_PANEL_WIDTH && pos.1 >= TOP_PANEL_HEIGHT
 }
