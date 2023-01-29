@@ -147,7 +147,7 @@ impl Build {
 
         for m in mods
             .iter()
-            .filter(|m| m.stat == stat_str && tags.is_superset(&m.tags) && dts.is_superset(&m.dts))
+            .filter(|m| m.stat == stat_str && tags.is_superset(&m.tags) && (m.dts.is_empty() || m.dts.is_superset(dts)))
         {
             let mut amount = m.amount;
             for f in &m.flags {
