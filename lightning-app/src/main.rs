@@ -98,20 +98,6 @@ fn main() {
                 match state.ui_state {
                     UiState::ChooseBuild => gui::build_selection::draw(ui, &mut state),
                     UiState::Main => {
-                        if state.mouse_pos.0 >= 200.0 {
-                            if state.key_left == ElementState::Pressed {
-                                state.tree_translate.0 += 50;
-                            }
-                            if state.key_right == ElementState::Pressed {
-                                state.tree_translate.0 -= 50;
-                            }
-                            if state.key_up == ElementState::Pressed {
-                                state.tree_translate.1 -= 50;
-                            }
-                            if state.key_down == ElementState::Pressed {
-                                state.tree_translate.1 += 50;
-                            }
-                        }
                         if let Some(node) = state.hovered_node {
                             if state.path_hovered.is_none() && !state.build.tree.nodes.contains(&node.skill) {
                                 let path_hovered = state.build.tree.find_path(node.skill);
