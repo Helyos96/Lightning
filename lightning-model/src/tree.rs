@@ -202,10 +202,17 @@ impl PassiveTree {
         bfs(&node, |p| successors(*p), |p| self.nodes.contains(p))
     }
 
+    /// Find a path of nodes to remove when a single node gets deallocated
+    pub fn find_path_remove(&self, node: u16) -> Vec<u16> {
+        // Todo
+        vec![node]
+    }
+
     /// Flip a node status (allocated <-> non-allocated)
     pub fn flip_node(&mut self, node: u16) {
         if self.nodes.contains(&node) {
-            // Todo: drop node(s)
+            let to_remove = self.find_path_remove(node);
+            self.nodes = self.nodes.iter().map(|id| *id).filter(|id| !to_remove.contains(id)).collect();
         } else {
             if let Some(path) = self.find_path(node) {
                 self.nodes.extend_from_slice(&path[0..path.len() - 1]);
