@@ -127,10 +127,9 @@ pub struct Group {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Constants {
-    #[serde(rename = "skillsPerOrbit")]
     pub skills_per_orbit: Vec<u16>,
-    #[serde(rename = "orbitRadii")]
     pub orbit_radii: Vec<u16>,
 }
 
