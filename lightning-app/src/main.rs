@@ -94,6 +94,10 @@ fn main() {
                 // The renderer assumes you'll be clearing the buffer yourself
                 unsafe { ig_renderer.gl_context().clear(glow::COLOR_BUFFER_BIT) };
 
+                if state.request_regen {
+                    tree_gl.regen_active(ig_renderer.gl_context(), &state.build.tree, &state.path_hovered);
+                    state.request_regen = false;
+                }
                 let ui = imgui_context.frame();
                 match state.ui_state {
                     UiState::ChooseBuild => gui::build_selection::draw(ui, &mut state),
@@ -102,13 +106,13 @@ fn main() {
                             if state.path_hovered.is_none() && !state.build.tree.nodes.contains(&node.skill) {
                                 let path_hovered = state.build.tree.find_path(node.skill);
                                 if state.path_hovered.is_none() && path_hovered.is_some() {
-                                    tree_gl.regen_active(ig_renderer.gl_context(), &state.build.tree, &path_hovered);
+                                    state.request_regen = true;
                                 }
                                 state.path_hovered = path_hovered;
                             }
                         } else {
                             if state.path_hovered.is_some() {
-                                tree_gl.regen_active(ig_renderer.gl_context(), &state.build.tree, &None);
+                                state.request_regen = true;
                             }
                             state.path_hovered = None;
                         }
@@ -189,16 +193,14 @@ fn main() {
                         if button == MouseButton::Left {
                             if button_state == ElementState::Pressed {
                                 if state.ui_state == UiState::Main && gui::is_over_tree(&state.mouse_pos) {
-                                    forward_event = false;
-                                    if state.hovered_node.is_some() {
-                                        state.build.tree.flip_node(state.hovered_node.as_ref().unwrap().skill);
-                                        state.defence_calc = calc::calc_defence(&state.build);
-                                        tree_gl.regen_active(ig_renderer.gl_context(), &state.build.tree, &None);
-                                    } else {
-                                        state.mouse_tree_drag = Some(state.mouse_pos);
-                                    }
+                                    state.mouse_tree_drag = Some(state.mouse_pos);
                                 }
                             } else {
+                                if state.hovered_node.is_some() {
+                                    state.build.tree.flip_node(state.hovered_node.as_ref().unwrap().skill);
+                                    state.defence_calc = calc::calc_defence(&state.build);
+                                    state.request_regen = true;
+                                }
                                 state.mouse_tree_drag = None;
                             }
                         }
@@ -255,7 +257,7 @@ fn main() {
                         } else if state.hovered_node.is_some() {
                             state.hovered_node = None;
                             state.path_hovered = None;
-                            tree_gl.regen_active(ig_renderer.gl_context(), &state.build.tree, &None);
+                            state.request_regen = true;
                         }
                     }
                     _ => {}

@@ -18,6 +18,21 @@ pub enum Class {
     Shadow,
 }
 
+impl Class {
+    pub fn as_str(&self) -> &str {
+        use Class::*;
+        match self {
+            Scion => "Scion",
+            Marauder => "Marauder",
+            Ranger => "Ranger",
+            Witch => "Witch",
+            Duelist => "Duelist",
+            Templar => "Templar",
+            Shadow => "Shadow"
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Rect {
     pub x: u16,

@@ -4,10 +4,11 @@ pub mod tree_view;
 use crate::config::Config;
 use glutin::event::ElementState;
 use lightning_model::build::{Build, Stat};
-use rustc_hash::FxHashMap;
-use std::path::PathBuf;
+use lightning_model::data::TREE;
 use lightning_model::tree::Node;
 use lightning_model::calc;
+use rustc_hash::FxHashMap;
+use std::path::PathBuf;
 use imgui::Ui;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -41,6 +42,7 @@ pub struct State {
     pub dimensions: (u32, u32),
     pub tree_translate: (i32, i32),
     pub zoom: f32,
+    pub request_regen: bool,
 
     // Controls
     pub mouse_pos: (f32, f32),
@@ -71,6 +73,7 @@ impl Default for State {
             dimensions: (1280, 720),
             zoom: 1.0,
             tree_translate: (0, 0),
+            request_regen: false,
 
             mouse_pos: (0.0, 0.0),
             key_left: ElementState::Released,
@@ -140,6 +143,23 @@ pub fn draw_top_panel(ui: &mut Ui, state: &mut State) {
             }
             ui.same_line();
             if ui.button("Save") {
+            }
+            ui.same_line();
+            let preview = state.build.tree.class.as_str();
+            let _w = ui.push_item_width(150.0);
+            if let Some(combo) = ui.begin_combo("##ClassCombo", preview) {
+                for class in TREE.classes.keys() {
+                    let selected = *class == state.build.tree.class;
+                    if ui
+                        .selectable_config(class.as_str())
+                        .selected(selected)
+                        .build()
+                    {
+                        state.build.tree.set_class(*class);
+                        state.request_regen = true;
+                    }
+                }
+                combo.end();
             }
         }
     );
