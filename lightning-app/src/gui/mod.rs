@@ -10,6 +10,8 @@ use lightning_model::calc;
 use rustc_hash::FxHashMap;
 use std::path::PathBuf;
 use imgui::Ui;
+use tokio::task::JoinHandle;
+use std::error::Error;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum UiState {
@@ -27,6 +29,7 @@ pub struct State {
     pub config: Config,
     pub import_account: String,
     pub import_character: String,
+    pub import_handle: Option<JoinHandle<Result<Build, Box<dyn Error + Send + Sync>>>>,
 
     active_skill_calc: FxHashMap<&'static str, i64>,
     pub defence_calc: Vec<(String, Stat)>,
@@ -60,6 +63,7 @@ impl Default for State {
             config: Config::default(),
             import_account: String::new(),
             import_character: String::new(),
+            import_handle: None,
 
             active_skill_calc: FxHashMap::default(),
             defence_calc: vec![],

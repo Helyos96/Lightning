@@ -18,7 +18,7 @@ use glutin::{event_loop::EventLoop, WindowedContext};
 use gui::{State, UiState};
 use imgui::ConfigFlags;
 use imgui_winit_support::WinitPlatform;
-use lightning_model::{build, util, calc};
+use lightning_model::{build, util, calc, import};
 use std::error::Error;
 
 const TITLE: &str = "Lightning";
@@ -34,10 +34,19 @@ fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
             UiState::Main
         }
         UiState::ImportBuild => {
-            state.build = util::fetch_build(&state.import_account, &state.import_character)?;
-            state.defence_calc = calc::calc_defence(&state.build);
-            println!("Fetched build: {} {}", &state.import_account, &state.import_character);
-            UiState::Main
+            if state.import_handle.is_none() {
+                state.import_handle = Some(tokio::spawn(import::character(state.import_account.clone(), state.import_character.clone())));
+            } else {
+                let waker = futures::task::noop_waker();
+                let mut ctx = std::task::Context::from_waker(&waker);
+
+                if let Poll::Ready(result) = std::pin::Pin::new(&mut state.import_handle).poll(&mut ctx) {
+                    /* yass */
+                }
+            }
+            /*state.defence_calc = calc::calc_defence(&state.build);
+            println!("Fetched build: {} {}", &state.import_account, &state.import_character);*/
+            UiState::ImportBuild
         }
         UiState::NewBuild => {
             state.build = build::Build::new_player();

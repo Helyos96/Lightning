@@ -105,21 +105,21 @@ fn conv_item(item: &Item) -> item::Item {
     }
 }
 
-pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>> {
+pub async fn character(account: String, character: String) -> Result<Build, Box<dyn Error + Send + Sync>> {
     // Passive Tree
     let url = "https://pathofexile.com/character-window/get-passive-skills?realm=pc&accountName=".to_string()
-        + account
+        + &account
         + "&character="
-        + character;
+        + &character;
     println!("{url}");
-    let tree = reqwest::blocking::get(url)?.json::<PassiveTree>()?;
+    let tree = reqwest::get(url).await?.json::<PassiveTree>().await?;
 
     // Items, Skills, CharData
     let url = "https://pathofexile.com/character-window/get-items?realm=pc&accountName=".to_string()
-        + account
+        + &account
         + "&character="
-        + character;
-    let items = reqwest::blocking::get(url)?.json::<ItemsSkillsChar>()?;
+        + &character;
+    let items = reqwest::get(url).await?.json::<ItemsSkillsChar>().await?;
 
     let mut build = Build::new_player();
     build.level = items.character.level;
