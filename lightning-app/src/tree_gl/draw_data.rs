@@ -1,7 +1,7 @@
-use lightning_model::data::TREE;
-use std::ops::Neg;
-use lightning_model::tree::{self, Node, NodeType, Rect, Sprite, Class};
 use lazy_static::lazy_static;
+use lightning_model::data::TREE;
+use lightning_model::tree::{self, Class, Node, NodeType, Rect, Sprite};
+use std::ops::Neg;
 
 fn calc_angles() -> Vec<Vec<f32>> {
     let mut ret = vec![];
@@ -126,11 +126,11 @@ pub fn connectors_gl_inactive() -> DrawData {
     let sprite = &TREE.sprites["line"];
     let rect = &sprite.coords["LineConnectorNormal"];
 
-    for node in TREE
-        .nodes
-        .values()
-        .filter(|n| n.group.is_some() && (!n.name.starts_with("Path of the") || n.ascendancy_name.is_none()) && n.class_start_index.is_none())
-    {
+    for node in TREE.nodes.values().filter(|n| {
+        n.group.is_some()
+            && (!n.name.starts_with("Path of the") || n.ascendancy_name.is_none())
+            && n.class_start_index.is_none()
+    }) {
         let (x1, y1) = node_pos(node);
         for out in node
             .out
@@ -150,11 +150,11 @@ pub fn connectors_gl(nodes: &[u16], rect: &Rect, w: f32) -> DrawData {
     let mut dd = DrawData::default();
     let sprite = &TREE.sprites["line"];
 
-    for node in nodes
-        .iter()
-        .map(|id| &TREE.nodes[id])
-        .filter(|n| n.group.is_some() && (!n.name.starts_with("Path of the") || n.ascendancy_name.is_none()) && n.class_start_index.is_none())
-    {
+    for node in nodes.iter().map(|id| &TREE.nodes[id]).filter(|n| {
+        n.group.is_some()
+            && (!n.name.starts_with("Path of the") || n.ascendancy_name.is_none())
+            && n.class_start_index.is_none()
+    }) {
         let (x1, y1) = node_pos(node);
         for out in node
             .out
@@ -275,7 +275,11 @@ pub fn nodes_gl_active(nodes: &[u16], hovered: Option<&u16>) -> [DrawData; 4] {
     let mut dd_masteries = DrawData::default();
     let mut dd_asc_frames = DrawData::default();
 
-    for node in nodes.iter().map(|id| &TREE.nodes[id]).filter(|n| n.class_start_index.is_none()) {
+    for node in nodes
+        .iter()
+        .map(|id| &TREE.nodes[id])
+        .filter(|n| n.class_start_index.is_none())
+    {
         node_gl(
             node,
             &mut dd_nodes,
@@ -318,7 +322,7 @@ pub fn class_start_gl(class: Class) -> DrawData {
     for node in TREE.nodes.values().filter(|n| n.class_start_index.is_some()) {
         let rect = if class as i32 == node.class_start_index.unwrap() {
             &sprite.coords[get_class_coords(class)]
-        } else { 
+        } else {
             &sprite.coords["PSStartNodeBackgroundInactive"]
         };
         let (x, y) = node_pos(node);

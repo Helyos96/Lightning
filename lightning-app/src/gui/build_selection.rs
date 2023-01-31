@@ -1,7 +1,7 @@
+use super::{State, UiState};
 use imgui::{ListBox, MouseButton, Ui};
 use std::fs;
 use std::path::PathBuf;
-use super::{UiState, State};
 
 pub fn get_build_files(build_dir: &PathBuf) -> Vec<PathBuf> {
     let mut build_files = vec![];

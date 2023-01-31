@@ -69,9 +69,18 @@ pub fn calc_defence(build: &Build) -> Vec<(String, Stat)> {
     let stats = build.calc_stats(&mods, &hset![]);
 
     ret.push(("Maximum Life".to_string(), stats["maximum life"].clone()));
-    ret.push(("Fire Resistance".to_string(), build.calc_stat_dmg("resistance", &mods, &hset![], DamageType::Fire)));
-    ret.push(("Cold Resistance".to_string(), build.calc_stat_dmg("resistance", &mods, &hset![], DamageType::Cold)));
-    ret.push(("Lightning Resistance".to_string(), build.calc_stat_dmg("resistance", &mods, &hset![], DamageType::Lightning)));
+    ret.push((
+        "Fire Resistance".to_string(),
+        build.calc_stat_dmg("resistance", &mods, &hset![], DamageType::Fire),
+    ));
+    ret.push((
+        "Cold Resistance".to_string(),
+        build.calc_stat_dmg("resistance", &mods, &hset![], DamageType::Cold),
+    ));
+    ret.push((
+        "Lightning Resistance".to_string(),
+        build.calc_stat_dmg("resistance", &mods, &hset![], DamageType::Lightning),
+    ));
 
     ret
 }

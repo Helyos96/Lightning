@@ -9,17 +9,17 @@ mod config;
 mod gui;
 mod tree_gl;
 
-use std::time::Instant;
-use std::ops::Neg;
 use crate::tree_gl::TreeGl;
 use glow::HasContext;
-use glutin::event::{self, ElementState, Event, VirtualKeyCode, MouseButton};
+use glutin::event::{self, ElementState, Event, MouseButton, VirtualKeyCode};
 use glutin::{event_loop::EventLoop, WindowedContext};
 use gui::{State, UiState};
 use imgui::ConfigFlags;
 use imgui_winit_support::WinitPlatform;
-use lightning_model::{build, util, calc};
+use lightning_model::{build, calc, util};
 use std::error::Error;
+use std::ops::Neg;
+use std::time::Instant;
 
 const TITLE: &str = "Lightning";
 
@@ -183,11 +183,12 @@ fn main() {
                         };
                     }
                     Event::WindowEvent {
-                        event: event::WindowEvent::MouseInput {
-                            state: button_state,
-                            button,
-                            ..
-                        },
+                        event:
+                            event::WindowEvent::MouseInput {
+                                state: button_state,
+                                button,
+                                ..
+                            },
                         ..
                     } => {
                         if button == MouseButton::Left {
@@ -223,13 +224,9 @@ fn main() {
                         VirtualKeyCode::Up => state.key_up = key_state,
                         VirtualKeyCode::Down => state.key_down = key_state,
                         _ => {}
-                    }
+                    },
                     Event::WindowEvent {
-                        event:
-                            event::WindowEvent::CursorMoved {
-                                position,
-                                ..
-                            },
+                        event: event::WindowEvent::CursorMoved { position, .. },
                         ..
                     } => {
                         let (mut x, mut y) = (position.x as f32, position.y as f32);
@@ -237,8 +234,10 @@ fn main() {
                         let aspect_ratio = state.dimensions.0 as f32 / state.dimensions.1 as f32;
                         if let Some(drag) = state.mouse_tree_drag {
                             let (dx, dy) = (x - drag.0, y - drag.1);
-                            state.tree_translate.0 += (dx * 12500.0 / (state.dimensions.0 as f32 / 2.0) / (state.zoom / aspect_ratio)) as i32;
-                            state.tree_translate.1 -= (dy * 12500.0 / (state.dimensions.1 as f32 / 2.0) / state.zoom) as i32;
+                            state.tree_translate.0 +=
+                                (dx * 12500.0 / (state.dimensions.0 as f32 / 2.0) / (state.zoom / aspect_ratio)) as i32;
+                            state.tree_translate.1 -=
+                                (dy * 12500.0 / (state.dimensions.1 as f32 / 2.0) / state.zoom) as i32;
                             state.mouse_tree_drag = Some(state.mouse_pos);
                         } else if gui::is_over_tree(&state.mouse_pos) {
                             // There's gotta be simpler computations for this

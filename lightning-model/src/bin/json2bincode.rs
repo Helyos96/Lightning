@@ -6,15 +6,13 @@ use std::fs;
 use std::io;
 
 fn main() {
-    let gems: FxHashMap<String, GemData> = {
-        serde_json::from_slice(include_bytes!("../../data/gems.json")).expect("Failed to deserialize gems")
-    };
+    let gems: FxHashMap<String, GemData> =
+        { serde_json::from_slice(include_bytes!("../../data/gems.json")).expect("Failed to deserialize gems") };
     let items: FxHashMap<String, BaseItem> = {
         serde_json::from_slice(include_bytes!("../../data/base_items.json")).expect("Failed to deserialize base items")
     };
-    let tree: TreeData = {
-        serde_json::from_slice(include_bytes!("../../data/tree.json")).expect("Failed to deserialize tree")
-    };
+    let tree: TreeData =
+        { serde_json::from_slice(include_bytes!("../../data/tree.json")).expect("Failed to deserialize tree") };
 
     let mut f = io::BufWriter::new(fs::File::create("data/gems.bc").unwrap());
     bincode::serialize_into(&mut f, &gems).expect("Failed to ser gems");

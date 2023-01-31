@@ -1,12 +1,12 @@
 pub mod draw_data;
 pub mod hover;
 
+use draw_data::*;
 use glow::HasContext;
 use lightning_model::data::TREE;
 use lightning_model::tree::PassiveTree;
 use rustc_hash::FxHashMap;
 use std::fs::File;
-use draw_data::*;
 
 fn load_texture(img: &ddsfile::Dds, gl: &glow::Context) -> glow::Texture {
     unsafe {
@@ -256,7 +256,7 @@ impl TreeGl {
         for &s in &REDRAW {
             match self.draw_data.get_mut(s) {
                 Some(dd) => dd.destroy(gl),
-                None => {},
+                None => {}
             }
         }
 
@@ -283,7 +283,14 @@ impl TreeGl {
         }
     }
 
-    pub fn draw(&mut self, tree: &PassiveTree, gl: &glow::Context, zoom: f32, translate: (i32, i32), path_hovered: &Option<Vec<u16>>) {
+    pub fn draw(
+        &mut self,
+        tree: &PassiveTree,
+        gl: &glow::Context,
+        zoom: f32,
+        translate: (i32, i32),
+        path_hovered: &Option<Vec<u16>>,
+    ) {
         if self.draw_data.get("nodes_active").is_none() {
             self.regen_active(gl, tree, path_hovered);
         }

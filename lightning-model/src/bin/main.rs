@@ -1,10 +1,9 @@
+use lightning_model::build::Build;
 use lightning_model::calc::*;
 use lightning_model::import;
-use lightning_model::build::Build;
 use std::fs;
 
-fn fetch() -> Result<Build, Box<dyn std::error::Error>>
-{
+fn fetch() -> Result<Build, Box<dyn std::error::Error>> {
     const BUILD_PATH: &str = "build.json";
 
     if let Ok(data) = fs::read_to_string(BUILD_PATH) {

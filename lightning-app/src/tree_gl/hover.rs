@@ -1,8 +1,8 @@
-use quadtree_f32::{Item, ItemId, QuadTree};
+use super::draw_data::{get_rect, node_pos};
 use lazy_static::lazy_static;
 use lightning_model::data::TREE;
 use lightning_model::tree::{Node, NodeType};
-use super::draw_data::{node_pos, get_rect};
+use quadtree_f32::{Item, ItemId, QuadTree};
 
 lazy_static! {
     /// This quadtree is used to know when tree nodes are hovered by the mouse cursor
@@ -33,15 +33,15 @@ lazy_static! {
 }
 
 pub fn get_hovered_node(x: f32, y: f32) -> Option<&'static Node> {
-    let overlaps = QUADTREE.get_ids_that_overlap(
-        &quadtree_f32::Rect {
-            max_x: x + 1.0,
-            max_y: y + 1.0,
-            min_x: x - 1.0,
-            min_y: y - 1.0,
-        }
-    );
+    let overlaps = QUADTREE.get_ids_that_overlap(&quadtree_f32::Rect {
+        max_x: x + 1.0,
+        max_y: y + 1.0,
+        min_x: x - 1.0,
+        min_y: y - 1.0,
+    });
 
-    if overlaps.is_empty() { return None; }
+    if overlaps.is_empty() {
+        return None;
+    }
     Some(&TREE.nodes[&(overlaps[0].0 as u16)])
 }

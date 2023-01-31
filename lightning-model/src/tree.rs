@@ -1,10 +1,10 @@
 use crate::data::TREE;
 use crate::modifier::{parse_mod, Mod, Source};
+use lazy_static::lazy_static;
+use pathfinding::prelude::bfs;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use pathfinding::prelude::bfs;
-use lazy_static::lazy_static;
 
 #[derive(Default, Clone, Copy, Hash, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Class {
@@ -28,7 +28,7 @@ impl Class {
             Witch => "Witch",
             Duelist => "Duelist",
             Templar => "Templar",
-            Shadow => "Shadow"
+            Shadow => "Shadow",
         }
     }
 }
@@ -193,14 +193,34 @@ fn get_class_node(class: Class) -> u16 {
 }
 
 lazy_static! {
-    static ref PATH_OF_THE: Vec<u16> =
-        TREE.nodes.values().filter(|n| n.name.starts_with("Path of the") && n.ascendancy_name.is_some()).map(|n| n.skill).collect();
+    static ref PATH_OF_THE: Vec<u16> = TREE
+        .nodes
+        .values()
+        .filter(|n| n.name.starts_with("Path of the") && n.ascendancy_name.is_some())
+        .map(|n| n.skill)
+        .collect();
 }
 
 fn successors(node: u16) -> Vec<u16> {
-    if TREE.nodes[&node].class_start_index.is_some() { return vec![node]; }
-    let mut v: Vec<u16> = TREE.nodes[&node].out.as_ref().unwrap().iter().filter(|id| !TREE.nodes[id].is_mastery).map(|id| *id).collect();
-    let nodes_in: Vec<u16> = TREE.nodes[&node].r#in.as_ref().unwrap().iter().filter(|id| !PATH_OF_THE.contains(*id)).map(|id| *id).collect();
+    if TREE.nodes[&node].class_start_index.is_some() {
+        return vec![node];
+    }
+    let mut v: Vec<u16> = TREE.nodes[&node]
+        .out
+        .as_ref()
+        .unwrap()
+        .iter()
+        .filter(|id| !TREE.nodes[id].is_mastery)
+        .map(|id| *id)
+        .collect();
+    let nodes_in: Vec<u16> = TREE.nodes[&node]
+        .r#in
+        .as_ref()
+        .unwrap()
+        .iter()
+        .filter(|id| !PATH_OF_THE.contains(*id))
+        .map(|id| *id)
+        .collect();
     v.extend(nodes_in);
     v
 }
@@ -226,7 +246,12 @@ impl PassiveTree {
     pub fn flip_node(&mut self, node: u16) {
         if self.nodes.contains(&node) {
             let to_remove = self.find_path_remove(node);
-            self.nodes = self.nodes.iter().map(|id| *id).filter(|id| !to_remove.contains(id)).collect();
+            self.nodes = self
+                .nodes
+                .iter()
+                .map(|id| *id)
+                .filter(|id| !to_remove.contains(id))
+                .collect();
         } else {
             if let Some(path) = self.find_path(node) {
                 self.nodes.extend_from_slice(&path[0..path.len() - 1]);

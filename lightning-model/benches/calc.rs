@@ -1,14 +1,13 @@
 #[macro_use]
 extern crate bencher;
 
-use std::fs;
 use bencher::Bencher;
 use lightning_model::build::Build;
+use std::fs;
 
 use lightning_model::import;
 
-fn fetch() -> Result<Build, Box<dyn std::error::Error>>
-{
+fn fetch() -> Result<Build, Box<dyn std::error::Error>> {
     const BUILD_PATH: &str = "build.json";
 
     if let Ok(data) = fs::read_to_string(BUILD_PATH) {
@@ -22,11 +21,13 @@ fn fetch() -> Result<Build, Box<dyn std::error::Error>>
     Ok(player)
 }
 
-fn calc_mods(bench: &mut Bencher)
-{
+fn calc_mods(bench: &mut Bencher) {
     let player = match fetch() {
         Ok(b) => b,
-        Err(err) => { println!("{err}"); return; }
+        Err(err) => {
+            println!("{err}");
+            return;
+        }
     };
     player.calc_mods(true);
 
@@ -35,11 +36,13 @@ fn calc_mods(bench: &mut Bencher)
     })
 }
 
-fn calc_stats(bench: &mut Bencher)
-{
+fn calc_stats(bench: &mut Bencher) {
     let player = match fetch() {
         Ok(b) => b,
-        Err(err) => { println!("{err}"); return; }
+        Err(err) => {
+            println!("{err}");
+            return;
+        }
     };
     let mods = player.calc_mods(true);
 

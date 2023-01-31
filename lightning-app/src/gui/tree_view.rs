@@ -1,11 +1,14 @@
-use imgui::Ui;
 use super::State;
+use imgui::Ui;
 
 fn draw_hover_window(ui: &mut Ui, state: &mut State) {
     let node = state.hovered_node.unwrap();
 
     ui.window("##NodeHover")
-        .position([state.mouse_pos.0 + 15.0, state.mouse_pos.1 + 15.0], imgui::Condition::Always)
+        .position(
+            [state.mouse_pos.0 + 15.0, state.mouse_pos.1 + 15.0],
+            imgui::Condition::Always,
+        )
         .always_auto_resize(true)
         .focus_on_appearing(false)
         .movable(false)
@@ -18,7 +21,6 @@ fn draw_hover_window(ui: &mut Ui, state: &mut State) {
                 ui.text(stat);
             }
         });
-        
 }
 
 pub fn draw(ui: &mut Ui, state: &mut State) {

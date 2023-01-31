@@ -3,13 +3,13 @@ pub mod tree_view;
 
 use crate::config::Config;
 use glutin::event::ElementState;
+use imgui::Ui;
 use lightning_model::build::{Build, Stat};
+use lightning_model::calc;
 use lightning_model::data::TREE;
 use lightning_model::tree::Node;
-use lightning_model::calc;
 use rustc_hash::FxHashMap;
 use std::path::PathBuf;
-use imgui::Ui;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum UiState {
@@ -90,7 +90,10 @@ const TOP_PANEL_HEIGHT: f32 = 40.0;
 pub fn draw_left_panel(ui: &mut Ui, state: &mut State) {
     ui.window("##LeftPanel")
         .position([0.0, TOP_PANEL_HEIGHT], imgui::Condition::FirstUseEver)
-        .size([LEFT_PANEL_WIDTH, state.dimensions.1 as f32 - TOP_PANEL_HEIGHT], imgui::Condition::Always)
+        .size(
+            [LEFT_PANEL_WIDTH, state.dimensions.1 as f32 - TOP_PANEL_HEIGHT],
+            imgui::Condition::Always,
+        )
         .movable(false)
         .resizable(false)
         .title_bar(false)
@@ -126,8 +129,7 @@ pub fn draw_left_panel(ui: &mut Ui, state: &mut State) {
             for stat in &state.defence_calc {
                 ui.text(stat.0.to_string() + ": " + &stat.1.val().to_string());
             }
-        }
-    );
+        });
 }
 
 pub fn draw_top_panel(ui: &mut Ui, state: &mut State) {
@@ -142,27 +144,21 @@ pub fn draw_top_panel(ui: &mut Ui, state: &mut State) {
                 state.ui_state = UiState::ChooseBuild;
             }
             ui.same_line();
-            if ui.button("Save") {
-            }
+            if ui.button("Save") {}
             ui.same_line();
             let preview = state.build.tree.class.as_str();
             let _w = ui.push_item_width(150.0);
             if let Some(combo) = ui.begin_combo("##ClassCombo", preview) {
                 for class in TREE.classes.keys() {
                     let selected = *class == state.build.tree.class;
-                    if ui
-                        .selectable_config(class.as_str())
-                        .selected(selected)
-                        .build()
-                    {
+                    if ui.selectable_config(class.as_str()).selected(selected).build() {
                         state.build.tree.set_class(*class);
                         state.request_regen = true;
                     }
                 }
                 combo.end();
             }
-        }
-    );
+        });
 }
 
 pub fn is_over_tree(pos: &(f32, f32)) -> bool {
