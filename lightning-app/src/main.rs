@@ -135,12 +135,9 @@ fn main() {
                         state.ui_state = UiState::ChooseBuild;
                     }
                 }
-                //ui.show_demo_window(&mut true);
 
                 winit_platform.prepare_render(ui, window.window());
                 let draw_data = imgui_context.render();
-
-                // This is the only extra render step to add
                 ig_renderer.render(draw_data).expect("error rendering imgui");
 
                 window.swap_buffers().unwrap();

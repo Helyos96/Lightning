@@ -10,6 +10,7 @@ use lightning_model::data::TREE;
 use lightning_model::tree::Node;
 use rustc_hash::FxHashMap;
 use std::path::PathBuf;
+use std::{io, fs};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum UiState {
@@ -132,6 +133,13 @@ pub fn draw_left_panel(ui: &mut Ui, state: &mut State) {
         });
 }
 
+fn save_build(build: &Build, dir: &PathBuf) -> io::Result<()> {
+    let mut file_path = dir.join(&build.name);
+    file_path.set_extension("json");
+    serde_json::to_writer(&fs::File::create(file_path)?, build)?;
+    Ok(())
+}
+
 pub fn draw_top_panel(ui: &mut Ui, state: &mut State) {
     ui.window("##TopPanel")
         .position([0.0, 0.0], imgui::Condition::FirstUseEver)
@@ -144,10 +152,14 @@ pub fn draw_top_panel(ui: &mut Ui, state: &mut State) {
                 state.ui_state = UiState::ChooseBuild;
             }
             ui.same_line();
-            if ui.button("Save") {}
+            let _w = ui.push_item_width(150.0);
+            ui.input_text("##Build Name", &mut state.build.name).build();
+            ui.same_line();
+            if ui.button("Save") {
+                save_build(&state.build, &state.config.builds_dir);
+            }
             ui.same_line();
             let preview = state.build.tree.class.as_str();
-            let _w = ui.push_item_width(150.0);
             if let Some(combo) = ui.begin_combo("##ClassCombo", preview) {
                 for class in TREE.classes.keys() {
                     let selected = *class == state.build.tree.class;

@@ -122,6 +122,7 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
     let items = reqwest::blocking::get(url)?.json::<ItemsSkillsChar>()?;
 
     let mut build = Build::new_player();
+    build.name = character.to_string();
     build.level = items.character.level;
     build.tree.nodes = tree.hashes;
     build.tree.nodes_ex = tree.hashes_ex;

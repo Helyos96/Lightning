@@ -38,6 +38,7 @@ pub struct Stat {
 
 #[derive(Serialize, Deserialize)]
 pub struct Build {
+    pub name: String,
     pub ascendancy: i32,
     pub level: i64,
     pub gem_links: Vec<GemLink>,
@@ -48,6 +49,7 @@ pub struct Build {
 impl Build {
     pub fn new_player() -> Build {
         Build {
+            name: "Untitled Build".to_string(),
             ascendancy: 0,
             level: 1,
             gem_links: vec![],
