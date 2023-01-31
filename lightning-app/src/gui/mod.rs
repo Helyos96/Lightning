@@ -28,6 +28,7 @@ pub struct State {
     pub config: Config,
     pub import_account: String,
     pub import_character: String,
+    pub request_recalc: bool,
 
     active_skill_calc: FxHashMap<&'static str, i64>,
     pub defence_calc: Vec<(String, Stat)>,
@@ -61,6 +62,7 @@ impl Default for State {
             config: Config::default(),
             import_account: String::new(),
             import_character: String::new(),
+            request_recalc: false,
 
             active_skill_calc: FxHashMap::default(),
             defence_calc: vec![],
@@ -148,17 +150,27 @@ pub fn draw_top_panel(ui: &mut Ui, state: &mut State) {
         .resizable(false)
         .title_bar(false)
         .build(|| {
+            ui.columns(3, "##TopPanelColumns", true);
+            ui.set_current_column_width(100.0);
             if ui.button("<< Builds") {
                 state.ui_state = UiState::ChooseBuild;
             }
-            ui.same_line();
-            let _w = ui.push_item_width(150.0);
+            ui.next_column();
             ui.input_text("##Build Name", &mut state.build.name).build();
             ui.same_line();
             if ui.button("Save") {
                 save_build(&state.build, &state.config.builds_dir);
             }
+            ui.next_column();
+            ui.text("Level");
             ui.same_line();
+            ui.set_next_item_width(80.0);
+            if ui.input_int("##Level", &mut state.build.level).build() {
+                state.build.level = state.build.level.clamp(1, 100);
+                state.request_recalc = true;
+            }
+            ui.same_line();
+            ui.set_next_item_width(200.0);
             let preview = state.build.tree.class.as_str();
             if let Some(combo) = ui.begin_combo("##ClassCombo", preview) {
                 for class in TREE.classes.keys() {

@@ -13,7 +13,7 @@ use std::str::FromStr;
 
 #[derive(Deserialize)]
 struct Character {
-    level: i64,
+    level: i32,
     classId: i64,
     ascendancyClass: i64,
 }

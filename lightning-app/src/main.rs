@@ -29,21 +29,21 @@ fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
     state.ui_state = match &state.ui_state {
         UiState::LoadBuild(path) => {
             state.build = util::load_build(path)?;
-            state.defence_calc = calc::calc_defence(&state.build);
+            state.request_recalc = true;
             println!("Loaded build from {}", &path.display());
             state.request_regen = true;
             UiState::Main
         }
         UiState::ImportBuild => {
             state.build = util::fetch_build(&state.import_account, &state.import_character)?;
-            state.defence_calc = calc::calc_defence(&state.build);
+            state.request_recalc = true;
             println!("Fetched build: {} {}", &state.import_account, &state.import_character);
             state.request_regen = true;
             UiState::Main
         }
         UiState::NewBuild => {
             state.build = build::Build::new_player();
-            state.defence_calc = calc::calc_defence(&state.build);
+            state.request_recalc = true;
             UiState::Main
         }
         _ => state.ui_state.clone(),
@@ -99,6 +99,10 @@ fn main() {
                 if state.request_regen {
                     tree_gl.regen_active(ig_renderer.gl_context(), &state.build.tree, &state.path_hovered);
                     state.request_regen = false;
+                }
+                if state.request_recalc {
+                    state.defence_calc = calc::calc_defence(&state.build);
+                    state.request_recalc = false;
                 }
                 let ui = imgui_context.frame();
                 match state.ui_state {
@@ -198,8 +202,8 @@ fn main() {
                             } else {
                                 if state.hovered_node.is_some() {
                                     state.build.tree.flip_node(state.hovered_node.as_ref().unwrap().skill);
-                                    state.defence_calc = calc::calc_defence(&state.build);
                                     state.request_regen = true;
+                                    state.request_recalc = true;
                                 }
                                 state.mouse_tree_drag = None;
                             }

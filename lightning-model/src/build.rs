@@ -40,7 +40,7 @@ pub struct Stat {
 pub struct Build {
     pub name: String,
     pub ascendancy: i32,
-    pub level: i64,
+    pub level: i32,
     pub gem_links: Vec<GemLink>,
     pub equipment: Vec<Item>, // todo: HashMap Slot
     pub tree: PassiveTree,
@@ -156,7 +156,6 @@ impl Build {
                 match f {
                     Mutation::MultiplierProperty(mp) => {
                         amount *= match mp.1 {
-                            Property::Level => self.level,
                             _ => 1,
                         }
                     }
@@ -196,7 +195,7 @@ impl Build {
                 match f {
                     Mutation::MultiplierProperty(mp) => {
                         amount *= match mp.1 {
-                            Property::Level => self.level,
+                            Property::Level => self.level as i64,
                             _ => 1,
                         }
                     }

@@ -1,21 +1,11 @@
 use super::{State, UiState};
 use imgui::{ListBox, MouseButton, Ui};
-use std::fs;
+use std::{io, fs};
 use std::path::PathBuf;
 
-pub fn get_build_files(build_dir: &PathBuf) -> Vec<PathBuf> {
-    let mut build_files = vec![];
-
-    let files = match fs::read_dir(build_dir) {
-        Ok(files) => files,
-        Err(_) => return build_files,
-    };
-
-    for file in files {
-        build_files.push(file.unwrap().path());
-    }
-
-    build_files
+pub fn get_build_files(build_dir: &PathBuf) -> io::Result<Vec<PathBuf>> {
+    let files = fs::read_dir(build_dir)?;
+    Ok(files.map(|f| f.unwrap().path()).collect())
 }
 
 pub fn draw(ui: &mut Ui, state: &mut State) {
@@ -26,7 +16,7 @@ pub fn draw(ui: &mut Ui, state: &mut State) {
                 state.ui_state = UiState::NewBuild;
             }
             ui.separator();
-            let build_files = get_build_files(&state.config.builds_dir);
+            let build_files = get_build_files(&state.config.builds_dir).unwrap_or(vec![]);
             ListBox::new("Local saves").build(ui, || {
                 for (index, item) in build_files.iter().enumerate() {
                     if ui
