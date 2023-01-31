@@ -31,12 +31,14 @@ fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
             state.build = util::load_build(path)?;
             state.defence_calc = calc::calc_defence(&state.build);
             println!("Loaded build from {}", &path.display());
+            state.request_regen = true;
             UiState::Main
         }
         UiState::ImportBuild => {
             state.build = util::fetch_build(&state.import_account, &state.import_character)?;
             state.defence_calc = calc::calc_defence(&state.build);
             println!("Fetched build: {} {}", &state.import_account, &state.import_character);
+            state.request_regen = true;
             UiState::Main
         }
         UiState::NewBuild => {
