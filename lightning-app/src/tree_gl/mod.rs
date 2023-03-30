@@ -280,6 +280,8 @@ impl TreeGl {
             let data = connectors_gl(path, &TREE.sprites["line"].coords["LineConnectorActive"], 12.0);
             self.draw_data
                 .insert("connectors_hovered".to_string(), GlDrawData::new(gl, &data));
+        } else {
+            self.draw_data.remove("connectors_hovered");
         }
     }
 
