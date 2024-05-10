@@ -91,7 +91,7 @@ fn main() {
     let mut tree_gl = TreeGl::default();
     tree_gl.init(ig_renderer.gl_context());
     // Standard winit event loop
-    event_loop.run(move |event, window_target| {
+    let _ = event_loop.run(move |event, window_target| {
         // Consider making the line below work someday.
         // It suspends redrawing until there's an event.
         // Pretty good cpu/gpu savings.

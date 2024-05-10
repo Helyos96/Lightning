@@ -424,15 +424,15 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
 
 #[test]
 fn test_parse() {
-    assert!(parse_mod("50% increased damage").is_some());
-    assert!(parse_mod("50% decreased damage").is_some());
-    assert!(parse_mod("50% more damage").is_some());
-    assert!(parse_mod("50% less damage").is_some());
-    assert!(parse_mod("+5 damage").is_some());
-    assert!(parse_mod("-5 damage").is_some());
-    assert!(parse_mod("+1 maximum life per level").is_some());
-    assert!(parse_mod("+5% to cold resistance").is_some());
-    assert!(parse_mod("-5% fire resistance").is_some());
-    assert!(parse_mod("50% increased melee physical damage").is_some());
-    assert!(parse_mod("50% increased melee physical damage per level").is_some());
+    assert!(parse_mod("50% increased damage", Source::Innate).is_some());
+    assert!(parse_mod("50% decreased damage", Source::Innate).is_some());
+    assert!(parse_mod("50% more damage", Source::Innate).is_some());
+    assert!(parse_mod("50% less damage", Source::Innate).is_some());
+    assert!(parse_mod("+5 damage", Source::Innate).is_some());
+    assert!(parse_mod("-5 damage", Source::Innate).is_some());
+    assert!(parse_mod("+1 maximum life per level", Source::Innate).is_some());
+    assert!(parse_mod("+5% to cold resistance", Source::Innate).is_some());
+    assert!(parse_mod("-5% fire resistance", Source::Innate).is_some());
+    assert!(parse_mod("50% increased melee physical damage", Source::Innate).is_some());
+    assert!(parse_mod("50% increased melee physical damage per level", Source::Innate).is_some());
 }
