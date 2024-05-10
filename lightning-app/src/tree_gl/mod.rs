@@ -155,8 +155,8 @@ pub struct TreeGl {
 impl TreeGl {
     fn init_shaders(&mut self, gl: &glow::Context) {
         let mut shaders = [
-            (glow::VERTEX_SHADER, VERTEX_SHADER_SOURCE, 0),
-            (glow::FRAGMENT_SHADER, FRAGMENT_SHADER_SOURCE, 0),
+            (glow::VERTEX_SHADER, VERTEX_SHADER_SOURCE, None),
+            (glow::FRAGMENT_SHADER, FRAGMENT_SHADER_SOURCE, None),
         ];
 
         unsafe {
@@ -170,7 +170,7 @@ impl TreeGl {
                     panic!("{}", gl.get_shader_info_log(shader));
                 }
                 gl.attach_shader(program, shader);
-                *handle = shader;
+                *handle = Some(shader);
             }
 
             gl.link_program(program);
@@ -179,8 +179,8 @@ impl TreeGl {
             }
 
             for &(_, _, shader) in &shaders {
-                gl.detach_shader(program, shader);
-                gl.delete_shader(shader);
+                gl.detach_shader(program, shader.unwrap());
+                gl.delete_shader(shader.unwrap());
             }
 
             self.uniform_zoom = gl.get_uniform_location(program, "ZOOM");

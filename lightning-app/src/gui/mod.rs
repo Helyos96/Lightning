@@ -2,7 +2,6 @@ pub mod build_selection;
 pub mod tree_view;
 
 use crate::config::Config;
-use glutin::event::ElementState;
 use imgui::Ui;
 use lightning_model::build::{Build, Stat};
 use lightning_model::calc;
@@ -11,6 +10,7 @@ use lightning_model::tree::Node;
 use rustc_hash::FxHashMap;
 use std::path::PathBuf;
 use std::{io, fs};
+use winit::event::ElementState;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum UiState {

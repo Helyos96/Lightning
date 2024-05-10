@@ -12,19 +12,34 @@ mod tree_gl;
 
 use crate::tree_gl::TreeGl;
 use glow::HasContext;
-use glutin::event::{self, ElementState, Event, MouseButton, VirtualKeyCode};
-use glutin::{event_loop::EventLoop, WindowedContext};
 use gui::{State, UiState};
 use imgui::ConfigFlags;
-use imgui_winit_support::WinitPlatform;
 use lightning_model::{build, calc, util};
+use winit::event::{ElementState, MouseButton};
 use std::error::Error;
 use std::ops::Neg;
-use std::time::Instant;
+use std::{num::NonZeroU32, time::Instant};
+
+use glutin::{
+    config::ConfigTemplateBuilder,
+    context::{ContextAttributesBuilder, NotCurrentGlContext, PossiblyCurrentContext},
+    display::{GetGlDisplay, GlDisplay},
+    surface::{GlSurface, Surface, SurfaceAttributesBuilder, WindowSurface},
+};
+use imgui_winit_support::{
+    winit::{
+        dpi::LogicalSize,
+        event_loop::EventLoop,
+        window::{Window, WindowBuilder},
+        event::Event,
+        keyboard::{KeyCode, PhysicalKey},
+    },
+    WinitPlatform,
+};
+
+use raw_window_handle::HasRawWindowHandle;
 
 const TITLE: &str = "Lightning";
-
-type Window = WindowedContext<glutin::PossiblyCurrent>;
 
 fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
     state.ui_state = match &state.ui_state {
@@ -56,11 +71,11 @@ fn main() {
     // Common setup for creating a winit window and imgui context, not specifc
     // to this renderer at all except that glutin is used to create the window
     // since it will give us access to a GL context
-    let (event_loop, window) = create_window();
+    let (event_loop, window, surface, context) = create_window();
     let (mut winit_platform, mut imgui_context) = imgui_init(&window);
 
     // OpenGL context from glow
-    let gl = glow_context(&window);
+    let gl = glow_context(&context);
 
     // OpenGL renderer from this crate
     let mut ig_renderer =
@@ -76,7 +91,7 @@ fn main() {
     let mut tree_gl = TreeGl::default();
     tree_gl.init(ig_renderer.gl_context());
     // Standard winit event loop
-    event_loop.run(move |event, _, control_flow| {
+    event_loop.run(move |event, window_target| {
         // Consider making the line below work someday.
         // It suspends redrawing until there's an event.
         // Pretty good cpu/gpu savings.
@@ -87,13 +102,16 @@ fn main() {
                 imgui_context.io_mut().update_delta_time(now.duration_since(last_frame));
                 last_frame = now;
             }
-            Event::MainEventsCleared => {
+            Event::AboutToWait => {
                 winit_platform
-                    .prepare_frame(imgui_context.io_mut(), window.window())
+                    .prepare_frame(imgui_context.io_mut(), &window)
                     .unwrap();
-                window.window().request_redraw();
+                window.request_redraw();
             }
-            Event::RedrawRequested(_) => {
+            Event::WindowEvent {
+                event: winit::event::WindowEvent::RedrawRequested,
+                ..
+            } => {
                 // The renderer assumes you'll be clearing the buffer yourself
                 unsafe { ig_renderer.gl_context().clear(glow::COLOR_BUFFER_BIT) };
 
@@ -143,26 +161,25 @@ fn main() {
                     }
                 }
 
-                winit_platform.prepare_render(ui, window.window());
+                winit_platform.prepare_render(ui, &window);
                 let draw_data = imgui_context.render();
                 ig_renderer.render(draw_data).expect("error rendering imgui");
-
-                window.swap_buffers().unwrap();
+                surface.swap_buffers(&context).expect("Failed to swap buffers");
             }
             Event::WindowEvent {
-                event: glutin::event::WindowEvent::CloseRequested,
+                event: winit::event::WindowEvent::CloseRequested,
                 ..
             } => {
-                *control_flow = glutin::event_loop::ControlFlow::Exit;
+                window_target.exit();
             }
             event => {
                 let mut forward_event = true;
                 match event {
                     Event::WindowEvent {
                         event:
-                            event::WindowEvent::MouseWheel {
-                                delta: event::MouseScrollDelta::LineDelta(_h, v),
-                                phase: event::TouchPhase::Moved,
+                            winit::event::WindowEvent::MouseWheel {
+                                delta: winit::event::MouseScrollDelta::LineDelta(_h, v),
+                                phase: winit::event::TouchPhase::Moved,
                                 ..
                             },
                         ..
@@ -173,7 +190,7 @@ fn main() {
                         }
                     }
                     Event::WindowEvent {
-                        event: event::WindowEvent::Resized(physical_size),
+                        event: winit::event::WindowEvent::Resized(physical_size),
                         ..
                     } => {
                         unsafe {
@@ -188,7 +205,7 @@ fn main() {
                     }
                     Event::WindowEvent {
                         event:
-                            event::WindowEvent::MouseInput {
+                            winit::event::WindowEvent::MouseInput {
                                 state: button_state,
                                 button,
                                 ..
@@ -212,10 +229,10 @@ fn main() {
                     }
                     Event::WindowEvent {
                         event:
-                            event::WindowEvent::KeyboardInput {
-                                input:
-                                    event::KeyboardInput {
-                                        virtual_keycode: Some(key),
+                            winit::event::WindowEvent::KeyboardInput {
+                                event:
+                                    winit::event::KeyEvent {
+                                        physical_key: key,
                                         state: key_state,
                                         ..
                                     },
@@ -223,14 +240,14 @@ fn main() {
                             },
                         ..
                     } => match key {
-                        VirtualKeyCode::Left => state.key_left = key_state,
-                        VirtualKeyCode::Right => state.key_right = key_state,
-                        VirtualKeyCode::Up => state.key_up = key_state,
-                        VirtualKeyCode::Down => state.key_down = key_state,
+                        PhysicalKey::Code(KeyCode::ArrowLeft) => state.key_left = key_state,
+                        PhysicalKey::Code(KeyCode::ArrowRight) => state.key_right = key_state,
+                        PhysicalKey::Code(KeyCode::ArrowUp) => state.key_up = key_state,
+                        PhysicalKey::Code(KeyCode::ArrowDown) => state.key_down = key_state,
                         _ => {}
                     },
                     Event::WindowEvent {
-                        event: event::WindowEvent::CursorMoved { position, .. },
+                        event: winit::event::WindowEvent::CursorMoved { position, .. },
                         ..
                     } => {
                         let (mut x, mut y) = (position.x as f32, position.y as f32);
@@ -267,29 +284,58 @@ fn main() {
                 }
 
                 if forward_event {
-                    winit_platform.handle_event(imgui_context.io_mut(), window.window(), &event);
+                    winit_platform.handle_event(imgui_context.io_mut(), &window, &event);
                 }
             }
         }
     });
 }
 
-fn create_window() -> (EventLoop<()>, Window) {
-    let event_loop = glutin::event_loop::EventLoop::new();
-    let window = glutin::window::WindowBuilder::new()
+fn create_window() -> (EventLoop<()>, Window, Surface<WindowSurface>, PossiblyCurrentContext) {
+    let event_loop = EventLoop::new().unwrap();
+    let window_builder = WindowBuilder::new()
         .with_title(TITLE)
-        .with_inner_size(glutin::dpi::LogicalSize::new(1280, 720));
-    let window = glutin::ContextBuilder::new()
-        .with_vsync(true)
-        .with_multisampling(4)
-        .build_windowed(window, &event_loop)
-        .expect("could not create window");
-    let window = unsafe { window.make_current().expect("could not make window context current") };
-    (event_loop, window)
+        .with_inner_size(LogicalSize::new(1024, 768));
+    let (window, cfg) = glutin_winit::DisplayBuilder::new()
+        .with_window_builder(Some(window_builder))
+        .build(&event_loop, ConfigTemplateBuilder::new(), |mut configs| {
+            configs.next().unwrap()
+        })
+        .expect("Failed to create OpenGL window");
+
+    let window = window.unwrap();
+
+    let context_attribs = ContextAttributesBuilder::new().build(Some(window.raw_window_handle()));
+    let context = unsafe {
+        cfg.display()
+            .create_context(&cfg, &context_attribs)
+            .expect("Failed to create OpenGL context")
+    };
+
+    let surface_attribs = SurfaceAttributesBuilder::<WindowSurface>::new()
+        .with_srgb(Some(true))
+        .build(
+            window.raw_window_handle(),
+            NonZeroU32::new(1024).unwrap(),
+            NonZeroU32::new(768).unwrap(),
+        );
+    let surface = unsafe {
+        cfg.display()
+            .create_window_surface(&cfg, &surface_attribs)
+            .expect("Failed to create OpenGL surface")
+    };
+
+    let context = context
+        .make_current(&surface)
+        .expect("Failed to make OpenGL context current");
+
+    (event_loop, window, surface, context)
 }
 
-fn glow_context(window: &Window) -> glow::Context {
-    unsafe { glow::Context::from_loader_function(|s| window.get_proc_address(s).cast()) }
+fn glow_context(context: &PossiblyCurrentContext) -> glow::Context {
+    unsafe {
+        glow::Context::from_loader_function_cstr(|s| context.display().get_proc_address(s).cast())
+    }
 }
 
 fn imgui_init(window: &Window) -> (WinitPlatform, imgui::Context) {
@@ -299,7 +345,7 @@ fn imgui_init(window: &Window) -> (WinitPlatform, imgui::Context) {
     let mut winit_platform = WinitPlatform::init(&mut imgui_context);
     winit_platform.attach_window(
         imgui_context.io_mut(),
-        window.window(),
+        &window,
         imgui_winit_support::HiDpiMode::Rounded,
     );
 
