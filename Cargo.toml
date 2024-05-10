@@ -1,9 +1,10 @@
 [workspace]
-
+resolver = "2"
 members = [
     "lightning-model",
     "lightning-app",
 ]
+
 
 [profile.dev]
 debug=0
