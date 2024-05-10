@@ -54,7 +54,7 @@ fn zero() -> i32 {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Level {
     costs: Option<Costs>,
-    required_level: Option<i32>,
+    required_level: Option<f32>,
     #[serde(default)]
     stat_requirements: StatRequirements,
     stats: Option<Vec<Option<i64>>>,
@@ -122,6 +122,8 @@ pub enum Tag {
     Exceptional,
     Blessing,
     Active_Skill,
+    Grants_Active_Skill,
+    Awakened,
     Support,
 }
 

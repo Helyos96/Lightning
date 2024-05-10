@@ -361,7 +361,11 @@ pub fn ascendancies_gl() -> DrawData {
     let mut dd = DrawData::default();
     for node in TREE.nodes.values().filter(|n| n.is_ascendancy_start) {
         let sprite = &TREE.sprites["ascendancyBackground"];
-        let rect = &sprite.coords[&("Classes".to_string() + node.ascendancy_name.as_ref().unwrap())];
+        let key = &("Classes".to_string() + node.ascendancy_name.as_ref().unwrap());
+        if !sprite.coords.contains_key(key) {
+            continue;
+        }
+        let rect = &sprite.coords[key];
         let (x, y) = node_pos(node);
         dd.append(x, y, rect, sprite, false, 2.5);
     }

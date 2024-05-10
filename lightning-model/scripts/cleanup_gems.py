@@ -1,8 +1,12 @@
 #!/bin/python3
 
 import json
+import sys
 
-f = open("zao-repoe/RePoE/data/gems.json")
+if len(sys.argv) != 2:
+    exit("Usage: {} <gems.json path>".format(sys.argv[0]))
+
+f = open(sys.argv[1])
 gems = json.load(f)
 cull = []
 

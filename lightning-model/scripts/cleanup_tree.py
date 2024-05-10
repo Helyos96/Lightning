@@ -1,8 +1,12 @@
 #!/bin/python3
 
 import json
+import sys
 
-f = open("skilltree-export/data.json")
+if len(sys.argv) != 2:
+    exit("Usage: {} <data.json path>".format(sys.argv[0]))
+
+f = open(sys.argv[1])
 tree = json.load(f)
 cull = []
 
