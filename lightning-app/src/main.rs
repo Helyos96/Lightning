@@ -53,8 +53,8 @@ fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
         UiState::ImportBuild => {
             state.build = util::fetch_build(&state.import_account, &state.import_character)?;
             state.request_recalc = true;
-            println!("Fetched build: {} {}", &state.import_account, &state.import_character);
             state.request_regen = true;
+            println!("Fetched build: {} {}", &state.import_account, &state.import_character);
             UiState::Main
         }
         UiState::NewBuild => {

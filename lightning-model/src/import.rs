@@ -1,12 +1,14 @@
 #![allow(non_snake_case)]
+
+/// Import build data from pathofexile.com
+
 use crate::build::{self, Build, GemLink};
 use crate::data::GEMS;
 use crate::gem;
 use crate::item;
 use crate::tree::Class;
 use serde::Deserialize;
-/// Import build data from pathofexile.com
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::error::Error;
 use std::io;
 use std::str::FromStr;
@@ -14,8 +16,8 @@ use std::str::FromStr;
 #[derive(Deserialize)]
 struct Character {
     level: i32,
-    classId: i64,
-    ascendancyClass: i64,
+    #[serde(rename = "class")]
+    ascendancy: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -48,7 +50,7 @@ struct PassiveTree {
     hashes_ex: Vec<u16>,
     items: Vec<Item>,
     #[serde(default)]
-    mastery_effects: Vec<String>,
+    mastery_effects: FxHashMap<String, u32>,
 }
 
 fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
@@ -119,6 +121,7 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
         + account
         + "&character="
         + character;
+    println!("{url}");
     let items = reqwest::blocking::get(url)?.json::<ItemsSkillsChar>()?;
 
     let mut build = Build::new_player();
@@ -126,23 +129,11 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
     build.level = items.character.level;
     build.tree.nodes = tree.hashes;
     build.tree.nodes_ex = tree.hashes_ex;
-    build.tree.set_class(match items.character.classId {
-        0 => Class::Scion,
-        1 => Class::Marauder,
-        2 => Class::Ranger,
-        3 => Class::Witch,
-        4 => Class::Duelist,
-        5 => Class::Templar,
-        6 => Class::Shadow,
-        _ => {
-            println!("Bad class ID: {}, defaulting to Scion", items.character.classId);
-            Class::Scion
-        }
-    });
+    build.tree.set_class(Class::from_ascendancy_str(items.character.ascendancy.as_str()));
 
-    for mastery_str in &tree.mastery_effects {
-        let mastery = u32::from_str(mastery_str)?;
-        build.tree.masteries.push((mastery as u16, (mastery >> 16) as u16));
+    for (mastery, selected) in &tree.mastery_effects {
+        let mastery = u32::from_str(mastery)?;
+        build.tree.masteries.push((mastery as u16, *selected as u16));
     }
 
     for item in tree.items {

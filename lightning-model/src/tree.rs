@@ -31,6 +31,31 @@ impl Class {
             Shadow => "Shadow",
         }
     }
+
+    pub fn from_ascendancy_str(ascendancy: &str) -> Self {
+        match ascendancy {
+            "Inquisitor" => Class::Templar,
+            "Hierophant" => Class::Templar,
+            "Guardian" => Class::Templar,
+            "Slayer" => Class::Duelist,
+            "Gladiator" => Class::Duelist,
+            "Champion" => Class::Duelist,
+            "Assassin" => Class::Shadow,
+            "Saboteur" => Class::Shadow,
+            "Trickster" => Class::Shadow,
+            "Juggernaut" => Class::Marauder,
+            "Berserker" => Class::Marauder,
+            "Chieftain" => Class::Marauder,
+            "Necromancer" => Class::Witch,
+            "Occultist" => Class::Witch,
+            "Elementalist" => Class::Witch,
+            "Deadeye" => Class::Ranger,
+            "Raider" => Class::Ranger,
+            "Pathfinder" => Class::Ranger,
+            "Ascendant" => Class::Scion,
+            _ => Class::default()
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
