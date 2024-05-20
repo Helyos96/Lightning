@@ -114,7 +114,8 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
         + "&character="
         + character;
     println!("{url}");
-    let tree = reqwest::blocking::get(url)?.json::<PassiveTree>()?;
+    let client = reqwest::blocking::ClientBuilder::new().user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0").build()?;
+    let tree = client.get(url).send()?.json::<PassiveTree>()?;
 
     // Items, Skills, CharData
     let url = "https://pathofexile.com/character-window/get-items?realm=pc&accountName=".to_string()
@@ -122,7 +123,7 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
         + "&character="
         + character;
     println!("{url}");
-    let items = reqwest::blocking::get(url)?.json::<ItemsSkillsChar>()?;
+    let items = client.get(url).send()?.json::<ItemsSkillsChar>()?;
 
     let mut build = Build::new_player();
     build.name = character.to_string();
