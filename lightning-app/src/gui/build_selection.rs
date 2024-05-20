@@ -16,7 +16,7 @@ pub fn draw(ui: &mut Ui, state: &mut State) {
                 state.ui_state = UiState::NewBuild;
             }
             ui.separator();
-            let build_files = get_build_files(&state.config.builds_dir).unwrap_or(vec![]);
+            let build_files = get_build_files(&state.config.builds_dir).unwrap_or_default();
             ListBox::new("Local saves").build(ui, || {
                 for (index, item) in build_files.iter().enumerate() {
                     if ui

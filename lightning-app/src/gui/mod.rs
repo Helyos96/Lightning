@@ -159,7 +159,9 @@ pub fn draw_top_panel(ui: &mut Ui, state: &mut State) {
             ui.input_text("##Build Name", &mut state.build.name).build();
             ui.same_line();
             if ui.button("Save") {
-                save_build(&state.build, &state.config.builds_dir);
+                if let Err(err) = save_build(&state.build, &state.config.builds_dir) {
+                    eprintln!("Failed to save build: {err}");
+                }
             }
             ui.next_column();
             ui.text("Level");

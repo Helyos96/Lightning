@@ -265,17 +265,15 @@ lazy_static! {
 }
 
 #[derive(Debug, Copy, Clone)]
+#[derive(Default)]
 pub enum Type {
+    #[default]
     Base,
     Inc,
     More,
 }
 
-impl Default for Type {
-    fn default() -> Self {
-        Type::Base
-    }
-}
+
 
 #[derive(Debug, Copy, Clone)]
 pub enum Property {

@@ -235,16 +235,14 @@ fn successors(node: u16) -> Vec<u16> {
         .as_ref()
         .unwrap()
         .iter()
-        .filter(|id| !TREE.nodes[id].is_mastery)
-        .map(|id| *id)
+        .filter(|id| !TREE.nodes[id].is_mastery).copied()
         .collect();
     let nodes_in: Vec<u16> = TREE.nodes[&node]
         .r#in
         .as_ref()
         .unwrap()
         .iter()
-        .filter(|id| !PATH_OF_THE.contains(*id))
-        .map(|id| *id)
+        .filter(|id| !PATH_OF_THE.contains(*id)).copied()
         .collect();
     v.extend(nodes_in);
     v
@@ -273,14 +271,11 @@ impl PassiveTree {
             let to_remove = self.find_path_remove(node);
             self.nodes = self
                 .nodes
-                .iter()
-                .map(|id| *id)
+                .iter().copied()
                 .filter(|id| !to_remove.contains(id))
                 .collect();
-        } else {
-            if let Some(path) = self.find_path(node) {
-                self.nodes.extend_from_slice(&path[0..path.len() - 1]);
-            }
+        } else if let Some(path) = self.find_path(node) {
+            self.nodes.extend_from_slice(&path[0..path.len() - 1]);
         }
     }
 

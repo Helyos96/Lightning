@@ -154,10 +154,8 @@ impl Build {
             let mut amount = m.amount;
             for f in &m.flags {
                 match f {
-                    Mutation::MultiplierProperty(mp) => {
-                        amount *= match mp.1 {
-                            _ => 1,
-                        }
+                    Mutation::MultiplierProperty(_mp) => {
+                        amount *= 1
                     }
                     Mutation::MultiplierStat(_) => {
                         // todo
