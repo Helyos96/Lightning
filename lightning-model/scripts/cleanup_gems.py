@@ -16,26 +16,6 @@ for (k,v) in gems.items():
         continue
     levels = v["per_level"]
     v["per_level"] = []
-    for lvl in levels.values():
-        stats = []
-        if "stats" in lvl:
-            for i,stat in enumerate(lvl["stats"]):
-                if stat is None:
-                    stats.append(None)
-                else:
-                    if "id" in stat:
-                        if not "stats" in v["static"]:
-                            cull.append(k)
-                            break
-                        if v["static"]["stats"][i] is None:
-                            v["static"]["stats"][i] = {}
-                        v["static"]["stats"][i]["id"] = stat["id"]
-                    if "value" not in stat:
-                        stats.append(None)
-                    else:
-                        stats.append(stat["value"])
-        lvl["stats"] = stats
-        v["per_level"].append(lvl)
     if v["tags"] is None:
         v.pop("tags", None)
 

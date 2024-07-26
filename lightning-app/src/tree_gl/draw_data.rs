@@ -195,6 +195,7 @@ fn node_gl(
     dd_masteries: &mut DrawData,
     dd_asc_frames: &mut DrawData,
     is_active: bool,
+    is_hovered: bool,
 ) {
     let icon_strings = match is_active {
         true => &ACTIVE_STRINGS,
@@ -216,7 +217,9 @@ fn node_gl(
             dd_masteries.append(x, y, rect, sprite, false, 2.0);
         }
         NodeType::AscendancyNormal | NodeType::AscendancyNotable => {
-            dd_nodes.append(x, y, rect, sprite, false, 2.0);
+            if !is_hovered {
+                dd_nodes.append(x, y, rect, sprite, false, 2.0);
+            }
             let sprite = &TREE.sprites["ascendancy"];
             let rect = match node.node_type() {
                 NodeType::AscendancyNormal => &sprite.coords[icon_strings[0]],
@@ -231,7 +234,9 @@ fn node_gl(
             dd_frames.append(x, y, rect, sprite, false, 2.0);
         }
         _ => {
-            dd_nodes.append(x, y, rect, sprite, false, 2.0);
+            if !is_hovered {
+                dd_nodes.append(x, y, rect, sprite, false, 2.0);
+            }
             let sprite = &TREE.sprites["frame"];
             let rect = match node.node_type() {
                 NodeType::Normal => &sprite.coords[icon_strings[2]],
@@ -263,6 +268,7 @@ pub fn nodes_gl() -> [DrawData; 4] {
             &mut dd_masteries,
             &mut dd_asc_frames,
             false,
+            false,
         );
     }
     [dd_nodes, dd_frames, dd_masteries, dd_asc_frames]
@@ -287,6 +293,7 @@ pub fn nodes_gl_active(nodes: &[u16], hovered: Option<&u16>) -> [DrawData; 4] {
             &mut dd_masteries,
             &mut dd_asc_frames,
             true,
+            false,
         );
     }
 
@@ -297,6 +304,7 @@ pub fn nodes_gl_active(nodes: &[u16], hovered: Option<&u16>) -> [DrawData; 4] {
             &mut dd_frames,
             &mut dd_masteries,
             &mut dd_asc_frames,
+            true,
             true,
         );
     }

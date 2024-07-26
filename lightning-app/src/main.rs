@@ -12,6 +12,7 @@ mod tree_gl;
 
 use crate::tree_gl::TreeGl;
 use glow::HasContext;
+use glutin::surface::SwapInterval;
 use gui::{State, UiState};
 use imgui::ConfigFlags;
 use lightning_model::{build, calc, util};
@@ -90,6 +91,7 @@ fn main() {
 
     let mut tree_gl = TreeGl::default();
     tree_gl.init(ig_renderer.gl_context());
+    unsafe { ig_renderer.gl_context().clear_color(0.0, 0.0, 0.05, 0.0) };
     // Standard winit event loop
     let _ = event_loop.run(move |event, window_target| {
         // Consider making the line below work someday.
@@ -113,7 +115,7 @@ fn main() {
                 ..
             } => {
                 // The renderer assumes you'll be clearing the buffer yourself
-                unsafe { ig_renderer.gl_context().clear(glow::COLOR_BUFFER_BIT) };
+                unsafe { ig_renderer.gl_context().clear(glow::COLOR_BUFFER_BIT); };
 
                 if state.request_regen {
                     tree_gl.regen_active(ig_renderer.gl_context(), &state.build.tree, &state.path_hovered);
@@ -328,6 +330,8 @@ fn create_window() -> (EventLoop<()>, Window, Surface<WindowSurface>, PossiblyCu
     let context = context
         .make_current(&surface)
         .expect("Failed to make OpenGL context current");
+
+    let _ = surface.set_swap_interval(&context, SwapInterval::Wait(NonZeroU32::new(1).unwrap()));
 
     (event_loop, window, surface, context)
 }

@@ -7,7 +7,6 @@ members = [
 
 
 [profile.dev]
-debug=0
 opt-level=1
 
 [profile.prod]

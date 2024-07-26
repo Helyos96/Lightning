@@ -15,12 +15,6 @@ pub struct ActiveSkill {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Stat {
-    id: String,
-    value: Option<i64>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct BaseItem {
     pub display_name: String,
     id: String,
@@ -57,7 +51,7 @@ pub struct Level {
     required_level: Option<f32>,
     #[serde(default)]
     stat_requirements: StatRequirements,
-    stats: Option<Vec<Option<i64>>>,
+    stats: Option<FxHashMap<String, i64>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -66,7 +60,7 @@ pub struct Static {
     cooldown: Option<i32>,
     damage_effectiveness: Option<i32>,
     attack_speed_multiplier: Option<i32>,
-    pub stats: Option<Vec<Stat>>,
+    pub stats: Option<FxHashMap<String, i64>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq)]
@@ -156,12 +150,11 @@ impl Gem {
         let mut mods = vec![];
 
         if let Some(stats) = &self.data().r#static.stats {
-            for (pos, stat) in stats.iter().enumerate() {
-                let value = self.stat_value(pos, stat);
-                if let Some(stat_mods) = GEMSTATS.get(&stat.id[0..]) {
+            for (id, value) in stats.iter() {
+                if let Some(stat_mods) = GEMSTATS.get(id.as_str()) {
                     for m in stat_mods {
                         let mut modifier = m.to_owned();
-                        modifier.amount = value;
+                        modifier.amount = *value;
                         modifier.source = Source::Gem;
                         mods.push(modifier);
                     }
@@ -177,14 +170,16 @@ impl Gem {
     /// Will use per_level value if available,
     /// otherwise static value, otherwise None
     /// todo: add quality value if present.
-    fn stat_value(&self, pos: usize, stat: &Stat) -> i64 {
+    fn stat_value(&self, id: &str) -> i64 {
         if let Some(stats_lvl) = &self.data().per_level[self.level - 1].stats {
-            if let Some(Some(value)) = stats_lvl.get(pos) {
+            if let Some(value) = stats_lvl.get(id) {
                 return *value;
             }
         }
-        if let Some(value) = stat.value {
-            return value;
+        if let Some(stats) = &self.data().r#static.stats {
+            if let Some(value) = stats.get(id) {
+                return *value;
+            }
         }
 
         0

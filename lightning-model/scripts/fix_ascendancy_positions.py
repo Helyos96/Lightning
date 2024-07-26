@@ -1,5 +1,3 @@
-#!/bin/python3
-
 from __future__ import annotations
 
 import dataclasses
@@ -140,4 +138,4 @@ def main(root: pathlib.Path) -> None:
 
 
 if __name__ == "__main__":
-    main(pathlib.Path("src/TreeData"))
+    main(pathlib.Path("."))

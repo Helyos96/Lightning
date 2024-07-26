@@ -270,14 +270,14 @@ impl TreeGl {
             .insert("masteries_active".to_string(), GlDrawData::new(gl, &data[2]));
         self.draw_data
             .insert("ascendancy_frames_active".to_string(), GlDrawData::new(gl, &data[3]));
-        let data = connectors_gl(&tree.nodes, &TREE.sprites["line"].coords["LineConnectorActive"], 14.0);
+        let data = connectors_gl(&tree.nodes, &TREE.sprites["line"].coords["LineConnectorActive"], 16.0);
         self.draw_data
             .insert("connectors_active".to_string(), GlDrawData::new(gl, &data));
         let data = class_start_gl(tree.class);
         self.draw_data
             .insert("class_start".to_string(), GlDrawData::new(gl, &data));
         if let Some(path) = path_hovered {
-            let data = connectors_gl(path, &TREE.sprites["line"].coords["LineConnectorActive"], 12.0);
+            let data = connectors_gl(path, &TREE.sprites["line"].coords["LineConnectorActive"], 6.0);
             self.draw_data
                 .insert("connectors_hovered".to_string(), GlDrawData::new(gl, &data));
         } else {
