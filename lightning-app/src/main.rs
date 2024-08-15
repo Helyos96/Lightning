@@ -1,6 +1,6 @@
 // todo: remove this once stable-ish
 #![allow(dead_code)]
-#![windows_subsystem = "windows"]
+//#![windows_subsystem = "windows"]
 
 //! A basic self-contained example to get you from zero-to-demo-window as fast
 //! as possible.

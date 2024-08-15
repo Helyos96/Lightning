@@ -5,13 +5,8 @@ members = [
     "lightning-app",
 ]
 
-
-[profile.dev]
-opt-level=1
-
 [profile.prod]
 inherits = "release"
 lto=true
 codegen-units=1
 strip=true
-panic="abort"

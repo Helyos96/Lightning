@@ -12,5 +12,5 @@ $ cd lightning-app
 $ cargo run
 ```
 
-Thanks to RePoe (and zao's updated fork) for gems.json. And more json files once I can actually make use of them.
+Thanks to RePoE (and [lvlvllvlvllvlvl's updated fork](https://github.com/lvlvllvlvllvlvl/RePoE)) for the JSON data.
 

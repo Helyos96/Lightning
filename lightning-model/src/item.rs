@@ -4,11 +4,14 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum Property {
-    MinMax { min: i32, max: i32 },
-    Value(i32),
-    String(String),
+pub struct PropertyMinMax {
+    min: u32,
+    max: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Properties {
+    armour: Option<PropertyMinMax>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -16,7 +19,7 @@ pub struct BaseItem {
     name: String,
     implicits: Vec<String>,
     item_class: String,
-    properties: FxHashMap<String, Property>,
+    properties: Properties,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

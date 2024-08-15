@@ -14,8 +14,6 @@ for (k,v) in gems.items():
     if "Royale" in k:
         cull.append(k)
         continue
-    levels = v["per_level"]
-    v["per_level"] = []
     if v["tags"] is None:
         v.pop("tags", None)
 

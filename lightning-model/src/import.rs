@@ -72,7 +72,7 @@ fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
         }) {
             let gem_data = &GEMS[gem_id];
             // Parsing stuff is just beautiful
-            let level = usize::from_str(
+            let level = u32::from_str(
                 gem.properties.iter().find(|p| p.name == "Level").unwrap().values[0]
                     .0
                     .split(' ')

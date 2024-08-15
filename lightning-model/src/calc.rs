@@ -46,7 +46,9 @@ pub fn calc_gem(build: &Build, support_gems: &Vec<Gem>, active_gem: &Gem) -> FxH
 
     if let Some(mut time) = active_gem.data().cast_time {
         if tags.contains(&Tag::Spell) {
-            time = stats["cast speed"].calc_inv(time);
+            if let Some(cast_speed) = stats.get("cast speed") {
+                time = cast_speed.calc_inv(time);
+            }
         } else if tags.contains(&Tag::Attack) {
             if let Some(attack_speed) = stats.get("attack speed") {
                 time = attack_speed.calc_inv(time);
