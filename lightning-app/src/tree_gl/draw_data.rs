@@ -140,7 +140,7 @@ pub fn connectors_gl_inactive() -> DrawData {
             .filter(|n| !n.is_ascendancy_start && !n.is_mastery && n.class_start_index.is_none())
         {
             let (x2, y2) = node_pos(out);
-            connector_gl(x1, y1, x2, y2, 10.0, rect, sprite, &mut dd);
+            connector_gl(x1, y1, x2, y2, 12.0, rect, sprite, &mut dd);
         }
     }
     dd

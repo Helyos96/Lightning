@@ -1,6 +1,7 @@
 use crate::data::TREE;
 use crate::modifier::{parse_mod, Mod, Source};
 use lazy_static::lazy_static;
+use pathfinding::directed::strongly_connected_components;
 use pathfinding::prelude::bfs;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -248,6 +249,53 @@ fn successors(node: u16) -> Vec<u16> {
     v
 }
 
+struct FindDisconnectedNodes {
+    pub nodes_search_remove: Vec<u16>,
+    class: Class,
+}
+
+impl FindDisconnectedNodes {
+    fn new(nodes_search_remove: Vec<u16>, class: Class) -> Self {
+        Self {
+            nodes_search_remove,
+            class,
+        }
+    }
+
+    fn successors_allocated(&self, node: u16) -> Vec<u16> {
+        let mut v: Vec<u16> = TREE.nodes[&node]
+            .out
+            .as_ref()
+            .unwrap()
+            .iter()
+            .filter(|id| self.nodes_search_remove.contains(id))
+            .copied()
+            .collect();
+        let nodes_in: Vec<u16> = TREE.nodes[&node]
+            .r#in
+            .as_ref()
+            .unwrap()
+            .iter()
+            .filter(|id| self.nodes_search_remove.contains(id))
+            .copied()
+            .collect();
+        v.extend(nodes_in);
+        v
+    }
+
+    /// Find a group of nodes to remove when a single node gets deallocated
+    pub fn find_nodes_remove(&self) -> Vec<u16> {
+        let groups = strongly_connected_components::strongly_connected_components(&self.nodes_search_remove, |p| self.successors_allocated(*p));
+        let mut ret = vec!();
+        for group in groups {
+            if !group.contains(&get_class_node(self.class)) {
+                ret.extend(group);
+            }
+        }
+        ret
+    }
+}
+
 impl PassiveTree {
     pub fn data() -> &'static TreeData {
         &TREE
@@ -259,16 +307,14 @@ impl PassiveTree {
         bfs(&node, |p| successors(*p), |p| self.nodes.contains(p))
     }
 
-    /// Find a path of nodes to remove when a single node gets deallocated
-    pub fn find_path_remove(&self, node: u16) -> Vec<u16> {
-        // Todo
-        vec![node]
-    }
-
     /// Flip a node status (allocated <-> non-allocated)
     pub fn flip_node(&mut self, node: u16) {
         if self.nodes.contains(&node) {
-            let to_remove = self.find_path_remove(node);
+            let mut nodes = self.nodes.clone();
+            nodes.retain(|&x| x != node);
+            let fdn: FindDisconnectedNodes = FindDisconnectedNodes::new(nodes, self.class);
+            let mut to_remove = fdn.find_nodes_remove();
+            to_remove.push(node);
             self.nodes = self
                 .nodes
                 .iter().copied()

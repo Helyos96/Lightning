@@ -300,7 +300,7 @@ fn create_window() -> (EventLoop<()>, Window, Surface<WindowSurface>, PossiblyCu
         .with_inner_size(LogicalSize::new(1024, 768));
     let (window, cfg) = glutin_winit::DisplayBuilder::new()
         .with_window_builder(Some(window_builder))
-        .build(&event_loop, ConfigTemplateBuilder::new(), |mut configs| {
+        .build(&event_loop, ConfigTemplateBuilder::new().with_multisampling(4), |mut configs| {
             configs.next().unwrap()
         })
         .expect("Failed to create OpenGL window");
