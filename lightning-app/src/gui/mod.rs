@@ -8,7 +8,7 @@ use lightning_model::calc;
 use lightning_model::data::TREE;
 use lightning_model::tree::Node;
 use rustc_hash::FxHashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{io, fs};
 use winit::event::ElementState;
 
@@ -135,7 +135,7 @@ pub fn draw_left_panel(ui: &mut Ui, state: &mut State) {
         });
 }
 
-fn save_build(build: &Build, dir: &PathBuf) -> io::Result<()> {
+fn save_build(build: &Build, dir: &Path) -> io::Result<()> {
     let mut file_path = dir.join(&build.name);
     file_path.set_extension("json");
     serde_json::to_writer(&fs::File::create(file_path)?, build)?;
@@ -180,6 +180,7 @@ pub fn draw_top_panel(ui: &mut Ui, state: &mut State) {
                     if ui.selectable_config(class.as_str()).selected(selected).build() {
                         state.build.tree.set_class(*class);
                         state.request_regen = true;
+                        state.request_recalc = true;
                     }
                 }
                 combo.end();

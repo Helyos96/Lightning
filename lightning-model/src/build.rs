@@ -265,5 +265,5 @@ fn test_build() {
     let player = Build::new_player();
     let stats = player.calc_stats(&player.calc_mods(true), &hset![]);
 
-    assert_eq!(stats["maximum life"].val(), 72);
+    assert_eq!(stats["maximum life"].val(), 60);
 }

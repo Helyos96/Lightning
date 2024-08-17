@@ -254,9 +254,8 @@ impl TreeGl {
         ];
 
         for &s in &REDRAW {
-            match self.draw_data.get_mut(s) {
-                Some(dd) => dd.destroy(gl),
-                None => {}
+            if let Some(dd) = self.draw_data.get_mut(s) {
+                dd.destroy(gl);
             }
         }
 
@@ -293,7 +292,7 @@ impl TreeGl {
         translate: (i32, i32),
         path_hovered: &Option<Vec<u16>>,
     ) {
-        if self.draw_data.get("nodes_active").is_none() {
+        if !self.draw_data.contains_key("nodes_active") {
             self.regen_active(gl, tree, path_hovered);
         }
 

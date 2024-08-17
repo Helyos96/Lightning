@@ -6,9 +6,9 @@ use rustc_hash::{FxHashMap, FxHashSet};
 /// 2 ways to parse a mod:
 ///
 /// 1. "Automatic": make sure all parts of your mod are declared
-/// in TAGS, STATS, BEGINNINGS and ENDINGS.
+///    in TAGS, STATS, BEGINNINGS and ENDINGS.
 /// 2. (todo) "Exotic": one-shot parsing of the entire mod
-/// through SPECIALS.
+///    through SPECIALS.
 ///
 /// All strings need to be lowercase.
 use std::ops::Neg;
@@ -374,8 +374,8 @@ lazy_static! {
 /// Attempts to parse a modifier like "30℅ increased poison damage while focussed"
 /// 1. todo: try to match the entire string against SPECIALS
 /// 2. if not special, parse right to left:
-/// 2.1. any amount of ENDINGS
-/// 2.2. a BEGINNING
+///    2.1. any amount of ENDINGS
+///    2.2. a BEGINNING
 pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
     if let Some(mods_opt) = CACHE.lock().unwrap().get(input) {
         match mods_opt {

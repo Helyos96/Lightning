@@ -91,7 +91,7 @@ impl Static {
                     }
                 }
             }
-            return false;
+            false
         })
     }
 }

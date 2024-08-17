@@ -83,6 +83,9 @@ pub fn calc_defence(build: &Build) -> Vec<(String, Stat)> {
         "Lightning Resistance".to_string(),
         build.calc_stat_dmg("resistance", &mods, &hset![], DamageType::Lightning),
     ));
+    ret.push(("Strength".to_string(), stats["strength"].clone()));
+    ret.push(("Dexterity".to_string(), stats["dexterity"].clone()));
+    ret.push(("Intelligence".to_string(), stats["intelligence"].clone()));
 
     ret
 }
