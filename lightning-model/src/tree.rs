@@ -307,14 +307,20 @@ impl PassiveTree {
         bfs(&node, |p| successors(*p), |p| self.nodes.contains(p))
     }
 
+    /// Find a group of nodes to remove when a single node gets deallocated
+    pub fn find_path_remove(&self, node: u16) -> Vec<u16> {
+        let mut nodes = self.nodes.clone();
+        nodes.retain(|&x| x != node);
+        let fdn: FindDisconnectedNodes = FindDisconnectedNodes::new(nodes, self.class);
+        let mut to_remove = fdn.find_nodes_remove();
+        to_remove.push(node);
+        to_remove
+    }
+
     /// Flip a node status (allocated <-> non-allocated)
     pub fn flip_node(&mut self, node: u16) {
         if self.nodes.contains(&node) {
-            let mut nodes = self.nodes.clone();
-            nodes.retain(|&x| x != node);
-            let fdn: FindDisconnectedNodes = FindDisconnectedNodes::new(nodes, self.class);
-            let mut to_remove = fdn.find_nodes_remove();
-            to_remove.push(node);
+            let to_remove = self.find_path_remove(node);
             self.nodes = self
                 .nodes
                 .iter().copied()

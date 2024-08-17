@@ -1,5 +1,6 @@
 // todo: remove this once stable-ish
 #![allow(dead_code)]
+// De-comment this to remove console output on Windows
 //#![windows_subsystem = "windows"]
 
 //! A basic self-contained example to get you from zero-to-demo-window as fast
@@ -118,7 +119,7 @@ fn main() {
                 unsafe { ig_renderer.gl_context().clear(glow::COLOR_BUFFER_BIT); };
 
                 if state.request_regen {
-                    tree_gl.regen_active(ig_renderer.gl_context(), &state.build.tree, &state.path_hovered);
+                    tree_gl.regen_active(ig_renderer.gl_context(), &state.build.tree, &state.path_hovered, &state.path_red);
                     state.request_regen = false;
                 }
                 if state.request_recalc {
@@ -130,18 +131,29 @@ fn main() {
                     UiState::ChooseBuild => gui::build_selection::draw(ui, &mut state),
                     UiState::Main => {
                         if let Some(node) = state.hovered_node {
-                            if state.path_hovered.is_none() && !state.build.tree.nodes.contains(&node.skill) {
-                                let path_hovered = state.build.tree.find_path(node.skill);
-                                if state.path_hovered.is_none() && path_hovered.is_some() {
-                                    state.request_regen = true;
+                            if !state.build.tree.nodes.contains(&node.skill) {
+                                if state.path_hovered.is_none() {
+                                    let path_hovered = state.build.tree.find_path(node.skill);
+                                    if state.path_hovered.is_none() && path_hovered.is_some() {
+                                        state.request_regen = true;
+                                    }
+                                    state.path_hovered = path_hovered;
+                                    state.path_red = None;
                                 }
-                                state.path_hovered = path_hovered;
+                            } else {
+                                if state.path_red.is_none() {
+                                    let path_red = state.build.tree.find_path_remove(node.skill);
+                                    state.request_regen = true;
+                                    state.path_hovered = None;
+                                    state.path_red = Some(path_red);
+                                }
                             }
                         } else {
-                            if state.path_hovered.is_some() {
+                            if state.path_hovered.is_some() || state.path_red.is_some() {
                                 state.request_regen = true;
                             }
                             state.path_hovered = None;
+                            state.path_red = None;
                         }
                         tree_gl.draw(
                             &state.build.tree,
@@ -149,6 +161,7 @@ fn main() {
                             state.zoom,
                             state.tree_translate,
                             &state.path_hovered,
+                            &state.path_red,
                         );
                         gui::draw_top_panel(ui, &mut state);
                         gui::draw_left_panel(ui, &mut state);
@@ -165,8 +178,12 @@ fn main() {
 
                 winit_platform.prepare_render(ui, &window);
                 let draw_data = imgui_context.render();
-                ig_renderer.render(draw_data).expect("error rendering imgui");
-                surface.swap_buffers(&context).expect("Failed to swap buffers");
+                if let Err(err) = ig_renderer.render(draw_data) {
+                    eprintln!("Error rendering imgui: {err}");
+                }
+                if let Err(err) = surface.swap_buffers(&context) {
+                    eprintln!("Failed to swap buffers: {err}");
+                }
             }
             Event::WindowEvent {
                 event: winit::event::WindowEvent::CloseRequested,
