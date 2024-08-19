@@ -84,6 +84,18 @@ fn get_config() -> config::Config {
     config::Config::default()
 }
 
+fn set_vsync(surface: &Surface<WindowSurface>, context: &PossiblyCurrentContext, vsync: bool) {
+    if vsync {
+        if let Err(res) = surface.set_swap_interval(context, SwapInterval::Wait(NonZeroU32::new(1).unwrap())) {
+            eprintln!("Error enabling vsync: {res:?}");
+        }
+    } else {
+        if let Err(res) = surface.set_swap_interval(context, SwapInterval::DontWait) {
+            eprintln!("Error disabling vsync: {res:?}");
+        }
+    }
+}
+
 fn main() {
     // Common setup for creating a winit window and imgui context, not specifc
     // to this renderer at all except that glutin is used to create the window
@@ -100,6 +112,8 @@ fn main() {
 
     let mut last_frame = Instant::now();
     let mut state = State::new(get_config());
+    let mut vsync = state.config.vsync;
+    set_vsync(&surface, &context, vsync);
 
     let mut tree_gl = TreeGl::default();
     tree_gl.init(ig_renderer.gl_context());
@@ -144,6 +158,10 @@ fn main() {
                         gui::build_selection::draw(ui, &mut state);
                         if state.show_settings {
                             gui::settings::draw(ui, &mut state);
+                            if vsync != state.config.vsync {
+                                vsync = state.config.vsync;
+                                set_vsync(&surface, &context, vsync);
+                            }
                         }
                     }
                     UiState::Main => {
@@ -173,13 +191,6 @@ fn main() {
                             state.path_red = None;
                         }
 
-                        /*
-                        // Experiment: try to snap translation to be aligned with pixels to avoid flickering
-                        let mut translate = state.tree_translate;
-                        translate.0 = round_to_nearest(translate.0, 12500.0 / (state.dimensions.0 as f32 * state.zoom));
-                        translate.1 = round_to_nearest(translate.1, 12500.0 / (state.dimensions.1 as f32 * state.zoom));
-                        //println!("tree_translate: {:?} ; translate: {:?} ; zoom: {}", state.tree_translate, translate, state.zoom);
-                        */
                         tree_gl.draw(
                             &state.build.tree,
                             ig_renderer.gl_context(),
@@ -207,24 +218,20 @@ fn main() {
                     eprintln!("Error rendering imgui: {err}");
                 }
 
-                // TODO: use vsync.
-                // Unfortunately on Windows+NVIDIA+OpenGL+vsync, the driver
-                // will hog a CPU core when swapping.
-                // Solution seems to be calling DwmFlush() but only when in window
-                // and when the windows compositor is enabled.
-                let instant = Instant::now();
-                let overhead = (instant - state.last_instant).as_micros() as u64;
-                let sleep_for_us = 1000000 / state.config.framerate;
-                if overhead < sleep_for_us {
-                    let sleep_for = Duration::from_micros(sleep_for_us - overhead);
-                    std::thread::sleep(sleep_for);
+                if !vsync {
+                    let instant = Instant::now();
+                    let overhead = (instant - state.last_instant).as_micros() as u64;
+                    let sleep_for_us = 1000000 / state.config.framerate;
+                    if overhead < sleep_for_us {
+                        let sleep_for = Duration::from_micros(sleep_for_us - overhead);
+                        std::thread::sleep(sleep_for);
+                    }
                 }
 
                 if let Err(err) = surface.swap_buffers(&context) {
                     eprintln!("Failed to swap buffers: {err}");
                 }
                 state.last_instant = Instant::now();
-
             }
             Event::WindowEvent {
                 event: winit::event::WindowEvent::CloseRequested,
@@ -389,14 +396,6 @@ fn create_window() -> (EventLoop<()>, Window, Surface<WindowSurface>, PossiblyCu
     let context = context
         .make_current(&surface)
         .expect("Failed to make OpenGL context current");
-
-    // Disable VSync because NVIDIA on Windows/GL has unecessary spin-locking,
-    // resulting in high CPU usage for nothing
-    if let Err(res) = surface
-        .set_swap_interval(&context, SwapInterval::DontWait)
-    {
-        eprintln!("Error disabling vsync: {res:?}");
-    }
 
     (event_loop, window, surface, context)
 }

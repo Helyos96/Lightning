@@ -16,10 +16,13 @@ pub fn draw(ui: &mut Ui, state: &mut State) {
             if ui.input_scalar("Framerate", &mut state.framerate_settings).build() {
                 if state.framerate_settings >= 20 {
                     state.config.framerate = state.framerate_settings;
-                    let _ = state.config.save();
                 } else {
                     state.framerate_settings = 20;
                 }
+                let _ = state.config.save();
+            }
+            if ui.checkbox("VSync", &mut state.config.vsync) {
+                let _ = state.config.save();
             }
             if ui.button("Close") {
                 state.show_settings = false;

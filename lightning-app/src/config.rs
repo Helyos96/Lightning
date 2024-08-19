@@ -9,6 +9,7 @@ pub struct Config {
     pub builds_dir: PathBuf,
     pub import_accounts: Vec<String>,
     pub framerate: u64,
+    pub vsync: bool,
 }
 
 #[cfg(target_os = "linux")]
@@ -40,6 +41,7 @@ impl Default for Config {
             builds_dir: config_dir().join("builds/"),
             import_accounts: vec![],
             framerate: 165,
+            vsync: false,
         }
     }
 }
