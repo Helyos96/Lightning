@@ -60,23 +60,10 @@ in vec2 UV;
 out vec4 color;
 
 uniform sampler2D myTextureSampler;
+uniform vec4 tint;
 
 void main() {
-  color = texture( myTextureSampler, UV ).rgba;
-}
-"#;
-
-const FRAGMENT_SHADER_SOURCE_RED: &str = r#"
-#version 330 core
-
-in vec2 UV;
-out vec4 color;
-
-uniform sampler2D myTextureSampler;
-
-void main() {
-  color = texture( myTextureSampler, UV ).rgba;
-  color = vec4(color.r, color.g * 0, color.b * 0, color.a);
+  color = (texture( myTextureSampler, UV ) * tint).rgba;
 }
 "#;
 
@@ -161,8 +148,9 @@ impl GlDrawData {
 #[derive(Default)]
 pub struct TreeGl {
     textures: FxHashMap<String, Texture>,
-    programs: Vec<glow::Program>,
-    uniform_zoom: Vec<glow::UniformLocation>,
+    program: Option<glow::Program>,
+    uniform_zoom: Option<glow::UniformLocation>,
+    uniform_tint: Option<glow::UniformLocation>,
     draw_data: FxHashMap<String, GlDrawData>,
 }
 
@@ -171,7 +159,6 @@ impl TreeGl {
         let mut shaders = [
             (glow::VERTEX_SHADER, VERTEX_SHADER_SOURCE, None),
             (glow::FRAGMENT_SHADER, FRAGMENT_SHADER_SOURCE, None),
-            (glow::FRAGMENT_SHADER, FRAGMENT_SHADER_SOURCE_RED, None),
         ];
 
         unsafe {
@@ -194,26 +181,13 @@ impl TreeGl {
             }
 
             let uniform_zoom = gl.get_uniform_location(program, "ZOOM").unwrap();
-            self.programs.push(program);
-            self.uniform_zoom.push(uniform_zoom);
-            gl.detach_shader(program, shaders[0].2.unwrap());
-            gl.detach_shader(program, shaders[1].2.unwrap());
-
-            let program_red = gl.create_program().expect("Cannot create program");
-            gl.attach_shader(program_red, shaders[0].2.unwrap());
-            gl.attach_shader(program_red, shaders[2].2.unwrap());
-            gl.link_program(program_red);
-            if !gl.get_program_link_status(program_red) {
-                panic!("{}", gl.get_program_info_log(program_red));
-            }
-
-            let uniform_zoom_red = gl.get_uniform_location(program_red, "ZOOM").unwrap();
-            self.programs.push(program_red);
-            self.uniform_zoom.push(uniform_zoom_red);
-            gl.detach_shader(program_red, shaders[0].2.unwrap());
-            gl.detach_shader(program_red, shaders[2].2.unwrap());
+            let uniform_tint = gl.get_uniform_location(program, "tint").unwrap();
+            self.program = Some(program);
+            self.uniform_zoom = Some(uniform_zoom);
+            self.uniform_tint = Some(uniform_tint);
 
             for &(_, _, shader) in &shaders {
+                gl.detach_shader(program, shader.unwrap());
                 gl.delete_shader(shader.unwrap());
             }
         }
@@ -344,25 +318,25 @@ impl TreeGl {
             self.regen_active(gl, tree, path_hovered, path_red);
         }
 
-        // draw_data name ; texture file ; GL program idx
-        const DRAW_ORDER: [(&str, &str, usize); 17] = [
-            ("background", "group-background-3.dds", 0),
-            ("ascendancy_background", "ascendancy-background-3.dds", 0),
-            ("connectors", "line-3.dds", 0),
-            ("connectors_active", "line-3.dds", 0),
-            ("connectors_hovered", "line-3.dds", 0),
-            ("connectors_red", "line-3.dds", 1),
-            ("nodes", "skills-disabled-3.dds", 0),
-            ("nodes_active", "skills-3.dds", 0),
-            ("frames", "frame-3.dds", 0),
-            ("frames_active", "frame-3.dds", 0),
-            ("frames_active_red", "frame-3.dds", 1),
-            ("class_start", "group-background-3.dds", 0),
-            ("ascendancy_frames", "ascendancy-3.dds", 0),
-            ("ascendancy_frames_active", "ascendancy-3.dds", 0),
-            ("masteries", "mastery-disabled-3.dds", 0),
-            ("masteries_active", "mastery-connected-3.dds", 0),
-            ("masteries_active_red", "mastery-connected-3.dds", 1),
+        // draw_data name ; texture file ; color tint factor
+        const DRAW_ORDER: [(&str, &str, [f32; 4]); 17] = [
+            ("background", "group-background-3.dds", [1.0, 1.0, 1.0, 1.0]),
+            ("ascendancy_background", "ascendancy-background-3.dds", [1.0, 1.0, 1.0, 1.0]),
+            ("connectors", "line-3.dds", [1.0, 1.0, 1.0, 1.0]),
+            ("connectors_active", "line-3.dds", [1.0, 1.0, 1.0, 1.0]),
+            ("connectors_hovered", "line-3.dds", [1.0, 1.0, 1.0, 1.0]),
+            ("connectors_red", "line-3.dds", [1.0, 0.0, 0.0, 1.0]),
+            ("nodes", "skills-disabled-3.dds", [1.0, 1.0, 1.0, 1.0]),
+            ("nodes_active", "skills-3.dds", [1.0, 1.0, 1.0, 1.0]),
+            ("frames", "frame-3.dds", [1.0, 1.0, 1.0, 1.0]),
+            ("frames_active", "frame-3.dds", [1.0, 1.0, 1.0, 1.0]),
+            ("frames_active_red", "frame-3.dds", [1.0, 0.0, 0.0, 1.0]),
+            ("class_start", "group-background-3.dds", [1.0, 1.0, 1.0, 1.0]),
+            ("ascendancy_frames", "ascendancy-3.dds", [1.0, 1.0, 1.0, 1.0]),
+            ("ascendancy_frames_active", "ascendancy-3.dds", [1.0, 1.0, 1.0, 1.0]),
+            ("masteries", "mastery-disabled-3.dds", [1.0, 1.0, 1.0, 1.0]),
+            ("masteries_active", "mastery-connected-3.dds", [1.0, 1.0, 1.0, 1.0]),
+            ("masteries_active_red", "mastery-connected-3.dds", [1.0, 0.0, 0.0, 1.0]),
         ];
 
         unsafe {
@@ -380,13 +354,15 @@ impl TreeGl {
                 0.0,
             ));
 
+            gl.use_program(self.program);
+            gl.uniform_matrix_4_f32_slice(
+                self.uniform_zoom.as_ref(),
+                false,
+                &(scale * ortho * translate).to_cols_array(),
+            );
+
             for to_draw in DRAW_ORDER.iter().filter(|d| self.draw_data.contains_key(d.0)) {
-                gl.use_program(Some(self.programs[to_draw.2]));
-                gl.uniform_matrix_4_f32_slice(
-                    Some(&self.uniform_zoom[to_draw.2]),
-                    false,
-                    &(scale * ortho * translate).to_cols_array(),
-                );
+                gl.uniform_4_f32(self.uniform_tint.as_ref(), to_draw.2[0], to_draw.2[1], to_draw.2[2], to_draw.2[3]);
                 gl.bind_vertex_array(self.draw_data[to_draw.0].vao);
                 gl.bind_texture(glow::TEXTURE_2D, Some(self.textures[to_draw.1].gl_texture));
                 gl.draw_elements(glow::TRIANGLES, self.draw_data[to_draw.0].len, glow::UNSIGNED_SHORT, 0);
