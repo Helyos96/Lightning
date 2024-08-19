@@ -15,12 +15,13 @@ use crate::tree_gl::TreeGl;
 use glow::HasContext;
 use glutin::surface::SwapInterval;
 use gui::{State, UiState};
-use imgui::ConfigFlags;
+//use imgui::ConfigFlags;
 use lightning_model::{build, calc, util};
 use winit::event::{ElementState, MouseButton};
 use std::error::Error;
+use std::fs;
 use std::ops::Neg;
-use std::{num::NonZeroU32, time::Instant};
+use std::{num::NonZeroU32, time::{Duration, Instant} };
 
 use glutin::{
     config::ConfigTemplateBuilder,
@@ -69,6 +70,20 @@ fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+fn round_to_nearest(f: f32, n: f32) -> f32 {
+    (f / n).round() * n
+}
+
+fn get_config() -> config::Config {
+    let path = config::config_dir().join("config.json");
+    if let Ok(file) = fs::File::open(path) {
+        if let Ok(config) = serde_json::from_reader(&file) {
+            return config;
+        }
+    }
+    config::Config::default()
+}
+
 fn main() {
     // Common setup for creating a winit window and imgui context, not specifc
     // to this renderer at all except that glutin is used to create the window
@@ -84,15 +99,11 @@ fn main() {
         imgui_glow_renderer::AutoRenderer::initialize(gl, &mut imgui_context).expect("failed to create renderer");
 
     let mut last_frame = Instant::now();
-
-    let mut state = State::default();
-    if let Err(err) = state.config.save() {
-        eprintln!("Failed to save config: {err:?}");
-    }
+    let mut state = State::new(get_config());
 
     let mut tree_gl = TreeGl::default();
     tree_gl.init(ig_renderer.gl_context());
-    unsafe { ig_renderer.gl_context().clear_color(0.0, 0.0, 0.05, 0.0) };
+
     // Standard winit event loop
     let _ = event_loop.run(move |event, window_target| {
         // Consider making the line below work someday.
@@ -116,6 +127,7 @@ fn main() {
                 ..
             } => {
                 // The renderer assumes you'll be clearing the buffer yourself
+                unsafe { ig_renderer.gl_context().clear_color(0.0, 0.0, 0.05, 0.0) };
                 unsafe { ig_renderer.gl_context().clear(glow::COLOR_BUFFER_BIT); };
 
                 if state.request_regen {
@@ -128,7 +140,12 @@ fn main() {
                 }
                 let ui = imgui_context.frame();
                 match state.ui_state {
-                    UiState::ChooseBuild => gui::build_selection::draw(ui, &mut state),
+                    UiState::ChooseBuild => {
+                        gui::build_selection::draw(ui, &mut state);
+                        if state.show_settings {
+                            gui::settings::draw(ui, &mut state);
+                        }
+                    }
                     UiState::Main => {
                         if let Some(node) = state.hovered_node {
                             if !state.build.tree.nodes.contains(&node.skill) {
@@ -155,6 +172,14 @@ fn main() {
                             state.path_hovered = None;
                             state.path_red = None;
                         }
+
+                        /*
+                        // Experiment: try to snap translation to be aligned with pixels to avoid flickering
+                        let mut translate = state.tree_translate;
+                        translate.0 = round_to_nearest(translate.0, 12500.0 / (state.dimensions.0 as f32 * state.zoom));
+                        translate.1 = round_to_nearest(translate.1, 12500.0 / (state.dimensions.1 as f32 * state.zoom));
+                        //println!("tree_translate: {:?} ; translate: {:?} ; zoom: {}", state.tree_translate, translate, state.zoom);
+                        */
                         tree_gl.draw(
                             &state.build.tree,
                             ig_renderer.gl_context(),
@@ -181,9 +206,25 @@ fn main() {
                 if let Err(err) = ig_renderer.render(draw_data) {
                     eprintln!("Error rendering imgui: {err}");
                 }
+
+                // TODO: use vsync.
+                // Unfortunately on Windows+NVIDIA+OpenGL+vsync, the driver
+                // will hog a CPU core when swapping.
+                // Solution seems to be calling DwmFlush() but only when in window
+                // and when the windows compositor is enabled.
+                let instant = Instant::now();
+                let overhead = (instant - state.last_instant).as_micros() as u64;
+                let sleep_for_us = 1000000 / state.config.framerate;
+                if overhead < sleep_for_us {
+                    let sleep_for = Duration::from_micros(sleep_for_us - overhead);
+                    std::thread::sleep(sleep_for);
+                }
+
                 if let Err(err) = surface.swap_buffers(&context) {
                     eprintln!("Failed to swap buffers: {err}");
                 }
+                state.last_instant = Instant::now();
+
             }
             Event::WindowEvent {
                 event: winit::event::WindowEvent::CloseRequested,
@@ -275,9 +316,9 @@ fn main() {
                         if let Some(drag) = state.mouse_tree_drag {
                             let (dx, dy) = (x - drag.0, y - drag.1);
                             state.tree_translate.0 +=
-                                (dx * 12500.0 / (state.dimensions.0 as f32 / 2.0) / (state.zoom / aspect_ratio)) as i32;
+                                dx * 12500.0 / (state.dimensions.0 as f32 / 2.0) / (state.zoom / aspect_ratio);
                             state.tree_translate.1 -=
-                                (dy * 12500.0 / (state.dimensions.1 as f32 / 2.0) / state.zoom) as i32;
+                                dy * 12500.0 / (state.dimensions.1 as f32 / 2.0) / state.zoom;
                             state.mouse_tree_drag = Some(state.mouse_pos);
                         } else if gui::is_over_tree(&state.mouse_pos) {
                             // There's gotta be simpler computations for this
@@ -286,8 +327,8 @@ fn main() {
                             y = y.neg();
                             x /= state.dimensions.0 as f32 / 2.0;
                             y /= state.dimensions.1 as f32 / 2.0;
-                            x -= state.tree_translate.0 as f32 * (state.zoom / aspect_ratio) / 12500.0;
-                            y -= state.tree_translate.1 as f32 * state.zoom / 12500.0;
+                            x -= state.tree_translate.0 * (state.zoom / aspect_ratio) / 12500.0;
+                            y -= state.tree_translate.1 * state.zoom / 12500.0;
                             x *= aspect_ratio;
                             x *= 12500.0 / state.zoom;
                             y *= 12500.0 / state.zoom;
@@ -338,6 +379,7 @@ fn create_window() -> (EventLoop<()>, Window, Surface<WindowSurface>, PossiblyCu
             NonZeroU32::new(1024).unwrap(),
             NonZeroU32::new(768).unwrap(),
         );
+
     let surface = unsafe {
         cfg.display()
             .create_window_surface(&cfg, &surface_attribs)
@@ -348,7 +390,13 @@ fn create_window() -> (EventLoop<()>, Window, Surface<WindowSurface>, PossiblyCu
         .make_current(&surface)
         .expect("Failed to make OpenGL context current");
 
-    let _ = surface.set_swap_interval(&context, SwapInterval::Wait(NonZeroU32::new(1).unwrap()));
+    // Disable VSync because NVIDIA on Windows/GL has unecessary spin-locking,
+    // resulting in high CPU usage for nothing
+    if let Err(res) = surface
+        .set_swap_interval(&context, SwapInterval::DontWait)
+    {
+        eprintln!("Error disabling vsync: {res:?}");
+    }
 
     (event_loop, window, surface, context)
 }
@@ -381,7 +429,9 @@ fn imgui_init(window: &Window) -> (WinitPlatform, imgui::Context) {
     }
 
     imgui_context.io_mut().font_global_scale = (1.0 / winit_platform.hidpi_factor()) as f32;
-    imgui_context.io_mut().config_flags |= ConfigFlags::NAV_ENABLE_KEYBOARD;
+    // For some reason imgui will register numpad 2,4,6,8 as navigation keys rather than the digits,
+    // though this may be due to bad event passing
+    //imgui_context.io_mut().config_flags |= ConfigFlags::NAV_ENABLE_KEYBOARD;
 
     (winit_platform, imgui_context)
 }

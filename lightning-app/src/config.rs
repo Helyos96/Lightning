@@ -8,10 +8,11 @@ use std::path::PathBuf;
 pub struct Config {
     pub builds_dir: PathBuf,
     pub import_accounts: Vec<String>,
+    pub framerate: u64,
 }
 
 #[cfg(target_os = "linux")]
-fn config_dir() -> PathBuf {
+pub fn config_dir() -> PathBuf {
     if let Some(path) = dirs::home_dir() {
         return path.join(".local/lightning_poe/");
     }
@@ -20,7 +21,7 @@ fn config_dir() -> PathBuf {
 }
 
 #[cfg(target_os = "windows")]
-fn config_dir() -> PathBuf {
+pub fn config_dir() -> PathBuf {
     if let Some(path) = dirs::home_dir() {
         return path.join("lightning_poe/");
     }
@@ -29,21 +30,16 @@ fn config_dir() -> PathBuf {
 }
 
 #[cfg(target_os = "android")]
-fn config_dir() -> PathBuf {
+pub fn config_dir() -> PathBuf {
     PathBuf::from("./")
 }
 
 impl Default for Config {
     fn default() -> Self {
-        let path = config_dir().join("config.json");
-        if let Ok(file) = fs::File::open(path) {
-            if let Ok(config) = serde_json::from_reader(&file) {
-                return config;
-            }
-        }
         Self {
             builds_dir: config_dir().join("builds/"),
             import_accounts: vec![],
+            framerate: 165,
         }
     }
 }

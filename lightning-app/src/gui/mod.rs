@@ -1,5 +1,6 @@
 pub mod build_selection;
 pub mod tree_view;
+pub mod settings;
 
 use crate::config::Config;
 use imgui::Ui;
@@ -11,6 +12,7 @@ use rustc_hash::FxHashMap;
 use std::path::{Path, PathBuf};
 use std::{io, fs};
 use winit::event::ElementState;
+use std::time::Instant;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum UiState {
@@ -29,6 +31,9 @@ pub struct State {
     pub import_account: String,
     pub import_character: String,
     pub request_recalc: bool,
+    pub last_instant: Instant,
+    instant_fps: Instant,
+    pub show_settings: bool,
 
     active_skill_calc: FxHashMap<&'static str, i64>,
     pub defence_calc: Vec<(String, Stat)>,
@@ -40,10 +45,12 @@ pub struct State {
     // widget-specific values
     builds_list_cur: usize,
     active_skill_cur: usize,
+    builds_dir_settings: String,
+    framerate_settings: u64,
 
     // OpenGL stuff
     pub dimensions: (u32, u32),
-    pub tree_translate: (i32, i32),
+    pub tree_translate: (f32, f32),
     pub zoom: f32,
     pub request_regen: bool,
 
@@ -55,15 +62,18 @@ pub struct State {
     pub key_down: ElementState,
 }
 
-impl Default for State {
-    fn default() -> Self {
+impl State {
+    pub fn new(config: Config) -> Self {
         Self {
             ui_state: UiState::ChooseBuild,
             build: Build::new_player(),
-            config: Config::default(),
+
             import_account: String::new(),
             import_character: String::new(),
             request_recalc: false,
+            last_instant: Instant::now(),
+            instant_fps: Instant::now(),
+            show_settings: false,
 
             active_skill_calc: FxHashMap::default(),
             defence_calc: vec![],
@@ -74,10 +84,13 @@ impl Default for State {
 
             builds_list_cur: 0,
             active_skill_cur: 0,
+            builds_dir_settings: config.builds_dir.clone().into_os_string().into_string().unwrap(),
+            framerate_settings: config.framerate,
+            config: config, // needs to be after fields that depend on config
 
             dimensions: (1280, 720),
             zoom: 1.0,
-            tree_translate: (0, 0),
+            tree_translate: (0.0, 0.0),
             request_regen: false,
 
             mouse_pos: (0.0, 0.0),
@@ -134,6 +147,10 @@ pub fn draw_left_panel(ui: &mut Ui, state: &mut State) {
             for stat in &state.defence_calc {
                 ui.text(stat.0.to_string() + ": " + &stat.1.val().to_string());
             }
+            let instant = Instant::now();
+            let fps = 1000000.0 / (instant - state.instant_fps).as_micros() as f32;
+            ui.text("FPS: ".to_string() + fps.to_string().as_str());
+            state.instant_fps = instant;
         });
 }
 

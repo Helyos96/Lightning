@@ -15,6 +15,10 @@ pub fn draw(ui: &mut Ui, state: &mut State) {
             if ui.button("New Build") {
                 state.ui_state = UiState::NewBuild;
             }
+            ui.same_line();
+            if ui.button("Settings") {
+                state.show_settings = !state.show_settings;
+            }
             ui.separator();
             let build_files = get_build_files(&state.config.builds_dir).unwrap_or_default();
             ListBox::new("Local saves").build(ui, || {

@@ -274,7 +274,7 @@ impl TreeGl {
     }
 
     pub fn regen_active(&mut self, gl: &glow::Context, tree: &PassiveTree, path_hovered: &Option<Vec<u16>>, path_red: &Option<Vec<u16>>,) {
-        const REDRAW: [&str; 7] = [
+        const REDRAW: [&str; 12] = [
             "nodes_active",
             "frames_active",
             "masteries_active",
@@ -282,6 +282,11 @@ impl TreeGl {
             "connectors_active",
             "connectors_hovered",
             "class_start",
+            "connectors_red",
+            "nodes_active_red",
+            "frames_active_red",
+            "masteries_active_red",
+            "ascendancy_frames_active_red",
         ];
 
         for &s in &REDRAW {
@@ -323,12 +328,6 @@ impl TreeGl {
                 .insert("masteries_active_red".to_string(), GlDrawData::new(gl, &data[2]));
             self.draw_data
                 .insert("ascendancy_frames_active_red".to_string(), GlDrawData::new(gl, &data[3]));
-        } else {
-            self.draw_data.remove("connectors_red");
-            self.draw_data.remove("nodes_active_red");
-            self.draw_data.remove("frames_active_red");
-            self.draw_data.remove("masteries_active_red");
-            self.draw_data.remove("ascendancy_frames_active_red");
         }
     }
 
@@ -337,7 +336,7 @@ impl TreeGl {
         tree: &PassiveTree,
         gl: &glow::Context,
         zoom: f32,
-        translate: (i32, i32),
+        translate: (f32, f32),
         path_hovered: &Option<Vec<u16>>,
         path_red: &Option<Vec<u16>>,
     ) {
