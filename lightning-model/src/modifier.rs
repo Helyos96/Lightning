@@ -32,14 +32,13 @@ lazy_static! {
         map.insert("totem", Tag::Totem);
         map
     };
-    static ref DTS: FxHashMap<&'static str, FxHashSet<DamageType>> = {
+    static ref DTS: FxHashMap<&'static str, DamageType> = {
         let mut map = FxHashMap::default();
-        map.insert("physical", hset![DamageType::Physical]);
-        map.insert("fire", hset![DamageType::Fire]);
-        map.insert("cold", hset![DamageType::Cold]);
-        map.insert("lightning", hset![DamageType::Lightning]);
-        map.insert("chaos", hset![DamageType::Chaos]);
-        map.insert("elemental", hset![DamageType::Fire, DamageType::Cold, DamageType::Lightning]);
+        map.insert("physical", DamageType::Physical);
+        map.insert("fire", DamageType::Fire);
+        map.insert("cold", DamageType::Cold);
+        map.insert("lightning", DamageType::Lightning);
+        map.insert("chaos", DamageType::Chaos);
         map
     };
 }
@@ -73,32 +72,34 @@ lazy_static! {
         (
             regex!(r"^(minions (?:have|deal) )?([0-9]+)% increased ([a-z ]+)$"),
             Box::new(|c| {
-                let mut stat_tags = parse_stat(&c[3])?;
-                if c.get(1).is_some() {
-                    stat_tags.1.insert(Tag::Minion);
-                }
-                Some(stat_tags.0.iter().map(|s| {
-                    Mod {
-                        stat: s.to_string(),
+                let stat_tags = parse_stat(&c[3])?;
+                let insert_minion_tag = c.get(1).is_some();
+                Some(stat_tags.iter().map(|s| {
+                    let mut ret = Mod {
+                        stat: s.0.to_string(),
                         typ: Type::Inc,
                         amount: i64::from_str(&c[2]).unwrap(),
-                        tags: stat_tags.1.clone(),
-                        dts: stat_tags.2.clone(),
+                        tags: s.1.clone(),
+                        dt: s.2,
                         ..Default::default()
+                    };
+                    if insert_minion_tag {
+                        ret.tags.insert(Tag::Minion);
                     }
+                    ret
                 }).collect())
             })
         ), (
             regex!(r"^([0-9]+)% decreased ([a-z ]+)$"),
             Box::new(|c| {
                 let stat_tags = parse_stat(&c[2])?;
-                Some(stat_tags.0.iter().map(|s| {
+                Some(stat_tags.iter().map(|s| {
                     Mod {
-                        stat: s.to_string(),
+                        stat: s.0.to_string(),
                         typ: Type::Inc,
                         amount: i64::from_str(&c[1]).unwrap().neg(),
-                        tags: stat_tags.1.clone(),
-                        dts: stat_tags.2.clone(),
+                        tags: s.1.clone(),
+                        dt: s.2,
                         ..Default::default()
                     }
                 }).collect())
@@ -106,32 +107,34 @@ lazy_static! {
         ), (
             regex!(r"^(minions have )?\+([0-9]+)%? (?:to )?(?:all )?([a-z ]+)$"),
             Box::new(|c| {
-                let mut stat_tags = parse_stat(&c[3])?;
-                if c.get(1).is_some() {
-                    stat_tags.1.insert(Tag::Minion);
-                }
-                Some(stat_tags.0.iter().map(|s| {
-                    Mod {
-                        stat: s.to_string(),
+                let stat_tags = parse_stat(&c[3])?;
+                let insert_minion_tag = c.get(1).is_some();
+                Some(stat_tags.iter().map(|s| {
+                    let mut ret = Mod {
+                        stat: s.0.to_string(),
                         typ: Type::Base,
                         amount: i64::from_str(&c[2]).unwrap(),
-                        tags: stat_tags.1.clone(),
-                        dts: stat_tags.2.clone(),
+                        tags: s.1.clone(),
+                        dt: s.2,
                         ..Default::default()
+                    };
+                    if insert_minion_tag {
+                        ret.tags.insert(Tag::Minion);
                     }
+                    ret
                 }).collect())
             })
         ), (
             regex!(r"^\-([0-9]+)%? (to )?([a-z ]+)$"),
             Box::new(|c| {
                 let stat_tags = parse_stat(&c[3])?;
-                Some(stat_tags.0.iter().map(|s| {
+                Some(stat_tags.iter().map(|s| {
                     Mod {
-                        stat: s.to_string(),
+                        stat: s.0.to_string(),
                         typ: Type::Base,
                         amount: i64::from_str(&c[1]).unwrap().neg(),
-                        tags: stat_tags.1.clone(),
-                        dts: stat_tags.2.clone(),
+                        tags: s.1.clone(),
+                        dt: s.2,
                         ..Default::default()
                     }
                 }).collect())
@@ -140,13 +143,13 @@ lazy_static! {
             regex!(r"^([0-9]+)% more ([a-z ]+)$"),
             Box::new(|c| {
                 let stat_tags = parse_stat(&c[2])?;
-                Some(stat_tags.0.iter().map(|s| {
+                Some(stat_tags.iter().map(|s| {
                     Mod {
-                        stat: s.to_string(),
+                        stat: s.0.to_string(),
                         typ: Type::More,
                         amount: i64::from_str(&c[1]).unwrap(),
-                        tags: stat_tags.1.clone(),
-                        dts: stat_tags.2.clone(),
+                        tags: s.1.clone(),
+                        dt: s.2,
                         ..Default::default()
                     }
                 }).collect())
@@ -155,13 +158,13 @@ lazy_static! {
             regex!(r"^([0-9]+)% less ([a-z ]+)$"),
             Box::new(|c| {
                 let stat_tags = parse_stat(&c[2])?;
-                Some(stat_tags.0.iter().map(|s| {
+                Some(stat_tags.iter().map(|s| {
                     Mod {
-                        stat: s.to_string(),
+                        stat: s.0.to_string(),
                         typ: Type::More,
                         amount: i64::from_str(&c[1]).unwrap().neg(),
-                        tags: stat_tags.1.clone(),
-                        dts: stat_tags.2.clone(),
+                        tags: s.1.clone(),
+                        dt: s.2,
                         ..Default::default()
                     }
                 }).collect())
@@ -169,21 +172,21 @@ lazy_static! {
         ), (
             regex!(r"^\+([0-9]+)%? to ([a-z ]+) and ([a-z ]+)$"),
             Box::new(|c| {
-                let stat_tags_1 = parse_stat(&c[2])?;
-                let stat_tags_2 = parse_stat(&c[3])?;
+                let stat_tags_1 = parse_stat_nomulti(&c[2])?;
+                let stat_tags_2 = parse_stat_nomulti(&c[3])?;
                 Some(vec![Mod {
-                    stat: stat_tags_1.0[0].to_string(),
+                    stat: stat_tags_1.0.to_string(),
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
                     tags: stat_tags_1.1,
-                    dts: stat_tags_1.2,
+                    dt: stat_tags_1.2,
                     ..Default::default()
                 }, Mod {
-                    stat: stat_tags_2.0[0].to_string(),
+                    stat: stat_tags_2.0.to_string(),
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
                     tags: stat_tags_2.1,
-                    dts: stat_tags_2.2,
+                    dt: stat_tags_2.2,
                     ..Default::default()
                 }])
             })
@@ -196,13 +199,13 @@ lazy_static! {
                     stat: "resistance".to_string(),
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
-                    dts: dt_1.clone(),
+                    dt: Some(*dt_1),
                     ..Default::default()
                 }, Mod {
                     stat: "resistance".to_string(),
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
-                    dts: dt_2.clone(),
+                    dt: Some(*dt_2),
                     ..Default::default()
                 }])
             })
@@ -212,7 +215,8 @@ lazy_static! {
     static ref MULTISTATS: FxHashMap<&'static str, Vec<&'static str>> = {
         let mut map = FxHashMap::default();
         map.insert("attributes", vec!["strength", "dexterity", "intelligence"]);
-        map.insert("resistances", vec!["resistance"]);
+        map.insert("elemental resistances", vec!["fire resistance", "cold resistance", "lightning resistance"]);
+        map.insert("resistances", vec!["fire resistance", "cold resistance", "lightning resistance", "chaos resistance"]);
         map
     };
     // Order is important for overlapping stats
@@ -258,7 +262,6 @@ lazy_static! {
         "evasion rating",
         "stun threshold",
         "resistance",
-        "resistances",
 
         "flask charges gained",
     ];
@@ -320,7 +323,7 @@ pub struct Mod {
     pub amount: i64,
     pub flags: Vec<Mutation>,
     pub tags: FxHashSet<Tag>,
-    pub dts: FxHashSet<DamageType>,
+    pub dt: Option<DamageType>,
     pub source: Source,
 }
 
@@ -339,32 +342,55 @@ fn parse_ending(m: &str) -> Option<(usize, Ending)> {
     None
 }
 
-/// Attempts to parse a chunk like "melee physical damage"
-fn parse_stat(mut input: &str) -> Option<(Vec<&str>, FxHashSet<Tag>, FxHashSet<DamageType>)> {
+fn parse_stat_nomulti(input: &str) -> Option<(&str, FxHashSet<Tag>, Option<DamageType>)> {
     let mut tags = hset![];
-    let mut dts = hset![];
+    let mut dt = None;
 
-    let stats = &vec![STATS.iter().find_map(|s| {
+    let stat = &STATS.iter().find_map(|s| {
         if input.ends_with(s) {
             return Some(*s);
         }
         None
-    })?];
+    })?;
 
-    input = &input[0..input.len() - stats[0].len()];
-    let stats = MULTISTATS.get(stats[0]).unwrap_or(stats);
+    let remainder = &input[0..input.len() - stat.len()];
 
-    for chunk in input.split_terminator(' ') {
+    for chunk in remainder.split_terminator(' ') {
         if let Some(t) = TAGS.get(chunk) {
             tags.insert(*t);
-        } else if let Some(dt) = DTS.get(chunk) {
-            dts = dt.clone();
+        } else if let Some(dt_parsed) = DTS.get(chunk) {
+            if dt.is_some() {
+                eprintln!("ERR: stat {input} has multiple damage types");
+            }
+            dt = Some(*dt_parsed);
         } else {
             return None;
         }
     }
 
-    Some((stats.to_owned(), tags, dts))
+    Some((stat.to_owned(), tags, dt))
+}
+
+/// Attempts to parse a chunk like "melee physical damage"
+fn parse_stat(input: &str) -> Option<Vec<(&str, FxHashSet<Tag>, Option<DamageType>)>> {
+    if let Some(stats) = MULTISTATS.get(input) {
+        let mut ret = vec![];
+        for stat in stats {
+            if let Some(parse) = parse_stat_nomulti(stat) {
+                ret.push(parse);
+            }
+        }
+        if ret.is_empty() {
+            return None;
+        } else {
+            return Some(ret);
+        }
+    }
+
+    if let Some(stat) = parse_stat_nomulti(input) {
+        return Some(vec![stat]);
+    }
+    None
 }
 
 lazy_static! {

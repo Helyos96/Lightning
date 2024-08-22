@@ -136,20 +136,12 @@ impl Build {
         mods
     }
 
-    pub fn calc_stat_dmg(&self, stat_str: &str, mods: &[Mod], tags: &FxHashSet<Tag>, dt: DamageType) -> Stat {
-        self.calc_stat_priv(stat_str, mods, tags, &hset![dt])
-    }
-
-    pub fn calc_stat(&self, stat_str: &str, mods: &[Mod], tags: &FxHashSet<Tag>) -> Stat {
-        self.calc_stat_priv(stat_str, mods, tags, &hset![])
-    }
-
-    fn calc_stat_priv(&self, stat_str: &str, mods: &[Mod], tags: &FxHashSet<Tag>, dts: &FxHashSet<DamageType>) -> Stat {
+    pub fn calc_stat(&self, stat_str: &str, mods: &[Mod], tags: &FxHashSet<Tag>, dt: Option<DamageType>) -> Stat {
         let mut stat = Stat::default();
 
         for m in mods
             .iter()
-            .filter(|m| m.stat == stat_str && tags.is_superset(&m.tags) && (m.dts.is_empty() || m.dts.is_superset(dts)))
+            .filter(|m| m.stat == stat_str && tags.is_superset(&m.tags) && (m.dt.is_none() || m.dt == dt))
         {
             let mut amount = m.amount;
             for f in &m.flags {

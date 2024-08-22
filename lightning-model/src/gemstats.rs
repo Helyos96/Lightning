@@ -15,10 +15,10 @@ lazy_static! {
             Mod { stat: "cast speed".to_string(), typ: Type::Inc, ..Default::default() },
         ]);
         map.insert("spell_minimum_base_fire_damage", vec![
-            Mod { stat: "minimum damage".to_string(), typ: Type::Base, tags: hset![Tag::Spell], dts: hset![DamageType::Fire], ..Default::default() },
+            Mod { stat: "minimum damage".to_string(), typ: Type::Base, tags: hset![Tag::Spell], dt: Some(DamageType::Fire), ..Default::default() },
         ]);
         map.insert("spell_maximum_base_fire_damage", vec![
-            Mod { stat: "maximum damage".to_string(), typ: Type::Base, tags: hset![Tag::Spell], dts: hset![DamageType::Fire], ..Default::default() },
+            Mod { stat: "maximum damage".to_string(), typ: Type::Base, tags: hset![Tag::Spell], dt: Some(DamageType::Fire), ..Default::default() },
         ]);
         map.insert("support_concentrated_effect_skill_area_of_effect_+%_final", vec![
             Mod { stat: "area of effect".to_string(), typ: Type::More, ..Default::default() },

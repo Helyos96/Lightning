@@ -29,9 +29,9 @@ pub fn calc_gem(build: &Build, support_gems: &Vec<Gem>, active_gem: &Gem) -> FxH
     //dbg!(&stats);
 
     for dt in &dts {
-        let dmg = build.calc_stat_dmg("damage", &mods, tags, *dt);
-        let mut min = build.calc_stat_dmg("minimum damage", &mods, tags, *dt);
-        let mut max = build.calc_stat_dmg("maximum damage", &mods, tags, *dt);
+        let dmg = build.calc_stat("damage", &mods, tags, Some(*dt));
+        let mut min = build.calc_stat("minimum damage", &mods, tags, Some(*dt));
+        let mut max = build.calc_stat("maximum damage", &mods, tags, Some(*dt));
 
         assert!(min.val() <= max.val());
         if max.val() <= 0 {
@@ -73,15 +73,15 @@ pub fn calc_defence(build: &Build) -> Vec<(String, Stat)> {
     ret.push(("Maximum Life".to_string(), stats["maximum life"].clone()));
     ret.push((
         "Fire Resistance".to_string(),
-        build.calc_stat_dmg("resistance", &mods, &hset![], DamageType::Fire),
+        build.calc_stat("resistance", &mods, &hset![], Some(DamageType::Fire)),
     ));
     ret.push((
         "Cold Resistance".to_string(),
-        build.calc_stat_dmg("resistance", &mods, &hset![], DamageType::Cold),
+        build.calc_stat("resistance", &mods, &hset![], Some(DamageType::Cold)),
     ));
     ret.push((
         "Lightning Resistance".to_string(),
-        build.calc_stat_dmg("resistance", &mods, &hset![], DamageType::Lightning),
+        build.calc_stat("resistance", &mods, &hset![], Some(DamageType::Lightning)),
     ));
     ret.push(("Strength".to_string(), stats["strength"].clone()));
     ret.push(("Dexterity".to_string(), stats["dexterity"].clone()));
