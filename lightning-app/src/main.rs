@@ -17,7 +17,6 @@ use glutin::surface::SwapInterval;
 use gui::{State, UiState};
 //use imgui::ConfigFlags;
 use lightning_model::{build, calc, util};
-use winit::event::{ElementState, MouseButton};
 use std::error::Error;
 use std::fs;
 use std::ops::Neg;
@@ -33,8 +32,9 @@ use imgui_winit_support::{
     winit::{
         dpi::LogicalSize,
         event_loop::EventLoop,
+        event::{self, ElementState, MouseButton},
         window::{Window, WindowBuilder},
-        event::Event,
+        event::{Event, WindowEvent},
         keyboard::{KeyCode, PhysicalKey},
     },
     WinitPlatform,
@@ -137,7 +137,7 @@ fn main() {
                 window.request_redraw();
             }
             Event::WindowEvent {
-                event: winit::event::WindowEvent::RedrawRequested,
+                event: WindowEvent::RedrawRequested,
                 ..
             } => {
                 // The renderer assumes you'll be clearing the buffer yourself
@@ -234,7 +234,7 @@ fn main() {
                 state.last_instant = Instant::now();
             }
             Event::WindowEvent {
-                event: winit::event::WindowEvent::CloseRequested,
+                event: WindowEvent::CloseRequested,
                 ..
             } => {
                 window_target.exit();
@@ -244,9 +244,9 @@ fn main() {
                 match event {
                     Event::WindowEvent {
                         event:
-                            winit::event::WindowEvent::MouseWheel {
-                                delta: winit::event::MouseScrollDelta::LineDelta(_h, v),
-                                phase: winit::event::TouchPhase::Moved,
+                            WindowEvent::MouseWheel {
+                                delta: event::MouseScrollDelta::LineDelta(_h, v),
+                                phase: event::TouchPhase::Moved,
                                 ..
                             },
                         ..
@@ -257,7 +257,7 @@ fn main() {
                         }
                     }
                     Event::WindowEvent {
-                        event: winit::event::WindowEvent::Resized(physical_size),
+                        event: WindowEvent::Resized(physical_size),
                         ..
                     } => {
                         unsafe {
@@ -272,7 +272,7 @@ fn main() {
                     }
                     Event::WindowEvent {
                         event:
-                            winit::event::WindowEvent::MouseInput {
+                            WindowEvent::MouseInput {
                                 state: button_state,
                                 button,
                                 ..
@@ -296,9 +296,9 @@ fn main() {
                     }
                     Event::WindowEvent {
                         event:
-                            winit::event::WindowEvent::KeyboardInput {
+                            WindowEvent::KeyboardInput {
                                 event:
-                                    winit::event::KeyEvent {
+                                    event::KeyEvent {
                                         physical_key: key,
                                         state: key_state,
                                         ..
@@ -314,7 +314,7 @@ fn main() {
                         _ => {}
                     },
                     Event::WindowEvent {
-                        event: winit::event::WindowEvent::CursorMoved { position, .. },
+                        event: WindowEvent::CursorMoved { position, .. },
                         ..
                     } => {
                         let (mut x, mut y) = (position.x as f32, position.y as f32);

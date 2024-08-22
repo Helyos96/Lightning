@@ -11,7 +11,7 @@ use lightning_model::tree::Node;
 use rustc_hash::FxHashMap;
 use std::path::{Path, PathBuf};
 use std::{io, fs};
-use winit::event::ElementState;
+use imgui_winit_support::winit::event::ElementState;
 use std::time::Instant;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
