@@ -14,3 +14,4 @@ $ cargo run
 
 Thanks to RePoE (and [lvlvllvlvllvlvl's updated fork](https://github.com/lvlvllvlvllvlvl/RePoE)) for the JSON data.
 
+Note: currently broken under wayland. On X11, characters are repeated in input fields.

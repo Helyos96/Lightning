@@ -53,6 +53,7 @@ fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
             state.request_regen = true;
             UiState::Main
         }
+        #[cfg(feature = "import")]
         UiState::ImportBuild => {
             state.build = util::fetch_build(&state.import_account, &state.import_character)?;
             state.request_recalc = true;

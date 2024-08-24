@@ -17,6 +17,7 @@ fn fetch() -> Result<Build, Box<dyn std::error::Error>> {
     Ok(player)
 }
 
+#[test]
 fn main() {
     let player = match fetch() {
         Ok(b) => b,

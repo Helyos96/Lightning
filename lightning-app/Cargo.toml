@@ -3,10 +3,8 @@ name = "lightning-app"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-lightning-model = { path = "../lightning-model" }
+lightning-model = { path = "../lightning-model", default-features = false }
 copypasta = "0.10"
 glutin = "0.31"
 raw-window-handle = "0.5.0"
@@ -23,3 +21,7 @@ lazy_static = "1.4"
 glam = "0.27"
 ddsfile = "0.5"
 quadtree-f32 = "0.4"
+
+[features]
+default = ["import"]
+import = ["lightning-model/import"]

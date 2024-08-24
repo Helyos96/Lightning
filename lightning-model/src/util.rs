@@ -1,4 +1,5 @@
 use crate::build::Build;
+#[cfg(feature="import")]
 use crate::import;
 use serde::{Deserialize, Deserializer};
 use std::fs;
@@ -10,6 +11,7 @@ pub fn load_build(path: &PathBuf) -> Result<Build, Box<dyn std::error::Error>> {
     Ok(player)
 }
 
+#[cfg(feature="import")]
 pub fn fetch_build(account: &str, character: &str) -> Result<Build, Box<dyn std::error::Error>> {
     let player = import::character(account, character)?;
     Ok(player)

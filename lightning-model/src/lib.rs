@@ -8,8 +8,10 @@ pub mod calc;
 pub mod data;
 pub mod gem;
 mod gemstats;
-pub mod import;
 pub mod item;
 mod modifier;
 pub mod tree;
 pub mod util;
+
+#[cfg(feature="import")]
+pub mod import;

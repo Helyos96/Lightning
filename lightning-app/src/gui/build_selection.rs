@@ -35,15 +35,19 @@ pub fn draw(ui: &mut Ui, state: &mut State) {
                     }
                 }
             });
-            ui.separator();
-            ui.text("From pathofexile.com");
-            ui.input_text("Account", &mut state.import_account).build();
-            ui.input_text("Character", &mut state.import_character).build();
-            if ui.button("Import") {
-                state.ui_state = UiState::ImportBuild;
-            }
-            if state.ui_state == UiState::ImportBuild {
-                ui.text("Importing..");
+            #[cfg(feature = "import")]
+            {
+                ui.separator();
+                ui.text("From pathofexile.com");
+                ui.input_text("Account", &mut state.import_account).build();
+                ui.input_text("Character", &mut state.import_character).build();
+
+                if ui.button("Import") {
+                    state.ui_state = UiState::ImportBuild;
+                }
+                if state.ui_state == UiState::ImportBuild {
+                    ui.text("Importing..");
+                }
             }
         });
 }
