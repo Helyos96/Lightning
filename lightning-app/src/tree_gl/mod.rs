@@ -252,6 +252,7 @@ impl TreeGl {
             "nodes_active",
             "frames_active",
             "masteries_active",
+            "masteries_active_selected",
             "ascendancy_frames_active",
             "connectors_active",
             "connectors_hovered",
@@ -259,7 +260,6 @@ impl TreeGl {
             "connectors_red",
             "nodes_active_red",
             "frames_active_red",
-            "masteries_active_red",
             "ascendancy_frames_active_red",
         ];
 
@@ -278,7 +278,9 @@ impl TreeGl {
         self.draw_data
             .insert("masteries_active".to_string(), GlDrawData::new(gl, &data[2]));
         self.draw_data
-            .insert("ascendancy_frames_active".to_string(), GlDrawData::new(gl, &data[3]));
+            .insert("masteries_active_selected".to_string(), GlDrawData::new(gl, &data[3]));
+        self.draw_data
+            .insert("ascendancy_frames_active".to_string(), GlDrawData::new(gl, &data[4]));
         self.draw_data
             .insert("connectors_active".to_string(), GlDrawData::new(gl, &connectors_gl(&tree.nodes, &TREE.sprites["line"].coords["LineConnectorActive"], 20.0)));
         self.draw_data
@@ -299,9 +301,7 @@ impl TreeGl {
             self.draw_data
                 .insert("frames_active_red".to_string(), GlDrawData::new(gl, &data[1]));
             self.draw_data
-                .insert("masteries_active_red".to_string(), GlDrawData::new(gl, &data[2]));
-            self.draw_data
-                .insert("ascendancy_frames_active_red".to_string(), GlDrawData::new(gl, &data[3]));
+                .insert("ascendancy_frames_active_red".to_string(), GlDrawData::new(gl, &data[4]));
         }
     }
 
@@ -336,7 +336,7 @@ impl TreeGl {
             ("ascendancy_frames_active", "ascendancy-3.dds", [1.0, 1.0, 1.0, 1.0]),
             ("masteries", "mastery-disabled-3.dds", [1.0, 1.0, 1.0, 1.0]),
             ("masteries_active", "mastery-connected-3.dds", [1.0, 1.0, 1.0, 1.0]),
-            ("masteries_active_red", "mastery-connected-3.dds", [1.0, 0.0, 0.0, 1.0]),
+            ("masteries_active_selected", "mastery-active-selected-3.dds", [1.0, 1.0, 1.0, 1.0]),
         ];
 
         unsafe {

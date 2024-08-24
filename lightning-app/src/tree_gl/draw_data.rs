@@ -47,12 +47,18 @@ fn norm_tex(x: u16, y: u16, w: u16, h: u16) -> (f32, f32) {
     (x as f32 / w as f32, y as f32 / h as f32)
 }
 
-pub fn get_rect(node: &Node) -> Option<(&'static tree::Rect, &'static tree::Sprite)> {
+pub fn get_rect(node: &Node, hovered: bool) -> Option<(&'static tree::Rect, &'static tree::Sprite)> {
     let (key, icon): (&str, &str) = match node.node_type() {
         NodeType::Normal | NodeType::AscendancyNormal | NodeType::JewelSocket => ("normalInactive", &node.icon),
         NodeType::Notable | NodeType::AscendancyNotable => ("notableInactive", &node.icon),
         NodeType::Keystone => ("keystoneInactive", &node.icon),
-        NodeType::Mastery => ("masteryConnected", node.inactive_icon.as_ref().unwrap()),
+        NodeType::Mastery => {
+            if hovered {
+                ("masteryConnected", node.inactive_icon.as_ref().unwrap())
+            } else {
+                ("masteryActiveSelected", node.active_icon.as_ref().unwrap())
+            }
+        },
     };
     let sprite = &TREE.sprites[key];
     let rect = sprite.coords.get(icon)?;
@@ -202,7 +208,7 @@ fn node_gl(
         false => &INACTIVE_STRINGS,
     };
 
-    let (rect, sprite) = match get_rect(node) {
+    let (rect, sprite) = match get_rect(node, is_hovered) {
         None => {
             println!("No rect for node {}", node.name);
             return;
@@ -275,10 +281,11 @@ pub fn nodes_gl() -> [DrawData; 4] {
 }
 
 /// Player-selected Nodes, Frames and Masteries
-pub fn nodes_gl_active(nodes: &[u16], hovered: Option<&u16>) -> [DrawData; 4] {
+pub fn nodes_gl_active(nodes: &[u16], hovered: Option<&u16>) -> [DrawData; 5] {
     let mut dd_nodes = DrawData::default();
     let mut dd_frames = DrawData::default();
     let mut dd_masteries = DrawData::default();
+    let mut dd_masteries_active = DrawData::default();
     let mut dd_asc_frames = DrawData::default();
 
     for node in nodes
@@ -290,7 +297,7 @@ pub fn nodes_gl_active(nodes: &[u16], hovered: Option<&u16>) -> [DrawData; 4] {
             node,
             &mut dd_nodes,
             &mut dd_frames,
-            &mut dd_masteries,
+            &mut dd_masteries_active,
             &mut dd_asc_frames,
             true,
             false,
@@ -309,7 +316,7 @@ pub fn nodes_gl_active(nodes: &[u16], hovered: Option<&u16>) -> [DrawData; 4] {
         );
     }
 
-    [dd_nodes, dd_frames, dd_masteries, dd_asc_frames]
+    [dd_nodes, dd_frames, dd_masteries, dd_masteries_active, dd_asc_frames]
 }
 
 fn get_class_coords(class: Class) -> &'static str {

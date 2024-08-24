@@ -12,7 +12,7 @@ lazy_static! {
             .filter(|(_k,n)| n.group.is_some() && n.class_start_index.is_none() && !n.is_ascendancy_start)
             .map(|(k,n)| {
                 let (x,y) = node_pos(n);
-                let (rect, _) = get_rect(n).unwrap();
+                let (rect, _) = get_rect(n, true).unwrap();
                 let scale = match n.node_type() {
                     NodeType::Mastery => 1.5,
                     _ => 2.0,

@@ -148,7 +148,7 @@ pub fn draw_left_panel(ui: &mut Ui, state: &mut State) {
                 ui.text(stat.0.to_string() + ": " + &stat.1.val().to_string());
             }
             let instant = Instant::now();
-            let fps = 1000000.0 / (instant - state.instant_fps).as_micros() as f32;
+            let fps = (1000000.0 / (instant - state.instant_fps).as_micros() as f32).round() as i32;
             ui.text("FPS: ".to_string() + fps.to_string().as_str());
             state.instant_fps = instant;
         });
