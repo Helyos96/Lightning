@@ -47,16 +47,16 @@ fn norm_tex(x: u16, y: u16, w: u16, h: u16) -> (f32, f32) {
     (x as f32 / w as f32, y as f32 / h as f32)
 }
 
-pub fn get_rect(node: &Node, hovered: bool) -> Option<(&'static tree::Rect, &'static tree::Sprite)> {
+pub fn get_rect(node: &Node, active: bool) -> Option<(&'static tree::Rect, &'static tree::Sprite)> {
     let (key, icon): (&str, &str) = match node.node_type() {
         NodeType::Normal | NodeType::AscendancyNormal | NodeType::JewelSocket => ("normalInactive", &node.icon),
         NodeType::Notable | NodeType::AscendancyNotable => ("notableInactive", &node.icon),
         NodeType::Keystone => ("keystoneInactive", &node.icon),
         NodeType::Mastery => {
-            if hovered {
-                ("masteryConnected", node.inactive_icon.as_ref().unwrap())
-            } else {
+            if active {
                 ("masteryActiveSelected", node.active_icon.as_ref().unwrap())
+            } else {
+                ("masteryConnected", node.inactive_icon.as_ref().unwrap())
             }
         },
     };
@@ -203,12 +203,7 @@ fn node_gl(
     is_active: bool,
     is_hovered: bool,
 ) {
-    let icon_strings = match is_active {
-        true => &ACTIVE_STRINGS,
-        false => &INACTIVE_STRINGS,
-    };
-
-    let (rect, sprite) = match get_rect(node, is_hovered) {
+    let (rect, sprite) = match get_rect(node, is_active) {
         None => {
             println!("No rect for node {}", node.name);
             return;
@@ -217,6 +212,21 @@ fn node_gl(
     };
 
     let (x, y) = node_pos(node);
+    let icon_strings = match node.node_type() {
+        NodeType::Mastery => {
+            match is_active {
+                true => &ACTIVE_STRINGS,
+                false => &INACTIVE_STRINGS,
+            }
+        },
+        _ => {
+            if is_active || is_hovered {
+                &ACTIVE_STRINGS
+            } else {
+                &INACTIVE_STRINGS
+            }
+        },
+    };
 
     match node.node_type() {
         NodeType::Mastery => {
@@ -311,7 +321,7 @@ pub fn nodes_gl_active(nodes: &[u16], hovered: Option<&u16>) -> [DrawData; 5] {
             &mut dd_frames,
             &mut dd_masteries,
             &mut dd_asc_frames,
-            true,
+            nodes.contains(id),
             true,
         );
     }
