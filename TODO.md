@@ -6,7 +6,7 @@
 	* With radius shown
 	* Cluster jewels
 * Masteries
-	* Show all possible stats (with emphasis on allocated)
+	* ~~Show all possible stats~~ (with emphasis on allocated)
 	* ~~Use appropriate sprite when allocated~~
 	* Use appropriate background sprite when allocated
 * Ascendancy

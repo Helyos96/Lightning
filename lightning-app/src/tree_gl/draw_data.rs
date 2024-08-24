@@ -116,10 +116,10 @@ fn connector_gl(x1: f32, y1: f32, x2: f32, y2: f32, w: f32, rect: &Rect, sprite:
         norm(x2 - nx * w, y2 - ny * w),
     ]);
     dd.tex_coords.extend([
-        norm_tex(rect.x, rect.y, sprite.w, sprite.h),
-        norm_tex(rect.x + rect.w, rect.y + rect.h, sprite.w, sprite.h),
-        norm_tex(rect.x, rect.y + rect.h, sprite.w, sprite.h),
-        norm_tex(rect.x + rect.w, rect.y, sprite.w, sprite.h),
+        norm_tex(rect.x, rect.y, sprite.w, sprite.h), // top left
+        norm_tex(rect.x, rect.y + rect.h, sprite.w, sprite.h), // bottom left
+        norm_tex(rect.x + rect.w, rect.y + rect.h, sprite.w, sprite.h), // bottom right
+        norm_tex(rect.x + rect.w, rect.y, sprite.w, sprite.h), // top right
     ]);
 
     let start = dd.vertices.len() as u16 - 4;
@@ -189,9 +189,9 @@ const INACTIVE_STRINGS: [&str; 6] = [
     "AscendancyFrameSmallNormal",
     "AscendancyFrameLargeNormal",
     "PSSkillFrame",
-    "NotableFrameUnallocated",
-    "KeystoneFrameUnallocated",
-    "JewelFrameUnallocated",
+    "NotableFrameCanAllocate",
+    "KeystoneFrameCanAllocate",
+    "JewelFrameCanAllocate",
 ];
 
 fn node_gl(

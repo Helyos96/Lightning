@@ -1,5 +1,6 @@
 use super::State;
 use imgui::Ui;
+use lightning_model::tree::NodeType;
 
 fn draw_hover_window(ui: &mut Ui, state: &mut State) {
     let node = state.hovered_node.unwrap();
@@ -17,8 +18,20 @@ fn draw_hover_window(ui: &mut Ui, state: &mut State) {
         .build(|| {
             ui.text(&node.name);
             ui.separator();
-            for stat in &node.stats {
-                ui.text(stat);
+
+            match node.node_type() {
+                NodeType::Mastery => {
+                    for effect in &node.mastery_effects {
+                        for stat in &effect.stats {
+                            ui.text(stat);
+                        }
+                    }
+                }
+                _ => {
+                    for stat in &node.stats {
+                        ui.text(stat);
+                    }
+                }
             }
         });
 }

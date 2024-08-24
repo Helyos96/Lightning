@@ -29,8 +29,8 @@ for (k,v) in tree['sprites'].items():
         continue
     sprites[k] = v["0.3835"]
     # Remove URL, ?XXXXX and extension
-    new_filename = sprites[k]['filename'].split('/')[-1].split('?')[0].split('.')[0]
-    sprites[k]['filename'] = new_filename + ".dds"
+    new_filename = sprites[k]['filename'].split('/')[-1].split('?')[0]#.split('.')[0]
+    sprites[k]['filename'] = new_filename# + ".dds"
 tree['sprites'] = sprites
 
 # 'nodes' in groups string to int

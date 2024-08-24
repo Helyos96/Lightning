@@ -83329,7 +83329,7 @@
   },
   "sprites": {
     "background": {
-      "filename": "background-3.dds",
+      "filename": "background-3.png",
       "w": 98,
       "h": 98,
       "coords": {
@@ -83342,7 +83342,7 @@
       }
     },
     "normalActive": {
-      "filename": "skills-3.dds",
+      "filename": "skills-3.jpg",
       "w": 962,
       "h": 1370,
       "coords": {
@@ -85659,7 +85659,7 @@
       }
     },
     "notableActive": {
-      "filename": "skills-3.dds",
+      "filename": "skills-3.jpg",
       "w": 962,
       "h": 1370,
       "coords": {
@@ -89428,7 +89428,7 @@
       }
     },
     "keystoneActive": {
-      "filename": "skills-3.dds",
+      "filename": "skills-3.jpg",
       "w": 962,
       "h": 1370,
       "coords": {
@@ -89759,7 +89759,7 @@
       }
     },
     "normalInactive": {
-      "filename": "skills-disabled-3.dds",
+      "filename": "skills-disabled-3.jpg",
       "w": 962,
       "h": 1370,
       "coords": {
@@ -92076,7 +92076,7 @@
       }
     },
     "notableInactive": {
-      "filename": "skills-disabled-3.dds",
+      "filename": "skills-disabled-3.jpg",
       "w": 962,
       "h": 1370,
       "coords": {
@@ -95845,7 +95845,7 @@
       }
     },
     "keystoneInactive": {
-      "filename": "skills-disabled-3.dds",
+      "filename": "skills-disabled-3.jpg",
       "w": 962,
       "h": 1370,
       "coords": {
@@ -96176,7 +96176,7 @@
       }
     },
     "mastery": {
-      "filename": "mastery-3.dds",
+      "filename": "mastery-3.png",
       "w": 860,
       "h": 774,
       "coords": {
@@ -96693,7 +96693,7 @@
       }
     },
     "masteryConnected": {
-      "filename": "mastery-connected-3.dds",
+      "filename": "mastery-connected-3.png",
       "w": 688,
       "h": 688,
       "coords": {
@@ -97066,7 +97066,7 @@
       }
     },
     "masteryActiveSelected": {
-      "filename": "mastery-active-selected-3.dds",
+      "filename": "mastery-active-selected-3.png",
       "w": 688,
       "h": 688,
       "coords": {
@@ -97445,7 +97445,7 @@
       }
     },
     "masteryInactive": {
-      "filename": "mastery-disabled-3.dds",
+      "filename": "mastery-disabled-3.png",
       "w": 688,
       "h": 688,
       "coords": {
@@ -97818,7 +97818,7 @@
       }
     },
     "masteryActiveEffect": {
-      "filename": "mastery-active-effect-3.dds",
+      "filename": "mastery-active-effect-3.png",
       "w": 1496,
       "h": 1480,
       "coords": {
@@ -98191,7 +98191,7 @@
       }
     },
     "tattooActiveEffect": {
-      "filename": "tattoo-active-effect-3.dds",
+      "filename": "tattoo-active-effect-3.png",
       "w": 556,
       "h": 704,
       "coords": {
@@ -98270,7 +98270,7 @@
       }
     },
     "ascendancyBackground": {
-      "filename": "ascendancy-background-3.dds",
+      "filename": "ascendancy-background-3.png",
       "w": 2648,
       "h": 2618,
       "coords": {
@@ -98391,7 +98391,7 @@
       }
     },
     "azmeriBackground": {
-      "filename": "ascendancy-background-3.dds",
+      "filename": "ascendancy-background-3.png",
       "w": 2648,
       "h": 2618,
       "coords": {
@@ -98416,7 +98416,7 @@
       }
     },
     "azmeri": {
-      "filename": "ascendancy-3.dds",
+      "filename": "ascendancy-3.png",
       "w": 360,
       "h": 302,
       "coords": {
@@ -98501,7 +98501,7 @@
       }
     },
     "ascendancy": {
-      "filename": "ascendancy-3.dds",
+      "filename": "ascendancy-3.png",
       "w": 360,
       "h": 302,
       "coords": {
@@ -98568,7 +98568,7 @@
       }
     },
     "charm": {
-      "filename": "ascendancy-3.dds",
+      "filename": "ascendancy-3.png",
       "w": 360,
       "h": 302,
       "coords": {
@@ -98593,7 +98593,7 @@
       }
     },
     "startNode": {
-      "filename": "group-background-3.dds",
+      "filename": "group-background-3.png",
       "w": 1006,
       "h": 666,
       "coords": {
@@ -98648,7 +98648,7 @@
       }
     },
     "groupBackground": {
-      "filename": "group-background-3.dds",
+      "filename": "group-background-3.png",
       "w": 1006,
       "h": 666,
       "coords": {
@@ -98691,7 +98691,7 @@
       }
     },
     "frame": {
-      "filename": "frame-3.dds",
+      "filename": "frame-3.png",
       "w": 383,
       "h": 334,
       "coords": {
@@ -98842,7 +98842,7 @@
       }
     },
     "jewel": {
-      "filename": "jewel-3.dds",
+      "filename": "jewel-3.png",
       "w": 286,
       "h": 286,
       "coords": {
@@ -98939,7 +98939,7 @@
       }
     },
     "line": {
-      "filename": "line-3.dds",
+      "filename": "line-3.png",
       "w": 368,
       "h": 1140,
       "coords": {

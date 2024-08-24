@@ -3,26 +3,28 @@ pub mod hover;
 
 use draw_data::*;
 use glow::HasContext;
+use image::{ImageReader, RgbaImage};
 use lightning_model::data::TREE;
 use lightning_model::tree::PassiveTree;
 use rustc_hash::FxHashMap;
-use std::fs::File;
 
-fn load_texture(img: &ddsfile::Dds, gl: &glow::Context) -> glow::Texture {
+fn load_texture(img: &RgbaImage, gl: &glow::Context) -> glow::Texture {
     unsafe {
         let tex = gl.create_texture().unwrap();
 
         gl.bind_texture(glow::TEXTURE_2D, Some(tex));
-        gl.compressed_tex_image_2d(
+        gl.tex_image_2d(
             glow::TEXTURE_2D,
             0,
-            glow::COMPRESSED_RGBA_BPTC_UNORM as i32,
-            img.get_width() as i32,
-            img.get_height() as i32,
+            glow::RGBA as i32,
+            img.width() as i32,
+            img.height() as i32,
             0,
-            img.data.len() as i32,
-            &img.data,
+            glow::RGBA,
+            glow::UNSIGNED_BYTE,
+            Some(&img.as_raw()),
         );
+
         gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MAG_FILTER, glow::LINEAR as i32);
         gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MIN_FILTER, glow::LINEAR as i32);
 
@@ -200,13 +202,13 @@ impl TreeGl {
             if textures.contains_key(&sprite.filename) {
                 continue;
             }
-            let img = ddsfile::Dds::read(File::open("assets/".to_string() + &sprite.filename).unwrap()).unwrap();
+            let img = ImageReader::open("assets/".to_string() + &sprite.filename).unwrap().decode().unwrap().into_rgba8();
             textures.insert(
                 sprite.filename.clone(),
                 Texture {
                     gl_texture: load_texture(&img, gl),
-                    w: img.get_width() as i32,
-                    h: img.get_height() as i32,
+                    w: img.width() as i32,
+                    h: img.height() as i32,
                 },
             );
         }
@@ -320,23 +322,23 @@ impl TreeGl {
 
         // draw_data name ; texture file ; color tint factor
         const DRAW_ORDER: [(&str, &str, [f32; 4]); 17] = [
-            ("background", "group-background-3.dds", [1.0, 1.0, 1.0, 1.0]),
-            ("ascendancy_background", "ascendancy-background-3.dds", [1.0, 1.0, 1.0, 1.0]),
-            ("connectors", "line-3.dds", [1.0, 1.0, 1.0, 1.0]),
-            ("connectors_active", "line-3.dds", [1.0, 1.0, 1.0, 1.0]),
-            ("connectors_hovered", "line-3.dds", [1.0, 1.0, 1.0, 1.0]),
-            ("connectors_red", "line-3.dds", [1.0, 0.0, 0.0, 1.0]),
-            ("nodes", "skills-disabled-3.dds", [1.0, 1.0, 1.0, 1.0]),
-            ("nodes_active", "skills-3.dds", [1.0, 1.0, 1.0, 1.0]),
-            ("frames", "frame-3.dds", [1.0, 1.0, 1.0, 1.0]),
-            ("frames_active", "frame-3.dds", [1.0, 1.0, 1.0, 1.0]),
-            ("frames_active_red", "frame-3.dds", [1.0, 0.0, 0.0, 1.0]),
-            ("class_start", "group-background-3.dds", [1.0, 1.0, 1.0, 1.0]),
-            ("ascendancy_frames", "ascendancy-3.dds", [1.0, 1.0, 1.0, 1.0]),
-            ("ascendancy_frames_active", "ascendancy-3.dds", [1.0, 1.0, 1.0, 1.0]),
-            ("masteries", "mastery-disabled-3.dds", [1.0, 1.0, 1.0, 1.0]),
-            ("masteries_active", "mastery-connected-3.dds", [1.0, 1.0, 1.0, 1.0]),
-            ("masteries_active_selected", "mastery-active-selected-3.dds", [1.0, 1.0, 1.0, 1.0]),
+            ("background", "group-background-3.png", [1.0, 1.0, 1.0, 1.0]),
+            ("ascendancy_background", "ascendancy-background-3.png", [1.0, 1.0, 1.0, 1.0]),
+            ("connectors", "line-3.png", [1.0, 1.0, 1.0, 1.0]),
+            ("connectors_active", "line-3.png", [1.0, 1.0, 1.0, 1.0]),
+            ("connectors_hovered", "line-3.png", [1.0, 1.0, 1.0, 1.0]),
+            ("connectors_red", "line-3.png", [1.0, 0.0, 0.0, 1.0]),
+            ("nodes", "skills-disabled-3.jpg", [1.0, 1.0, 1.0, 1.0]),
+            ("nodes_active", "skills-3.jpg", [1.0, 1.0, 1.0, 1.0]),
+            ("frames", "frame-3.png", [1.0, 1.0, 1.0, 1.0]),
+            ("frames_active", "frame-3.png", [1.0, 1.0, 1.0, 1.0]),
+            ("frames_active_red", "frame-3.png", [1.0, 0.0, 0.0, 1.0]),
+            ("class_start", "group-background-3.png", [1.0, 1.0, 1.0, 1.0]),
+            ("ascendancy_frames", "ascendancy-3.png", [1.0, 1.0, 1.0, 1.0]),
+            ("ascendancy_frames_active", "ascendancy-3.png", [1.0, 1.0, 1.0, 1.0]),
+            ("masteries", "mastery-disabled-3.png", [1.0, 1.0, 1.0, 1.0]),
+            ("masteries_active", "mastery-connected-3.png", [1.0, 1.0, 1.0, 1.0]),
+            ("masteries_active_selected", "mastery-active-selected-3.png", [1.0, 1.0, 1.0, 1.0]),
         ];
 
         unsafe {

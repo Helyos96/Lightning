@@ -228,28 +228,6 @@ lazy_static! {
         .collect();
 }
 
-fn successors(node: u16) -> Vec<u16> {
-    if TREE.nodes[&node].class_start_index.is_some() {
-        return vec![node];
-    }
-    let mut v: Vec<u16> = TREE.nodes[&node]
-        .out
-        .as_ref()
-        .unwrap()
-        .iter()
-        .filter(|id| !TREE.nodes[id].is_mastery).copied()
-        .collect();
-    let nodes_in: Vec<u16> = TREE.nodes[&node]
-        .r#in
-        .as_ref()
-        .unwrap()
-        .iter()
-        .filter(|id| !PATH_OF_THE.contains(*id)).copied()
-        .collect();
-    v.extend(nodes_in);
-    v
-}
-
 struct FindDisconnectedNodes {
     pub nodes_search_remove: Vec<u16>,
     class: Class,
@@ -302,10 +280,36 @@ impl PassiveTree {
         &TREE
     }
 
+    fn successors(&self, node: u16) -> Vec<u16> {
+        if TREE.nodes[&node].class_start_index.is_some() {
+            return vec![node];
+        }
+        let mut v: Vec<u16> = TREE.nodes[&node].r#in
+            .as_ref()
+            .unwrap()
+            .iter()
+            .filter(|id| !PATH_OF_THE.contains(*id) || self.nodes.contains(id)).copied()
+            .collect();
+
+        if PATH_OF_THE.contains(&node) {
+            let nodes_out: Vec<u16> = TREE.nodes[&node]
+                .out
+                .as_ref()
+                .unwrap()
+                .iter()
+                .filter(|id| TREE.nodes[id].ascendancy_name.is_some() && !self.nodes.contains(id)).copied()
+                .collect();
+            v.extend(nodes_out);
+        } else {
+            v.extend(TREE.nodes[&node].out.clone().unwrap_or(vec![]));
+        }
+        v
+    }
+
     /// Find the shortest path to link a node to
     /// the rest of the tree. Using Breadth-First-Search.
     pub fn find_path(&self, node: u16) -> Option<Vec<u16>> {
-        bfs(&node, |p| successors(*p), |p| self.nodes.contains(p))
+        bfs(&node, |p| self.successors(*p), |p| self.nodes.contains(p))
     }
 
     /// Find a group of nodes to remove when a single node gets deallocated

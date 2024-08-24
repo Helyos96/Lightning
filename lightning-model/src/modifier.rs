@@ -219,6 +219,7 @@ lazy_static! {
         map.insert("elemental resistances", vec!["fire resistance", "cold resistance", "lightning resistance"]);
         map.insert("maximum resistances", vec!["maximum fire resistance", "maximum cold resistance", "maximum lightning resistance", "maximum chaos resistance"]);
         map.insert("resistances", vec!["fire resistance", "cold resistance", "lightning resistance", "chaos resistance"]);
+        map.insert("elemental damage", vec!["fire damage", "cold damage", "lightning damage"]);
         map
     };
     // Order is important for overlapping stats
