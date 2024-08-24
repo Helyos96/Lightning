@@ -106,6 +106,7 @@ pub struct Node {
     pub stats: Vec<String>,
     pub icon: String,
     pub name: String,
+    pub active_icon: Option<String>,
     pub inactive_icon: Option<String>,
     #[serde(default)]
     pub is_mastery: bool,

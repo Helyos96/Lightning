@@ -105,9 +105,9 @@ lazy_static! {
                 }).collect())
             })
         ), (
-            regex!(r"^(minions have )?\+([0-9]+)%? (?:to )?(?:all )?([a-z ]+)$"),
+            regex!(r"^(minions have )?((\+|-)?[0-9]+)%? (?:to )?(?:all )?([a-z ]+)$"),
             Box::new(|c| {
-                let stat_tags = parse_stat(&c[3])?;
+                let stat_tags = parse_stat(&c[4])?;
                 let insert_minion_tag = c.get(1).is_some();
                 Some(stat_tags.iter().map(|s| {
                     let mut ret = Mod {
@@ -215,7 +215,9 @@ lazy_static! {
     static ref MULTISTATS: FxHashMap<&'static str, Vec<&'static str>> = {
         let mut map = FxHashMap::default();
         map.insert("attributes", vec!["strength", "dexterity", "intelligence"]);
+        map.insert("maximum elemental resistances", vec!["maximum fire resistance", "maximum cold resistance", "maximum lightning resistance"]);
         map.insert("elemental resistances", vec!["fire resistance", "cold resistance", "lightning resistance"]);
+        map.insert("maximum resistances", vec!["maximum fire resistance", "maximum cold resistance", "maximum lightning resistance", "maximum chaos resistance"]);
         map.insert("resistances", vec!["fire resistance", "cold resistance", "lightning resistance", "chaos resistance"]);
         map
     };
@@ -231,6 +233,7 @@ lazy_static! {
         "cast speed",
         "warcry speed",
         "cooldown recovery speed",
+        "projectile speed",
 
         "area of effect",
         "effect",
@@ -261,9 +264,17 @@ lazy_static! {
         "armour",
         "evasion rating",
         "stun threshold",
+        "chance to suppress spell damage",
+        "chance to avoid being stunned",
+
+        "maximum fire resistance",
+        "maximum cold resistance",
+        "maximum lightning resistance",
+        "maximum chaos resistance",
         "resistance",
 
         "flask charges gained",
+        "flask effect duration",
     ];
 }
 

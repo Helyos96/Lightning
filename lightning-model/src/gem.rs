@@ -189,12 +189,12 @@ impl Gem {
                     if let Some(stat_mods) = GEMSTATS.get(id.as_str()) {
                         for m in stat_mods {
                             let mut modifier = m.to_owned();
-                            modifier.amount = gem_stat.value.unwrap_or(0);
+                            modifier.amount = self.stat_value(id).unwrap_or(0);
                             modifier.source = Source::Gem;
                             mods.push(modifier);
                         }
                     } else {
-                        //println!("failed: {}", &stat.id);
+                        println!("failed: {id}");
                     }
                 }
             }
