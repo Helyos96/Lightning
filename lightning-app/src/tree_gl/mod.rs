@@ -27,6 +27,8 @@ fn load_texture(img: &RgbaImage, gl: &glow::Context) -> glow::Texture {
 
         gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MAG_FILTER, glow::LINEAR as i32);
         gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MIN_FILTER, glow::LINEAR as i32);
+        gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_S, glow::REPEAT as i32);
+        gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_T, glow::REPEAT as i32);
 
         tex
     }
@@ -226,13 +228,16 @@ impl TreeGl {
             .insert("ascendancy_frames".to_string(), GlDrawData::new(gl, &data[3]));
         let data = group_background_gl();
         self.draw_data
-            .insert("background".to_string(), GlDrawData::new(gl, &data));
+            .insert("group_background".to_string(), GlDrawData::new(gl, &data));
         let data = connectors_gl_inactive();
         self.draw_data
             .insert("connectors".to_string(), GlDrawData::new(gl, &data));
         let data = ascendancies_gl();
         self.draw_data
             .insert("ascendancy_background".to_string(), GlDrawData::new(gl, &data));
+        let data = background_gl();
+        self.draw_data
+            .insert("background".to_string(), GlDrawData::new(gl, &data));
         self.init_shaders(gl);
     }
 
@@ -321,8 +326,9 @@ impl TreeGl {
         }
 
         // draw_data name ; texture file ; color tint factor
-        const DRAW_ORDER: [(&str, &str, [f32; 4]); 17] = [
-            ("background", "group-background-3.png", [1.0, 1.0, 1.0, 1.0]),
+        const DRAW_ORDER: [(&str, &str, [f32; 4]); 18] = [
+            ("background", "background-3.png", [1.0, 1.0, 1.0, 1.0]),
+            ("group_background", "group-background-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("ascendancy_background", "ascendancy-background-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("connectors", "line-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("connectors_active", "line-3.png", [1.0, 1.0, 1.0, 1.0]),

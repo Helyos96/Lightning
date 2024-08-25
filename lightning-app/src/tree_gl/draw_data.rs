@@ -43,8 +43,8 @@ fn norm(x: f32, y: f32) -> (f32, f32) {
 }
 
 /// Normalize sprite coords to GL texture coords
-fn norm_tex(x: u16, y: u16, w: u16, h: u16) -> (f32, f32) {
-    (x as f32 / w as f32, y as f32 / h as f32)
+fn norm_tex(x: f32, y: f32, w: u16, h: u16) -> (f32, f32) {
+    (x / w as f32, y / h as f32)
 }
 
 pub fn get_rect(node: &Node, active: bool) -> Option<(&'static tree::Rect, &'static tree::Sprite)> {
@@ -81,19 +81,23 @@ impl DrawData {
             norm(x + (rect.w as f32 * scale) / 2.0, y - (rect.h as f32 * scale) / 2.0), // Bottom Right
         ]);
 
+        let x_left = rect.x as f32 + 0.5;
+        let x_right = rect.x as f32 + rect.w as f32 - 0.5;
+        let y_top = rect.y as f32 + 0.5;
+        let y_bottom = rect.y as f32 + rect.h as f32 - 0.5;
         if vflip {
             self.tex_coords.extend([
-                norm_tex(rect.x, rect.y, sprite.w, sprite.h),
-                norm_tex(rect.x, rect.y + rect.h, sprite.w, sprite.h),
-                norm_tex(rect.x + rect.w, rect.y + rect.h, sprite.w, sprite.h),
-                norm_tex(rect.x + rect.w, rect.y, sprite.w, sprite.h),
+                norm_tex(x_left, y_top, sprite.w, sprite.h),
+                norm_tex(x_left, y_bottom, sprite.w, sprite.h),
+                norm_tex(x_right, y_bottom, sprite.w, sprite.h),
+                norm_tex(x_right, y_top, sprite.w, sprite.h),
             ]);
         } else {
             self.tex_coords.extend([
-                norm_tex(rect.x, rect.y + rect.h, sprite.w, sprite.h),
-                norm_tex(rect.x, rect.y, sprite.w, sprite.h),
-                norm_tex(rect.x + rect.w, rect.y, sprite.w, sprite.h),
-                norm_tex(rect.x + rect.w, rect.y + rect.h, sprite.w, sprite.h),
+                norm_tex(x_left, y_bottom, sprite.w, sprite.h),
+                norm_tex(x_left, y_top, sprite.w, sprite.h),
+                norm_tex(x_right, y_top, sprite.w, sprite.h),
+                norm_tex(x_right, y_bottom, sprite.w, sprite.h),
             ]);
         }
 
@@ -103,23 +107,53 @@ impl DrawData {
     }
 }
 
+pub fn background_gl() -> DrawData {
+    let mut dd = DrawData::default();
+    let sprite = &TREE.sprites["background"];
+
+    dd.vertices.extend([
+        norm(-12500.0, 12500.0),  // top left
+        norm(-12500.0, -12500.0), // bottom left
+        norm(12500.0, -12500.0), // bottom right
+        norm(12500.0, 12500.0), // top right
+    ]);
+
+    dd.tex_coords.extend([
+        (0.0, 0.0), // top left
+        (0.0, (25000.0 / sprite.h as f32)), // bottom left
+        ((25000.0 / sprite.w as f32), (25000.0 / sprite.h as f32)), // bottom right
+        ((25000.0 / sprite.w as f32), 0.0), // top right
+    ]);
+
+    let start = dd.vertices.len() as u16 - 4;
+    dd.indices
+        .extend([start, start + 1, start + 2, start + 3, start, start + 2]);
+
+    dd
+}
+
 /// Very simple straight connectors. todo: arcs
 fn connector_gl(x1: f32, y1: f32, x2: f32, y2: f32, w: f32, rect: &Rect, sprite: &Sprite, dd: &mut DrawData) {
     let (vx, vy) = (x2 - x1, y2 - y1);
     let (px, py) = (vy, -vx);
     let len = (px * px + (py * py)).sqrt();
-    let (nx, ny) = (px / len, py / len);
+    let (nx, ny) = ((px / len) * w, (py / len) * w);
     dd.vertices.extend([
-        norm(x1 - nx * w, y1 - ny * w),
-        norm(x1 + nx * w, y1 + ny * w),
-        norm(x2 + nx * w, y2 + ny * w),
-        norm(x2 - nx * w, y2 - ny * w),
+        norm(x1 - nx, y1 - ny),
+        norm(x1 + nx, y1 + ny),
+        norm(x2 + nx, y2 + ny),
+        norm(x2 - nx, y2 - ny),
     ]);
+
+    let x_left = rect.x as f32 + 0.5;
+    let x_right = rect.x as f32 + rect.w as f32 - 0.5;
+    let y_top = rect.y as f32 + 0.5;
+    let y_bottom = rect.y as f32 + rect.h as f32 - 0.5;
     dd.tex_coords.extend([
-        norm_tex(rect.x, rect.y, sprite.w, sprite.h), // top left
-        norm_tex(rect.x, rect.y + rect.h, sprite.w, sprite.h), // bottom left
-        norm_tex(rect.x + rect.w, rect.y + rect.h, sprite.w, sprite.h), // bottom right
-        norm_tex(rect.x + rect.w, rect.y, sprite.w, sprite.h), // top right
+        norm_tex(x_left, y_top, sprite.w, sprite.h), // top left
+        norm_tex(x_left, y_bottom, sprite.w, sprite.h), // bottom left
+        norm_tex(x_right, y_bottom, sprite.w, sprite.h), // bottom right
+        norm_tex(x_right, y_top, sprite.w, sprite.h), // top right
     ]);
 
     let start = dd.vertices.len() as u16 - 4;

@@ -1,10 +1,14 @@
 // todo: remove this once stable-ish
 #![allow(dead_code)]
-// De-comment this to remove console output on Windows
-//#![windows_subsystem = "windows"]
 
-//! A basic self-contained example to get you from zero-to-demo-window as fast
-//! as possible.
+// Disable console on Windows in release builds
+#![cfg_attr(
+  all(
+    target_os = "windows",
+    not(debug_assertions),
+  ),
+  windows_subsystem = "windows"
+)]
 
 mod clipboard;
 mod config;
