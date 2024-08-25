@@ -190,8 +190,8 @@ const INACTIVE_STRINGS: [&str; 6] = [
     "AscendancyFrameLargeNormal",
     "PSSkillFrame",
     "NotableFrameCanAllocate",
-    "KeystoneFrameCanAllocate",
-    "JewelFrameCanAllocate",
+    "KeystoneFrameUnallocated",
+    "JewelFrameUnallocated",
 ];
 
 fn node_gl(
@@ -265,7 +265,7 @@ fn node_gl(
     }
 }
 
-/// Nodes, Frames and Masteries
+/// Unallocated Nodes, Frames and Masteries (the entire tree pretty much)
 pub fn nodes_gl() -> [DrawData; 4] {
     let mut dd_nodes = DrawData::default();
     let mut dd_frames = DrawData::default();
@@ -290,7 +290,7 @@ pub fn nodes_gl() -> [DrawData; 4] {
     [dd_nodes, dd_frames, dd_masteries, dd_asc_frames]
 }
 
-/// Player-selected Nodes, Frames and Masteries
+/// Allocated & hovered Nodes, Frames and Masteries
 pub fn nodes_gl_active(nodes: &[u16], hovered: Option<&u16>) -> [DrawData; 5] {
     let mut dd_nodes = DrawData::default();
     let mut dd_frames = DrawData::default();

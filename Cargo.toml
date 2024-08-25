@@ -10,3 +10,15 @@ inherits = "release"
 lto=true
 codegen-units=1
 strip=true
+
+# Always optimize some crates that are really slow in debug builds
+[profile.dev.package.image]
+opt-level = 3
+[profile.dev.package.png]
+opt-level = 3
+[profile.dev.package.zune-jpeg]
+opt-level = 3
+[profile.dev.package.zune-core]
+opt-level = 3
+[profile.dev.package.fdeflate]
+opt-level = 3

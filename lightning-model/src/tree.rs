@@ -250,27 +250,28 @@ impl FindDisconnectedNodes {
             .filter(|id| self.nodes_search_remove.contains(id))
             .copied()
             .collect();
-        let nodes_in: Vec<u16> = TREE.nodes[&node]
-            .r#in
-            .as_ref()
-            .unwrap()
-            .iter()
-            .filter(|id| self.nodes_search_remove.contains(id))
-            .copied()
-            .collect();
-        v.extend(nodes_in);
+        if !TREE.nodes[&node].is_mastery {
+            let nodes_in: Vec<u16> = TREE.nodes[&node]
+                .r#in
+                .as_ref()
+                .unwrap()
+                .iter()
+                .filter(|id| self.nodes_search_remove.contains(id))
+                .copied()
+                .collect();
+            v.extend(nodes_in);
+        }
         v
     }
 
     /// Find a group of nodes to remove when a single node gets deallocated
     pub fn find_nodes_remove(&self) -> Vec<u16> {
-        let groups = strongly_connected_components::strongly_connected_components(&self.nodes_search_remove, |p| self.successors_allocated(*p));
-        let mut ret = vec!();
+        let groups = strongly_connected_components::strongly_connected_components_from(&get_class_node(self.class), |p| self.successors_allocated(*p));
+        let mut col = vec![];
         for group in groups {
-            if !group.contains(&get_class_node(self.class)) {
-                ret.extend(group);
-            }
+            col.extend(group);
         }
+        let ret: Vec<u16> = self.nodes_search_remove.iter().filter(|id| !col.contains(id)).copied().collect();
         ret
     }
 }
@@ -301,7 +302,14 @@ impl PassiveTree {
                 .collect();
             v.extend(nodes_out);
         } else {
-            v.extend(TREE.nodes[&node].out.clone().unwrap_or(vec![]));
+            let nodes_out: Vec<u16> = TREE.nodes[&node]
+                .out
+                .as_ref()
+                .unwrap()
+                .iter()
+                .filter(|id| !TREE.nodes[id].is_mastery).copied()
+                .collect();
+            v.extend(nodes_out);
         }
         v
     }

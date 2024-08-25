@@ -118,6 +118,7 @@ fn main() {
 
     let mut tree_gl = TreeGl::default();
     tree_gl.init(ig_renderer.gl_context());
+    window.set_visible(true);
 
     // Standard winit event loop
     let _ = event_loop.run(move |event, window_target| {
@@ -290,6 +291,8 @@ fn main() {
                                     state.build.tree.flip_node(state.hovered_node.as_ref().unwrap().skill);
                                     state.request_regen = true;
                                     state.request_recalc = true;
+                                    state.path_hovered = None;
+                                    state.path_red = None;
                                 }
                                 state.mouse_tree_drag = None;
                             }
@@ -363,7 +366,8 @@ fn create_window() -> (EventLoop<()>, Window, Surface<WindowSurface>, PossiblyCu
     let event_loop = EventLoop::new().unwrap();
     let window_builder = WindowBuilder::new()
         .with_title(TITLE)
-        .with_inner_size(LogicalSize::new(1024, 768));
+        .with_inner_size(LogicalSize::new(1024, 768))
+        .with_visible(false);
     let (window, cfg) = glutin_winit::DisplayBuilder::new()
         .with_window_builder(Some(window_builder))
         .build(&event_loop, ConfigTemplateBuilder::new().with_multisampling(4), |mut configs| {
