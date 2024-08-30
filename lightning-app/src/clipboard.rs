@@ -12,7 +12,8 @@ impl ClipboardBackend for ClipboardSupport {
         self.0.get_contents().ok()
     }
     fn set(&mut self, text: &str) {
-        // ignore errors?
-        let _ = self.0.set_contents(text.to_owned());
+        if let Err(err) = self.0.set_contents(text.to_owned()) {
+            eprintln!("Error setting clipboard content: {err}");
+        }
     }
 }

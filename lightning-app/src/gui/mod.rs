@@ -52,6 +52,7 @@ pub struct State {
     pub dimensions: (u32, u32),
     pub tree_translate: (f32, f32),
     pub zoom: f32,
+    pub zoom_tmp: f32,
     pub request_regen: bool,
 
     // Controls
@@ -90,6 +91,7 @@ impl State {
 
             dimensions: (1280, 720),
             zoom: 1.0,
+            zoom_tmp: 1.0,
             tree_translate: (0.0, 0.0),
             request_regen: false,
 

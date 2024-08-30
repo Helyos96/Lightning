@@ -170,6 +170,7 @@ pub fn connectors_gl_inactive() -> DrawData {
         n.group.is_some()
             && (!n.name.starts_with("Path of the") || n.ascendancy_name.is_none())
             && n.class_start_index.is_none()
+            && !n.is_mastery
     }) {
         let (x1, y1) = node_pos(node);
         for out in node
@@ -194,6 +195,7 @@ pub fn connectors_gl(nodes: &[u16], rect: &Rect, w: f32) -> DrawData {
         n.group.is_some()
             && (!n.name.starts_with("Path of the") || n.ascendancy_name.is_none())
             && n.class_start_index.is_none()
+            && !n.is_mastery
     }) {
         let (x1, y1) = node_pos(node);
         for out in node
@@ -404,10 +406,9 @@ pub fn group_background_gl() -> DrawData {
         let mut y = group.y.neg();
         if background.is_half_image.is_some() {
             // Need to draw upper half and then bottom half (vertically flipped)
-            // todo: fix seams that appear sometimes
             y += rect.h as f32;
             dd.append(x, y, rect, sprite, false, 2.0);
-            y -= (rect.h as f32 - 1.0) * 2.0;
+            y -= (rect.h as f32) * 2.0;
             dd.append(x, y, rect, sprite, true, 2.0);
         } else {
             dd.append(x, y, rect, sprite, false, 2.0);

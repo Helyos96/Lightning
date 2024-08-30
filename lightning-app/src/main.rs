@@ -259,7 +259,8 @@ fn main() {
                     } => {
                         if state.ui_state == UiState::Main && gui::is_over_tree(&state.mouse_pos) {
                             forward_event = false;
-                            state.zoom = f32::max(0.50, state.zoom + v);
+                            state.zoom_tmp = (state.zoom_tmp + v).clamp(1.0, 10.0);
+                            state.zoom = state.zoom_tmp.round();
                         }
                     }
                     Event::WindowEvent {
@@ -290,7 +291,7 @@ fn main() {
                                 if state.ui_state == UiState::Main && gui::is_over_tree(&state.mouse_pos) {
                                     state.mouse_tree_drag = Some(state.mouse_pos);
                                 }
-                            } else {
+                            } else if button_state == ElementState::Released {
                                 if state.hovered_node.is_some() {
                                     state.build.tree.flip_node(state.hovered_node.as_ref().unwrap().skill);
                                     state.request_regen = true;
@@ -335,6 +336,7 @@ fn main() {
                             state.tree_translate.1 -=
                                 dy * 12500.0 / (state.dimensions.1 as f32 / 2.0) / state.zoom;
                             state.mouse_tree_drag = Some(state.mouse_pos);
+                            state.hovered_node = None;
                         } else if gui::is_over_tree(&state.mouse_pos) {
                             // There's gotta be simpler computations for this
                             x -= state.dimensions.0 as f32 / 2.0;
