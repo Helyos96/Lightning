@@ -118,6 +118,8 @@ pub struct Node {
     pub is_ascendancy_start: bool,
     #[serde(default)]
     pub is_jewel_socket: bool,
+    #[serde(default)]
+    pub is_proxy: bool,
     pub ascendancy_name: Option<String>,
     pub class_start_index: Option<i32>,
     #[serde(default)]
@@ -160,12 +162,15 @@ pub struct Background {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Group {
     pub x: f32,
     pub y: f32,
     pub orbits: Vec<u8>,
     pub nodes: Vec<u16>,
     pub background: Option<Background>,
+    #[serde(default)]
+    pub is_proxy: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -183,6 +188,8 @@ pub struct TreeData {
     pub sprites: FxHashMap<String, Sprite>,
     pub groups: FxHashMap<u16, Group>,
     pub constants: Constants,
+    #[serde(rename = "jewelSlots")]
+    pub jewel_slots: Vec<u16>,
     pub min_x: i32,
     pub min_y: i32,
     pub max_x: i32,

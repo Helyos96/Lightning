@@ -209,6 +209,24 @@ lazy_static! {
                     ..Default::default()
                 }])
             })
+        ), (
+            regex!(r"^adds ([0-9]+) to ([0-9]+) ([a-z]+) damage$"),
+            Box::new(|c| {
+                let dt = DTS.get(&c[3])?;
+                Some(vec![Mod {
+                    stat: "minimum damage".to_string(),
+                    typ: Type::Base,
+                    amount: i64::from_str(&c[1]).unwrap(),
+                    dt: Some(*dt),
+                    ..Default::default()
+                }, Mod {
+                    stat: "maximum damage".to_string(),
+                    typ: Type::Base,
+                    amount: i64::from_str(&c[2]).unwrap(),
+                    dt: Some(*dt),
+                    ..Default::default()
+                }])
+            })
         ),
     ];
 
@@ -279,16 +297,13 @@ lazy_static! {
     ];
 }
 
-#[derive(Debug, Copy, Clone)]
-#[derive(Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 pub enum Type {
     #[default]
     Base,
     Inc,
     More,
 }
-
-
 
 #[derive(Debug, Copy, Clone)]
 pub enum Property {

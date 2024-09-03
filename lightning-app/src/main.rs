@@ -212,7 +212,7 @@ fn main() {
                     _ => eprintln!("Can't draw state {:?}", state.ui_state),
                 };
                 if let Err(err) = process_state(&mut state) {
-                    println!("State Error: {err}");
+                    println!("State Error: {:?}: {}", state.ui_state, err);
                     if state.ui_state == UiState::ImportBuild {
                         state.ui_state = UiState::ChooseBuild;
                     }

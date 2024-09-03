@@ -6,7 +6,7 @@ use crate::tree::{Class, PassiveTree, TreeData};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Eq, PartialEq, Hash, Debug)]
 pub enum Slot {
     Helm,
     BodyArmour,
@@ -18,7 +18,42 @@ pub enum Slot {
     Weapon2,
     Ring,
     Ring2,
-    Flask(u8),
+    Flask(u16), // u16 -> Flask slot
+    TreeJewel(u16), // u16 -> Tree node holding the jewel
+}
+
+impl TryFrom<(&str, u16)> for Slot {
+    type Error = ();
+
+    fn try_from((inventory_id, x): (&str, u16)) -> Result<Self, Self::Error> {
+        match inventory_id {
+            "Helm" => Ok(Slot::Helm),
+            "BodyArmour" => Ok(Slot::BodyArmour),
+            "Gloves" => Ok(Slot::Gloves),
+            "Boots" => Ok(Slot::Boots),
+            "Belt" => Ok(Slot::Belt),
+            "Amulet" => Ok(Slot::Amulet),
+            "Weapon" => Ok(Slot::Weapon),
+            "Weapon2" => Ok(Slot::Weapon2),
+            "Ring" => Ok(Slot::Ring),
+            "Ring2" => Ok(Slot::Ring2),
+            "Flask" => {
+                if x <= 4 {
+                    Ok(Slot::Flask(x))
+                } else {
+                    Err(())
+                }
+            }
+            "PassiveJewels" => {
+                if let Some(node) = TREE.jewel_slots.get(x as usize) {
+                    Ok(Slot::TreeJewel(*node))
+                } else {
+                    Err(())
+                }
+            }
+            _ => Err(())
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -36,13 +71,14 @@ pub struct Stat {
     mods: Vec<Mod>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct Build {
     pub name: String,
     pub ascendancy: i32,
     pub level: i32,
     pub gem_links: Vec<GemLink>,
-    pub equipment: Vec<Item>, // todo: HashMap Slot
+    pub equipment: FxHashMap<Slot, Item>, // todo: HashMap Slot
+    pub inventory: Vec<Item>,
     pub tree: PassiveTree,
 }
 
@@ -52,9 +88,7 @@ impl Build {
             name: "Untitled Build".to_string(),
             ascendancy: 0,
             level: 1,
-            gem_links: vec![],
-            equipment: vec![],
-            tree: Default::default(),
+            ..Default::default()
         }
     }
 
@@ -123,8 +157,8 @@ impl Build {
             },
         ];
         mods.extend(self.tree.calc_mods());
-        for item in &self.equipment {
-            mods.extend(item.calc_mods());
+        for item in self.equipment.values() {
+            mods.extend(item.calc_nonlocal_mods());
         }
         if include_global {
             for gl in &self.gem_links {

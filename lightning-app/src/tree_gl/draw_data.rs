@@ -171,6 +171,8 @@ pub fn connectors_gl_inactive() -> DrawData {
             && (!n.name.starts_with("Path of the") || n.ascendancy_name.is_none())
             && n.class_start_index.is_none()
             && !n.is_mastery
+            && !n.is_proxy
+            && !(n.name == "Medium Jewel Socket") && !(n.name == "Small Jewel Socket")
     }) {
         let (x1, y1) = node_pos(node);
         for out in node
@@ -178,7 +180,7 @@ pub fn connectors_gl_inactive() -> DrawData {
             .iter()
             .flatten()
             .map(|id| &TREE.nodes[id])
-            .filter(|n| !n.is_ascendancy_start && !n.is_mastery && n.class_start_index.is_none())
+            .filter(|n| !n.is_ascendancy_start && !n.is_mastery && !n.is_proxy && n.class_start_index.is_none())
         {
             let (x2, y2) = node_pos(out);
             connector_gl(x1, y1, x2, y2, 16.0, rect, sprite, &mut dd);
@@ -311,7 +313,7 @@ pub fn nodes_gl() -> [DrawData; 4] {
     for node in TREE
         .nodes
         .values()
-        .filter(|n| n.group.is_some() && n.class_start_index.is_none())
+        .filter(|n| n.group.is_some() && n.class_start_index.is_none() && !n.is_proxy && !(n.name == "Medium Jewel Socket") && !(n.name == "Small Jewel Socket"))
     {
         node_gl(
             node,
@@ -395,7 +397,7 @@ pub fn class_start_gl(class: Class) -> DrawData {
 pub fn group_background_gl() -> DrawData {
     let mut dd = DrawData::default();
     let sprite = &TREE.sprites["groupBackground"];
-    for group in TREE.groups.values().filter(|g| g.background.is_some()) {
+    for group in TREE.groups.values().filter(|g| g.background.is_some() && !g.is_proxy) {
         let background = group.background.as_ref().unwrap();
         let rect = match sprite.coords.get(&background.image) {
             None => continue,

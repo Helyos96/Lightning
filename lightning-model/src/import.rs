@@ -2,7 +2,7 @@
 
 /// Import build data from pathofexile.com
 
-use crate::build::{self, Build, GemLink};
+use crate::build::{self, Build, GemLink, Slot};
 use crate::data::GEMS;
 use crate::gem;
 use crate::item;
@@ -36,6 +36,7 @@ struct Item {
     inventoryId: Option<String>,
     #[serde(default)]
     properties: Vec<Property>,
+    x: Option<u16>,
 }
 
 #[derive(Deserialize)]
@@ -137,17 +138,21 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
         build.tree.masteries.push((mastery as u16, *selected as u16));
     }
 
-    for item in tree.items {
-        build.equipment.push(conv_item(&item));
-    }
-
-    for item in items.items {
+    for item in tree.items.iter().chain(items.items.iter()) {
+        println!("item: {}", item.baseType);
         if let Some(socketed_items) = &item.socketedItems {
             let (gemlink, jewels) = extract_socketed(socketed_items);
             build.gem_links.push(gemlink);
-            build.equipment.extend(jewels);
+            // TODO: abyss jewels
+            build.inventory.extend(jewels);
         }
-        build.equipment.push(conv_item(&item));
+        if let Some(inventory_id) = &item.inventoryId {
+            if let Ok(slot) = Slot::try_from((inventory_id.as_str(), item.x.unwrap_or(0))) {
+                build.equipment.insert(slot, conv_item(&item));
+            } else {
+                build.inventory.push(conv_item(&item));
+            }
+        }
     }
 
     Ok(build)
