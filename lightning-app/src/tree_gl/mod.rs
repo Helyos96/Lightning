@@ -4,8 +4,8 @@ pub mod hover;
 use draw_data::*;
 use glow::HasContext;
 use image::{ImageReader, RgbaImage};
+use lightning_model::build::Build;
 use lightning_model::data::TREE;
-use lightning_model::tree::PassiveTree;
 use rustc_hash::FxHashMap;
 
 fn load_texture(img: &RgbaImage, gl: &glow::Context) -> glow::Texture {
@@ -254,8 +254,8 @@ impl TreeGl {
         self.draw_data.clear();
     }
 
-    pub fn regen_active(&mut self, gl: &glow::Context, tree: &PassiveTree, path_hovered: &Option<Vec<u16>>, path_red: &Option<Vec<u16>>,) {
-        const REDRAW: [&str; 12] = [
+    pub fn regen_active(&mut self, gl: &glow::Context, build: &Build, path_hovered: &Option<Vec<u16>>, path_red: &Option<Vec<u16>>,) {
+        const REDRAW: [&str; 13] = [
             "nodes_active",
             "frames_active",
             "masteries_active",
@@ -268,16 +268,18 @@ impl TreeGl {
             "nodes_active_red",
             "frames_active_red",
             "ascendancy_frames_active_red",
+            "jewels",
         ];
 
         for &s in &REDRAW {
             if let Some(dd) = self.draw_data.get_mut(s) {
                 dd.destroy(gl);
             }
+            self.draw_data.remove(s);
         }
 
         let last_node = path_hovered.as_ref().map(|path| path.first().unwrap());
-        let data = nodes_gl_active(&tree.nodes, last_node);
+        let data = nodes_gl_active(&build.tree.nodes, last_node);
         self.draw_data
             .insert("nodes_active".to_string(), GlDrawData::new(gl, &data[0]));
         self.draw_data
@@ -289,15 +291,13 @@ impl TreeGl {
         self.draw_data
             .insert("ascendancy_frames_active".to_string(), GlDrawData::new(gl, &data[4]));
         self.draw_data
-            .insert("connectors_active".to_string(), GlDrawData::new(gl, &connectors_gl(&tree.nodes, &TREE.sprites["line"].coords["LineConnectorActive"], 20.0)));
+            .insert("connectors_active".to_string(), GlDrawData::new(gl, &connectors_gl(&build.tree.nodes, &TREE.sprites["line"].coords["LineConnectorActive"], 20.0)));
         self.draw_data
-            .insert("class_start".to_string(), GlDrawData::new(gl, &class_start_gl(tree.class)));
+            .insert("class_start".to_string(), GlDrawData::new(gl, &class_start_gl(build.tree.class)));
         if let Some(path) = path_hovered {
             let data = connectors_gl(path, &TREE.sprites["line"].coords["LineConnectorActive"], 8.0);
             self.draw_data
                 .insert("connectors_hovered".to_string(), GlDrawData::new(gl, &data));
-        } else {
-            self.draw_data.remove("connectors_hovered");
         }
         if let Some(path_red) = path_red {
             self.draw_data
@@ -310,6 +310,9 @@ impl TreeGl {
             self.draw_data
                 .insert("ascendancy_frames_active_red".to_string(), GlDrawData::new(gl, &data[4]));
         }
+        let data = jewels_gl(build);
+        self.draw_data
+                .insert("jewels".to_string(), GlDrawData::new(gl, &data));
     }
 
     pub fn draw(
@@ -329,10 +332,10 @@ impl TreeGl {
             ("connectors_red", "line-3.png", [1.0, 0.0, 0.0, 1.0]),
             ("nodes", "skills-disabled-3.jpg", [1.0, 1.0, 1.0, 1.0]),
             ("nodes_active", "skills-3.jpg", [1.0, 1.0, 1.0, 1.0]),
-            ("jewels", "jewel-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("frames", "frame-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("frames_active", "frame-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("frames_active_red", "frame-3.png", [1.0, 0.0, 0.0, 1.0]),
+            ("jewels", "jewel-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("class_start", "group-background-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("ascendancy_frames", "ascendancy-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("ascendancy_frames_active", "ascendancy-3.png", [1.0, 1.0, 1.0, 1.0]),

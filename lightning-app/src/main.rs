@@ -151,7 +151,7 @@ fn main() {
                 unsafe { ig_renderer.gl_context().clear(glow::COLOR_BUFFER_BIT); };
 
                 if state.request_regen {
-                    tree_gl.regen_active(ig_renderer.gl_context(), &state.build.tree, &state.path_hovered, &state.path_red);
+                    tree_gl.regen_active(ig_renderer.gl_context(), &state.build, &state.path_hovered, &state.path_red);
                     state.request_regen = false;
                 }
                 if state.request_recalc {

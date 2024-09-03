@@ -1,6 +1,8 @@
 use lazy_static::lazy_static;
+use lightning_model::build::{Build, Slot};
 use lightning_model::data::TREE;
 use lightning_model::tree::{self, Class, Node, NodeType, Rect, Sprite};
+use std::collections::HashMap;
 use std::ops::Neg;
 
 fn calc_angles() -> Vec<Vec<f32>> {
@@ -365,6 +367,35 @@ pub fn nodes_gl_active(nodes: &[u16], hovered: Option<&u16>) -> [DrawData; 5] {
     }
 
     [dd_nodes, dd_frames, dd_masteries, dd_masteries_active, dd_asc_frames]
+}
+
+lazy_static! {
+    static ref JEWELS_BASE_SPRITE: HashMap<&'static str, &'static str> = HashMap::from([
+        ("Crimson Jewel", "JewelSocketActiveRed"),
+        ("Viridian Jewel", "JewelSocketActiveGreen"),
+        ("Cobalt Jewel", "JewelSocketActiveBlue"),
+        ("Prismatic Jewel", "JewelSocketActivePrismatic"),
+        ("Large Cluster Jewel", "JewelSocketActiveAltPurple"),
+        ("Medium Cluster Jewel", "JewelSocketActiveAltBlue"),
+        ("Small Cluster Jewel", "JewelSocketActiveAltRed"),
+    ]);
+}
+
+pub fn jewels_gl(build: &Build) -> DrawData {
+    let mut dd = DrawData::default();
+    let sprite = &TREE.sprites["jewel"];
+
+    for (slot, jewel) in build.equipment.iter() {
+        if let Slot::TreeJewel(node) = slot {
+            if let Some(sprite_name) = JEWELS_BASE_SPRITE.get(jewel.base_item.as_str()) {
+                let rect = &sprite.coords[*sprite_name];
+                let (x, y) = node_pos(&TREE.nodes[node]);
+                dd.append(x, y, rect, sprite, false, 1.6);
+            }
+        }
+    }
+
+    dd
 }
 
 fn get_class_coords(class: Class) -> &'static str {
