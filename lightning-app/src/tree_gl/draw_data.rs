@@ -385,7 +385,7 @@ pub fn jewels_gl(build: &Build) -> DrawData {
     let mut dd = DrawData::default();
     let sprite = &TREE.sprites["jewel"];
 
-    for (slot, jewel) in build.equipment.iter() {
+    for (slot, jewel) in &build.equipment {
         if let Slot::TreeJewel(node) = slot {
             if let Some(sprite_name) = JEWELS_BASE_SPRITE.get(jewel.base_item.as_str()) {
                 let rect = &sprite.coords[*sprite_name];

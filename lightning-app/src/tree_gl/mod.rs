@@ -80,6 +80,17 @@ pub struct GlDrawData {
     len: i32,
 }
 
+impl Drop for GlDrawData {
+    fn drop(&mut self) {
+        if self.vao.is_some() ||
+           self.vbo.is_some() ||
+           self.tbo.is_some() ||
+           self.idx.is_some() {
+            eprintln!("Dropping GlDrawData while some data remains!");
+        }
+    }
+}
+
 impl GlDrawData {
     fn new(gl: &glow::Context, dd: &DrawData) -> Self {
         unsafe {
