@@ -5,6 +5,7 @@ use crate::modifier::{DamageType, Mod, Mutation, Property, Type};
 use crate::tree::{Class, PassiveTree, TreeData};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Hash, Debug)]
 pub enum Slot {
@@ -71,12 +72,14 @@ pub struct Stat {
     mods: Vec<Mod>,
 }
 
+#[serde_as]
 #[derive(Default, Serialize, Deserialize)]
 pub struct Build {
     pub name: String,
     pub ascendancy: i32,
     pub level: i32,
     pub gem_links: Vec<GemLink>,
+    #[serde_as(as = "FxHashMap<serde_with::json::JsonString, _>")]
     pub equipment: FxHashMap<Slot, Item>, // todo: HashMap Slot
     pub inventory: Vec<Item>,
     pub tree: PassiveTree,

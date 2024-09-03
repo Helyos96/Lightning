@@ -314,19 +314,12 @@ impl TreeGl {
 
     pub fn draw(
         &mut self,
-        tree: &PassiveTree,
         gl: &glow::Context,
         zoom: f32,
         translate: (f32, f32),
-        path_hovered: &Option<Vec<u16>>,
-        path_red: &Option<Vec<u16>>,
     ) {
-        if !self.draw_data.contains_key("nodes_active") {
-            self.regen_active(gl, tree, path_hovered, path_red);
-        }
-
         // draw_data name ; texture file ; color tint factor
-        const DRAW_ORDER: [(&str, &str, [f32; 4]); 18] = [
+        const DRAW_ORDER: [(&str, &str, [f32; 4]); 19] = [
             ("background", "background-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("group_background", "group-background-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("ascendancy_background", "ascendancy-background-3.png", [1.0, 1.0, 1.0, 1.0]),
@@ -336,6 +329,7 @@ impl TreeGl {
             ("connectors_red", "line-3.png", [1.0, 0.0, 0.0, 1.0]),
             ("nodes", "skills-disabled-3.jpg", [1.0, 1.0, 1.0, 1.0]),
             ("nodes_active", "skills-3.jpg", [1.0, 1.0, 1.0, 1.0]),
+            ("jewels", "jewel-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("frames", "frame-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("frames_active", "frame-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("frames_active_red", "frame-3.png", [1.0, 0.0, 0.0, 1.0]),

@@ -198,12 +198,9 @@ fn main() {
                         }
 
                         tree_gl.draw(
-                            &state.build.tree,
                             ig_renderer.gl_context(),
                             state.zoom,
                             state.tree_translate,
-                            &state.path_hovered,
-                            &state.path_red,
                         );
                         gui::draw_top_panel(ui, &mut state);
                         gui::draw_left_panel(ui, &mut state);
