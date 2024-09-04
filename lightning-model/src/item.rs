@@ -26,9 +26,20 @@ pub struct BaseItem {
     properties: Properties,
 }
 
+#[derive(Debug, Default, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+pub enum Rarity {
+    #[default]
+    Normal,
+    Magic,
+    Rare,
+    Unique,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Item {
     pub base_item: String,
+    pub name: String,
+    pub rarity: Rarity,
     pub mods_impl: Vec<String>,
     pub mods_expl: Vec<String>,
 }

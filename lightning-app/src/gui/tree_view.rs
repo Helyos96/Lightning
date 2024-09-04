@@ -20,7 +20,7 @@ fn draw_hover_window(ui: &mut Ui, state: &mut State) {
             match node.node_type() {
                 NodeType::JewelSocket => {
                     if let Some(item) = state.build.equipment.get(&Slot::TreeJewel(node.skill)) {
-                        ui.text(&item.base_item);
+                        ui.text(&item.name);
                         ui.separator();
                         for stat in &item.mods_impl {
                             ui.text(stat);

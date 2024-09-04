@@ -21,6 +21,16 @@ pub fn config_dir() -> PathBuf {
     PathBuf::from("./")
 }
 
+pub fn create_config_builds_dir() -> Result<(), std::io::Error> {
+    let path = config_dir().join("builds/");
+
+    if !path.exists() {
+        fs::create_dir_all(path)?
+    }
+
+    Ok(())
+}
+
 #[cfg(target_os = "windows")]
 pub fn config_dir() -> PathBuf {
     if let Some(path) = dirs::home_dir() {

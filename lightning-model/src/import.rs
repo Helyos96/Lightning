@@ -29,6 +29,9 @@ struct Property {
 #[derive(Debug, Deserialize)]
 struct Item {
     baseType: String,
+    name: String,
+    #[serde(default)]
+    rarity: item::Rarity,
     implicitMods: Option<Vec<String>>,
     explicitMods: Option<Vec<String>>,
     craftedMods: Option<Vec<String>>,
@@ -103,6 +106,8 @@ fn conv_item(item: &Item) -> item::Item {
     mods_expl.extend(item.craftedMods.as_ref().unwrap_or(&vec![]).clone());
     item::Item {
         base_item: item.baseType.clone(),
+        name: item.name.clone(),
+        rarity: item.rarity,
         mods_impl: item.implicitMods.as_ref().unwrap_or(&vec![]).clone(),
         mods_expl,
     }

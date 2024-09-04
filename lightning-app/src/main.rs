@@ -120,16 +120,16 @@ fn main() {
     let mut vsync = state.config.vsync;
     set_vsync(&surface, &context, vsync);
 
+    if let Err(err) = config::create_config_builds_dir() {
+        eprintln!("Error creating Lightning user directory: {err}");
+    }
+
     let mut tree_gl = TreeGl::default();
     tree_gl.init(ig_renderer.gl_context());
     window.set_visible(true);
 
     // Standard winit event loop
     let _ = event_loop.run(move |event, window_target| {
-        // Consider making the line below work someday.
-        // It suspends redrawing until there's an event.
-        // Pretty good cpu/gpu savings.
-        //*control_flow = glutin::event_loop::ControlFlow::Wait;
         match event {
             Event::NewEvents(_) => {
                 let now = Instant::now();
@@ -137,10 +137,6 @@ fn main() {
                 last_frame = now;
             }
             Event::AboutToWait => {
-                winit_platform
-                    .prepare_frame(imgui_context.io_mut(), &window)
-                    .unwrap();
-                window.request_redraw();
             }
             Event::WindowEvent {
                 event: WindowEvent::RedrawRequested,
@@ -168,6 +164,9 @@ fn main() {
                                 vsync = state.config.vsync;
                                 set_vsync(&surface, &context, vsync);
                             }
+                        }
+                        if state.ui_state != UiState::ChooseBuild {
+                            window.request_redraw();
                         }
                     }
                     UiState::Main => {
@@ -230,7 +229,9 @@ fn main() {
                         std::thread::sleep(sleep_for);
                     }
                 }
-
+                winit_platform
+                    .prepare_frame(imgui_context.io_mut(), &window)
+                    .unwrap();
                 if let Err(err) = surface.swap_buffers(&context) {
                     eprintln!("Failed to swap buffers: {err}");
                 }
@@ -243,6 +244,7 @@ fn main() {
                 window_target.exit();
             }
             event => {
+                window.request_redraw();
                 let mut forward_event = true;
                 match event {
                     Event::WindowEvent {

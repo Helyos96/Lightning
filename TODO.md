@@ -2,7 +2,7 @@
 * Zooming should be linear not exponential
 * Zooming should follow mouse cursor
 * Jewels on tree
-	* Basic jewels
+	* ~~Basic jewels~~
 	* With radius shown
 	* Cluster jewels
 * Masteries
@@ -12,3 +12,4 @@
 * Ascendancy
 	* UI combo to choose
 	* Allocate ascendancy base node
+* Convert to egui for more styling/coloring options
