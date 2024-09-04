@@ -35,8 +35,8 @@ use glutin::{
 use imgui_winit_support::{
     winit::{
         dpi::LogicalSize,
-        event_loop::EventLoop,
-        event::{self, ElementState, MouseButton},
+        event_loop::{ControlFlow, EventLoop},
+        event::{self, ElementState, MouseButton, StartCause},
         window::{Window, WindowBuilder},
         event::{Event, WindowEvent},
         keyboard::{KeyCode, PhysicalKey},
@@ -130,11 +130,15 @@ fn main() {
 
     // Standard winit event loop
     let _ = event_loop.run(move |event, window_target| {
+        window_target.set_control_flow(ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(50)));
         match event {
-            Event::NewEvents(_) => {
+            Event::NewEvents(ne) => {
                 let now = Instant::now();
                 imgui_context.io_mut().update_delta_time(now.duration_since(last_frame));
                 last_frame = now;
+                if matches!(ne, StartCause::ResumeTimeReached{..}) {
+                    window.request_redraw();
+                }
             }
             Event::AboutToWait => {
             }
