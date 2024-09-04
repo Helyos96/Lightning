@@ -126,6 +126,7 @@ fn main() {
 
     let mut tree_gl = TreeGl::default();
     tree_gl.init(ig_renderer.gl_context());
+    tree_gl.regen_active(ig_renderer.gl_context(), &state.build, &None, &None);
     window.set_visible(true);
 
     // Standard winit event loop
