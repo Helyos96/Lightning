@@ -1,31 +1,38 @@
 use super::State;
-use imgui::Ui;
-use std::path::PathBuf;
+//use imgui::Ui;
+use std::{ops::RangeInclusive, path::PathBuf};
 
-pub fn draw(ui: &mut Ui, state: &mut State) {
-    ui.window("Settings")
-        .size([500.0, 500.0], imgui::Condition::FirstUseEver)
-        .position([500.0, 60.0], imgui::Condition::FirstUseEver)
-        .build(|| {
-            if ui.input_text("Builds path", &mut state.builds_dir_settings).build() {
-                if let Ok(path) = PathBuf::try_from(&state.builds_dir_settings) {
-                    state.config.builds_dir = path;
+pub fn draw(ctx: &egui::Context, state: &mut State) {
+    egui::Window::new("Settings")
+        .default_size(egui::Vec2::new(500.0, 500.0))
+        .collapsible(false)
+        .show(ctx, |ui| {
+            egui::Grid::new("grid_settings").show(ui, |ui| {
+                ui.label("Builds directory");
+                let mut size = ui.spacing().interact_size;
+                size.x = 250.0;
+                if ui.add_sized(size, egui::TextEdit::singleline(&mut state.builds_dir_settings)).changed() {
+                    if let Ok(path) = PathBuf::try_from(&state.builds_dir_settings) {
+                        state.config.builds_dir = path;
+                        let _ = state.config.save();
+                    }
+                }
+                ui.end_row();
+                ui.label("Framerate");
+                if ui.add_enabled(!state.config.vsync, egui::DragValue::new(&mut state.framerate_settings).range(RangeInclusive::new(20, 240))).changed() {
+                    state.config.framerate = state.framerate_settings;
                     let _ = state.config.save();
                 }
-            }
-            if ui.input_scalar("Framerate", &mut state.framerate_settings).build() {
-                if state.framerate_settings >= 20 {
-                    state.config.framerate = state.framerate_settings;
-                } else {
-                    state.framerate_settings = 20;
+                ui.end_row();
+                ui.label("VSync");
+                if ui.checkbox(&mut state.config.vsync, "").clicked() {
+                    let _ = state.config.save();
                 }
-                let _ = state.config.save();
-            }
-            if ui.checkbox("VSync", &mut state.config.vsync) {
-                let _ = state.config.save();
-            }
-            if ui.button("Close") {
+                ui.end_row();
+            });
+            if ui.button("Close").clicked() {
                 state.show_settings = false;
             }
+            ui.allocate_space(ui.available_size());
         });
 }

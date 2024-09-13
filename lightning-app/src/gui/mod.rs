@@ -3,15 +3,15 @@ pub mod tree_view;
 pub mod settings;
 
 use crate::config::Config;
-use imgui::Ui;
 use lightning_model::build::{Build, Stat};
 use lightning_model::calc;
 use lightning_model::data::TREE;
 use lightning_model::tree::Node;
 use rustc_hash::FxHashMap;
+use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 use std::{io, fs};
-use imgui_winit_support::winit::event::ElementState;
+use egui_glow::egui_winit::winit::event::ElementState;
 use std::time::Instant;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -107,52 +107,51 @@ impl State {
 const LEFT_PANEL_WIDTH: f32 = 200.0;
 const TOP_PANEL_HEIGHT: f32 = 40.0;
 
-pub fn draw_left_panel(ui: &mut Ui, state: &mut State) {
-    ui.window("##LeftPanel")
-        .position([0.0, TOP_PANEL_HEIGHT], imgui::Condition::FirstUseEver)
-        .size(
-            [LEFT_PANEL_WIDTH, state.dimensions.1 as f32 - TOP_PANEL_HEIGHT],
-            imgui::Condition::Always,
-        )
-        .movable(false)
+fn get_selected_text(state: &State) -> &str {
+    if state.build.gem_links.iter().flat_map(|gl| &gl.active_gems).count() == 0 {
+        return "<No Active Skill>";
+    }
+    return &state.build.gem_links.iter().flat_map(|gl| &gl.active_gems).nth(state.active_skill_cur).unwrap().data().base_item.as_ref().unwrap().display_name;
+}
+
+pub fn draw_left_panel(ctx: &egui::Context, state: &mut State) {
+    egui::SidePanel::left("LeftPanel")
         .resizable(false)
-        .title_bar(false)
-        .build(|| {
-            let preview = match state
-                .build
-                .gem_links
-                .iter()
-                .flat_map(|gl| &gl.active_gems)
-                .nth(state.active_skill_cur)
-            {
-                Some(gem) => &gem.data().base_item.as_ref().unwrap().display_name,
-                None => "",
-            };
-            if let Some(combo) = ui.begin_combo("##ActiveSkills", preview) {
-                for (index, gem) in state.build.gem_links.iter().flat_map(|gl| &gl.active_gems).enumerate() {
-                    let selected = index == state.active_skill_cur;
-                    if ui
-                        .selectable_config(&gem.data().base_item.as_ref().unwrap().display_name)
-                        .selected(selected)
-                        .build()
-                    {
-                        state.active_skill_cur = index;
-                        state.active_skill_calc = calc::calc_gem(&state.build, &vec![], gem);
+        .exact_width(LEFT_PANEL_WIDTH)
+        .show(ctx, |ui| {
+            egui::ComboBox::from_id_source("combo_active_skill")
+                .selected_text(get_selected_text(state))
+                .show_ui(ui, |ui| {
+                    ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
+                    for (index, gem) in state.build.gem_links.iter().flat_map(|gl| &gl.active_gems).enumerate() {
+                        if ui.selectable_value(&mut state.active_skill_cur, index, &gem.data().base_item.as_ref().unwrap().display_name).clicked() {
+                            state.active_skill_calc = calc::calc_gem(&state.build, &vec![], gem);
+                        }
                     }
                 }
-                combo.end();
-            }
-            for (k, v) in &state.active_skill_calc {
-                ui.text(k.to_string() + ": " + &v.to_string());
-            }
+            );
+            egui::Grid::new("grid_active_skill_calc").show(ui, |ui| {
+                for (k, v) in &state.active_skill_calc {
+                    ui.label(k.to_string() + ":");
+                    ui.label(v.to_string());
+                    ui.end_row();
+                }
+            });
             ui.separator();
-            for stat in &state.defence_calc {
-                ui.text(stat.0.to_string() + ": " + &stat.1.val().to_string());
-            }
-            let instant = Instant::now();
-            let fps = (1000000.0 / (instant - state.instant_fps).as_micros() as f32).round() as i32;
-            ui.text("FPS: ".to_string() + fps.to_string().as_str());
-            state.instant_fps = instant;
+            egui::Grid::new("grid_defence_calc").show(ui, |ui| {
+                for stat in &state.defence_calc {
+                    ui.label(stat.0.to_string() + ":");
+                    ui.label(stat.1.val().to_string());
+                    ui.end_row();
+                }
+                let instant = Instant::now();
+                let fps = (1000000.0 / (instant - state.instant_fps).as_micros() as f32).round() as i32;
+                ui.label("FPS:");
+                ui.label(fps.to_string());
+                ui.end_row();
+                state.instant_fps = instant;
+            });
+            ui.allocate_space(ui.available_size());
         });
 }
 
@@ -163,49 +162,40 @@ fn save_build(build: &Build, dir: &Path) -> io::Result<()> {
     Ok(())
 }
 
-pub fn draw_top_panel(ui: &mut Ui, state: &mut State) {
-    ui.window("##TopPanel")
-        .position([0.0, 0.0], imgui::Condition::FirstUseEver)
-        .size([state.dimensions.0 as f32, TOP_PANEL_HEIGHT], imgui::Condition::Always)
-        .movable(false)
+pub fn draw_top_panel(ctx: &egui::Context, state: &mut State) {
+    egui::TopBottomPanel::top("TopPanel")
         .resizable(false)
-        .title_bar(false)
-        .build(|| {
-            ui.columns(3, "##TopPanelColumns", true);
-            ui.set_current_column_width(100.0);
-            if ui.button("<< Builds") {
-                state.ui_state = UiState::ChooseBuild;
-            }
-            ui.next_column();
-            ui.input_text("##Build Name", &mut state.build.name).build();
-            ui.same_line();
-            if ui.button("Save") {
-                if let Err(err) = save_build(&state.build, &state.config.builds_dir) {
-                    eprintln!("Failed to save build: {err}");
+        .exact_height(TOP_PANEL_HEIGHT)
+        .show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                if ui.button("<< Builds").clicked() {
+                    state.ui_state = UiState::ChooseBuild;
                 }
-            }
-            ui.next_column();
-            ui.text("Level");
-            ui.same_line();
-            ui.set_next_item_width(80.0);
-            if ui.input_int("##Level", &mut state.build.level).build() {
-                state.build.level = state.build.level.clamp(1, 100);
-                state.request_recalc = true;
-            }
-            ui.same_line();
-            ui.set_next_item_width(200.0);
-            let preview = state.build.tree.class.as_str();
-            if let Some(combo) = ui.begin_combo("##ClassCombo", preview) {
-                for class in TREE.classes.keys() {
-                    let selected = *class == state.build.tree.class;
-                    if ui.selectable_config(class.as_str()).selected(selected).build() {
-                        state.build.tree.set_class(*class);
-                        state.request_regen = true;
-                        state.request_recalc = true;
+                ui.text_edit_singleline(&mut state.build.name);
+                if ui.button("Save").clicked() {
+                    if let Err(err) = save_build(&state.build, &state.config.builds_dir) {
+                        eprintln!("Failed to save build: {err}");
                     }
                 }
-                combo.end();
-            }
+                ui.label("Level");
+                if ui.add(egui::DragValue::new(&mut state.build.level).range(RangeInclusive::new(1, 100))).changed() {
+                    state.request_recalc = true;
+                }
+                egui::ComboBox::from_id_source("combo_class")
+                    .selected_text(state.build.tree.class.as_str())
+                    .show_ui(ui, |ui| {
+                        ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
+                        for class in TREE.classes.keys() {
+                            if ui.selectable_label(*class == state.build.tree.class, class.as_str()).clicked() {
+                                state.build.tree.set_class(*class);
+                                state.request_regen = true;
+                                state.request_recalc = true;
+                            }
+                        }
+                    }
+                );
+                ui.allocate_space(ui.available_size());
+            });
         });
 }
 

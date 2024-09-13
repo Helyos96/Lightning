@@ -10,7 +10,6 @@
   windows_subsystem = "windows"
 )]
 
-mod clipboard;
 mod config;
 mod gui;
 mod tree_gl;
@@ -19,7 +18,6 @@ use crate::tree_gl::TreeGl;
 use glow::HasContext;
 use glutin::surface::SwapInterval;
 use gui::{State, UiState};
-//use imgui::ConfigFlags;
 use lightning_model::{build, calc, util};
 use std::error::Error;
 use std::fs;
@@ -32,19 +30,19 @@ use glutin::{
     display::{GetGlDisplay, GlDisplay},
     surface::{GlSurface, Surface, SurfaceAttributesBuilder, WindowSurface},
 };
-use imgui_winit_support::{
-    winit::{
-        dpi::LogicalSize,
-        event_loop::{ControlFlow, EventLoop},
-        event::{self, ElementState, MouseButton, StartCause},
-        window::{Window, WindowBuilder},
-        event::{Event, WindowEvent},
-        keyboard::{KeyCode, PhysicalKey},
-    },
-    WinitPlatform,
+
+use egui_glow::egui_winit::winit;
+use raw_window_handle::HasRawWindowHandle;
+
+use winit::{
+    dpi::LogicalSize,
+    event_loop::{ControlFlow, EventLoop},
+    event::{self, ElementState, MouseButton, StartCause},
+    window::{Window, WindowBuilder},
+    event::{Event, WindowEvent},
+    keyboard::{KeyCode, PhysicalKey},
 };
 
-use raw_window_handle::HasRawWindowHandle;
 
 const TITLE: &str = "Lightning";
 
@@ -102,20 +100,13 @@ fn set_vsync(surface: &Surface<WindowSurface>, context: &PossiblyCurrentContext,
 }
 
 fn main() {
-    // Common setup for creating a winit window and imgui context, not specifc
-    // to this renderer at all except that glutin is used to create the window
-    // since it will give us access to a GL context
     let (event_loop, window, surface, context) = create_window();
-    let (mut winit_platform, mut imgui_context) = imgui_init(&window);
+    let gl = std::sync::Arc::new(glow_context(&context));
+    let mut egui_glow = egui_glow::EguiGlow::new(&event_loop, gl.clone(), None, None);
+    egui_glow.egui_ctx.style_mut(|style| {
+        style.animation_time = 0.0;
+    });
 
-    // OpenGL context from glow
-    let gl = glow_context(&context);
-
-    // OpenGL renderer from this crate
-    let mut ig_renderer =
-        imgui_glow_renderer::AutoRenderer::initialize(gl, &mut imgui_context).expect("failed to create renderer");
-
-    let mut last_frame = Instant::now();
     let mut state = State::new(get_config());
     let mut vsync = state.config.vsync;
     set_vsync(&surface, &context, vsync);
@@ -125,8 +116,8 @@ fn main() {
     }
 
     let mut tree_gl = TreeGl::default();
-    tree_gl.init(ig_renderer.gl_context());
-    tree_gl.regen_active(ig_renderer.gl_context(), &state.build, &None, &None);
+    tree_gl.init(&gl);
+    tree_gl.regen_active(&gl, &state.build, &None, &None);
     window.set_visible(true);
 
     // Standard winit event loop
@@ -134,9 +125,6 @@ fn main() {
         window_target.set_control_flow(ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(50)));
         match event {
             Event::NewEvents(ne) => {
-                let now = Instant::now();
-                imgui_context.io_mut().update_delta_time(now.duration_since(last_frame));
-                last_frame = now;
                 if matches!(ne, StartCause::ResumeTimeReached{..}) {
                     window.request_redraw();
                 }
@@ -148,28 +136,30 @@ fn main() {
                 ..
             } => {
                 // The renderer assumes you'll be clearing the buffer yourself
-                unsafe { ig_renderer.gl_context().clear_color(0.0, 0.0, 0.05, 0.0) };
-                unsafe { ig_renderer.gl_context().clear(glow::COLOR_BUFFER_BIT); };
+                unsafe { gl.clear_color(0.0, 0.0, 0.05, 0.0) };
+                unsafe { gl.clear(glow::COLOR_BUFFER_BIT); };
 
                 if state.request_regen {
-                    tree_gl.regen_active(ig_renderer.gl_context(), &state.build, &state.path_hovered, &state.path_red);
+                    tree_gl.regen_active(&gl, &state.build, &state.path_hovered, &state.path_red);
                     state.request_regen = false;
                 }
                 if state.request_recalc {
                     state.defence_calc = calc::calc_defence(&state.build);
                     state.request_recalc = false;
                 }
-                let ui = imgui_context.frame();
+
                 match state.ui_state {
                     UiState::ChooseBuild => {
-                        gui::build_selection::draw(ui, &mut state);
-                        if state.show_settings {
-                            gui::settings::draw(ui, &mut state);
-                            if vsync != state.config.vsync {
-                                vsync = state.config.vsync;
-                                set_vsync(&surface, &context, vsync);
+                        egui_glow.run(&window, |egui_ctx| {
+                            gui::build_selection::draw(egui_ctx, &mut state);
+                            if state.show_settings {
+                                gui::settings::draw(egui_ctx, &mut state);
+                                if vsync != state.config.vsync {
+                                    vsync = state.config.vsync;
+                                    set_vsync(&surface, &context, vsync);
+                                }
                             }
-                        }
+                        });
                         if state.ui_state != UiState::ChooseBuild {
                             window.request_redraw();
                         }
@@ -202,13 +192,15 @@ fn main() {
                         }
 
                         tree_gl.draw(
-                            ig_renderer.gl_context(),
+                            &gl,
                             state.zoom,
                             state.tree_translate,
                         );
-                        gui::draw_top_panel(ui, &mut state);
-                        gui::draw_left_panel(ui, &mut state);
-                        gui::tree_view::draw(ui, &mut state);
+                        egui_glow.run(&window, |egui_ctx| {
+                            gui::draw_top_panel(egui_ctx, &mut state);
+                            gui::draw_left_panel(egui_ctx, &mut state);
+                            gui::tree_view::draw(egui_ctx, &mut state);
+                        });
                     }
                     _ => eprintln!("Can't draw state {:?}", state.ui_state),
                 };
@@ -219,11 +211,7 @@ fn main() {
                     }
                 }
 
-                winit_platform.prepare_render(ui, &window);
-                let draw_data = imgui_context.render();
-                if let Err(err) = ig_renderer.render(draw_data) {
-                    eprintln!("Error rendering imgui: {err}");
-                }
+                egui_glow.paint(&window);
 
                 if !vsync {
                     let instant = Instant::now();
@@ -234,9 +222,6 @@ fn main() {
                         std::thread::sleep(sleep_for);
                     }
                 }
-                winit_platform
-                    .prepare_frame(imgui_context.io_mut(), &window)
-                    .unwrap();
                 if let Err(err) = surface.swap_buffers(&context) {
                     eprintln!("Failed to swap buffers: {err}");
                 }
@@ -273,7 +258,7 @@ fn main() {
                     } => {
                         unsafe {
                             state.dimensions = (physical_size.width, physical_size.height);
-                            ig_renderer.gl_context().viewport(
+                            gl.viewport(
                                 0,
                                 0,
                                 physical_size.width as i32,
@@ -365,7 +350,9 @@ fn main() {
                 }
 
                 if forward_event {
-                    winit_platform.handle_event(imgui_context.io_mut(), &window, &event);
+                    if let Event::WindowEvent {event, .. } = event {
+                        let _ = egui_glow.on_window_event(&window, &event);
+                    }
                 }
             }
         }
@@ -379,14 +366,13 @@ fn create_window() -> (EventLoop<()>, Window, Surface<WindowSurface>, PossiblyCu
         .with_inner_size(LogicalSize::new(1024, 768))
         .with_visible(false);
     let (window, cfg) = glutin_winit::DisplayBuilder::new()
-        .with_window_builder(Some(window_builder))
+        .with_window_builder(Some(window_builder.clone()))
         .build(&event_loop, ConfigTemplateBuilder::new().with_multisampling(4), |mut configs| {
             configs.next().unwrap()
         })
         .expect("Failed to create OpenGL window");
 
     let window = window.unwrap();
-
     let context_attribs = ContextAttributesBuilder::new().build(Some(window.raw_window_handle()));
     let context = unsafe {
         cfg.display()
@@ -419,33 +405,4 @@ fn glow_context(context: &PossiblyCurrentContext) -> glow::Context {
     unsafe {
         glow::Context::from_loader_function_cstr(|s| context.display().get_proc_address(s).cast())
     }
-}
-
-fn imgui_init(window: &Window) -> (WinitPlatform, imgui::Context) {
-    let mut imgui_context = imgui::Context::create();
-    imgui_context.set_ini_filename(None);
-
-    let mut winit_platform = WinitPlatform::init(&mut imgui_context);
-    winit_platform.attach_window(
-        imgui_context.io_mut(),
-        window,
-        imgui_winit_support::HiDpiMode::Rounded,
-    );
-
-    imgui_context
-        .fonts()
-        .add_font(&[imgui::FontSource::DefaultFontData { config: None }]);
-
-    if let Some(backend) = clipboard::init() {
-        imgui_context.set_clipboard_backend(backend);
-    } else {
-        eprintln!("Failed to initialize clipboard");
-    }
-
-    imgui_context.io_mut().font_global_scale = (1.0 / winit_platform.hidpi_factor()) as f32;
-    // For some reason imgui will register numpad 2,4,6,8 as navigation keys rather than the digits,
-    // though this may be due to bad event passing
-    //imgui_context.io_mut().config_flags |= ConfigFlags::NAV_ENABLE_KEYBOARD;
-
-    (winit_platform, imgui_context)
 }
