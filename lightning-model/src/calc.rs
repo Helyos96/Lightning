@@ -33,8 +33,8 @@ pub fn calc_gem(build: &Build, support_gems: &Vec<Gem>, active_gem: &Gem) -> FxH
         let mut min = build.calc_stat("minimum damage", &mods, tags, Some(*dt));
         let mut max = build.calc_stat("maximum damage", &mods, tags, Some(*dt));
 
-        if max.val() <= min.val() {
-            eprintln!("ERR: max ({}) <= min ({})", min.val(), max.val());
+        if max.val() < min.val() {
+            eprintln!("ERR: max ({}) < min ({})", min.val(), max.val());
         }
 
         if max.val() <= 0 {

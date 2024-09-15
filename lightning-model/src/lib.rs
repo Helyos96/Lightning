@@ -9,7 +9,7 @@ pub mod data;
 pub mod gem;
 mod gemstats;
 pub mod item;
-mod modifier;
+pub mod modifier;
 pub mod tree;
 pub mod util;
 

@@ -167,7 +167,7 @@ pub fn draw_top_panel(ctx: &egui::Context, state: &mut State) {
         .resizable(false)
         .exact_height(TOP_PANEL_HEIGHT)
         .show(ctx, |ui| {
-            ui.horizontal(|ui| {
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                 if ui.button("<< Builds").clicked() {
                     state.ui_state = UiState::ChooseBuild;
                 }

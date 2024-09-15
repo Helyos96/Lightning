@@ -105,6 +105,8 @@ fn main() {
     let mut egui_glow = egui_glow::EguiGlow::new(&event_loop, gl.clone(), None, None);
     egui_glow.egui_ctx.style_mut(|style| {
         style.animation_time = 0.0;
+        style.text_styles.get_mut(&egui::TextStyle::Body).unwrap().size = 14.0;
+        style.text_styles.get_mut(&egui::TextStyle::Button).unwrap().size = 14.0;
     });
 
     let mut state = State::new(get_config());
