@@ -515,3 +515,36 @@ fn test_parse() {
     assert!(parse_mod("50% increased melee physical damage", Source::Innate).is_some());
     assert!(parse_mod("50% increased melee physical damage per level", Source::Innate).is_some());
 }
+
+#[test]
+fn count_tree_parses() {
+    use crate::tree::NodeType;
+
+    let mut nb_mods = 0;
+    let mut nb_mods_success = 0;
+
+    let mut func = |stat| {
+        nb_mods += 1;
+        if parse_mod(stat, Source::Innate).is_some() {
+            nb_mods_success += 1;
+        }
+    };
+
+    for node in crate::data::TREE.nodes.values() {
+        match node.node_type() {
+            NodeType::Mastery => {
+                for effect in &node.mastery_effects {
+                    for stat in &effect.stats {
+                        func(stat);
+                    }
+                }
+            }
+            _ => {
+                for stat in &node.stats {
+                    func(stat);
+                }
+            }
+        }
+    }
+    println!("Tree mods parsed: {}/{}", nb_mods_success, nb_mods);
+}
