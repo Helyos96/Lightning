@@ -1,7 +1,8 @@
 use crate::data::GEMS;
 use crate::gemstats::GEMSTATS;
 use crate::modifier::{Mod, Source};
-use crate::util;
+use crate::{item, util};
+use crate::data;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
@@ -99,7 +100,7 @@ impl Static {
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq)]
 #[serde(rename_all = "lowercase")]
 #[allow(non_camel_case_types)]
-pub enum Tag {
+pub enum GemTag {
     Attack,
     Melee,
     Spell,
@@ -164,7 +165,11 @@ pub struct GemData {
     per_level: FxHashMap<u32, Level>,
     pub r#static: Static,
     #[serde(default)]
-    pub tags: FxHashSet<Tag>,
+    pub tags: FxHashSet<GemTag>,
+    #[serde(default)]
+    pub weapon_restrictions: FxHashSet<item::ItemClass>,
+    #[serde(default)]
+    pub types: FxHashSet<data::ActiveSkillTypes>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

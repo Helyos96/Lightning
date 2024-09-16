@@ -1,4 +1,5 @@
-use crate::gem::Tag;
+//use crate::gem::Tag;
+use crate::gem::GemTag;
 use crate::modifier::{DamageType, Mod, Type};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
@@ -15,16 +16,16 @@ lazy_static! {
             Mod { stat: "cast speed".to_string(), typ: Type::Inc, ..Default::default() },
         ]);
         map.insert("spell_minimum_base_fire_damage", vec![
-            Mod { stat: "minimum damage".to_string(), typ: Type::Base, tags: hset![Tag::Spell], dt: Some(DamageType::Fire), ..Default::default() },
+            Mod { stat: "minimum damage".to_string(), typ: Type::Base, tags: hset![GemTag::Spell], dt: Some(DamageType::Fire), ..Default::default() },
         ]);
         map.insert("spell_maximum_base_fire_damage", vec![
-            Mod { stat: "maximum damage".to_string(), typ: Type::Base, tags: hset![Tag::Spell], dt: Some(DamageType::Fire), ..Default::default() },
+            Mod { stat: "maximum damage".to_string(), typ: Type::Base, tags: hset![GemTag::Spell], dt: Some(DamageType::Fire), ..Default::default() },
         ]);
         map.insert("support_concentrated_effect_skill_area_of_effect_+%_final", vec![
             Mod { stat: "area of effect".to_string(), typ: Type::More, ..Default::default() },
         ]);
         map.insert("support_area_concentrate_area_damage_+%_final", vec![
-            Mod { stat: "damage".to_string(), typ: Type::More, tags: hset![Tag::Area], ..Default::default() },
+            Mod { stat: "damage".to_string(), typ: Type::More, tags: hset![GemTag::Area], ..Default::default() },
         ]);
 
         map

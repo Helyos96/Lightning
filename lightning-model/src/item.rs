@@ -4,6 +4,33 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use lazy_static::lazy_static;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ItemClass {
+    Unarmed,
+    Ring,
+    Amulet,
+    Claw,
+    Dagger,
+    Wand,
+    Bow,
+    Staff,
+    Shield,
+    #[serde(rename = "One Hand Sword")]
+    OneHandSword,
+    #[serde(rename = "Thrusting One Hand Sword")]
+    ThrustingOneHandSword,
+    #[serde(rename = "One Hand Axe")]
+    OneHandAxe,
+    #[serde(rename = "One Hand Mace")]
+    OneHandMace,
+    #[serde(rename = "Two Hand Sword")]
+    TwoHandSword,
+    #[serde(rename = "Two Hand Axe")]
+    TwoHandAxe,
+    #[serde(rename = "Two Hand Mace")]
+    TwoHandMace,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PropertyMinMax {
     min: u32,

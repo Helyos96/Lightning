@@ -1,5 +1,6 @@
-use crate::gem::{Gem, Tag};
-use crate::item::Item;
+use crate::gem::{Gem, GemTag};
+use crate::data::ActiveSkillTypes;
+use crate::item::{self, Item, ItemClass};
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -18,18 +19,18 @@ use std::sync::Mutex;
 lazy_static! {
     // Currently limited to one word,
     // need to change parse_stat otherwise.
-    static ref TAGS: FxHashMap<&'static str, Tag> = {
+    static ref TAGS: FxHashMap<&'static str, GemTag> = {
         let mut map = FxHashMap::default();
-        map.insert("spell", Tag::Spell);
-        map.insert("melee", Tag::Melee);
-        map.insert("attack", Tag::Attack);
-        map.insert("projectile", Tag::Projectile);
-        map.insert("brand", Tag::Brand);
-        map.insert("mine", Tag::Mine);
-        map.insert("trap", Tag::Trap);
-        map.insert("curse", Tag::Curse);
-        map.insert("minion", Tag::Minion);
-        map.insert("totem", Tag::Totem);
+        map.insert("spell", GemTag::Spell);
+        map.insert("melee", GemTag::Melee);
+        map.insert("attack", GemTag::Attack);
+        map.insert("projectile", GemTag::Projectile);
+        map.insert("brand", GemTag::Brand);
+        map.insert("mine", GemTag::Mine);
+        map.insert("trap", GemTag::Trap);
+        map.insert("curse", GemTag::Curse);
+        map.insert("minion", GemTag::Minion);
+        map.insert("totem", GemTag::Totem);
         map
     };
     static ref DTS: FxHashMap<&'static str, DamageType> = {
@@ -59,13 +60,24 @@ const ENDINGS: [(&str, Mutation); 4] = [
     ),
 ];
 
-const ENDINGS_TAGS: [(&str, Tag); 5] = [
-    ("of aura skills", Tag::Aura),
-    ("with attack skills", Tag::Attack),
-    ("with bow skills", Tag::Bow),
-    ("with bows", Tag::Bow),
-    ("of skills", Tag::Active_Skill),
+const ENDINGS_GEMTAGS: [(&str, GemTag); 3] = [
+    ("of aura skills", GemTag::Aura),
+    ("with attack skills", GemTag::Attack),
+    ("of skills", GemTag::Active_Skill),
 ];
+
+lazy_static! {
+    static ref ENDINGS_WEAPON_RESTRICTIONS: [(&'static str, FxHashSet<ItemClass>); 8] = [
+        ("with axes", hset![ItemClass::OneHandAxe, ItemClass::TwoHandAxe]),
+        ("with swords", hset![ItemClass::OneHandSword, ItemClass::TwoHandSword, ItemClass::ThrustingOneHandSword]),
+        ("with maces", hset![ItemClass::OneHandMace, ItemClass::TwoHandMace]),
+        ("with two handed melee weapons", hset![ItemClass::TwoHandSword, ItemClass::TwoHandMace, ItemClass::TwoHandAxe]),
+        ("while holding a shield", hset![ItemClass::Shield]),
+        ("while wielding a staff", hset![ItemClass::Staff]),
+        ("with bow skills", hset![ItemClass::Bow]),
+        ("with bows", hset![ItemClass::Bow]),
+    ];
+}
 
 lazy_static! {
     static ref BEGINNINGS: Vec<(Regex, Box<dyn Fn(&Captures) -> Option<Vec<Mod>> + Send + Sync>)> = vec![
@@ -84,7 +96,7 @@ lazy_static! {
                         ..Default::default()
                     };
                     if insert_minion_tag {
-                        ret.tags.insert(Tag::Minion);
+                        ret.tags.insert(GemTag::Minion);
                     }
                     ret
                 }).collect())
@@ -119,7 +131,7 @@ lazy_static! {
                         ..Default::default()
                     };
                     if insert_minion_tag {
-                        ret.tags.insert(Tag::Minion);
+                        ret.tags.insert(GemTag::Minion);
                     }
                     ret
                 }).collect())
@@ -254,6 +266,9 @@ lazy_static! {
         "cooldown recovery speed",
         "projectile speed",
 
+        "chance to block attack damage",
+        "chance to block spell damage",
+
         "area of effect",
         "effect",
         "damage over time multiplier",
@@ -315,7 +330,8 @@ pub enum Property {
 
 pub enum Ending {
     Mutation(Mutation),
-    Tag(Tag),
+    Tag(GemTag),
+    Weapon(FxHashSet<ItemClass>),
 }
 
 #[derive(Debug, Clone)]
@@ -349,9 +365,10 @@ pub struct Mod {
     pub typ: Type,
     pub amount: i64,
     pub flags: Vec<Mutation>,
-    pub tags: FxHashSet<Tag>,
+    pub tags: FxHashSet<GemTag>,
     pub dt: Option<DamageType>,
     pub source: Source,
+    pub weapons: FxHashSet<ItemClass>
 }
 
 fn parse_ending(m: &str) -> Option<(usize, Ending)> {
@@ -360,16 +377,21 @@ fn parse_ending(m: &str) -> Option<(usize, Ending)> {
             return Some((ending.0.len(), Ending::Mutation(ending.1.clone())));
         }
     }
-    for ending in ENDINGS_TAGS.iter() {
+    for ending in ENDINGS_GEMTAGS.iter() {
         if m.ends_with(ending.0) {
             return Some((ending.0.len(), Ending::Tag(ending.1)));
+        }
+    }
+    for ending in ENDINGS_WEAPON_RESTRICTIONS.iter() {
+        if m.ends_with(ending.0) {
+            return Some((ending.0.len(), Ending::Weapon(ending.1.clone())));
         }
     }
 
     None
 }
 
-fn parse_stat_nomulti(input: &str) -> Option<(&str, FxHashSet<Tag>, Option<DamageType>)> {
+fn parse_stat_nomulti(input: &str) -> Option<(&str, FxHashSet<GemTag>, Option<DamageType>)> {
     let mut tags = hset![];
     let mut dt = None;
 
@@ -399,7 +421,7 @@ fn parse_stat_nomulti(input: &str) -> Option<(&str, FxHashSet<Tag>, Option<Damag
 }
 
 /// Attempts to parse a chunk like "melee physical damage"
-fn parse_stat(input: &str) -> Option<Vec<(&str, FxHashSet<Tag>, Option<DamageType>)>> {
+fn parse_stat(input: &str) -> Option<Vec<(&str, FxHashSet<GemTag>, Option<DamageType>)>> {
     if let Some(stats) = MULTISTATS.get(input) {
         let mut ret = vec![];
         for stat in stats {
@@ -417,6 +439,7 @@ fn parse_stat(input: &str) -> Option<Vec<(&str, FxHashSet<Tag>, Option<DamageTyp
     if let Some(stat) = parse_stat_nomulti(input) {
         return Some(vec![stat]);
     }
+
     None
 }
 
@@ -440,6 +463,7 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
     let mut m = &input[0..];
     let mut flags = vec![];
     let mut tags = hset![];
+    let mut weapons = hset![];
 
     while let Some(ending) = parse_ending(&m.to_lowercase()) {
         m = &m[0..m.len() - ending.0 - 1];
@@ -450,6 +474,9 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
             Ending::Tag(tag) => {
                 tags.insert(tag);
             }
+            Ending::Weapon(weapon) => {
+                weapons.extend(weapon);
+            }
         }
     }
 
@@ -459,6 +486,7 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
                 for modifier in &mut mods {
                     modifier.tags.extend(tags.clone());
                     modifier.flags.extend(flags.clone());
+                    modifier.weapons.extend(weapons.clone());
                     modifier.source = source;
                 }
                 CACHE.lock().unwrap().insert(input.to_string(), Some(mods.clone()));

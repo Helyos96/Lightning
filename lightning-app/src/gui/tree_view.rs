@@ -13,12 +13,42 @@ fn rarity_to_color(rarity: Rarity) -> egui::Color32 {
     }
 }
 
-fn mod_to_richtext(mod_str: &str) -> egui::RichText {
-    let mut ret = egui::RichText::new(mod_str);
-    if lightning_model::modifier::parse_mod(mod_str, Source::Innate).is_some() {
-        ret = ret.color(egui::Color32::LIGHT_BLUE);
-    } else {
-        ret = ret.color(egui::Color32::LIGHT_RED);
+fn mod_to_richtext(mod_str: &str, source: Source, show_debug: bool) -> egui::text::LayoutJob {
+    let mut ret = egui::text::LayoutJob::default();
+    let modifier = lightning_model::modifier::parse_mod(mod_str, source);
+
+    match modifier {
+        Some(modifier) => {
+            ret.append(
+                mod_str,
+                0.0,
+                egui::text::TextFormat {
+                    color: egui::Color32::LIGHT_BLUE,
+                    ..Default::default()
+                },
+            );
+            if show_debug {
+                ret.append(
+                    format!("\n{:?}", modifier).as_str(),
+                    0.0,
+                    egui::text::TextFormat {
+                        font_id: egui::FontId::new(10.0, egui::FontFamily::Monospace),
+                        color: egui::Color32::LIGHT_GRAY,
+                        ..Default::default()
+                    },
+                );
+            }
+        }
+        None => {
+            ret.append(
+                mod_str,
+                0.0,
+                egui::text::TextFormat {
+                    color: egui::Color32::LIGHT_RED,
+                    ..Default::default()
+                },
+            );
+        }
     }
     ret
 }
@@ -45,13 +75,13 @@ fn draw_hover_window(ctx: &egui::Context, state: &mut State) {
 
                         ui.spacing_mut().item_spacing = item_spacing;
                         for stat in &item.mods_impl {
-                            ui.label(mod_to_richtext(stat));
+                            ui.label(mod_to_richtext(stat, Source::Item, state.config.show_debug));
                         }
                         if !item.mods_impl.is_empty() {
                             ui.separator();
                         }
                         for stat in &item.mods_expl {
-                            ui.label(mod_to_richtext(stat));
+                            ui.label(mod_to_richtext(stat, Source::Item, state.config.show_debug));
                         }
                     } else {
                         ui.label(egui::RichText::new(&node.name).color(egui::Color32::WHITE).size(20.0));
@@ -63,7 +93,7 @@ fn draw_hover_window(ctx: &egui::Context, state: &mut State) {
                     ui.spacing_mut().item_spacing = item_spacing;
                     for effect in &node.mastery_effects {
                         for stat in &effect.stats {
-                            ui.label(mod_to_richtext(stat));
+                            ui.label(mod_to_richtext(stat, Source::Mastery((node.skill, effect.effect)), state.config.show_debug));
                         }
                     }
                 }
@@ -72,7 +102,7 @@ fn draw_hover_window(ctx: &egui::Context, state: &mut State) {
                     ui.separator();
                     ui.spacing_mut().item_spacing = item_spacing;
                     for stat in &node.stats {
-                        ui.label(mod_to_richtext(stat));
+                        ui.label(mod_to_richtext(stat, Source::Node(node.skill), state.config.show_debug));
                     }
                 }
             }

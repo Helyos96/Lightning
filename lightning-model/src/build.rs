@@ -1,5 +1,5 @@
-use crate::data::TREE;
-use crate::gem::{Gem, Tag};
+use crate::data::{TREE};
+use crate::gem::{Gem, GemTag};
 use crate::item::Item;
 use crate::modifier::{DamageType, Mod, Mutation, Property, Type};
 use crate::tree::{Class, PassiveTree, TreeData};
@@ -165,7 +165,7 @@ impl Build {
         }
         if include_global {
             for gl in &self.gem_links {
-                for ag in gl.active_gems.iter().filter(|g| g.data().tags.contains(&Tag::Aura)) {
+                for ag in gl.active_gems.iter().filter(|g| g.data().tags.contains(&GemTag::Aura)) {
                     mods.extend(ag.calc_mods());
                 }
             }
@@ -173,7 +173,7 @@ impl Build {
         mods
     }
 
-    pub fn calc_stat(&self, stat_str: &str, mods: &[Mod], tags: &FxHashSet<Tag>, dt: Option<DamageType>) -> Stat {
+    pub fn calc_stat(&self, stat_str: &str, mods: &[Mod], tags: &FxHashSet<GemTag>, dt: Option<DamageType>) -> Stat {
         let mut stat = Stat::default();
 
         for m in mods
@@ -200,7 +200,7 @@ impl Build {
     /// Calc all stats irrelevant of damage types.
     /// For any stat that may be affected by damage type,
     /// use calc_stat_dmg.
-    pub fn calc_stats(&self, mods: &[Mod], tags: &FxHashSet<Tag>) -> FxHashMap<String, Stat> {
+    pub fn calc_stats(&self, mods: &[Mod], tags: &FxHashSet<GemTag>) -> FxHashMap<String, Stat> {
         let mut stats: FxHashMap<String, Stat> = Default::default();
         let mut mods_sec_pass = vec![];
         //let mut mods_third_pass = vec![];

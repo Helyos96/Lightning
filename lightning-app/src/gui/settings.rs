@@ -29,6 +29,11 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                     let _ = state.config.save();
                 }
                 ui.end_row();
+                ui.label("Show Debug");
+                if ui.checkbox(&mut state.config.show_debug, "").clicked() {
+                    let _ = state.config.save();
+                }
+                ui.end_row();
             });
             if ui.button("Close").clicked() {
                 state.show_settings = false;

@@ -1,5 +1,5 @@
 use crate::build::{Build, Stat};
-use crate::gem::{Gem, Tag};
+use crate::gem::{Gem, GemTag};
 use crate::modifier::DamageType;
 use rustc_hash::FxHashMap;
 
@@ -48,11 +48,11 @@ pub fn calc_gem(build: &Build, support_gems: &Vec<Gem>, active_gem: &Gem) -> FxH
     }
 
     if let Some(mut time) = active_gem.data().cast_time {
-        if tags.contains(&Tag::Spell) {
+        if tags.contains(&GemTag::Spell) {
             if let Some(cast_speed) = stats.get("cast speed") {
                 time = cast_speed.calc_inv(time);
             }
-        } else if tags.contains(&Tag::Attack) {
+        } else if tags.contains(&GemTag::Attack) {
             if let Some(attack_speed) = stats.get("attack speed") {
                 time = attack_speed.calc_inv(time);
             }

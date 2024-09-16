@@ -10,6 +10,8 @@ pub struct Config {
     pub import_accounts: Vec<String>,
     pub framerate: u64,
     pub vsync: bool,
+    #[serde(default)]
+    pub show_debug: bool,
 }
 
 #[cfg(target_os = "linux")]
@@ -52,6 +54,7 @@ impl Default for Config {
             import_accounts: vec![],
             framerate: 165,
             vsync: false,
+            show_debug: false,
         }
     }
 }
