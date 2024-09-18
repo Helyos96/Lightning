@@ -85,6 +85,7 @@ fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
             .unwrap();
             let new_gem = gem::Gem {
                 id: gem_id.to_string(),
+                enabled: true,
                 level,
                 qual: 0,
                 alt_qual: 0,

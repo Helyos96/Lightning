@@ -202,12 +202,22 @@ fn main() {
                             gui::draw_top_panel(egui_ctx, &mut state);
                             gui::draw_left_panel(egui_ctx, &mut state);
                             gui::tree_view::draw(egui_ctx, &mut state);
+                            if state.show_settings {
+                                gui::settings::draw(egui_ctx, &mut state);
+                                if vsync != state.config.vsync {
+                                    vsync = state.config.vsync;
+                                    set_vsync(&surface, &context, vsync);
+                                }
+                            }
                         });
                     }
-                    _ => eprintln!("Can't draw state {:?}", state.ui_state),
+                    _ => {
+                        eprintln!("Can't draw state {:?}", state.ui_state);
+                        state.ui_state = UiState::ChooseBuild;
+                    }
                 };
                 if let Err(err) = process_state(&mut state) {
-                    println!("State Error: {:?}: {}", state.ui_state, err);
+                    eprintln!("State Error: {:?}: {}", state.ui_state, err);
                     if state.ui_state == UiState::ImportBuild {
                         state.ui_state = UiState::ChooseBuild;
                     }
@@ -237,123 +247,121 @@ fn main() {
             }
             event => {
                 window.request_redraw();
-                let mut forward_event = true;
-                match event {
-                    Event::WindowEvent {
-                        event:
-                            WindowEvent::MouseWheel {
-                                delta: event::MouseScrollDelta::LineDelta(_h, v),
-                                phase: event::TouchPhase::Moved,
-                                ..
-                            },
-                        ..
-                    } => {
-                        if state.ui_state == UiState::Main && gui::is_over_tree(&state.mouse_pos) {
-                            forward_event = false;
-                            state.zoom_tmp = (state.zoom_tmp + v).clamp(1.0, 10.0);
-                            state.zoom = state.zoom_tmp.round();
-                        }
-                    }
-                    Event::WindowEvent {
-                        event: WindowEvent::Resized(physical_size),
-                        ..
-                    } => {
-                        unsafe {
-                            state.dimensions = (physical_size.width, physical_size.height);
-                            gl.viewport(
-                                0,
-                                0,
-                                physical_size.width as i32,
-                                physical_size.height as i32,
-                            )
-                        };
-                    }
-                    Event::WindowEvent {
-                        event:
-                            WindowEvent::MouseInput {
-                                state: button_state,
-                                button,
-                                ..
-                            },
-                        ..
-                    } => {
-                        if button == MouseButton::Left {
-                            if button_state == ElementState::Pressed {
-                                if state.ui_state == UiState::Main && gui::is_over_tree(&state.mouse_pos) {
-                                    state.mouse_tree_drag = Some(state.mouse_pos);
-                                }
-                            } else if button_state == ElementState::Released {
-                                if state.hovered_node.is_some() {
-                                    state.build.tree.flip_node(state.hovered_node.as_ref().unwrap().skill);
-                                    state.request_regen = true;
-                                    state.request_recalc = true;
-                                    state.path_hovered = None;
-                                    state.path_red = None;
-                                }
-                                state.mouse_tree_drag = None;
+                let mut process_event = true;
+                if let Event::WindowEvent {event, .. } = &event {
+                    process_event = !egui_glow.on_window_event(&window, event).consumed;
+                }
+                if process_event {
+                    match event {
+                        Event::WindowEvent {
+                            event:
+                                WindowEvent::MouseWheel {
+                                    delta: event::MouseScrollDelta::LineDelta(_h, v),
+                                    phase: event::TouchPhase::Moved,
+                                    ..
+                                },
+                            ..
+                        } => {
+                            if state.ui_state == UiState::Main && gui::is_over_tree(&state.mouse_pos) {
+                                state.zoom_tmp = (state.zoom_tmp + v).clamp(1.0, 10.0);
+                                state.zoom = state.zoom_tmp.round();
                             }
                         }
-                    }
-                    Event::WindowEvent {
-                        event:
-                            WindowEvent::KeyboardInput {
-                                event:
-                                    event::KeyEvent {
-                                        physical_key: key,
-                                        state: key_state,
-                                        ..
-                                    },
-                                ..
-                            },
-                        ..
-                    } => match key {
-                        PhysicalKey::Code(KeyCode::ArrowLeft) => state.key_left = key_state,
-                        PhysicalKey::Code(KeyCode::ArrowRight) => state.key_right = key_state,
-                        PhysicalKey::Code(KeyCode::ArrowUp) => state.key_up = key_state,
-                        PhysicalKey::Code(KeyCode::ArrowDown) => state.key_down = key_state,
-                        _ => {}
-                    },
-                    Event::WindowEvent {
-                        event: WindowEvent::CursorMoved { position, .. },
-                        ..
-                    } => {
-                        let (mut x, mut y) = (position.x as f32, position.y as f32);
-                        state.mouse_pos = (x, y);
-                        let aspect_ratio = state.dimensions.0 as f32 / state.dimensions.1 as f32;
-                        if let Some(drag) = state.mouse_tree_drag {
-                            let (dx, dy) = (x - drag.0, y - drag.1);
-                            state.tree_translate.0 +=
-                                dx * 12500.0 / (state.dimensions.0 as f32 / 2.0) / (state.zoom / aspect_ratio);
-                            state.tree_translate.1 -=
-                                dy * 12500.0 / (state.dimensions.1 as f32 / 2.0) / state.zoom;
-                            state.mouse_tree_drag = Some(state.mouse_pos);
-                            state.hovered_node = None;
-                        } else if gui::is_over_tree(&state.mouse_pos) {
-                            // There's gotta be simpler computations for this
-                            x -= state.dimensions.0 as f32 / 2.0;
-                            y -= state.dimensions.1 as f32 / 2.0;
-                            y = y.neg();
-                            x /= state.dimensions.0 as f32 / 2.0;
-                            y /= state.dimensions.1 as f32 / 2.0;
-                            x -= state.tree_translate.0 * (state.zoom / aspect_ratio) / 12500.0;
-                            y -= state.tree_translate.1 * state.zoom / 12500.0;
-                            x *= aspect_ratio;
-                            x *= 12500.0 / state.zoom;
-                            y *= 12500.0 / state.zoom;
-
-                            state.hovered_node = tree_gl::hover::get_hovered_node(x, y);
-                        } else if state.hovered_node.is_some() {
-                            state.hovered_node = None;
-                            state.path_hovered = None;
-                            state.request_regen = true;
+                        Event::WindowEvent {
+                            event: WindowEvent::Resized(physical_size),
+                            ..
+                        } => {
+                            unsafe {
+                                state.dimensions = (physical_size.width, physical_size.height);
+                                gl.viewport(
+                                    0,
+                                    0,
+                                    physical_size.width as i32,
+                                    physical_size.height as i32,
+                                )
+                            };
                         }
-                    }
-                    _ => {}
-                }
+                        Event::WindowEvent {
+                            event:
+                                WindowEvent::MouseInput {
+                                    state: button_state,
+                                    button,
+                                    ..
+                                },
+                            ..
+                        } => {
+                            if button == MouseButton::Left {
+                                if button_state == ElementState::Pressed {
+                                    if state.ui_state == UiState::Main && gui::is_over_tree(&state.mouse_pos) {
+                                        state.mouse_tree_drag = Some(state.mouse_pos);
+                                    }
+                                } else if button_state == ElementState::Released {
+                                    if state.hovered_node.is_some() {
+                                        state.build.tree.flip_node(state.hovered_node.as_ref().unwrap().skill);
+                                        state.request_regen = true;
+                                        state.request_recalc = true;
+                                        state.path_hovered = None;
+                                        state.path_red = None;
+                                    }
+                                    state.mouse_tree_drag = None;
+                                }
+                            }
+                        }
+                        Event::WindowEvent {
+                            event:
+                                WindowEvent::KeyboardInput {
+                                    event:
+                                        event::KeyEvent {
+                                            physical_key: key,
+                                            state: key_state,
+                                            ..
+                                        },
+                                    ..
+                                },
+                            ..
+                        } => match key {
+                            PhysicalKey::Code(KeyCode::ArrowLeft) => state.key_left = key_state,
+                            PhysicalKey::Code(KeyCode::ArrowRight) => state.key_right = key_state,
+                            PhysicalKey::Code(KeyCode::ArrowUp) => state.key_up = key_state,
+                            PhysicalKey::Code(KeyCode::ArrowDown) => state.key_down = key_state,
+                            _ => {}
+                        },
+                        Event::WindowEvent {
+                            event: WindowEvent::CursorMoved { position, .. },
+                            ..
+                        } => {
+                            let (mut x, mut y) = (position.x as f32, position.y as f32);
+                            state.mouse_pos = (x, y);
+                            let aspect_ratio = state.dimensions.0 as f32 / state.dimensions.1 as f32;
+                            if let Some(drag) = state.mouse_tree_drag {
+                                let (dx, dy) = (x - drag.0, y - drag.1);
+                                state.tree_translate.0 +=
+                                    dx * 12500.0 / (state.dimensions.0 as f32 / 2.0) / (state.zoom / aspect_ratio);
+                                state.tree_translate.1 -=
+                                    dy * 12500.0 / (state.dimensions.1 as f32 / 2.0) / state.zoom;
+                                state.mouse_tree_drag = Some(state.mouse_pos);
+                                state.hovered_node = None;
+                            } else if gui::is_over_tree(&state.mouse_pos) {
+                                // There's gotta be simpler computations for this
+                                x -= state.dimensions.0 as f32 / 2.0;
+                                y -= state.dimensions.1 as f32 / 2.0;
+                                y = y.neg();
+                                x /= state.dimensions.0 as f32 / 2.0;
+                                y /= state.dimensions.1 as f32 / 2.0;
+                                x -= state.tree_translate.0 * (state.zoom / aspect_ratio) / 12500.0;
+                                y -= state.tree_translate.1 * state.zoom / 12500.0;
+                                x *= aspect_ratio;
+                                x *= 12500.0 / state.zoom;
+                                y *= 12500.0 / state.zoom;
 
-                if forward_event {
-                    if let Event::WindowEvent {event, .. } = event {
-                        let _ = egui_glow.on_window_event(&window, &event);
+                                state.hovered_node = tree_gl::hover::get_hovered_node(x, y);
+                            } else if state.hovered_node.is_some() {
+                                state.hovered_node = None;
+                                state.path_hovered = None;
+                                state.request_regen = true;
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }

@@ -1,17 +1,19 @@
+/// 2 ways to parse a mod:
+///
+/// 1. "Automatic": make sure all parts of your mod are declared
+///    in TAGS, STATS, BEGINNINGS and ENDINGS.
+/// 2. (todo) "Exotic": one-shot parsing of the entire mod
+///    through ONESHOTS.
+///
+/// All strings need to be lowercase.
+
 use crate::gem::{Gem, GemTag};
 use crate::data::ActiveSkillTypes;
 use crate::item::{self, Item, ItemClass};
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use rustc_hash::{FxHashMap, FxHashSet};
-/// 2 ways to parse a mod:
-///
-/// 1. "Automatic": make sure all parts of your mod are declared
-///    in TAGS, STATS, BEGINNINGS and ENDINGS.
-/// 2. (todo) "Exotic": one-shot parsing of the entire mod
-///    through SPECIALS.
-///
-/// All strings need to be lowercase.
+use rust_decimal::Decimal;
 use std::ops::Neg;
 use std::str::FromStr;
 use std::sync::Mutex;
@@ -60,37 +62,70 @@ const ENDINGS: [(&str, Mutation); 4] = [
     ),
 ];
 
-const ENDINGS_GEMTAGS: [(&str, GemTag); 3] = [
+const ENDINGS_GEMTAGS: [(&str, GemTag); 11] = [
     ("of aura skills", GemTag::Aura),
     ("with attack skills", GemTag::Attack),
     ("of skills", GemTag::Active_Skill),
+    ("with mines", GemTag::Mine),
+    ("with traps", GemTag::Trap),
+    ("with bow skills", GemTag::Bow),
+    ("with totem skills", GemTag::Totem),
+    ("for spell damage", GemTag::Spell),
+    ("with cold skills", GemTag::Cold),
+    ("with fire skills", GemTag::Fire),
+    ("with lightning skills", GemTag::Lightning),
 ];
 
+// Parses a string like '1.75' into i64 '175'
+fn parse_val100(val: &str) -> Option<i64> {
+    let dec = Decimal::from_str(val).ok()?;
+    match dec.scale() {
+        0 => Some((dec.mantissa() * 100) as i64),
+        1 => Some((dec.mantissa() * 10) as i64),
+        2 => Some(dec.mantissa() as i64),
+        _ => None,
+    }
+}
+
 lazy_static! {
-    static ref ENDINGS_WEAPON_RESTRICTIONS: [(&'static str, FxHashSet<ItemClass>); 8] = [
+    static ref ENDINGS_WEAPON_RESTRICTIONS: [(&'static str, FxHashSet<ItemClass>); 18] = [
         ("with axes", hset![ItemClass::OneHandAxe, ItemClass::TwoHandAxe]),
         ("with swords", hset![ItemClass::OneHandSword, ItemClass::TwoHandSword, ItemClass::ThrustingOneHandSword]),
         ("with maces", hset![ItemClass::OneHandMace, ItemClass::TwoHandMace]),
         ("with two handed melee weapons", hset![ItemClass::TwoHandSword, ItemClass::TwoHandMace, ItemClass::TwoHandAxe]),
+        ("with one handed melee weapons", hset![ItemClass::OneHandSword, ItemClass::OneHandMace, ItemClass::OneHandAxe, ItemClass::ThrustingOneHandSword]),
+        ("with one handed weapons", hset![ItemClass::OneHandSword, ItemClass::OneHandMace, ItemClass::OneHandAxe, ItemClass::ThrustingOneHandSword]),
         ("while holding a shield", hset![ItemClass::Shield]),
         ("while wielding a staff", hset![ItemClass::Staff]),
-        ("with bow skills", hset![ItemClass::Bow]),
+        ("with staves", hset![ItemClass::Staff]),
         ("with bows", hset![ItemClass::Bow]),
+        ("with claws", hset![ItemClass::Claw]),
+        ("with wands", hset![ItemClass::Wand]),
+        ("with daggers", hset![ItemClass::Dagger]),
+        ("while wielding a sword", hset![ItemClass::OneHandSword, ItemClass::TwoHandSword, ItemClass::ThrustingOneHandSword]),
+        ("while wielding a dagger", hset![ItemClass::Dagger]),
+        ("while wielding a mace or sceptre", hset![ItemClass::OneHandMace, ItemClass::TwoHandMace, ItemClass::Sceptre]),
+        ("with maces or sceptres", hset![ItemClass::OneHandMace, ItemClass::TwoHandMace, ItemClass::Sceptre]),
+        ("while wielding a claw or dagger", hset![ItemClass::Dagger, ItemClass::Claw]),
     ];
-}
 
-lazy_static! {
     static ref BEGINNINGS: Vec<(Regex, Box<dyn Fn(&Captures) -> Option<Vec<Mod>> + Send + Sync>)> = vec![
         (
-            regex!(r"^(minions (?:have|deal) )?([0-9]+)% increased ([a-z ]+)$"),
+            regex!(r"^(minions (?:have|deal) )?([0-9]+)% (increased|reduced) ([a-z ]+)$"),
             Box::new(|c| {
-                let stat_tags = parse_stat(&c[3])?;
+                let stat_tags = parse_stat(&c[4])?;
                 let insert_minion_tag = c.get(1).is_some();
+                let mut amount = i64::from_str(&c[2]).unwrap();
+                amount = match &c[3] {
+                    "reduced" => amount.neg(),
+                    "increased" => amount,
+                    _ => panic!(),
+                };
                 Some(stat_tags.iter().map(|s| {
                     let mut ret = Mod {
                         stat: s.0.to_string(),
                         typ: Type::Inc,
-                        amount: i64::from_str(&c[2]).unwrap(),
+                        amount,
                         tags: s.1.clone(),
                         dt: s.2,
                         ..Default::default()
@@ -99,21 +134,6 @@ lazy_static! {
                         ret.tags.insert(GemTag::Minion);
                     }
                     ret
-                }).collect())
-            })
-        ), (
-            regex!(r"^([0-9]+)% decreased ([a-z ]+)$"),
-            Box::new(|c| {
-                let stat_tags = parse_stat(&c[2])?;
-                Some(stat_tags.iter().map(|s| {
-                    Mod {
-                        stat: s.0.to_string(),
-                        typ: Type::Inc,
-                        amount: i64::from_str(&c[1]).unwrap().neg(),
-                        tags: s.1.clone(),
-                        dt: s.2,
-                        ..Default::default()
-                    }
                 }).collect())
             })
         ), (
@@ -121,11 +141,18 @@ lazy_static! {
             Box::new(|c| {
                 let stat_tags = parse_stat(&c[4])?;
                 let insert_minion_tag = c.get(1).is_some();
+                let mut amount = i64::from_str(&c[2]).unwrap();
+                if let Some(capture) = c.get(3) {
+                    amount = match capture.as_str() {
+                        "-" => amount.neg(),
+                        _ => amount,
+                    };
+                }
                 Some(stat_tags.iter().map(|s| {
                     let mut ret = Mod {
                         stat: s.0.to_string(),
                         typ: Type::Base,
-                        amount: i64::from_str(&c[2]).unwrap(),
+                        amount,
                         tags: s.1.clone(),
                         dt: s.2,
                         ..Default::default()
@@ -134,21 +161,6 @@ lazy_static! {
                         ret.tags.insert(GemTag::Minion);
                     }
                     ret
-                }).collect())
-            })
-        ), (
-            regex!(r"^\-([0-9]+)%? (to )?([a-z ]+)$"),
-            Box::new(|c| {
-                let stat_tags = parse_stat(&c[3])?;
-                Some(stat_tags.iter().map(|s| {
-                    Mod {
-                        stat: s.0.to_string(),
-                        typ: Type::Base,
-                        amount: i64::from_str(&c[1]).unwrap().neg(),
-                        tags: s.1.clone(),
-                        dt: s.2,
-                        ..Default::default()
-                    }
                 }).collect())
             })
         ), (
@@ -239,6 +251,26 @@ lazy_static! {
                     ..Default::default()
                 }])
             })
+        ), (
+            regex!(r"^regenerate ([0-9]+) life per second$"),
+            Box::new(|c| {
+                Some(vec![Mod {
+                    stat: "life regen".to_string(),
+                    typ: Type::Base,
+                    amount: i64::from_str(&c[1]).unwrap(),
+                    ..Default::default()
+                }])
+            })
+        ), (
+            regex!(r"^regenerate ([0-9.]+)% of life per second$"),
+            Box::new(|c| {
+                Some(vec![Mod {
+                    stat: "life regen pct".to_string(),
+                    typ: Type::Base,
+                    amount: parse_val100(&c[1])?,
+                    ..Default::default()
+                }])
+            })
         ),
     ];
 
@@ -265,9 +297,11 @@ lazy_static! {
         "warcry speed",
         "cooldown recovery speed",
         "projectile speed",
+        "trap throwing speed",
 
         "chance to block attack damage",
         "chance to block spell damage",
+        "chance to suppress spell damage",
 
         "area of effect",
         "effect",
@@ -279,12 +313,16 @@ lazy_static! {
         "skill effect duration",
         "duration",
 
+        "minimum frenzy charges",
+        "minimum power charges",
+        "minimum endurance charges",
         "maximum frenzy charges",
         "maximum power charges",
         "maximum endurance charges",
 
         "maximum life",
         "maximum mana",
+        "minimum rage",
         "maximum rage",
         "maximum energy shield",
         "energy shield recharge rate",
@@ -298,7 +336,6 @@ lazy_static! {
         "armour",
         "evasion rating",
         "stun threshold",
-        "chance to suppress spell damage",
         "chance to avoid being stunned",
 
         "maximum fire resistance",
@@ -309,6 +346,8 @@ lazy_static! {
 
         "flask charges gained",
         "flask effect duration",
+        "flask recovery rate",
+        "flask charges used",
     ];
 }
 
@@ -504,7 +543,7 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
 #[test]
 fn test_parse() {
     assert!(parse_mod("50% increased damage", Source::Innate).is_some());
-    assert!(parse_mod("50% decreased damage", Source::Innate).is_some());
+    assert!(parse_mod("50% reduced damage", Source::Innate).is_some());
     assert!(parse_mod("50% more damage", Source::Innate).is_some());
     assert!(parse_mod("50% less damage", Source::Innate).is_some());
     assert!(parse_mod("+5 damage", Source::Innate).is_some());

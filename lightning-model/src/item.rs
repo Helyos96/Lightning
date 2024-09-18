@@ -15,6 +15,7 @@ pub enum ItemClass {
     Bow,
     Staff,
     Shield,
+    Sceptre,
     #[serde(rename = "One Hand Sword")]
     OneHandSword,
     #[serde(rename = "Thrusting One Hand Sword")]

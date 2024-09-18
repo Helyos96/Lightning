@@ -151,6 +151,11 @@ pub fn draw_left_panel(ctx: &egui::Context, state: &mut State) {
                 ui.end_row();
                 state.instant_fps = instant;
             });
+            ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
+                if ui.button("Settings").clicked {
+                    state.show_settings = !state.show_settings;
+                }
+            });
             ui.allocate_space(ui.available_size());
         });
 }

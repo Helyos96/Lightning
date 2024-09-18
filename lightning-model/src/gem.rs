@@ -175,6 +175,7 @@ pub struct GemData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Gem {
     pub id: String,
+    pub enabled: bool,
     pub level: u32,
     pub qual: i32,
     pub alt_qual: i32,
