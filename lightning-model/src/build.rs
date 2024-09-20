@@ -1,7 +1,7 @@
-use crate::data::{TREE};
+use crate::data::TREE;
 use crate::gem::{Gem, GemTag};
 use crate::item::Item;
-use crate::modifier::{DamageType, Mod, Mutation, Property, Type};
+use crate::modifier::{Condition, Mod, Mutation, PropertyBool, PropertyInt, Type};
 use crate::tree::{Class, PassiveTree, TreeData};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -83,16 +83,20 @@ pub struct Build {
     pub equipment: FxHashMap<Slot, Item>, // todo: HashMap Slot
     pub inventory: Vec<Item>,
     pub tree: PassiveTree,
+    properties_int: FxHashMap<PropertyInt, i64>,
+    properties_bool: FxHashMap<PropertyBool, bool>,
 }
 
 impl Build {
     pub fn new_player() -> Build {
-        Build {
+        let mut ret = Build {
             name: "Untitled Build".to_string(),
             ascendancy: 0,
             level: 1,
             ..Default::default()
-        }
+        };
+        ret.set_property_int(PropertyInt::Level, 1);
+        ret
     }
 
     /// Returns mods from the following sources:
@@ -106,7 +110,7 @@ impl Build {
                 stat: "maximum life".to_string(),
                 typ: Type::Base,
                 amount: 12,
-                flags: vec![Mutation::MultiplierProperty((1, Property::Level))],
+                flags: vec![Mutation::MultiplierProperty((1, PropertyInt::Level))],
                 ..Default::default()
             },
             Mod {
@@ -158,6 +162,16 @@ impl Build {
                 amount: class_data.base_int,
                 ..Default::default()
             },
+            Mod {
+                stat: "damage".to_string(),
+                typ: Type::More,
+                amount: 1,
+                flags: vec![
+                    Mutation::MultiplierProperty((1, PropertyInt::Rage)),
+                ],
+                tags: hset![GemTag::Attack],
+                ..Default::default()
+            },
         ];
         mods.extend(self.tree.calc_mods());
         for item in self.equipment.values() {
@@ -173,12 +187,12 @@ impl Build {
         mods
     }
 
-    pub fn calc_stat(&self, stat_str: &str, mods: &[Mod], tags: &FxHashSet<GemTag>, dt: Option<DamageType>) -> Stat {
+    pub fn calc_stat(&self, stat_str: &str, mods: &[Mod], tags: &FxHashSet<GemTag>) -> Stat {
         let mut stat = Stat::default();
 
         for m in mods
             .iter()
-            .filter(|m| m.stat == stat_str && tags.is_superset(&m.tags) && (m.dt.is_none() || m.dt == dt))
+            .filter(|m| m.stat == stat_str && tags.is_superset(&m.tags))
         {
             let mut amount = m.amount;
             for f in &m.flags {
@@ -197,47 +211,111 @@ impl Build {
         stat
     }
 
+    pub fn property_int(&self, p: PropertyInt) -> i64 {
+        return self.properties_int.get(&p).copied().unwrap_or(0);
+    }
+
+    pub fn property_bool(&self, p: PropertyBool) -> bool {
+        return self.properties_bool.get(&p).copied().unwrap_or(false);
+    }
+
+    pub fn set_property_int(&mut self, p: PropertyInt, val: i64) {
+        self.properties_int.insert(p, val);
+    }
+
+    pub fn set_property_bool(&mut self, p: PropertyBool, val: bool) {
+        self.properties_bool.insert(p, val);
+    }
+
     /// Calc all stats irrelevant of damage types.
     /// For any stat that may be affected by damage type,
     /// use calc_stat_dmg.
     pub fn calc_stats(&self, mods: &[Mod], tags: &FxHashSet<GemTag>) -> FxHashMap<String, Stat> {
         let mut stats: FxHashMap<String, Stat> = Default::default();
         let mut mods_sec_pass = vec![];
-        //let mut mods_third_pass = vec![];
+        let mut mods_third_pass = vec![];
 
         for m in mods.iter().filter(|m| tags.is_superset(&m.tags) || m.stat == "effect") {
+            if !m.conditions.is_empty() {
+                mods_third_pass.push(m);
+                continue;
+            }
             if !m.flags.is_empty() {
                 mods_sec_pass.push(m);
                 continue;
             }
             stats.entry(m.stat.clone()).or_default().adjust(m.typ, m.amount, m);
-            /*if m.stat == "effect" {
-                mods_third_pass.push(m);
-            }*/
         }
 
         for m in mods_sec_pass {
             let mut amount = m.amount;
             for f in &m.flags {
                 match f {
-                    Mutation::MultiplierProperty(mp) => {
-                        amount *= match mp.1 {
-                            Property::Level => self.level as i64,
-                            _ => 1,
-                        }
-                    }
-                    Mutation::MultiplierStat(ms) => {
-                        amount *= match stats.get(&ms.1) {
-                            Some(stat) => stat.val() / ms.0,
+                    Mutation::MultiplierProperty(mutation) => {
+                        amount *= self.property_int(mutation.1) / mutation.0;
+                    },
+                    Mutation::MultiplierStat(mutation) => {
+                        amount *= match stats.get(&mutation.1) {
+                            Some(stat) => stat.val() / mutation.0,
                             None => 1,
                         }
-                    }
+                    },
                 }
             }
             stats.entry(m.stat.clone()).or_default().adjust(m.typ, amount, m);
-            /*if m.stat == "effect" {
-                mods_third_pass.push(m);
-            }*/
+        }
+
+        'outer: for m in mods_third_pass {
+            let mut amount = m.amount;
+            for f in &m.flags {
+                match f {
+                    Mutation::MultiplierProperty(mutation) => {
+                        amount *= self.property_int(mutation.1) / mutation.0;
+                    },
+                    Mutation::MultiplierStat(mutation) => {
+                        amount *= match stats.get(&mutation.1) {
+                            Some(stat) => stat.val() / mutation.0,
+                            None => 1,
+                        }
+                    },
+                }
+            }
+            for f in &m.conditions {
+                match f {
+                    Condition::GreaterEqualProperty(mutation) => {
+                        if self.property_int(mutation.1) < mutation.0 {
+                            continue 'outer;
+                        }
+                    },
+                    Condition::LesserEqualProperty(mutation) => {
+                        if self.property_int(mutation.1) > mutation.0 {
+                            continue 'outer;
+                        }
+                    },
+                    Condition::GreaterEqualStat(mutation) => {
+                        if let Some(stat) = stats.get(&mutation.1) {
+                            if stat.val() < mutation.0 {
+                                continue 'outer;
+                            }
+                        }
+                    },
+                    Condition::LesserEqualStat(mutation) => {
+                        if let Some(stat) = stats.get(&mutation.1) {
+                            if stat.val() > mutation.0 {
+                                continue 'outer;
+                            }
+                        } else {
+                            continue 'outer;
+                        }
+                    },
+                    Condition::PropertyBool(mutation) => {
+                        if self.property_bool(mutation.1) != mutation.0 {
+                            continue 'outer;
+                        }
+                    },
+                }
+            }
+            stats.entry(m.stat.clone()).or_default().adjust(m.typ, amount, m);
         }
 
         stats

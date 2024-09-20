@@ -14,6 +14,7 @@ use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use rustc_hash::{FxHashMap, FxHashSet};
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::ops::Neg;
 use std::str::FromStr;
 use std::sync::Mutex;
@@ -35,36 +36,30 @@ lazy_static! {
         map.insert("totem", GemTag::Totem);
         map
     };
-    static ref DTS: FxHashMap<&'static str, DamageType> = {
-        let mut map = FxHashMap::default();
-        map.insert("physical", DamageType::Physical);
-        map.insert("fire", DamageType::Fire);
-        map.insert("cold", DamageType::Cold);
-        map.insert("lightning", DamageType::Lightning);
-        map.insert("chaos", DamageType::Chaos);
-        map
-    };
 }
 
 const ENDINGS: [(&str, Mutation); 4] = [
-    ("per level", Mutation::MultiplierProperty((1, Property::Level))),
+    ("per level", Mutation::MultiplierProperty((1, PropertyInt::Level))),
     (
         "per frenzy charge",
-        Mutation::MultiplierProperty((1, Property::FrenzyCharges)),
+        Mutation::MultiplierProperty((1, PropertyInt::FrenzyCharges)),
     ),
     (
         "per power charge",
-        Mutation::MultiplierProperty((1, Property::PowerCharges)),
+        Mutation::MultiplierProperty((1, PropertyInt::PowerCharges)),
     ),
     (
         "per endurance charge",
-        Mutation::MultiplierProperty((1, Property::EnduranceCharges)),
+        Mutation::MultiplierProperty((1, PropertyInt::EnduranceCharges)),
     ),
 ];
 
-const ENDINGS_GEMTAGS: [(&str, GemTag); 11] = [
+const ENDINGS_GEMTAGS: [(&str, GemTag); 14] = [
     ("of aura skills", GemTag::Aura),
+    ("of curse skills", GemTag::Curse),
+    ("of hex skills", GemTag::Hex),
     ("with attack skills", GemTag::Attack),
+    ("of attacks", GemTag::Attack),
     ("of skills", GemTag::Active_Skill),
     ("with mines", GemTag::Mine),
     ("with traps", GemTag::Trap),
@@ -74,6 +69,13 @@ const ENDINGS_GEMTAGS: [(&str, GemTag); 11] = [
     ("with cold skills", GemTag::Cold),
     ("with fire skills", GemTag::Fire),
     ("with lightning skills", GemTag::Lightning),
+];
+
+const ENDINGS_CONDITIONS: [(&str, Condition); 4] = [
+    ("while fortified", Condition::PropertyBool((true, PropertyBool::Fortified))),
+    ("if you've dealt a critical strike recently", Condition::PropertyBool((true, PropertyBool::DealtCritRecently))),
+    ("while leeching", Condition::PropertyBool((true, PropertyBool::Leeching))),
+    ("when on full life", Condition::PropertyBool((true, PropertyBool::OnFullLife))),
 ];
 
 // Parses a string like '1.75' into i64 '175'
@@ -127,7 +129,6 @@ lazy_static! {
                         typ: Type::Inc,
                         amount,
                         tags: s.1.clone(),
-                        dt: s.2,
                         ..Default::default()
                     };
                     if insert_minion_tag {
@@ -135,6 +136,46 @@ lazy_static! {
                     }
                     ret
                 }).collect())
+            })
+        ), (
+            regex!(r"^(minions (?:have|deal) )?([0-9]+)% (increased|reduced) ([a-z ]+) and ([a-z ]+)$"),
+            Box::new(|c| {
+                let stat_tags_1 = parse_stat(&c[4])?;
+                let stat_tags_2 = parse_stat(&c[5])?;
+                let insert_minion_tag = c.get(1).is_some();
+                let mut amount = i64::from_str(&c[2]).unwrap();
+                amount = match &c[3] {
+                    "reduced" => amount.neg(),
+                    "increased" => amount,
+                    _ => panic!(),
+                };
+                let mut ret: Vec<Mod> = stat_tags_1.iter().map(|s| {
+                    let mut ret = Mod {
+                        stat: s.0.to_string(),
+                        typ: Type::Inc,
+                        amount,
+                        tags: s.1.clone(),
+                        ..Default::default()
+                    };
+                    if insert_minion_tag {
+                        ret.tags.insert(GemTag::Minion);
+                    }
+                    ret
+                }).collect();
+                ret.extend(stat_tags_2.iter().map(|s| {
+                    let mut ret = Mod {
+                        stat: s.0.to_string(),
+                        typ: Type::Inc,
+                        amount,
+                        tags: s.1.clone(),
+                        ..Default::default()
+                    };
+                    if insert_minion_tag {
+                        ret.tags.insert(GemTag::Minion);
+                    }
+                    ret
+                }));
+                Some(ret)
             })
         ), (
             regex!(r"^(minions have )?((\+|-)?[0-9]+)%? (?:to )?(?:all )?([a-z ]+)$"),
@@ -154,7 +195,6 @@ lazy_static! {
                         typ: Type::Base,
                         amount,
                         tags: s.1.clone(),
-                        dt: s.2,
                         ..Default::default()
                     };
                     if insert_minion_tag {
@@ -173,7 +213,6 @@ lazy_static! {
                         typ: Type::More,
                         amount: i64::from_str(&c[1]).unwrap(),
                         tags: s.1.clone(),
-                        dt: s.2,
                         ..Default::default()
                     }
                 }).collect())
@@ -188,7 +227,6 @@ lazy_static! {
                         typ: Type::More,
                         amount: i64::from_str(&c[1]).unwrap().neg(),
                         tags: s.1.clone(),
-                        dt: s.2,
                         ..Default::default()
                     }
                 }).collect())
@@ -203,51 +241,42 @@ lazy_static! {
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
                     tags: stat_tags_1.1,
-                    dt: stat_tags_1.2,
                     ..Default::default()
                 }, Mod {
                     stat: stat_tags_2.0.to_string(),
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
                     tags: stat_tags_2.1,
-                    dt: stat_tags_2.2,
                     ..Default::default()
                 }])
             })
         ), (
             regex!(r"^\+([0-9]+)%? to ([a-z]+) and ([a-z]+) resistances$"),
             Box::new(|c| {
-                let dt_1 = DTS.get(&c[2])?;
-                let dt_2 = DTS.get(&c[3])?;
                 Some(vec![Mod {
-                    stat: "resistance".to_string(),
+                    stat: c[2].to_string() + " resistance",
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
-                    dt: Some(*dt_1),
                     ..Default::default()
                 }, Mod {
-                    stat: "resistance".to_string(),
+                    stat: c[3].to_string() + " resistance",
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
-                    dt: Some(*dt_2),
                     ..Default::default()
                 }])
             })
         ), (
-            regex!(r"^adds ([0-9]+) to ([0-9]+) ([a-z]+) damage$"),
+            regex!(r"^adds ([0-9]+) to ([0-9]+) ([a-z ]+)$"),
             Box::new(|c| {
-                let dt = DTS.get(&c[3])?;
                 Some(vec![Mod {
-                    stat: "minimum damage".to_string(),
+                    stat: "minimum ".to_string() + &c[3],
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
-                    dt: Some(*dt),
                     ..Default::default()
                 }, Mod {
-                    stat: "maximum damage".to_string(),
+                    stat: "maximum ".to_string() + &c[3],
                     typ: Type::Base,
                     amount: i64::from_str(&c[2]).unwrap(),
-                    dt: Some(*dt),
                     ..Default::default()
                 }])
             })
@@ -266,6 +295,16 @@ lazy_static! {
             Box::new(|c| {
                 Some(vec![Mod {
                     stat: "life regen pct".to_string(),
+                    typ: Type::Base,
+                    amount: parse_val100(&c[1])?,
+                    ..Default::default()
+                }])
+            })
+        ), (
+            regex!(r"^damage penetrates ([0-9]+)% ([a-z]+) resistance$"),
+            Box::new(|c| {
+                Some(vec![Mod {
+                    stat: c[2].to_string() + " damage penetration",
                     typ: Type::Base,
                     amount: parse_val100(&c[1])?,
                     ..Default::default()
@@ -303,15 +342,30 @@ lazy_static! {
         "chance to block spell damage",
         "chance to suppress spell damage",
 
-        "area of effect",
-        "effect",
+        "fire damage over time multiplier",
+        "cold damage over time multiplier",
+        "chaos damage over time multiplier",
+        "physical damage over time multiplier",
         "damage over time multiplier",
+        "fire damage over time",
+        "cold damage over time",
+        "chaos damage over time",
+        "physical damage over time",
         "damage over time",
+        "fire damage",
+        "cold damage",
+        "lightning damage",
+        "chaos damage",
+        "physical damage",
         "damage",
+
+        "area of effect",
         "accuracy rating",
         "movement speed",
         "skill effect duration",
         "duration",
+
+        "impale effect",
 
         "minimum frenzy charges",
         "minimum power charges",
@@ -342,12 +396,19 @@ lazy_static! {
         "maximum cold resistance",
         "maximum lightning resistance",
         "maximum chaos resistance",
-        "resistance",
+        "fire resistance",
+        "cold resistance",
+        "lightning resistance",
+        "chaos resistance",
 
         "flask charges gained",
         "flask effect duration",
         "flask recovery rate",
         "flask charges used",
+
+        "mana cost",
+        "life cost",
+        "cost",
     ];
 }
 
@@ -359,33 +420,45 @@ pub enum Type {
     More,
 }
 
-#[derive(Debug, Copy, Clone)]
-pub enum Property {
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
+pub enum PropertyInt {
     Level,
     PowerCharges,
     FrenzyCharges,
     EnduranceCharges,
+    Rage,
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
+pub enum PropertyBool {
+    Blinded,
+    Onslaught,
+    Fortified,
+    DealtCritRecently,
+    Leeching,
+    OnFullLife,
 }
 
 pub enum Ending {
     Mutation(Mutation),
     Tag(GemTag),
     Weapon(FxHashSet<ItemClass>),
+    Condition(Condition),
 }
 
 #[derive(Debug, Clone)]
 pub enum Mutation {
     MultiplierStat((i64, String)),
-    MultiplierProperty((i64, Property)),
+    MultiplierProperty((i64, PropertyInt)),
 }
 
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
-pub enum DamageType {
-    Physical,
-    Cold,
-    Fire,
-    Lightning,
-    Chaos,
+#[derive(Debug, Clone)]
+pub enum Condition {
+    GreaterEqualProperty((i64, PropertyInt)),
+    GreaterEqualStat((i64, String)),
+    LesserEqualProperty((i64, PropertyInt)),
+    LesserEqualStat((i64, String)),
+    PropertyBool((bool, PropertyBool)),
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -404,8 +477,8 @@ pub struct Mod {
     pub typ: Type,
     pub amount: i64,
     pub flags: Vec<Mutation>,
+    pub conditions: Vec<Condition>,
     pub tags: FxHashSet<GemTag>,
-    pub dt: Option<DamageType>,
     pub source: Source,
     pub weapons: FxHashSet<ItemClass>
 }
@@ -426,13 +499,17 @@ fn parse_ending(m: &str) -> Option<(usize, Ending)> {
             return Some((ending.0.len(), Ending::Weapon(ending.1.clone())));
         }
     }
+    for ending in ENDINGS_CONDITIONS.iter() {
+        if m.ends_with(ending.0) {
+            return Some((ending.0.len(), Ending::Condition(ending.1.clone())));
+        }
+    }
 
     None
 }
 
-fn parse_stat_nomulti(input: &str) -> Option<(&str, FxHashSet<GemTag>, Option<DamageType>)> {
+fn parse_stat_nomulti(input: &str) -> Option<(&str, FxHashSet<GemTag>)> {
     let mut tags = hset![];
-    let mut dt = None;
 
     let stat = &STATS.iter().find_map(|s| {
         if input.ends_with(s) {
@@ -446,21 +523,16 @@ fn parse_stat_nomulti(input: &str) -> Option<(&str, FxHashSet<GemTag>, Option<Da
     for chunk in remainder.split_terminator(' ') {
         if let Some(t) = TAGS.get(chunk) {
             tags.insert(*t);
-        } else if let Some(dt_parsed) = DTS.get(chunk) {
-            if dt.is_some() {
-                eprintln!("ERR: stat {input} has multiple damage types");
-            }
-            dt = Some(*dt_parsed);
         } else {
             return None;
         }
     }
 
-    Some((stat.to_owned(), tags, dt))
+    Some((stat.to_owned(), tags))
 }
 
 /// Attempts to parse a chunk like "melee physical damage"
-fn parse_stat(input: &str) -> Option<Vec<(&str, FxHashSet<GemTag>, Option<DamageType>)>> {
+fn parse_stat(input: &str) -> Option<Vec<(&str, FxHashSet<GemTag>)>> {
     if let Some(stats) = MULTISTATS.get(input) {
         let mut ret = vec![];
         for stat in stats {
@@ -503,6 +575,7 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
     let mut flags = vec![];
     let mut tags = hset![];
     let mut weapons = hset![];
+    let mut conditions = vec![];
 
     while let Some(ending) = parse_ending(&m.to_lowercase()) {
         m = &m[0..m.len() - ending.0 - 1];
@@ -515,7 +588,10 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
             }
             Ending::Weapon(weapon) => {
                 weapons.extend(weapon);
-            }
+            },
+            Ending::Condition(condition) => {
+                conditions.push(condition);
+            },
         }
     }
 
@@ -526,6 +602,7 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
                     modifier.tags.extend(tags.clone());
                     modifier.flags.extend(flags.clone());
                     modifier.weapons.extend(weapons.clone());
+                    modifier.conditions.extend(conditions.clone());
                     modifier.source = source;
                 }
                 CACHE.lock().unwrap().insert(input.to_string(), Some(mods.clone()));

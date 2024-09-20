@@ -6,6 +6,7 @@ use crate::config::Config;
 use lightning_model::build::{Build, Stat};
 use lightning_model::calc;
 use lightning_model::data::TREE;
+use lightning_model::modifier::PropertyInt;
 use lightning_model::tree::Node;
 use rustc_hash::FxHashMap;
 use std::ops::RangeInclusive;
@@ -47,6 +48,7 @@ pub struct State {
     active_skill_cur: usize,
     builds_dir_settings: String,
     framerate_settings: u64,
+    pub level: i64,
 
     // OpenGL stuff
     pub dimensions: (u32, u32),
@@ -87,6 +89,7 @@ impl State {
             active_skill_cur: 0,
             builds_dir_settings: config.builds_dir.clone().into_os_string().into_string().unwrap(),
             framerate_settings: config.framerate,
+            level: 1,
             config: config, // needs to be after fields that depend on config
 
             dimensions: (1280, 720),
@@ -183,7 +186,8 @@ pub fn draw_top_panel(ctx: &egui::Context, state: &mut State) {
                     }
                 }
                 ui.label("Level");
-                if ui.add(egui::DragValue::new(&mut state.build.level).range(RangeInclusive::new(1, 100))).changed() {
+                if ui.add(egui::DragValue::new(&mut state.level).range(RangeInclusive::new(1, 100))).changed() {
+                    state.build.set_property_int(PropertyInt::Level, state.level);
                     state.request_recalc = true;
                 }
                 egui::ComboBox::from_id_source("combo_class")

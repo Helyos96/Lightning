@@ -1,6 +1,6 @@
 //use crate::gem::Tag;
 use crate::gem::GemTag;
-use crate::modifier::{DamageType, Mod, Type};
+use crate::modifier::{Mod, Type};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 
@@ -16,10 +16,10 @@ lazy_static! {
             Mod { stat: "cast speed".to_string(), typ: Type::Inc, ..Default::default() },
         ]);
         map.insert("spell_minimum_base_fire_damage", vec![
-            Mod { stat: "minimum damage".to_string(), typ: Type::Base, tags: hset![GemTag::Spell], dt: Some(DamageType::Fire), ..Default::default() },
+            Mod { stat: "fire minimum damage".to_string(), typ: Type::Base, tags: hset![GemTag::Spell], ..Default::default() },
         ]);
         map.insert("spell_maximum_base_fire_damage", vec![
-            Mod { stat: "maximum damage".to_string(), typ: Type::Base, tags: hset![GemTag::Spell], dt: Some(DamageType::Fire), ..Default::default() },
+            Mod { stat: "fire maximum damage".to_string(), typ: Type::Base, tags: hset![GemTag::Spell], ..Default::default() },
         ]);
         map.insert("support_concentrated_effect_skill_area_of_effect_+%_final", vec![
             Mod { stat: "area of effect".to_string(), typ: Type::More, ..Default::default() },

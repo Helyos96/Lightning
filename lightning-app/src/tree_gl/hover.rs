@@ -15,6 +15,7 @@ lazy_static! {
                 let (rect, _) = get_rect(n, true).unwrap();
                 let scale = match n.node_type() {
                     NodeType::Mastery => 1.5,
+                    NodeType::Notable => 2.2,
                     _ => 2.0,
                 };
                 (

@@ -1,5 +1,5 @@
 use crate::data::ITEMS;
-use crate::modifier::{self, parse_mod, DamageType, Mod, Source};
+use crate::modifier::{self, parse_mod, Mod, Source};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use lazy_static::lazy_static;
@@ -75,12 +75,11 @@ pub struct Item {
 struct LocalModMatch {
     stat: String,
     typ: modifier::Type,
-    dt: Option<DamageType>,
 }
 
 impl LocalModMatch {
     fn matches(&self, m: &Mod) -> bool {
-        if m.stat == self.stat && m.typ == self.typ && (self.dt.is_none() || self.dt == m.dt) {
+        if m.stat == self.stat && m.typ == self.typ {
             return true;
         }
         false
@@ -89,9 +88,9 @@ impl LocalModMatch {
 
 lazy_static! {
     static ref LOCAL_MODS: Vec<LocalModMatch> = vec![
-        LocalModMatch { stat: "minimum damage".to_string(), typ: modifier::Type::Base, dt: Some(DamageType::Physical) },
-        LocalModMatch { stat: "maximum damage".to_string(), typ: modifier::Type::Base, dt: Some(DamageType::Physical) },
-        LocalModMatch { stat: "damage".to_string(), typ: modifier::Type::Inc, dt: Some(DamageType::Physical) },
+        LocalModMatch { stat: "physical minimum damage".to_string(), typ: modifier::Type::Base },
+        LocalModMatch { stat: "physical maximum damage".to_string(), typ: modifier::Type::Base },
+        LocalModMatch { stat: "physical damage".to_string(), typ: modifier::Type::Inc },
     ];
 }
 
@@ -109,7 +108,7 @@ impl Item {
         &ITEMS[&self.base_item]
     }
 
-    pub fn calc_dmg(&self, dt: DamageType) -> (i64, i64) {
+    pub fn calc_dmg(&self, dt: &str) -> (i64, i64) {
         let base_item = self.data();
 
         if !base_item.tags.contains("weapon") {
@@ -117,7 +116,7 @@ impl Item {
             return (0, 0);
         }
 
-        if dt == DamageType::Physical {
+        if dt == "physical" {
             if let Some(min) = base_item.properties.physical_damage_min {
                 if let Some(max) = base_item.properties.physical_damage_max {
                     return (min, max);

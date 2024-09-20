@@ -1,6 +1,5 @@
 use crate::build::{Build, Stat};
 use crate::gem::{Gem, GemTag};
-use crate::modifier::DamageType;
 use rustc_hash::FxHashMap;
 
 /*enum Val {
@@ -16,8 +15,8 @@ pub fn calc_gem(build: &Build, support_gems: &Vec<Gem>, active_gem: &Gem) -> FxH
 
     let tags = &active_gem.data().tags;
     //let active_skill = active_gem.data.active_skill.as_ref().unwrap();
-    let dts = vec![DamageType::Cold, DamageType::Fire];
-    let mut damage: FxHashMap<DamageType, i64> = Default::default();
+    let dts = vec!["fire", "cold", "lightning", "chaos", "physical"];
+    let mut damage: FxHashMap<&str, i64> = Default::default();
 
     let mut mods = build.calc_mods(true);
     mods.extend(active_gem.calc_mods());
@@ -29,9 +28,9 @@ pub fn calc_gem(build: &Build, support_gems: &Vec<Gem>, active_gem: &Gem) -> FxH
     //dbg!(&stats);
 
     for dt in &dts {
-        let dmg = build.calc_stat("damage", &mods, tags, Some(*dt));
-        let mut min = build.calc_stat("minimum damage", &mods, tags, Some(*dt));
-        let mut max = build.calc_stat("maximum damage", &mods, tags, Some(*dt));
+        let dmg = build.calc_stat(&(dt.to_string() + "damage"), &mods, tags);
+        let mut min = build.calc_stat(&(dt.to_string() + "minimum damage"), &mods, tags);
+        let mut max = build.calc_stat(&(dt.to_string() + "maximum damage"), &mods, tags);
 
         if max.val() < min.val() {
             eprintln!("ERR: max ({}) < min ({})", min.val(), max.val());
@@ -44,7 +43,7 @@ pub fn calc_gem(build: &Build, support_gems: &Vec<Gem>, active_gem: &Gem) -> FxH
         min.assimilate(&dmg);
         max.assimilate(&dmg);
 
-        damage.insert(*dt, (min.val() + max.val()) / 2);
+        damage.insert(dt, (min.val() + max.val()) / 2);
     }
 
     if let Some(mut time) = active_gem.data().cast_time {
@@ -76,15 +75,19 @@ pub fn calc_defence(build: &Build) -> Vec<(String, Stat)> {
     ret.push(("Maximum Life".to_string(), stats["maximum life"].clone()));
     ret.push((
         "Fire Resistance".to_string(),
-        build.calc_stat("resistance", &mods, &hset![], Some(DamageType::Fire)),
+        build.calc_stat("fire resistance", &mods, &hset![]),
     ));
     ret.push((
         "Cold Resistance".to_string(),
-        build.calc_stat("resistance", &mods, &hset![], Some(DamageType::Cold)),
+        build.calc_stat("cold resistance", &mods, &hset![]),
     ));
     ret.push((
         "Lightning Resistance".to_string(),
-        build.calc_stat("resistance", &mods, &hset![], Some(DamageType::Lightning)),
+        build.calc_stat("lightning resistance", &mods, &hset![]),
+    ));
+    ret.push((
+        "Chaos Resistance".to_string(),
+        build.calc_stat("chaos resistance", &mods, &hset![]),
     ));
     ret.push(("Strength".to_string(), stats["strength"].clone()));
     ret.push(("Dexterity".to_string(), stats["dexterity"].clone()));
