@@ -17,7 +17,7 @@ mod tree_gl;
 use crate::tree_gl::TreeGl;
 use glow::HasContext;
 use glutin::surface::SwapInterval;
-use gui::{State, UiState};
+use gui::{MainState, State, UiState};
 use lightning_model::modifier::PropertyInt;
 use lightning_model::{build, calc, util};
 use std::error::Error;
@@ -55,7 +55,7 @@ fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
             state.request_recalc = true;
             println!("Loaded build from {}", &path.display());
             state.request_regen = true;
-            UiState::Main
+            UiState::Main(MainState::Tree)
         }
         #[cfg(feature = "import")]
         UiState::ImportBuild => {
@@ -64,13 +64,13 @@ fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
             state.request_recalc = true;
             state.request_regen = true;
             println!("Fetched build: {} {}", &state.import_account, &state.import_character);
-            UiState::Main
+            UiState::Main(MainState::Tree)
         }
         UiState::NewBuild => {
             state.build = build::Build::new_player();
             state.level = state.build.property_int(PropertyInt::Level);
             state.request_recalc = true;
-            UiState::Main
+            UiState::Main(MainState::Tree)
         }
         _ => state.ui_state.clone(),
     };
@@ -154,7 +154,7 @@ fn main() {
                     state.request_recalc = false;
                 }
 
-                match state.ui_state {
+                match state.ui_state.clone() {
                     UiState::ChooseBuild => {
                         egui_glow.run(&window, |egui_ctx| {
                             gui::build_selection::draw(egui_ctx, &mut state);
@@ -170,42 +170,49 @@ fn main() {
                             window.request_redraw();
                         }
                     }
-                    UiState::Main => {
-                        if let Some(node) = state.hovered_node {
-                            if !state.build.tree.nodes.contains(&node.skill) {
-                                if state.path_hovered.is_none() {
-                                    let path_hovered = state.build.tree.find_path(node.skill);
-                                    if state.path_hovered.is_none() && path_hovered.is_some() {
-                                        state.request_regen = true;
+                    UiState::Main(main_state) => {
+                        if main_state == MainState::Tree {
+                            if let Some(node) = state.hovered_node {
+                                if !state.build.tree.nodes.contains(&node.skill) {
+                                    if state.path_hovered.is_none() {
+                                        let path_hovered = state.build.tree.find_path(node.skill);
+                                        if state.path_hovered.is_none() && path_hovered.is_some() {
+                                            state.request_regen = true;
+                                        }
+                                        state.path_hovered = path_hovered;
+                                        state.path_red = None;
                                     }
-                                    state.path_hovered = path_hovered;
-                                    state.path_red = None;
+                                } else {
+                                    if state.path_red.is_none() {
+                                        let path_red = state.build.tree.find_path_remove(node.skill);
+                                        state.request_regen = true;
+                                        state.path_hovered = None;
+                                        state.path_red = Some(path_red);
+                                    }
                                 }
                             } else {
-                                if state.path_red.is_none() {
-                                    let path_red = state.build.tree.find_path_remove(node.skill);
+                                if state.path_hovered.is_some() || state.path_red.is_some() {
                                     state.request_regen = true;
-                                    state.path_hovered = None;
-                                    state.path_red = Some(path_red);
                                 }
+                                state.path_hovered = None;
+                                state.path_red = None;
                             }
-                        } else {
-                            if state.path_hovered.is_some() || state.path_red.is_some() {
-                                state.request_regen = true;
-                            }
-                            state.path_hovered = None;
-                            state.path_red = None;
-                        }
 
-                        tree_gl.draw(
-                            &gl,
-                            state.zoom,
-                            state.tree_translate,
-                        );
+                            tree_gl.draw(
+                                &gl,
+                                state.zoom,
+                                state.tree_translate,
+                            );
+                        }
                         egui_glow.run(&window, |egui_ctx| {
                             gui::draw_top_panel(egui_ctx, &mut state);
                             gui::draw_left_panel(egui_ctx, &mut state);
-                            gui::tree_view::draw(egui_ctx, &mut state);
+                            if main_state == MainState::Tree {
+                                gui::tree_view::draw(egui_ctx, &mut state);
+                            }
+                            if main_state == MainState::Config {
+                                gui::draw_config_panel(egui_ctx, &mut state);
+                            }
                             if state.show_settings {
                                 gui::settings::draw(egui_ctx, &mut state);
                                 if vsync != state.config.vsync {
@@ -266,7 +273,7 @@ fn main() {
                                 },
                             ..
                         } => {
-                            if state.ui_state == UiState::Main && gui::is_over_tree(&state.mouse_pos) {
+                            if state.ui_state == UiState::Main(MainState::Tree) && gui::is_over_tree(&state.mouse_pos) {
                                 state.zoom_tmp = (state.zoom_tmp + v).clamp(1.0, 10.0);
                                 state.zoom = state.zoom_tmp.round();
                             }
@@ -296,7 +303,7 @@ fn main() {
                         } => {
                             if button == MouseButton::Left {
                                 if button_state == ElementState::Pressed {
-                                    if state.ui_state == UiState::Main && gui::is_over_tree(&state.mouse_pos) {
+                                    if state.ui_state == UiState::Main(MainState::Tree) && gui::is_over_tree(&state.mouse_pos) {
                                         state.mouse_tree_drag = Some(state.mouse_pos);
                                     }
                                 } else if button_state == ElementState::Released {

@@ -6,7 +6,7 @@ use crate::config::Config;
 use lightning_model::build::{Build, Stat};
 use lightning_model::calc;
 use lightning_model::data::TREE;
-use lightning_model::modifier::PropertyInt;
+use lightning_model::modifier::{PropertyBool, PropertyInt};
 use lightning_model::tree::Node;
 use rustc_hash::FxHashMap;
 use std::ops::RangeInclusive;
@@ -14,6 +14,13 @@ use std::path::{Path, PathBuf};
 use std::{io, fs};
 use egui_glow::egui_winit::winit::event::ElementState;
 use std::time::Instant;
+use lazy_static::lazy_static;
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum MainState {
+    Tree,
+    Config,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum UiState {
@@ -21,7 +28,7 @@ pub enum UiState {
     LoadBuild(PathBuf),
     ImportBuild,
     NewBuild,
-    Main,
+    Main(MainState),
 }
 
 /// Global state, contains everything
@@ -122,6 +129,15 @@ pub fn draw_left_panel(ctx: &egui::Context, state: &mut State) {
         .resizable(false)
         .exact_width(LEFT_PANEL_WIDTH)
         .show(ctx, |ui| {
+            egui::Grid::new("grid_ui_select").show(ui, |ui| {
+                if ui.button("Tree").clicked() {
+                    state.ui_state = UiState::Main(MainState::Tree);
+                }
+                if ui.button("Config").clicked() {
+                    state.ui_state = UiState::Main(MainState::Config);
+                }
+                ui.end_row();
+            });
             egui::ComboBox::from_id_source("combo_active_skill")
                 .selected_text(get_selected_text(state))
                 .show_ui(ui, |ui| {
@@ -204,6 +220,57 @@ pub fn draw_top_panel(ctx: &egui::Context, state: &mut State) {
                     }
                 );
                 ui.allocate_space(ui.available_size());
+            });
+        });
+}
+
+lazy_static! {
+    static ref properties_int: Vec<(PropertyInt, &'static str)> = vec![
+        (PropertyInt::FrenzyCharges, "Frenzy Charges"),
+        (PropertyInt::PowerCharges, "Power Charges"),
+        (PropertyInt::EnduranceCharges, "Endurance Charges"),
+        (PropertyInt::Rage, "Rage"),
+    ];
+    static ref properties_bool: Vec<(PropertyBool, &'static str)> = vec![
+        (PropertyBool::Fortified, "Are you Fortified?"),
+        (PropertyBool::Blinded, "Are you Blind?"),
+        (PropertyBool::Onslaught, "Do you have Onslaught?"),
+        (PropertyBool::DealtCritRecently, "Dealt a Crit Recently?"),
+        (PropertyBool::Leeching, "Are you Leeching?"),
+        (PropertyBool::OnFullLife, "Are you on Full Life?"),
+    ];
+}
+
+pub fn draw_config_panel(ctx: &egui::Context, state: &mut State) {
+    egui::CentralPanel::default()
+        .show(ctx, |ui| {
+            ui.columns(2, |uis| {
+                egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(&mut uis[0], |ui| {
+                    egui::Grid::new("grid_ui_property_int").show(ui, |ui| {
+                        for pint in properties_int.iter() {
+                            let mut property = state.build.property_int(pint.0);
+                            ui.label(pint.1);
+                            if ui.add(egui::DragValue::new(&mut property)).changed() {
+                                state.build.set_property_int(pint.0, property);
+                                state.request_recalc = true;
+                            }
+                            ui.end_row();
+                        }
+                    });
+                });
+                egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(&mut uis[1], |ui| {
+                    egui::Grid::new("grid_ui_property_bool").show(ui, |ui| {
+                        for pbool in properties_bool.iter() {
+                            let mut property = state.build.property_bool(pbool.0);
+                            ui.label(pbool.1);
+                            if ui.checkbox(&mut property, "").clicked() {
+                                state.build.set_property_bool(pbool.0, property);
+                                state.request_recalc = true;
+                            }
+                            ui.end_row();
+                        }
+                    });
+                });
             });
         });
 }
