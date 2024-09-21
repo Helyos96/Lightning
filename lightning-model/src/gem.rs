@@ -199,8 +199,6 @@ impl Gem {
                             modifier.source = Source::Gem;
                             mods.push(modifier);
                         }
-                    } else {
-                        println!("failed: {id}");
                     }
                 }
             }

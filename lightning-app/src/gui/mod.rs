@@ -3,7 +3,7 @@ pub mod tree_view;
 pub mod settings;
 
 use crate::config::Config;
-use lightning_model::build::{Build, Stat};
+use lightning_model::build::Build;
 use lightning_model::calc;
 use lightning_model::data::TREE;
 use lightning_model::modifier::{PropertyBool, PropertyInt};
@@ -44,7 +44,7 @@ pub struct State {
     pub show_settings: bool,
 
     active_skill_calc: FxHashMap<&'static str, i64>,
-    pub defence_calc: Vec<(String, Stat)>,
+    pub defence_calc: Vec<(String, i64)>,
     pub hovered_node: Option<&'static Node>,
     pub path_hovered: Option<Vec<u16>>,
     pub path_red: Option<Vec<u16>>,
@@ -160,7 +160,7 @@ pub fn draw_left_panel(ctx: &egui::Context, state: &mut State) {
             egui::Grid::new("grid_defence_calc").show(ui, |ui| {
                 for stat in &state.defence_calc {
                     ui.label(stat.0.to_string() + ":");
-                    ui.label(stat.1.val().to_string());
+                    ui.label(stat.1.to_string());
                     ui.end_row();
                 }
                 let instant = Instant::now();
@@ -238,6 +238,7 @@ lazy_static! {
         (PropertyBool::DealtCritRecently, "Dealt a Crit Recently?"),
         (PropertyBool::Leeching, "Are you Leeching?"),
         (PropertyBool::OnFullLife, "Are you on Full Life?"),
+        (PropertyBool::OnLowLife, "Are you on Low Life?"),
     ];
 }
 

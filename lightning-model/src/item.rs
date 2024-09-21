@@ -1,3 +1,4 @@
+use crate::build::StatId;
 use crate::data::ITEMS;
 use crate::modifier::{self, parse_mod, Mod, Source};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -73,7 +74,7 @@ pub struct Item {
 }
 
 struct LocalModMatch {
-    stat: String,
+    stat: StatId,
     typ: modifier::Type,
 }
 
@@ -88,9 +89,9 @@ impl LocalModMatch {
 
 lazy_static! {
     static ref LOCAL_MODS: Vec<LocalModMatch> = vec![
-        LocalModMatch { stat: "physical minimum damage".to_string(), typ: modifier::Type::Base },
-        LocalModMatch { stat: "physical maximum damage".to_string(), typ: modifier::Type::Base },
-        LocalModMatch { stat: "physical damage".to_string(), typ: modifier::Type::Inc },
+        LocalModMatch { stat: StatId::MinimumPhysicalDamage, typ: modifier::Type::Base },
+        LocalModMatch { stat: StatId::MaximumPhysicalDamage, typ: modifier::Type::Base },
+        LocalModMatch { stat: StatId::PhysicalDamage, typ: modifier::Type::Inc },
     ];
 }
 

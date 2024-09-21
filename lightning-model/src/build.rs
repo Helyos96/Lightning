@@ -57,6 +57,88 @@ impl TryFrom<(&str, u16)> for Slot {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum StatId {
+    #[default]
+    Strength,
+    Dexterity,
+    Intelligence,
+    Attributes,
+    AttackSpeed,
+    CastSpeed,
+    WarcrySpeed,
+    CooldownRecoverySpeed,
+    ProjectileSpeed,
+    TrapThrowingSpeed,
+    ChanceToBlockAttackDamage,
+    ChanceToBlockSpellDamage,
+    ChanceToSuppressSpellDamage,
+    FireDamageOverTimeMultiplier,
+    ColdDamageOverTimeMultiplier,
+    ChaosDamageOverTimeMultiplier,
+    PhysicalDamageOverTimeMultiplier,
+    DamageOverTimeMultiplier,
+    FireDamageOverTime,
+    ColdDamageOverTime,
+    ChaosDamageOverTime,
+    PhysicalDamageOverTime,
+    DamageOverTime,
+    FireDamage,
+    ColdDamage,
+    LightningDamage,
+    ChaosDamage,
+    PhysicalDamage,
+    Damage,
+    AreaOfEffect,
+    AccuracyRating,
+    MovementSpeed,
+    SkillEffectDuration,
+    Duration,
+    ImpaleEffect,
+    MinimumFrenzyCharges,
+    MinimumPowerCharges,
+    MinimumEnduranceCharges,
+    MaximumFrenzyCharges,
+    MaximumPowerCharges,
+    MaximumEnduranceCharges,
+    MaximumLife,
+    MaximumMana,
+    MinimumRage,
+    MaximumRage,
+    MaximumEnergyShield,
+    EnergyShieldRechargeRate,
+    LifeRegenerationRate,
+    ManaRegenerationRate,
+    ManaReservationEfficiency,
+    CriticalStrikeChance,
+    CriticalStrikeMultiplier,
+    Armour,
+    EvasionRating,
+    StunThreshold,
+    ChanceToAvoidBeingStunned,
+    MaximumFireResistance,
+    MaximumColdResistance,
+    MaximumLightningResistance,
+    MaximumChaosResistance,
+    FireResistance,
+    ColdResistance,
+    LightningResistance,
+    ChaosResistance,
+    FlaskChargesGained,
+    FlaskEffectDuration,
+    FlaskRecoveryRate,
+    FlaskChargesUsed,
+    ManaCost,
+    LifeCost,
+    Cost,
+    LifeRegeneration,
+    LifeRegenerationPct,
+    MinimumFireDamage,
+    MaximumFireDamage,
+    MinimumPhysicalDamage,
+    MaximumPhysicalDamage,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct GemLink {
     pub active_gems: Vec<Gem>,
@@ -87,6 +169,17 @@ pub struct Build {
     properties_bool: FxHashMap<PropertyBool, bool>,
 }
 
+#[derive(Debug, Clone)]
+pub struct Stats {
+    stats: FxHashMap<StatId, Stat>,
+}
+
+impl Stats {
+    pub fn stat(&self, s: StatId) -> Stat {
+        self.stats.get(&s).cloned().unwrap_or_default()
+    }
+}
+
 impl Build {
     pub fn new_player() -> Build {
         let mut ret = Build {
@@ -107,63 +200,63 @@ impl Build {
         let class_data = &TREE.classes[&self.tree.class];
         let mut mods = vec![
             Mod {
-                stat: "maximum life".to_string(),
+                stat: StatId::MaximumLife,
                 typ: Type::Base,
                 amount: 12,
                 flags: vec![Mutation::MultiplierProperty((1, PropertyInt::Level))],
                 ..Default::default()
             },
             Mod {
-                stat: "maximum life".to_string(),
+                stat: StatId::MaximumLife,
                 typ: Type::Base,
                 amount: 38,
                 ..Default::default()
             },
             Mod {
-                stat: "maximum life".to_string(),
+                stat: StatId::MaximumLife,
                 typ: Type::Base,
                 amount: 1,
-                flags: vec![Mutation::MultiplierStat((2, "strength".to_string()))],
+                flags: vec![Mutation::MultiplierStat((2, StatId::Strength))],
                 ..Default::default()
             },
             Mod {
-                stat: "maximum frenzy charges".to_string(),
+                stat: StatId::MaximumFrenzyCharges,
                 typ: Type::Base,
                 amount: 3,
                 ..Default::default()
             },
             Mod {
-                stat: "maximum power charges".to_string(),
+                stat: StatId::MaximumPowerCharges,
                 typ: Type::Base,
                 amount: 3,
                 ..Default::default()
             },
             Mod {
-                stat: "maximum endurance charges".to_string(),
+                stat: StatId::MaximumEnduranceCharges,
                 typ: Type::Base,
                 amount: 3,
                 ..Default::default()
             },
             Mod {
-                stat: "strength".to_string(),
+                stat: StatId::Strength,
                 typ: Type::Base,
                 amount: class_data.base_str,
                 ..Default::default()
             },
             Mod {
-                stat: "dexterity".to_string(),
+                stat: StatId::Dexterity,
                 typ: Type::Base,
                 amount: class_data.base_dex,
                 ..Default::default()
             },
             Mod {
-                stat: "intelligence".to_string(),
+                stat: StatId::Intelligence,
                 typ: Type::Base,
                 amount: class_data.base_int,
                 ..Default::default()
             },
             Mod {
-                stat: "damage".to_string(),
+                stat: StatId::Damage,
                 typ: Type::More,
                 amount: 1,
                 flags: vec![
@@ -187,12 +280,12 @@ impl Build {
         mods
     }
 
-    pub fn calc_stat(&self, stat_str: &str, mods: &[Mod], tags: &FxHashSet<GemTag>) -> Stat {
+    pub fn calc_stat(&self, stat_id: StatId, mods: &[Mod], tags: &FxHashSet<GemTag>) -> Stat {
         let mut stat = Stat::default();
 
         for m in mods
             .iter()
-            .filter(|m| m.stat == stat_str && tags.is_superset(&m.tags))
+            .filter(|m| m.stat == stat_id && tags.is_superset(&m.tags))
         {
             let mut amount = m.amount;
             for f in &m.flags {
@@ -230,12 +323,12 @@ impl Build {
     /// Calc all stats irrelevant of damage types.
     /// For any stat that may be affected by damage type,
     /// use calc_stat_dmg.
-    pub fn calc_stats(&self, mods: &[Mod], tags: &FxHashSet<GemTag>) -> FxHashMap<String, Stat> {
-        let mut stats: FxHashMap<String, Stat> = Default::default();
+    pub fn calc_stats(&self, mods: &[Mod], tags: &FxHashSet<GemTag>) -> Stats {
+        let mut stats: FxHashMap<StatId, Stat> = Default::default();
         let mut mods_sec_pass = vec![];
         let mut mods_third_pass = vec![];
 
-        for m in mods.iter().filter(|m| tags.is_superset(&m.tags) || m.stat == "effect") {
+        for m in mods.iter().filter(|m| tags.is_superset(&m.tags)) {
             if !m.conditions.is_empty() {
                 mods_third_pass.push(m);
                 continue;
@@ -318,7 +411,7 @@ impl Build {
             stats.entry(m.stat.clone()).or_default().adjust(m.typ, amount, m);
         }
 
-        stats
+        Stats { stats }
     }
 }
 
@@ -334,7 +427,7 @@ impl Default for Stat {
 }
 
 impl Stat {
-    fn adjust(&mut self, t: Type, amount: i64, m: &Mod) {
+    pub fn adjust(&mut self, t: Type, amount: i64, m: &Mod) {
         match t {
             Type::Base => self.base += amount,
             Type::Inc => self.inc += amount,
@@ -355,6 +448,10 @@ impl Stat {
         self.val100() / 100
     }
 
+    pub fn val_rounded_up(&self) -> i64 {
+        (self.val100() as f64 / 100.0).ceil() as i64
+    }
+
     pub fn assimilate(&mut self, stat: &Stat) {
         self.base += stat.base;
         self.inc += stat.inc;
@@ -372,5 +469,5 @@ fn test_build() {
     let player = Build::new_player();
     let stats = player.calc_stats(&player.calc_mods(true), &hset![]);
 
-    assert_eq!(stats["maximum life"].val(), 60);
+    assert_eq!(stats.stat(StatId::MaximumLife).val(), 60);
 }

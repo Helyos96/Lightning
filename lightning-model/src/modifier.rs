@@ -1,3 +1,4 @@
+use crate::build::StatId;
 /// 2 ways to parse a mod:
 ///
 /// 1. "Automatic": make sure all parts of your mod are declared
@@ -71,11 +72,12 @@ const ENDINGS_GEMTAGS: [(&str, GemTag); 14] = [
     ("with lightning skills", GemTag::Lightning),
 ];
 
-const ENDINGS_CONDITIONS: [(&str, Condition); 4] = [
+const ENDINGS_CONDITIONS: [(&str, Condition); 5] = [
     ("while fortified", Condition::PropertyBool((true, PropertyBool::Fortified))),
     ("if you've dealt a critical strike recently", Condition::PropertyBool((true, PropertyBool::DealtCritRecently))),
     ("while leeching", Condition::PropertyBool((true, PropertyBool::Leeching))),
     ("when on full life", Condition::PropertyBool((true, PropertyBool::OnFullLife))),
+    ("while on low life", Condition::PropertyBool((true, PropertyBool::OnLowLife))),
 ];
 
 // Parses a string like '1.75' into i64 '175'
@@ -125,7 +127,7 @@ lazy_static! {
                 };
                 Some(stat_tags.iter().map(|s| {
                     let mut ret = Mod {
-                        stat: s.0.to_string(),
+                        stat: s.0,
                         typ: Type::Inc,
                         amount,
                         tags: s.1.clone(),
@@ -151,7 +153,7 @@ lazy_static! {
                 };
                 let mut ret: Vec<Mod> = stat_tags_1.iter().map(|s| {
                     let mut ret = Mod {
-                        stat: s.0.to_string(),
+                        stat: s.0,
                         typ: Type::Inc,
                         amount,
                         tags: s.1.clone(),
@@ -164,7 +166,7 @@ lazy_static! {
                 }).collect();
                 ret.extend(stat_tags_2.iter().map(|s| {
                     let mut ret = Mod {
-                        stat: s.0.to_string(),
+                        stat: s.0,
                         typ: Type::Inc,
                         amount,
                         tags: s.1.clone(),
@@ -191,7 +193,7 @@ lazy_static! {
                 }
                 Some(stat_tags.iter().map(|s| {
                     let mut ret = Mod {
-                        stat: s.0.to_string(),
+                        stat: s.0,
                         typ: Type::Base,
                         amount,
                         tags: s.1.clone(),
@@ -209,7 +211,7 @@ lazy_static! {
                 let stat_tags = parse_stat(&c[2])?;
                 Some(stat_tags.iter().map(|s| {
                     Mod {
-                        stat: s.0.to_string(),
+                        stat: s.0,
                         typ: Type::More,
                         amount: i64::from_str(&c[1]).unwrap(),
                         tags: s.1.clone(),
@@ -223,7 +225,7 @@ lazy_static! {
                 let stat_tags = parse_stat(&c[2])?;
                 Some(stat_tags.iter().map(|s| {
                     Mod {
-                        stat: s.0.to_string(),
+                        stat: s.0,
                         typ: Type::More,
                         amount: i64::from_str(&c[1]).unwrap().neg(),
                         tags: s.1.clone(),
@@ -237,13 +239,13 @@ lazy_static! {
                 let stat_tags_1 = parse_stat_nomulti(&c[2])?;
                 let stat_tags_2 = parse_stat_nomulti(&c[3])?;
                 Some(vec![Mod {
-                    stat: stat_tags_1.0.to_string(),
+                    stat: stat_tags_1.0,
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
                     tags: stat_tags_1.1,
                     ..Default::default()
                 }, Mod {
-                    stat: stat_tags_2.0.to_string(),
+                    stat: stat_tags_2.0,
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
                     tags: stat_tags_2.1,
@@ -254,12 +256,12 @@ lazy_static! {
             regex!(r"^\+([0-9]+)%? to ([a-z]+) and ([a-z]+) resistances$"),
             Box::new(|c| {
                 Some(vec![Mod {
-                    stat: c[2].to_string() + " resistance",
+                    stat: STATS_MAP.get(format!("{} resistance", &c[2]).as_str()).copied()?,
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
                     ..Default::default()
                 }, Mod {
-                    stat: c[3].to_string() + " resistance",
+                    stat: STATS_MAP.get(format!("{} resistance", &c[3]).as_str()).copied()?,
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
                     ..Default::default()
@@ -269,12 +271,12 @@ lazy_static! {
             regex!(r"^adds ([0-9]+) to ([0-9]+) ([a-z ]+)$"),
             Box::new(|c| {
                 Some(vec![Mod {
-                    stat: "minimum ".to_string() + &c[3],
+                    stat: STATS_MAP.get(format!("minimum {}", &c[3]).as_str()).copied()?,
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
                     ..Default::default()
                 }, Mod {
-                    stat: "maximum ".to_string() + &c[3],
+                    stat: STATS_MAP.get(format!("maximum {}", &c[3]).as_str()).copied()?,
                     typ: Type::Base,
                     amount: i64::from_str(&c[2]).unwrap(),
                     ..Default::default()
@@ -284,7 +286,7 @@ lazy_static! {
             regex!(r"^regenerate ([0-9]+) life per second$"),
             Box::new(|c| {
                 Some(vec![Mod {
-                    stat: "life regen".to_string(),
+                    stat: StatId::LifeRegeneration,
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
                     ..Default::default()
@@ -294,7 +296,7 @@ lazy_static! {
             regex!(r"^regenerate ([0-9.]+)% of life per second$"),
             Box::new(|c| {
                 Some(vec![Mod {
-                    stat: "life regen pct".to_string(),
+                    stat: StatId::LifeRegenerationPct,
                     typ: Type::Base,
                     amount: parse_val100(&c[1])?,
                     ..Default::default()
@@ -304,7 +306,7 @@ lazy_static! {
             regex!(r"^damage penetrates ([0-9]+)% ([a-z]+) resistance$"),
             Box::new(|c| {
                 Some(vec![Mod {
-                    stat: c[2].to_string() + " damage penetration",
+                    stat: STATS_MAP.get(format!("{} damage penetration", &c[2]).as_str()).copied()?,
                     typ: Type::Base,
                     amount: parse_val100(&c[1])?,
                     ..Default::default()
@@ -313,103 +315,100 @@ lazy_static! {
         ),
     ];
 
-    static ref MULTISTATS: FxHashMap<&'static str, Vec<&'static str>> = {
+    static ref MULTISTATS: FxHashMap<&'static str, Vec<StatId>> = {
         let mut map = FxHashMap::default();
-        map.insert("attributes", vec!["strength", "dexterity", "intelligence"]);
-        map.insert("maximum elemental resistances", vec!["maximum fire resistance", "maximum cold resistance", "maximum lightning resistance"]);
-        map.insert("elemental resistances", vec!["fire resistance", "cold resistance", "lightning resistance"]);
-        map.insert("maximum resistances", vec!["maximum fire resistance", "maximum cold resistance", "maximum lightning resistance", "maximum chaos resistance"]);
-        map.insert("resistances", vec!["fire resistance", "cold resistance", "lightning resistance", "chaos resistance"]);
-        map.insert("elemental damage", vec!["fire damage", "cold damage", "lightning damage"]);
+        map.insert("attributes", vec![StatId::Strength, StatId::Dexterity, StatId::Intelligence]);
+        map.insert("maximum elemental resistances", vec![StatId::MaximumFireResistance, StatId::MaximumColdResistance, StatId::MaximumLightningResistance]);
+        map.insert("elemental resistances", vec![StatId::FireResistance, StatId::ColdResistance, StatId::LightningResistance]);
+        map.insert("maximum resistances", vec![StatId::MaximumFireResistance, StatId::MaximumColdResistance, StatId::MaximumLightningResistance, StatId::MaximumChaosResistance]);
+        map.insert("resistances", vec![StatId::FireResistance, StatId::ColdResistance, StatId::LightningResistance, StatId::ChaosResistance]);
+        map.insert("elemental damage", vec![StatId::FireDamage, StatId::ColdDamage, StatId::LightningDamage]);
         map
     };
+
     // Order is important for overlapping stats
     // like "area of effect" and "effect"
-    static ref STATS: Vec<&'static str> = vec![
-        "strength",
-        "dexterity",
-        "intelligence",
-        "attributes",
-
-        "attack speed",
-        "cast speed",
-        "warcry speed",
-        "cooldown recovery speed",
-        "projectile speed",
-        "trap throwing speed",
-
-        "chance to block attack damage",
-        "chance to block spell damage",
-        "chance to suppress spell damage",
-
-        "fire damage over time multiplier",
-        "cold damage over time multiplier",
-        "chaos damage over time multiplier",
-        "physical damage over time multiplier",
-        "damage over time multiplier",
-        "fire damage over time",
-        "cold damage over time",
-        "chaos damage over time",
-        "physical damage over time",
-        "damage over time",
-        "fire damage",
-        "cold damage",
-        "lightning damage",
-        "chaos damage",
-        "physical damage",
-        "damage",
-
-        "area of effect",
-        "accuracy rating",
-        "movement speed",
-        "skill effect duration",
-        "duration",
-
-        "impale effect",
-
-        "minimum frenzy charges",
-        "minimum power charges",
-        "minimum endurance charges",
-        "maximum frenzy charges",
-        "maximum power charges",
-        "maximum endurance charges",
-
-        "maximum life",
-        "maximum mana",
-        "minimum rage",
-        "maximum rage",
-        "maximum energy shield",
-        "energy shield recharge rate",
-        "life regeneration rate",
-        "mana regeneration rate",
-        "mana reservation efficiency",
-
-        "critical strike chance",
-        "critical strike multiplier",
-
-        "armour",
-        "evasion rating",
-        "stun threshold",
-        "chance to avoid being stunned",
-
-        "maximum fire resistance",
-        "maximum cold resistance",
-        "maximum lightning resistance",
-        "maximum chaos resistance",
-        "fire resistance",
-        "cold resistance",
-        "lightning resistance",
-        "chaos resistance",
-
-        "flask charges gained",
-        "flask effect duration",
-        "flask recovery rate",
-        "flask charges used",
-
-        "mana cost",
-        "life cost",
-        "cost",
+    static ref STATS: Vec<(&'static str, StatId)> = vec![
+        ("strength", StatId::Strength),
+        ("dexterity", StatId::Dexterity),
+        ("intelligence", StatId::Intelligence),
+        ("attributes", StatId::Attributes),
+        ("attack speed", StatId::AttackSpeed),
+        ("cast speed", StatId::CastSpeed),
+        ("warcry speed", StatId::WarcrySpeed),
+        ("cooldown recovery speed", StatId::CooldownRecoverySpeed),
+        ("projectile speed", StatId::ProjectileSpeed),
+        ("trap throwing speed", StatId::TrapThrowingSpeed),
+        ("chance to block attack damage", StatId::ChanceToBlockAttackDamage),
+        ("chance to block spell damage", StatId::ChanceToBlockSpellDamage),
+        ("chance to suppress spell damage", StatId::ChanceToSuppressSpellDamage),
+        ("fire damage over time multiplier", StatId::FireDamageOverTimeMultiplier),
+        ("cold damage over time multiplier", StatId::ColdDamageOverTimeMultiplier),
+        ("chaos damage over time multiplier", StatId::ChaosDamageOverTimeMultiplier),
+        ("physical damage over time multiplier", StatId::PhysicalDamageOverTimeMultiplier),
+        ("damage over time multiplier", StatId::DamageOverTimeMultiplier),
+        ("fire damage over time", StatId::FireDamageOverTime),
+        ("cold damage over time", StatId::ColdDamageOverTime),
+        ("chaos damage over time", StatId::ChaosDamageOverTime),
+        ("physical damage over time", StatId::PhysicalDamageOverTime),
+        ("damage over time", StatId::DamageOverTime),
+        ("fire damage", StatId::FireDamage),
+        ("cold damage", StatId::ColdDamage),
+        ("lightning damage", StatId::LightningDamage),
+        ("chaos damage", StatId::ChaosDamage),
+        ("physical damage", StatId::PhysicalDamage),
+        ("damage", StatId::Damage),
+        ("area of effect", StatId::AreaOfEffect),
+        ("accuracy rating", StatId::AccuracyRating),
+        ("movement speed", StatId::MovementSpeed),
+        ("skill effect duration", StatId::SkillEffectDuration),
+        ("duration", StatId::Duration),
+        ("impale effect", StatId::ImpaleEffect),
+        ("minimum frenzy charges", StatId::MinimumFrenzyCharges),
+        ("minimum power charges", StatId::MinimumPowerCharges),
+        ("minimum endurance charges", StatId::MinimumEnduranceCharges),
+        ("maximum frenzy charges", StatId::MaximumFrenzyCharges),
+        ("maximum power charges", StatId::MaximumPowerCharges),
+        ("maximum endurance charges", StatId::MaximumEnduranceCharges),
+        ("maximum life", StatId::MaximumLife),
+        ("maximum mana", StatId::MaximumMana),
+        ("minimum rage", StatId::MinimumRage),
+        ("maximum rage", StatId::MaximumRage),
+        ("maximum energy shield", StatId::MaximumEnergyShield),
+        ("energy shield recharge rate", StatId::EnergyShieldRechargeRate),
+        ("life regeneration rate", StatId::LifeRegenerationRate),
+        ("mana regeneration rate", StatId::ManaRegenerationRate),
+        ("mana reservation efficiency", StatId::ManaReservationEfficiency),
+        ("critical strike chance", StatId::CriticalStrikeChance),
+        ("critical strike multiplier", StatId::CriticalStrikeMultiplier),
+        ("armour", StatId::Armour),
+        ("evasion rating", StatId::EvasionRating),
+        ("stun threshold", StatId::StunThreshold),
+        ("chance to avoid being stunned", StatId::ChanceToAvoidBeingStunned),
+        ("maximum fire resistance", StatId::MaximumFireResistance),
+        ("maximum cold resistance", StatId::MaximumColdResistance),
+        ("maximum lightning resistance", StatId::MaximumLightningResistance),
+        ("maximum chaos resistance", StatId::MaximumChaosResistance),
+        ("fire resistance", StatId::FireResistance),
+        ("cold resistance", StatId::ColdResistance),
+        ("lightning resistance", StatId::LightningResistance),
+        ("chaos resistance", StatId::ChaosResistance),
+        ("flask charges gained", StatId::FlaskChargesGained),
+        ("flask effect duration", StatId::FlaskEffectDuration),
+        ("flask recovery rate", StatId::FlaskRecoveryRate),
+        ("flask charges used", StatId::FlaskChargesUsed),
+        ("mana cost", StatId::ManaCost),
+        ("life cost", StatId::LifeCost),
+        ("cost", StatId::Cost),
     ];
+
+    static ref STATS_MAP: FxHashMap<&'static str, StatId> = {
+        let mut map = FxHashMap::default();
+        for entry in STATS.iter() {
+            map.insert(entry.0, entry.1);
+        }
+        map
+    };
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
@@ -437,6 +436,7 @@ pub enum PropertyBool {
     DealtCritRecently,
     Leeching,
     OnFullLife,
+    OnLowLife,
 }
 
 pub enum Ending {
@@ -448,16 +448,16 @@ pub enum Ending {
 
 #[derive(Debug, Clone)]
 pub enum Mutation {
-    MultiplierStat((i64, String)),
+    MultiplierStat((i64, StatId)),
     MultiplierProperty((i64, PropertyInt)),
 }
 
 #[derive(Debug, Clone)]
 pub enum Condition {
     GreaterEqualProperty((i64, PropertyInt)),
-    GreaterEqualStat((i64, String)),
+    GreaterEqualStat((i64, StatId)),
     LesserEqualProperty((i64, PropertyInt)),
-    LesserEqualStat((i64, String)),
+    LesserEqualStat((i64, StatId)),
     PropertyBool((bool, PropertyBool)),
 }
 
@@ -473,7 +473,7 @@ pub enum Source {
 
 #[derive(Default, Debug, Clone)]
 pub struct Mod {
-    pub stat: String,
+    pub stat: StatId,
     pub typ: Type,
     pub amount: i64,
     pub flags: Vec<Mutation>,
@@ -481,6 +481,12 @@ pub struct Mod {
     pub tags: FxHashSet<GemTag>,
     pub source: Source,
     pub weapons: FxHashSet<ItemClass>
+}
+
+impl Mod {
+    pub fn amount(&self) -> i64 {
+        self.amount
+    }
 }
 
 fn parse_ending(m: &str) -> Option<(usize, Ending)> {
@@ -508,17 +514,17 @@ fn parse_ending(m: &str) -> Option<(usize, Ending)> {
     None
 }
 
-fn parse_stat_nomulti(input: &str) -> Option<(&str, FxHashSet<GemTag>)> {
+fn parse_stat_nomulti(input: &str) -> Option<(StatId, FxHashSet<GemTag>)> {
     let mut tags = hset![];
 
-    let stat = &STATS.iter().find_map(|s| {
-        if input.ends_with(s) {
-            return Some(*s);
+    let stat = STATS.iter().find_map(|s| {
+        if input.ends_with(s.0) {
+            return Some(s);
         }
         None
     })?;
 
-    let remainder = &input[0..input.len() - stat.len()];
+    let remainder = &input[0..input.len() - stat.0.len()];
 
     for chunk in remainder.split_terminator(' ') {
         if let Some(t) = TAGS.get(chunk) {
@@ -528,23 +534,13 @@ fn parse_stat_nomulti(input: &str) -> Option<(&str, FxHashSet<GemTag>)> {
         }
     }
 
-    Some((stat.to_owned(), tags))
+    Some((stat.1, tags))
 }
 
 /// Attempts to parse a chunk like "melee physical damage"
-fn parse_stat(input: &str) -> Option<Vec<(&str, FxHashSet<GemTag>)>> {
+fn parse_stat(input: &str) -> Option<Vec<(StatId, FxHashSet<GemTag>)>> {
     if let Some(stats) = MULTISTATS.get(input) {
-        let mut ret = vec![];
-        for stat in stats {
-            if let Some(parse) = parse_stat_nomulti(stat) {
-                ret.push(parse);
-            }
-        }
-        if ret.is_empty() {
-            return None;
-        } else {
-            return Some(ret);
-        }
+        return Some(stats.into_iter().map(|id| (*id, hset![])).collect());
     }
 
     if let Some(stat) = parse_stat_nomulti(input) {
@@ -606,13 +602,11 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
                     modifier.source = source;
                 }
                 CACHE.lock().unwrap().insert(input.to_string(), Some(mods.clone()));
-                println!("Success: {}: {:?}", input, &mods);
                 return Some(mods);
             }
         }
     }
 
-    println!("failed: {input}");
     CACHE.lock().unwrap().insert(input.to_string(), None);
     None
 }
