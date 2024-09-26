@@ -114,7 +114,7 @@ impl State {
     }
 }
 
-const LEFT_PANEL_WIDTH: f32 = 200.0;
+const LEFT_PANEL_WIDTH: f32 = 240.0;
 const TOP_PANEL_HEIGHT: f32 = 40.0;
 
 fn get_selected_text(state: &State) -> &str {
@@ -142,9 +142,13 @@ pub fn draw_left_panel(ctx: &egui::Context, state: &mut State) {
                 .selected_text(get_selected_text(state))
                 .show_ui(ui, |ui| {
                     ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
-                    for (index, gem) in state.build.gem_links.iter().flat_map(|gl| &gl.active_gems).enumerate() {
-                        if ui.selectable_value(&mut state.active_skill_cur, index, &gem.data().base_item.as_ref().unwrap().display_name).clicked() {
-                            state.active_skill_calc = calc::calc_gem(&state.build, &vec![], gem);
+                    let mut index = 0;
+                    for gem_link in &state.build.gem_links {
+                        for active_gem in &gem_link.active_gems {
+                            if ui.selectable_value(&mut state.active_skill_cur, index, &active_gem.data().base_item.as_ref().unwrap().display_name).clicked() {
+                                state.active_skill_calc = calc::calc_gem(&state.build, &gem_link.support_gems, active_gem);
+                            }
+                            index += 1;
                         }
                     }
                 }
@@ -207,12 +211,29 @@ pub fn draw_top_panel(ctx: &egui::Context, state: &mut State) {
                     state.request_recalc = true;
                 }
                 egui::ComboBox::from_id_source("combo_class")
-                    .selected_text(state.build.tree.class.as_str())
+                    .selected_text(state.build.tree.class.as_ref())
                     .show_ui(ui, |ui| {
                         ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
                         for class in TREE.classes.keys() {
-                            if ui.selectable_label(*class == state.build.tree.class, class.as_str()).clicked() {
+                            if ui.selectable_label(*class == state.build.tree.class, class.as_ref()).clicked() {
                                 state.build.tree.set_class(*class);
+                                state.request_regen = true;
+                                state.request_recalc = true;
+                            }
+                        }
+                    }
+                );
+                let selected_text = match state.build.tree.ascendancy {
+                    Some(ascendancy) => ascendancy.into(),
+                    None => "None",
+                };
+                egui::ComboBox::from_id_source("combo_ascendancy")
+                    .selected_text(selected_text)
+                    .show_ui(ui, |ui| {
+                        ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
+                        for ascendancy in state.build.tree.class.ascendancies() {
+                            if ui.selectable_label(Some(ascendancy) == state.build.tree.ascendancy, Into::<&str>::into(ascendancy)).clicked() {
+                                state.build.tree.set_ascendancy(Some(ascendancy));
                                 state.request_regen = true;
                                 state.request_recalc = true;
                             }
@@ -225,13 +246,13 @@ pub fn draw_top_panel(ctx: &egui::Context, state: &mut State) {
 }
 
 lazy_static! {
-    static ref properties_int: Vec<(PropertyInt, &'static str)> = vec![
+    static ref PROPERTIES_INT: Vec<(PropertyInt, &'static str)> = vec![
         (PropertyInt::FrenzyCharges, "Frenzy Charges"),
         (PropertyInt::PowerCharges, "Power Charges"),
         (PropertyInt::EnduranceCharges, "Endurance Charges"),
         (PropertyInt::Rage, "Rage"),
     ];
-    static ref properties_bool: Vec<(PropertyBool, &'static str)> = vec![
+    static ref PROPERTIES_BOOL: Vec<(PropertyBool, &'static str)> = vec![
         (PropertyBool::Fortified, "Are you Fortified?"),
         (PropertyBool::Blinded, "Are you Blind?"),
         (PropertyBool::Onslaught, "Do you have Onslaught?"),
@@ -248,7 +269,7 @@ pub fn draw_config_panel(ctx: &egui::Context, state: &mut State) {
             ui.columns(2, |uis| {
                 egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(&mut uis[0], |ui| {
                     egui::Grid::new("grid_ui_property_int").show(ui, |ui| {
-                        for pint in properties_int.iter() {
+                        for pint in PROPERTIES_INT.iter() {
                             let mut property = state.build.property_int(pint.0);
                             ui.label(pint.1);
                             if ui.add(egui::DragValue::new(&mut property)).changed() {
@@ -261,7 +282,7 @@ pub fn draw_config_panel(ctx: &egui::Context, state: &mut State) {
                 });
                 egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(&mut uis[1], |ui| {
                     egui::Grid::new("grid_ui_property_bool").show(ui, |ui| {
-                        for pbool in properties_bool.iter() {
+                        for pbool in PROPERTIES_BOOL.iter() {
                             let mut property = state.build.property_bool(pbool.0);
                             ui.label(pbool.1);
                             if ui.checkbox(&mut property, "").clicked() {

@@ -22,7 +22,7 @@ fn load_texture(img: &RgbaImage, gl: &glow::Context) -> glow::Texture {
             0,
             glow::RGBA,
             glow::UNSIGNED_BYTE,
-            Some(&img.as_raw()),
+            Some(img.as_raw()),
         );
 
         gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MAG_FILTER, glow::LINEAR as i32);
@@ -365,8 +365,8 @@ impl TreeGl {
             let scale = glam::Mat4::from_scale(glam::Vec3::new(zoom, zoom, 0.0));
             let ortho = glam::Mat4::orthographic_rh_gl(-aspect_ratio, aspect_ratio, -1.0, 1.0, -1.0, 1.0);
             let translate = glam::Mat4::from_translation(glam::Vec3::new(
-                translate.0 as f32 / 12500.0,
-                translate.1 as f32 / 12500.0,
+                translate.0 / 12500.0,
+                translate.1 / 12500.0,
                 0.0,
             ));
 

@@ -517,11 +517,11 @@ fn parse_ending(m: &str) -> Option<(usize, Ending)> {
 fn parse_stat_nomulti(input: &str) -> Option<(StatId, FxHashSet<GemTag>)> {
     let mut tags = hset![];
 
-    let stat = STATS.iter().find_map(|s| {
+    let stat = STATS.iter().find(|s| {
         if input.ends_with(s.0) {
-            return Some(s);
+            return true;
         }
-        None
+        false
     })?;
 
     let remainder = &input[0..input.len() - stat.0.len()];
@@ -540,7 +540,7 @@ fn parse_stat_nomulti(input: &str) -> Option<(StatId, FxHashSet<GemTag>)> {
 /// Attempts to parse a chunk like "melee physical damage"
 fn parse_stat(input: &str) -> Option<Vec<(StatId, FxHashSet<GemTag>)>> {
     if let Some(stats) = MULTISTATS.get(input) {
-        return Some(stats.into_iter().map(|id| (*id, hset![])).collect());
+        return Some(stats.iter().map(|id| (*id, hset![])).collect());
     }
 
     if let Some(stat) = parse_stat_nomulti(input) {

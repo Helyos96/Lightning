@@ -158,11 +158,12 @@ pub struct Stat {
 #[derive(Default, Serialize, Deserialize)]
 pub struct Build {
     pub name: String,
+
     pub ascendancy: i32,
     pub level: i32,
     pub gem_links: Vec<GemLink>,
     #[serde_as(as = "FxHashMap<serde_with::json::JsonString, _>")]
-    pub equipment: FxHashMap<Slot, Item>, // todo: HashMap Slot
+    pub equipment: FxHashMap<Slot, Item>,
     pub inventory: Vec<Item>,
     pub tree: PassiveTree,
     properties_int: FxHashMap<PropertyInt, i64>,
@@ -337,7 +338,7 @@ impl Build {
                 mods_sec_pass.push(m);
                 continue;
             }
-            stats.entry(m.stat.clone()).or_default().adjust(m.typ, m.amount, m);
+            stats.entry(m.stat).or_default().adjust(m.typ, m.amount, m);
         }
 
         for m in mods_sec_pass {
@@ -355,7 +356,7 @@ impl Build {
                     },
                 }
             }
-            stats.entry(m.stat.clone()).or_default().adjust(m.typ, amount, m);
+            stats.entry(m.stat).or_default().adjust(m.typ, amount, m);
         }
 
         'outer: for m in mods_third_pass {
@@ -408,7 +409,7 @@ impl Build {
                     },
                 }
             }
-            stats.entry(m.stat.clone()).or_default().adjust(m.typ, amount, m);
+            stats.entry(m.stat).or_default().adjust(m.typ, amount, m);
         }
 
         Stats { stats }

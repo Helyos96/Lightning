@@ -5,16 +5,18 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-serde_with = { version = "3.9", features = ["json"] }
-regex = "1.10"
-lazy_static = "1.4"
-reqwest = { version = "0.12", features = ["blocking", "json"], optional = true }
-rustc-hash = "1.1"
-bincode = "1.3"
-pathfinding = "4.9"
-rust_decimal = "1.36"
+serde = { version = "1.0.*", features = ["derive"] }
+serde_json = "1.0.*"
+serde_with = { version = "3.9.*", features = ["json"] }
+regex = "1.10.*"
+lazy_static = "1.4.*"
+reqwest = { version = "0.12.*", features = ["blocking", "json"], optional = true }
+rustc-hash = "1.1.*"
+bincode = "1.3.*"
+pathfinding = "4.11.*"
+rust_decimal = "1.36.*"
+strum = "0.26.*"
+strum_macros = "0.26.*"
 
 [dev-dependencies]
 bencher = "0.1"

@@ -6,20 +6,20 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 lightning-model = { path = "../lightning-model", default-features = false }
-glutin = "0.31"
-glutin-winit = "0.4"
-raw-window-handle = "0.5"
-egui = "0.28"
-egui_glow = { version = "0.28", features = ["winit", "clipboard"] }
-glow = "0.13"
-dirs = "4"
-serde = "1.0"
-serde_json = "1.0"
-rustc-hash = "1.1"
-lazy_static = "1.4"
-glam = "0.27"
-image = { version = "0.25", default-features = false, features = ["rayon", "jpeg", "png"] }
-quadtree-f32 = "0.4"
+glutin = "0.31.*"
+glutin-winit = "0.4.*"
+raw-window-handle = "0.5.*"
+egui = "0.28.*"
+egui_glow = { version = "0.28.*", features = ["winit", "clipboard"] }
+glow = "0.13.*"
+dirs = "4.*"
+serde = "1.0.*"
+serde_json = "1.0.*"
+rustc-hash = "1.1.*"
+lazy_static = "1.4.*"
+glam = "0.27.*"
+image = { version = "0.25.*", default-features = false, features = ["rayon", "jpeg", "png"] }
+quadtree-f32 = "0.4.*"
 
 [features]
 default = ["import"]

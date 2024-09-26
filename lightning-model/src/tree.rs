@@ -6,8 +6,11 @@ use pathfinding::prelude::bfs;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::str::FromStr;
+use std::convert::AsRef;
+use strum_macros::{AsRefStr, EnumString, IntoStaticStr};
 
-#[derive(Default, Clone, Copy, Hash, Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Default, Clone, Copy, Hash, Eq, PartialEq, Debug, Serialize, Deserialize, EnumString, AsRefStr)]
 pub enum Class {
     #[default]
     Scion,
@@ -20,41 +23,68 @@ pub enum Class {
 }
 
 impl Class {
-    pub fn as_str(&self) -> &str {
+    pub fn ascendancies(&self) -> Vec<Ascendancy> {
         use Class::*;
+        use Ascendancy::*;
         match self {
-            Scion => "Scion",
-            Marauder => "Marauder",
-            Ranger => "Ranger",
-            Witch => "Witch",
-            Duelist => "Duelist",
-            Templar => "Templar",
-            Shadow => "Shadow",
+            Scion => vec![Ascendant],
+            Marauder => vec![Berserker, Chieftain, Juggernaut],
+            Ranger => vec![Deadeye, Raider, Pathfinder],
+            Witch => vec![Necromancer, Occultist, Elementalist],
+            Duelist => vec![Slayer, Gladiator, Champion],
+            Templar => vec![Inquisitor, Hierophant, Guardian],
+            Shadow => vec![Assassin, Saboteur, Trickster],
         }
     }
+}
 
-    pub fn from_ascendancy_str(ascendancy: &str) -> Self {
-        match ascendancy {
-            "Inquisitor" => Class::Templar,
-            "Hierophant" => Class::Templar,
-            "Guardian" => Class::Templar,
-            "Slayer" => Class::Duelist,
-            "Gladiator" => Class::Duelist,
-            "Champion" => Class::Duelist,
-            "Assassin" => Class::Shadow,
-            "Saboteur" => Class::Shadow,
-            "Trickster" => Class::Shadow,
-            "Juggernaut" => Class::Marauder,
-            "Berserker" => Class::Marauder,
-            "Chieftain" => Class::Marauder,
-            "Necromancer" => Class::Witch,
-            "Occultist" => Class::Witch,
-            "Elementalist" => Class::Witch,
-            "Deadeye" => Class::Ranger,
-            "Raider" => Class::Ranger,
-            "Pathfinder" => Class::Ranger,
-            "Ascendant" => Class::Scion,
-            _ => Class::default()
+#[derive(Clone, Copy, Hash, Eq, PartialEq, Debug, Serialize, Deserialize, EnumString, IntoStaticStr)]
+pub enum Ascendancy {
+    Inquisitor,
+    Hierophant,
+    Guardian,
+    Slayer,
+    Gladiator,
+    Champion,
+    Assassin,
+    Saboteur,
+    Trickster,
+    Juggernaut,
+    Berserker,
+    Chieftain,
+    Necromancer,
+    Occultist,
+    Elementalist,
+    Deadeye,
+    Raider,
+    Pathfinder,
+    Ascendant,
+}
+
+impl Ascendancy {
+    pub fn class(&self) -> Class {
+        use Class::*;
+        use Ascendancy::*;
+        match self {
+            Inquisitor => Templar,
+            Hierophant => Templar,
+            Guardian => Templar,
+            Slayer => Duelist,
+            Gladiator => Duelist,
+            Champion => Duelist,
+            Assassin => Shadow,
+            Saboteur => Shadow,
+            Trickster => Shadow,
+            Juggernaut => Marauder,
+            Berserker => Marauder,
+            Chieftain => Marauder,
+            Necromancer => Witch,
+            Occultist => Witch,
+            Elementalist => Witch,
+            Deadeye => Ranger,
+            Raider => Ranger,
+            Pathfinder => Ranger,
+            Ascendant => Scion,
         }
     }
 }
@@ -120,7 +150,8 @@ pub struct Node {
     pub is_jewel_socket: bool,
     #[serde(default)]
     pub is_proxy: bool,
-    pub ascendancy_name: Option<String>,
+    #[serde(rename = "ascendancyName")]
+    pub ascendancy: Option<Ascendancy>,
     pub class_start_index: Option<i32>,
     #[serde(default)]
     pub mastery_effects: Vec<MasteryEffect>,
@@ -133,7 +164,7 @@ pub struct Node {
 
 impl Node {
     pub fn node_type(&self) -> NodeType {
-        if self.ascendancy_name.is_some() {
+        if self.ascendancy.is_some() {
             if self.is_notable {
                 return NodeType::AscendancyNotable;
             } else {
@@ -200,6 +231,7 @@ pub struct TreeData {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PassiveTree {
     pub class: Class,
+    pub ascendancy: Option<Ascendancy>,
     pub nodes: Vec<u16>,
     pub nodes_ex: Vec<u16>,
     pub masteries: Vec<(u16, u16)>,
@@ -209,6 +241,7 @@ impl Default for PassiveTree {
     fn default() -> Self {
         let mut pt = Self {
             class: Default::default(),
+            ascendancy: None,
             nodes: Default::default(),
             nodes_ex: Default::default(),
             masteries: Default::default(),
@@ -226,11 +259,19 @@ fn get_class_node(class: Class) -> u16 {
         .skill
 }
 
+fn get_ascendancy_node(ascendancy: Ascendancy) -> u16 {
+    TREE.nodes
+        .values()
+        .find(|n| n.is_ascendancy_start && n.ascendancy == Some(ascendancy))
+        .unwrap()
+        .skill
+}
+
 lazy_static! {
     static ref PATH_OF_THE: Vec<u16> = TREE
         .nodes
         .values()
-        .filter(|n| n.name.starts_with("Path of the") && n.ascendancy_name.is_some())
+        .filter(|n| n.name.starts_with("Path of the") && n.ascendancy.is_some())
         .map(|n| n.skill)
         .collect();
 }
@@ -296,7 +337,7 @@ impl PassiveTree {
             .as_ref()
             .unwrap()
             .iter()
-            .filter(|id| !PATH_OF_THE.contains(*id) || self.nodes.contains(id)).copied()
+            .filter(|id| (!PATH_OF_THE.contains(*id) && (!TREE.nodes[id].is_ascendancy_start || TREE.nodes[id].ascendancy == self.ascendancy)) || self.nodes.contains(id)).copied()
             .collect();
 
         if PATH_OF_THE.contains(&node) {
@@ -305,7 +346,7 @@ impl PassiveTree {
                 .as_ref()
                 .unwrap()
                 .iter()
-                .filter(|id| TREE.nodes[id].ascendancy_name.is_some() && !self.nodes.contains(id)).copied()
+                .filter(|id| TREE.nodes[id].ascendancy.is_some() && !self.nodes.contains(id)).copied()
                 .collect();
             v.extend(nodes_out);
         } else {
@@ -352,11 +393,29 @@ impl PassiveTree {
     }
 
     pub fn set_class(&mut self, class: Class) {
-        if let Some(index) = self.nodes.iter().position(|id| *id == get_class_node(self.class)) {
-            self.nodes.remove(index);
+        if class == self.class {
+            return;
         }
+
+        self.flip_node(get_class_node(self.class));
         self.nodes.push(get_class_node(class));
         self.class = class;
+        self.set_ascendancy(None);
+    }
+
+    pub fn set_ascendancy(&mut self, ascendancy: Option<Ascendancy>) {
+        if ascendancy == self.ascendancy {
+            return;
+        }
+        if let Some(old_ascendancy) = self.ascendancy {
+            self.flip_node(get_ascendancy_node(old_ascendancy));
+        }
+        if let Some(ascendancy) = ascendancy {
+            self.set_class(ascendancy.class());
+            self.nodes.push(get_ascendancy_node(ascendancy));
+        }
+
+        self.ascendancy = ascendancy;
     }
 
     pub fn calc_mods(&self) -> Vec<Mod> {

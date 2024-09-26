@@ -96,10 +96,8 @@ fn set_vsync(surface: &Surface<WindowSurface>, context: &PossiblyCurrentContext,
         if let Err(res) = surface.set_swap_interval(context, SwapInterval::Wait(NonZeroU32::new(1).unwrap())) {
             eprintln!("Error enabling vsync: {res:?}");
         }
-    } else {
-        if let Err(res) = surface.set_swap_interval(context, SwapInterval::DontWait) {
-            eprintln!("Error disabling vsync: {res:?}");
-        }
+    } else if let Err(res) = surface.set_swap_interval(context, SwapInterval::DontWait) {
+        eprintln!("Error disabling vsync: {res:?}");
     }
 }
 
@@ -182,13 +180,11 @@ fn main() {
                                         state.path_hovered = path_hovered;
                                         state.path_red = None;
                                     }
-                                } else {
-                                    if state.path_red.is_none() {
-                                        let path_red = state.build.tree.find_path_remove(node.skill);
-                                        state.request_regen = true;
-                                        state.path_hovered = None;
-                                        state.path_red = Some(path_red);
-                                    }
+                                } else if state.path_red.is_none() {
+                                    let path_red = state.build.tree.find_path_remove(node.skill);
+                                    state.request_regen = true;
+                                    state.path_hovered = None;
+                                    state.path_red = Some(path_red);
                                 }
                             } else {
                                 if state.path_hovered.is_some() || state.path_red.is_some() {

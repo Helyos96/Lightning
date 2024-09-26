@@ -133,12 +133,12 @@ impl Item {
 
         for m in &self.mods_impl {
             if let Some(modifiers) = parse_mod(m, Source::Item) {
-                mods.extend(modifiers.into_iter().filter(|parsed_mod| match_local(parsed_mod)));
+                mods.extend(modifiers.into_iter().filter(match_local));
             }
         }
         for m in &self.mods_expl {
             if let Some(modifiers) = parse_mod(m, Source::Item) {
-                mods.extend(modifiers.into_iter().filter(|parsed_mod| match_local(parsed_mod)));
+                mods.extend(modifiers.into_iter().filter(match_local));
             }
         }
 

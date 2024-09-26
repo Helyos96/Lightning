@@ -170,11 +170,12 @@ pub fn connectors_gl_inactive() -> DrawData {
 
     for node in TREE.nodes.values().filter(|n| {
         n.group.is_some()
-            && (!n.name.starts_with("Path of the") || n.ascendancy_name.is_none())
+            && (!n.name.starts_with("Path of the") || n.ascendancy.is_none())
             && n.class_start_index.is_none()
             && !n.is_mastery
             && !n.is_proxy
-            && !(n.name == "Medium Jewel Socket") && !(n.name == "Small Jewel Socket")
+            && (n.name != "Medium Jewel Socket")
+            && (n.name != "Small Jewel Socket")
     }) {
         let (x1, y1) = node_pos(node);
         for out in node
@@ -197,7 +198,7 @@ pub fn connectors_gl(nodes: &[u16], rect: &Rect, w: f32) -> DrawData {
 
     for node in nodes.iter().map(|id| &TREE.nodes[id]).filter(|n| {
         n.group.is_some()
-            && (!n.name.starts_with("Path of the") || n.ascendancy_name.is_none())
+            && (!n.name.starts_with("Path of the") || n.ascendancy.is_none())
             && n.class_start_index.is_none()
             && !n.is_mastery
     }) {
@@ -315,7 +316,7 @@ pub fn nodes_gl() -> [DrawData; 4] {
     for node in TREE
         .nodes
         .values()
-        .filter(|n| n.group.is_some() && n.class_start_index.is_none() && !n.is_proxy && !(n.name == "Medium Jewel Socket") && !(n.name == "Small Jewel Socket"))
+        .filter(|n| n.group.is_some() && n.class_start_index.is_none() && !n.is_proxy && (n.name != "Medium Jewel Socket") && (n.name != "Small Jewel Socket"))
     {
         node_gl(
             node,
@@ -454,7 +455,7 @@ pub fn ascendancies_gl() -> DrawData {
     let mut dd = DrawData::default();
     for node in TREE.nodes.values().filter(|n| n.is_ascendancy_start) {
         let sprite = &TREE.sprites["ascendancyBackground"];
-        let key = &("Classes".to_string() + node.ascendancy_name.as_ref().unwrap());
+        let key = &("Classes".to_string() + node.ascendancy.unwrap().into());
         if let Some(rect) = sprite.coords.get(key) {
             let (x, y) = node_pos(node);
             dd.append(x, y, rect, sprite, false, 2.5);

@@ -6,7 +6,7 @@ use crate::build::{self, Build, GemLink, Slot};
 use crate::data::GEMS;
 use crate::gem;
 use crate::item;
-use crate::tree::Class;
+use crate::tree::{Ascendancy, Class};
 use serde::Deserialize;
 use rustc_hash::FxHashMap;
 use std::error::Error;
@@ -17,7 +17,7 @@ use std::str::FromStr;
 struct Character {
     level: i32,
     #[serde(rename = "class")]
-    ascendancy: String,
+    class_or_ascendancy: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -114,6 +114,15 @@ fn conv_item(item: &Item) -> item::Item {
     }
 }
 
+#[derive(Debug, Clone)]
+struct ParseError;
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Failed to parse")
+    }
+}
+impl std::error::Error for ParseError {}
+
 pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>> {
     // Passive Tree
     let url = "https://pathofexile.com/character-window/get-passive-skills?realm=pc&accountName=".to_string()
@@ -137,7 +146,13 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
     build.level = items.character.level;
     build.tree.nodes = tree.hashes;
     build.tree.nodes_ex = tree.hashes_ex;
-    build.tree.set_class(Class::from_ascendancy_str(items.character.ascendancy.as_str()));
+    if let Ok(class) = Class::from_str(&items.character.class_or_ascendancy) {
+        build.tree.set_class(class);
+    } else if let Ok(ascendancy) = Ascendancy::from_str(&items.character.class_or_ascendancy) {
+        build.tree.set_ascendancy(Some(ascendancy));
+    } else {
+        return Err(Box::new(ParseError));
+    }
 
     for (mastery, selected) in &tree.mastery_effects {
         let mastery = u32::from_str(mastery)?;
@@ -154,9 +169,9 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
         }
         if let Some(inventory_id) = &item.inventoryId {
             if let Ok(slot) = Slot::try_from((inventory_id.as_str(), item.x.unwrap_or(0))) {
-                build.equipment.insert(slot, conv_item(&item));
+                build.equipment.insert(slot, conv_item(item));
             } else {
-                build.inventory.push(conv_item(&item));
+                build.inventory.push(conv_item(item));
             }
         }
     }

@@ -12,10 +12,8 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 let mut size = ui.spacing().interact_size;
                 size.x = 250.0;
                 if ui.add_sized(size, egui::TextEdit::singleline(&mut state.builds_dir_settings)).changed() {
-                    if let Ok(path) = PathBuf::try_from(&state.builds_dir_settings) {
-                        state.config.builds_dir = path;
-                        let _ = state.config.save();
-                    }
+                    state.config.builds_dir = PathBuf::from(&state.builds_dir_settings);
+                    let _ = state.config.save();
                 }
                 ui.end_row();
                 ui.label("Framerate");
