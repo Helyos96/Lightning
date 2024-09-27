@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use lightning_model::build::{Build, Slot};
 use lightning_model::data::TREE;
-use lightning_model::tree::{self, Class, Node, NodeType, Rect, Sprite};
+use lightning_model::tree::{self, Ascendancy, Class, Node, NodeType, Rect, Sprite};
 use std::collections::HashMap;
 use std::ops::Neg;
 
@@ -451,9 +451,22 @@ pub fn group_background_gl() -> DrawData {
     dd
 }
 
-pub fn ascendancies_gl() -> DrawData {
+pub fn ascendancies_inactive_gl(ascendancy: Option<Ascendancy>) -> DrawData {
     let mut dd = DrawData::default();
-    for node in TREE.nodes.values().filter(|n| n.is_ascendancy_start) {
+    for node in TREE.nodes.values().filter(|n| n.is_ascendancy_start && n.ascendancy != ascendancy) {
+        let sprite = &TREE.sprites["ascendancyBackground"];
+        let key = &("Classes".to_string() + node.ascendancy.unwrap().into());
+        if let Some(rect) = sprite.coords.get(key) {
+            let (x, y) = node_pos(node);
+            dd.append(x, y, rect, sprite, false, 2.5);
+        }
+    }
+    dd
+}
+
+pub fn ascendancies_active_gl(ascendancy: Option<Ascendancy>) -> DrawData {
+    let mut dd = DrawData::default();
+    for node in TREE.nodes.values().filter(|n| n.is_ascendancy_start && n.ascendancy == ascendancy) {
         let sprite = &TREE.sprites["ascendancyBackground"];
         let key = &("Classes".to_string() + node.ascendancy.unwrap().into());
         if let Some(rect) = sprite.coords.get(key) {

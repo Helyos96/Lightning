@@ -243,9 +243,6 @@ impl TreeGl {
         let data = connectors_gl_inactive();
         self.draw_data
             .insert("connectors".to_string(), GlDrawData::new(gl, &data));
-        let data = ascendancies_gl();
-        self.draw_data
-            .insert("ascendancy_background".to_string(), GlDrawData::new(gl, &data));
         let data = background_gl();
         self.draw_data
             .insert("background".to_string(), GlDrawData::new(gl, &data));
@@ -266,7 +263,7 @@ impl TreeGl {
     }
 
     pub fn regen_active(&mut self, gl: &glow::Context, build: &Build, path_hovered: &Option<Vec<u16>>, path_red: &Option<Vec<u16>>,) {
-        const REDRAW: [&str; 13] = [
+        const REDRAW: [&str; 15] = [
             "nodes_active",
             "frames_active",
             "masteries_active",
@@ -280,6 +277,8 @@ impl TreeGl {
             "frames_active_red",
             "ascendancy_frames_active_red",
             "jewels",
+            "ascendancy_inactive_background",
+            "ascendancy_active_background"
         ];
 
         for &s in &REDRAW {
@@ -324,6 +323,12 @@ impl TreeGl {
         let data = jewels_gl(build);
         self.draw_data
                 .insert("jewels".to_string(), GlDrawData::new(gl, &data));
+        let data = ascendancies_inactive_gl(build.tree.ascendancy);
+        self.draw_data
+            .insert("ascendancy_inactive_background".to_string(), GlDrawData::new(gl, &data));
+        let data = ascendancies_active_gl(build.tree.ascendancy);
+        self.draw_data
+            .insert("ascendancy_active_background".to_string(), GlDrawData::new(gl, &data));
     }
 
     pub fn draw(
@@ -333,10 +338,11 @@ impl TreeGl {
         translate: (f32, f32),
     ) {
         // draw_data name ; texture file ; color tint factor
-        const DRAW_ORDER: [(&str, &str, [f32; 4]); 19] = [
+        const DRAW_ORDER: [(&str, &str, [f32; 4]); 20] = [
             ("background", "background-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("group_background", "group-background-3.png", [1.0, 1.0, 1.0, 1.0]),
-            ("ascendancy_background", "ascendancy-background-3.png", [1.0, 1.0, 1.0, 1.0]),
+            ("ascendancy_inactive_background", "ascendancy-background-3.png", [0.25, 0.25, 0.25, 1.0]),
+            ("ascendancy_active_background", "ascendancy-background-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("connectors", "line-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("connectors_active", "line-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("connectors_hovered", "line-3.png", [1.0, 1.0, 1.0, 1.0]),
