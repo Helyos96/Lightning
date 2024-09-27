@@ -158,9 +158,7 @@ pub struct Stat {
 #[derive(Default, Serialize, Deserialize)]
 pub struct Build {
     pub name: String,
-
     pub ascendancy: i32,
-    pub level: i32,
     pub gem_links: Vec<GemLink>,
     #[serde_as(as = "FxHashMap<serde_with::json::JsonString, _>")]
     pub equipment: FxHashMap<Slot, Item>,
@@ -186,7 +184,6 @@ impl Build {
         let mut ret = Build {
             name: "Untitled Build".to_string(),
             ascendancy: 0,
-            level: 1,
             ..Default::default()
         };
         ret.set_property_int(PropertyInt::Level, 1);
