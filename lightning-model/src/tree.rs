@@ -246,7 +246,8 @@ impl Default for PassiveTree {
             nodes_ex: Default::default(),
             masteries: Default::default(),
         };
-        pt.set_class(pt.class);
+        pt.flip_node(get_class_node(pt.class));
+        pt.nodes.push(get_class_node(pt.class));
         pt
     }
 }
