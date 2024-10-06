@@ -138,7 +138,7 @@ pub fn draw_left_panel(ctx: &egui::Context, state: &mut State) {
                 }
                 ui.end_row();
             });
-            egui::ComboBox::from_id_source("combo_active_skill")
+            egui::ComboBox::from_id_salt("combo_active_skill")
                 .selected_text(get_selected_text(state))
                 .show_ui(ui, |ui| {
                     ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
@@ -210,7 +210,7 @@ pub fn draw_top_panel(ctx: &egui::Context, state: &mut State) {
                     state.build.set_property_int(PropertyInt::Level, state.level);
                     state.request_recalc = true;
                 }
-                egui::ComboBox::from_id_source("combo_class")
+                egui::ComboBox::from_id_salt("combo_class")
                     .selected_text(state.build.tree.class.as_ref())
                     .show_ui(ui, |ui| {
                         ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
@@ -227,7 +227,7 @@ pub fn draw_top_panel(ctx: &egui::Context, state: &mut State) {
                     Some(ascendancy) => ascendancy.into(),
                     None => "None",
                 };
-                egui::ComboBox::from_id_source("combo_ascendancy")
+                egui::ComboBox::from_id_salt("combo_ascendancy")
                     .selected_text(selected_text)
                     .show_ui(ui, |ui| {
                         ui.spacing_mut().item_spacing = egui::Vec2::ZERO;

@@ -23,6 +23,7 @@ use lightning_model::{build, calc, util};
 use std::error::Error;
 use std::fs;
 use std::ops::Neg;
+use std::sync::Arc;
 use std::{num::NonZeroU32, time::{Duration, Instant} };
 
 use glutin::{
@@ -33,14 +34,14 @@ use glutin::{
 };
 
 use egui_glow::egui_winit::winit;
-use raw_window_handle::HasRawWindowHandle;
+use raw_window_handle::HasWindowHandle;
 
 use winit::{
     dpi::LogicalSize,
     event_loop::{ControlFlow, EventLoop},
     event::{self, ElementState, MouseButton, StartCause},
-    window::{Window, WindowBuilder},
-    event::{Event, WindowEvent},
+    window::{Window, WindowAttributes},
+    event::WindowEvent,
     keyboard::{KeyCode, PhysicalKey},
 };
 
@@ -101,44 +102,87 @@ fn set_vsync(surface: &Surface<WindowSurface>, context: &PossiblyCurrentContext,
     }
 }
 
-fn main() {
-    let (event_loop, window, surface, context) = create_window();
-    let gl = std::sync::Arc::new(glow_context(&context));
-    let mut egui_glow = egui_glow::EguiGlow::new(&event_loop, gl.clone(), None, None);
-    egui_glow.egui_ctx.style_mut(|style| {
-        style.animation_time = 0.0;
-        style.text_styles.get_mut(&egui::TextStyle::Body).unwrap().size = 14.0;
-        style.text_styles.get_mut(&egui::TextStyle::Button).unwrap().size = 14.0;
-    });
+struct GlowApp {
+    window: Option<Window>,
+    gl_context: Option<PossiblyCurrentContext>,
+    gl_surface: Option<Surface<WindowSurface>>,
+    gl: Option<Arc<glow::Context>>,
+    egui_glow: Option<egui_glow::EguiGlow>,
+    state: State,
+    tree_gl: TreeGl,
+}
 
-    let mut state = State::new(get_config());
-    let mut vsync = state.config.vsync;
-    set_vsync(&surface, &context, vsync);
+impl GlowApp {
+    fn new() -> Self {
+        Self {
+            window: None,
+            gl_context: None,
+            gl_surface: None,
+            gl: None,
+            egui_glow: None,
+            state: State::new(get_config()),
+            tree_gl: TreeGl::default(),
+        }
+    }
+}
 
-    if let Err(err) = config::create_config_builds_dir() {
-        eprintln!("Error creating Lightning user directory: {err}");
+impl winit::application::ApplicationHandler<()> for GlowApp {
+    fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+        let (window, surface, context) = create_window(event_loop);
+        let gl = std::sync::Arc::new(glow_context(&context));
+        let egui_glow = egui_glow::EguiGlow::new(event_loop, gl.clone(), None, None, true);
+        egui_glow.egui_ctx.style_mut(|style| {
+            style.animation_time = 0.0;
+            style.text_styles.get_mut(&egui::TextStyle::Body).unwrap().size = 14.0;
+            style.text_styles.get_mut(&egui::TextStyle::Button).unwrap().size = 14.0;
+        });
+
+        set_vsync(&surface, &context, self.state.config.vsync);
+
+        if let Err(err) = config::create_config_builds_dir() {
+            eprintln!("Error creating Lightning user directory: {err}");
+        }
+
+        self.tree_gl.init(&gl);
+        self.tree_gl.regen_active(&gl, &self.state.build, &None, &None);
+        window.set_visible(true);
+
+        self.window = Some(window);
+        self.gl_context = Some(context);
+        self.gl_surface = Some(surface);
+        self.gl = Some(gl);
+        self.egui_glow = Some(egui_glow);
     }
 
-    let mut tree_gl = TreeGl::default();
-    tree_gl.init(&gl);
-    tree_gl.regen_active(&gl, &state.build, &None, &None);
-    window.set_visible(true);
+    fn new_events(
+        &mut self,
+        _event_loop: &winit::event_loop::ActiveEventLoop,
+        cause: winit::event::StartCause,
+    ) {
+        if let StartCause::ResumeTimeReached { .. } = &cause {
+            self.window.as_mut().unwrap().request_redraw();
+        }
+    }
 
-    // Standard winit event loop
-    let _ = event_loop.run(move |event, window_target| {
-        window_target.set_control_flow(ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(50)));
+    fn window_event(
+        &mut self,
+        event_loop: &winit::event_loop::ActiveEventLoop,
+        _window_id: winit::window::WindowId,
+        event: winit::event::WindowEvent,
+    ) {
+        let gl = self.gl.as_mut().unwrap();
+        let mut state = &mut self.state;
+        let window = self.window.as_mut().unwrap();
+        let surface = self.gl_surface.as_mut().unwrap();
+        let context = self.gl_context.as_mut().unwrap();
+        let egui_glow = self.egui_glow.as_mut().unwrap();
+        let tree_gl = &mut self.tree_gl;
+
+        let mut vsync = state.config.vsync;
+        event_loop.set_control_flow(ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(50)));
+
         match event {
-            Event::NewEvents(ne) => {
-                if matches!(ne, StartCause::ResumeTimeReached{..}) {
-                    window.request_redraw();
-                }
-            }
-            Event::AboutToWait => {
-            }
-            Event::WindowEvent {
-                event: WindowEvent::RedrawRequested,
-                ..
-            } => {
+            WindowEvent::RedrawRequested => {
                 // The renderer assumes you'll be clearing the buffer yourself
                 unsafe { gl.clear_color(0.0, 0.0, 0.05, 0.0) };
                 unsafe { gl.clear(glow::COLOR_BUFFER_BIT); };
@@ -246,27 +290,17 @@ fn main() {
                 }
                 state.last_instant = Instant::now();
             }
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => {
-                window_target.exit();
+            WindowEvent::CloseRequested => {
+                event_loop.exit();
             }
             event => {
                 window.request_redraw();
-                let mut process_event = true;
-                if let Event::WindowEvent {event, .. } = &event {
-                    process_event = !egui_glow.on_window_event(&window, event).consumed;
-                }
+                let process_event = !egui_glow.on_window_event(&window, &event).consumed;
                 if process_event {
                     match event {
-                        Event::WindowEvent {
-                            event:
-                                WindowEvent::MouseWheel {
-                                    delta: event::MouseScrollDelta::LineDelta(_h, v),
-                                    phase: event::TouchPhase::Moved,
-                                    ..
-                                },
+                        WindowEvent::MouseWheel {
+                            delta: event::MouseScrollDelta::LineDelta(_h, v),
+                            phase: event::TouchPhase::Moved,
                             ..
                         } => {
                             if state.ui_state == UiState::Main(MainState::Tree) && gui::is_over_tree(&state.mouse_pos) {
@@ -274,10 +308,7 @@ fn main() {
                                 state.zoom = state.zoom_tmp.round();
                             }
                         }
-                        Event::WindowEvent {
-                            event: WindowEvent::Resized(physical_size),
-                            ..
-                        } => {
+                        WindowEvent::Resized(physical_size) => {
                             unsafe {
                                 state.dimensions = (physical_size.width, physical_size.height);
                                 gl.viewport(
@@ -288,13 +319,9 @@ fn main() {
                                 )
                             };
                         }
-                        Event::WindowEvent {
-                            event:
-                                WindowEvent::MouseInput {
-                                    state: button_state,
-                                    button,
-                                    ..
-                                },
+                        WindowEvent::MouseInput {
+                            state: button_state,
+                            button,
                             ..
                         } => {
                             if button == MouseButton::Left {
@@ -314,15 +341,11 @@ fn main() {
                                 }
                             }
                         }
-                        Event::WindowEvent {
+                        WindowEvent::KeyboardInput {
                             event:
-                                WindowEvent::KeyboardInput {
-                                    event:
-                                        event::KeyEvent {
-                                            physical_key: key,
-                                            state: key_state,
-                                            ..
-                                        },
+                                event::KeyEvent {
+                                    physical_key: key,
+                                    state: key_state,
                                     ..
                                 },
                             ..
@@ -333,10 +356,7 @@ fn main() {
                             PhysicalKey::Code(KeyCode::ArrowDown) => state.key_down = key_state,
                             _ => {}
                         },
-                        Event::WindowEvent {
-                            event: WindowEvent::CursorMoved { position, .. },
-                            ..
-                        } => {
+                        WindowEvent::CursorMoved { position, .. } => {
                             let (mut x, mut y) = (position.x as f32, position.y as f32);
                             state.mouse_pos = (x, y);
                             let aspect_ratio = state.dimensions.0 as f32 / state.dimensions.1 as f32;
@@ -373,24 +393,29 @@ fn main() {
                 }
             }
         }
-    });
+    }
 }
 
-fn create_window() -> (EventLoop<()>, Window, Surface<WindowSurface>, PossiblyCurrentContext) {
+fn main() {
     let event_loop = EventLoop::new().unwrap();
-    let window_builder = WindowBuilder::new()
+    let mut app = GlowApp::new();
+    event_loop.run_app(&mut app).expect("failed to run app");
+}
+
+fn create_window(event_loop: &winit::event_loop::ActiveEventLoop) -> (Window, Surface<WindowSurface>, PossiblyCurrentContext) {
+    let window_builder = WindowAttributes::default()
         .with_title(TITLE)
         .with_inner_size(LogicalSize::new(1024, 768))
         .with_visible(false);
     let (window, cfg) = glutin_winit::DisplayBuilder::new()
-        .with_window_builder(Some(window_builder.clone()))
-        .build(&event_loop, ConfigTemplateBuilder::new().with_multisampling(4), |mut configs| {
+        .with_window_attributes(Some(window_builder.clone()))
+        .build(event_loop, ConfigTemplateBuilder::new().with_multisampling(4), |mut configs| {
             configs.next().unwrap()
         })
         .expect("Failed to create OpenGL window");
 
     let window = window.unwrap();
-    let context_attribs = ContextAttributesBuilder::new().build(Some(window.raw_window_handle()));
+    let context_attribs = ContextAttributesBuilder::new().build(Some(window.window_handle().unwrap().as_raw()));
     let context = unsafe {
         cfg.display()
             .create_context(&cfg, &context_attribs)
@@ -400,7 +425,7 @@ fn create_window() -> (EventLoop<()>, Window, Surface<WindowSurface>, PossiblyCu
     let surface_attribs = SurfaceAttributesBuilder::<WindowSurface>::new()
         .with_srgb(Some(true))
         .build(
-            window.raw_window_handle(),
+            window.window_handle().unwrap().as_raw(),
             NonZeroU32::new(1024).unwrap(),
             NonZeroU32::new(768).unwrap(),
         );
@@ -415,7 +440,7 @@ fn create_window() -> (EventLoop<()>, Window, Surface<WindowSurface>, PossiblyCu
         .make_current(&surface)
         .expect("Failed to make OpenGL context current");
 
-    (event_loop, window, surface, context)
+    (window, surface, context)
 }
 
 fn glow_context(context: &PossiblyCurrentContext) -> glow::Context {
