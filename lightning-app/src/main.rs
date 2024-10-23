@@ -71,6 +71,7 @@ fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
             state.build = build::Build::new_player();
             state.level = state.build.property_int(PropertyInt::Level);
             state.request_recalc = true;
+            state.request_regen = true;
             UiState::Main(MainState::Tree)
         }
         _ => state.ui_state.clone(),
