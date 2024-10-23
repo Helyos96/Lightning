@@ -180,7 +180,6 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
         let tree_gl = &mut self.tree_gl;
 
         let mut vsync = state.config.vsync;
-        event_loop.set_control_flow(ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(50)));
 
         match event {
             WindowEvent::RedrawRequested => {
@@ -276,6 +275,9 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                 }
 
                 egui_glow.paint(&window);
+                if egui_glow.egui_ctx.has_requested_repaint() {
+                    window.request_redraw();
+                }
 
                 if !vsync {
                     let instant = Instant::now();
