@@ -269,13 +269,14 @@ fn node_gl(
         },
     };
 
+    const SCALE: f32 = 2.5;
     match node.node_type() {
         NodeType::Mastery => {
-            dd_masteries.append(x, y, rect, sprite, false, 2.0);
+            dd_masteries.append(x, y, rect, sprite, false, SCALE);
         }
         NodeType::AscendancyNormal | NodeType::AscendancyNotable => {
             if !is_hovered {
-                dd_nodes.append(x, y, rect, sprite, false, 2.0);
+                dd_nodes.append(x, y, rect, sprite, false, SCALE);
             }
             let sprite = &TREE.sprites["ascendancy"];
             let rect = match node.node_type() {
@@ -283,16 +284,16 @@ fn node_gl(
                 NodeType::AscendancyNotable => &sprite.coords[icon_strings[1]],
                 _ => panic!("No frame"),
             };
-            dd_asc_frames.append(x, y, rect, sprite, false, 2.0);
+            dd_asc_frames.append(x, y, rect, sprite, false, SCALE);
         }
         NodeType::JewelSocket => {
             let sprite = &TREE.sprites["frame"];
             let rect = &sprite.coords[icon_strings[5]];
-            dd_frames.append(x, y, rect, sprite, false, 2.0);
+            dd_frames.append(x, y, rect, sprite, false, SCALE);
         }
         _ => {
             if !is_hovered {
-                dd_nodes.append(x, y, rect, sprite, false, 2.0);
+                dd_nodes.append(x, y, rect, sprite, false, SCALE);
             }
             let sprite = &TREE.sprites["frame"];
             let rect = match node.node_type() {
@@ -301,7 +302,7 @@ fn node_gl(
                 NodeType::Keystone => &sprite.coords[icon_strings[4]],
                 _ => panic!("No frame"),
             };
-            dd_frames.append(x, y, rect, sprite, false, 2.0);
+            dd_frames.append(x, y, rect, sprite, false, SCALE);
         }
     }
 }

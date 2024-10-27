@@ -20,6 +20,7 @@ use glutin::surface::SwapInterval;
 use gui::{MainState, State, UiState};
 use lightning_model::modifier::PropertyInt;
 use lightning_model::{build, calc, util};
+use lightning_model::hset;
 use std::error::Error;
 use std::fs;
 use std::ops::Neg;
@@ -38,7 +39,7 @@ use raw_window_handle::HasWindowHandle;
 
 use winit::{
     dpi::LogicalSize,
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::EventLoop,
     event::{self, ElementState, MouseButton, StartCause},
     window::{Window, WindowAttributes},
     event::WindowEvent,
@@ -192,7 +193,14 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                     state.request_regen = false;
                 }
                 if state.request_recalc {
+                    let mods = state.build.calc_mods(true);
+                    state.stats = Some(state.build.calc_stats(&mods, &hset![]));
                     state.defence_calc = calc::calc_defence(&state.build);
+                    if let Some(gem_link) = state.build.gem_links.get(state.selected_gem.0) {
+                        if let Some(active_gem) = gem_link.active_gems.get(state.selected_gem.1) {
+                            state.active_skill_calc = calc::calc_gem(&state.build, &gem_link.support_gems, active_gem);
+                        }
+                    }
                     state.request_recalc = false;
                 }
 

@@ -2,7 +2,7 @@
 #![allow(dead_code, unused_imports)]
 
 #[macro_use]
-mod macros;
+pub mod macros;
 pub mod build;
 pub mod calc;
 pub mod data;

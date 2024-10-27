@@ -362,6 +362,10 @@ impl PassiveTree {
         v
     }
 
+    pub fn passives_count(&self) -> usize {
+        self.nodes.iter().filter(|n| TREE.nodes[n].ascendancy.is_none() && TREE.nodes[n].class_start_index.is_none()).count()
+    }
+
     /// Find the shortest path to link a node to
     /// the rest of the tree. Using Breadth-First-Search.
     pub fn find_path(&self, node: u16) -> Option<Vec<u16>> {

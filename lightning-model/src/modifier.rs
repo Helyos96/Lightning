@@ -312,6 +312,17 @@ lazy_static! {
                     ..Default::default()
                 }])
             })
+        ), (
+            regex!(r"^grants ([0-9]+) ([a-z ]+)$"),
+            Box::new(|c| {
+                let stat_tags_1 = parse_stat_nomulti(&c[2])?;
+                Some(vec![Mod {
+                    stat: stat_tags_1.0,
+                    typ: Type::Base,
+                    amount: i64::from_str(&c[1]).unwrap(),
+                    ..Default::default()
+                }])
+            })
         ),
     ];
 
@@ -400,6 +411,8 @@ lazy_static! {
         ("mana cost", StatId::ManaCost),
         ("life cost", StatId::LifeCost),
         ("cost", StatId::Cost),
+        ("passive skill points", StatId::PassiveSkillPoints),
+        ("passive skill point", StatId::PassiveSkillPoints),
     ];
 
     static ref STATS_MAP: FxHashMap<&'static str, StatId> = {

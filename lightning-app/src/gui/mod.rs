@@ -3,7 +3,7 @@ pub mod tree_view;
 pub mod settings;
 
 use crate::config::Config;
-use lightning_model::build::Build;
+use lightning_model::build::{Build, Stats, StatId};
 use lightning_model::calc;
 use lightning_model::data::TREE;
 use lightning_model::modifier::{PropertyBool, PropertyInt};
@@ -39,12 +39,15 @@ pub struct State {
     pub import_account: String,
     pub import_character: String,
     pub request_recalc: bool,
+    // idx into gem_links; idx into gem_links.active_gems
+    pub selected_gem: (usize, usize),
     pub last_instant: Instant,
     instant_fps: Instant,
     pub show_settings: bool,
 
-    active_skill_calc: FxHashMap<&'static str, i64>,
+    pub active_skill_calc: FxHashMap<&'static str, i64>,
     pub defence_calc: Vec<(String, i64)>,
+    pub stats: Option<Stats>,
     pub hovered_node: Option<&'static Node>,
     pub path_hovered: Option<Vec<u16>>,
     pub path_red: Option<Vec<u16>>,
@@ -81,12 +84,14 @@ impl State {
             import_account: String::new(),
             import_character: String::new(),
             request_recalc: false,
+            selected_gem: (0, 0),
             last_instant: Instant::now(),
             instant_fps: Instant::now(),
             show_settings: false,
 
             active_skill_calc: FxHashMap::default(),
             defence_calc: vec![],
+            stats: None,
             hovered_node: None,
             path_hovered: None,
             path_red: None,
@@ -143,10 +148,11 @@ pub fn draw_left_panel(ctx: &egui::Context, state: &mut State) {
                 .show_ui(ui, |ui| {
                     ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
                     let mut index = 0;
-                    for gem_link in &state.build.gem_links {
-                        for active_gem in &gem_link.active_gems {
-                            if ui.selectable_value(&mut state.active_skill_cur, index, &active_gem.data().base_item.as_ref().unwrap().display_name).clicked() {
-                                state.active_skill_calc = calc::calc_gem(&state.build, &gem_link.support_gems, active_gem);
+                    for gem_link in state.build.gem_links.iter().enumerate() {
+                        for active_gem in gem_link.1.active_gems.iter().enumerate() {
+                            if ui.selectable_value(&mut state.active_skill_cur, index, &active_gem.1.data().base_item.as_ref().unwrap().display_name).clicked() {
+                                state.selected_gem = (gem_link.0, active_gem.0);
+                                state.active_skill_calc = calc::calc_gem(&state.build, &gem_link.1.support_gems, active_gem.1);
                             }
                             index += 1;
                         }
@@ -240,6 +246,8 @@ pub fn draw_top_panel(ctx: &egui::Context, state: &mut State) {
                         }
                     }
                 );
+                // Could optimize: don't recalc passives_count() every frame
+                ui.label(format!("Passives: {}/{}", state.build.tree.passives_count(), state.stats.as_ref().unwrap().stat(StatId::PassiveSkillPoints).val()));
                 ui.allocate_space(ui.available_size());
             });
         });

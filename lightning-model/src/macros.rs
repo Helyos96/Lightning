@@ -6,6 +6,7 @@ macro_rules! regex {
 
 // Taken from maplit 1.0.2, renamed to hset
 // License for this macro: MIT or Apache-2.0
+#[macro_export]
 macro_rules! hset {
     (@single $($x:tt)*) => (());
     (@count $($rest:expr),*) => (<[()]>::len(&[$(hset!(@single $rest)),*]));

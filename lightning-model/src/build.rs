@@ -137,6 +137,7 @@ pub enum StatId {
     MaximumFireDamage,
     MinimumPhysicalDamage,
     MaximumPhysicalDamage,
+    PassiveSkillPoints,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -261,6 +262,21 @@ impl Build {
                     Mutation::MultiplierProperty((1, PropertyInt::Rage)),
                 ],
                 tags: hset![GemTag::Attack],
+                ..Default::default()
+            },
+            Mod {
+                stat: StatId::PassiveSkillPoints,
+                typ: Type::Base,
+                amount: 1,
+                flags: vec![
+                    Mutation::MultiplierProperty((1, PropertyInt::Level)),
+                ],
+                ..Default::default()
+            },
+            Mod {
+                stat: StatId::PassiveSkillPoints,
+                typ: Type::Base,
+                amount: 22, // 23 from quests -1 for level 1
                 ..Default::default()
             },
         ];
