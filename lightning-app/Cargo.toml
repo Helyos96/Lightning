@@ -20,6 +20,7 @@ lazy_static = "1.4.*"
 glam = "0.27.*"
 image = { version = "0.25.*", default-features = false, features = ["rayon", "jpeg", "png"] }
 quadtree-f32 = "0.4.*"
+strum = "0.26.*"
 
 [features]
 default = ["import"]

@@ -6,6 +6,8 @@ use crate::tree::{Class, PassiveTree, TreeData};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
+use lazy_static::lazy_static;
+use strum_macros::{AsRefStr, EnumIter};
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Hash, Debug)]
 pub enum Slot {
@@ -155,6 +157,66 @@ pub struct Stat {
     mods: Vec<Mod>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, AsRefStr, EnumIter)]
+pub enum BanditChoice {
+    Alira,
+    Kraityn,
+    Oak,
+    #[default]
+    KillAll,
+}
+
+lazy_static! {
+    pub static ref BANDIT_STATS: FxHashMap<BanditChoice, Vec<Mod>> = {
+        let mut ret = FxHashMap::default();
+        ret.insert(BanditChoice::Alira, vec![
+            Mod {
+                stat: StatId::FireResistance,
+                typ: Type::Base,
+                amount: 15,
+                ..Default::default()
+            },
+            Mod {
+                stat: StatId::ColdResistance,
+                typ: Type::Base,
+                amount: 15,
+                ..Default::default()
+            },
+            Mod {
+                stat: StatId::LightningResistance,
+                typ: Type::Base,
+                amount: 15,
+                ..Default::default()
+            },
+        ]);
+        ret.insert(BanditChoice::Kraityn, vec![
+            Mod {
+                stat: StatId::MovementSpeed,
+                typ: Type::Inc,
+                amount: 8,
+                ..Default::default()
+            },
+        ]);
+        ret.insert(BanditChoice::Oak, vec![
+            Mod {
+                stat: StatId::MaximumLife,
+                typ: Type::Base,
+                amount: 40,
+                ..Default::default()
+            },
+        ]);
+        ret.insert(BanditChoice::KillAll, vec![
+            Mod {
+                stat: StatId::PassiveSkillPoints,
+                typ: Type::Base,
+                amount: 1,
+                ..Default::default()
+            },
+        ]);
+        ret
+    };
+}
+
 #[serde_as]
 #[derive(Default, Serialize, Deserialize)]
 pub struct Build {
@@ -165,6 +227,8 @@ pub struct Build {
     pub equipment: FxHashMap<Slot, Item>,
     pub inventory: Vec<Item>,
     pub tree: PassiveTree,
+    #[serde(default)]
+    pub bandit_choice: BanditChoice,
     properties_int: FxHashMap<PropertyInt, i64>,
     properties_bool: FxHashMap<PropertyBool, bool>,
 }
@@ -280,6 +344,7 @@ impl Build {
                 ..Default::default()
             },
         ];
+        mods.extend(BANDIT_STATS.get(&self.bandit_choice).unwrap().clone());
         mods.extend(self.tree.calc_mods());
         for item in self.equipment.values() {
             mods.extend(item.calc_nonlocal_mods());
