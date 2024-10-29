@@ -234,7 +234,7 @@ pub struct PassiveTree {
     pub ascendancy: Option<Ascendancy>,
     pub nodes: Vec<u16>,
     pub nodes_ex: Vec<u16>,
-    pub masteries: Vec<(u16, u16)>,
+    pub masteries: FxHashMap<u16, u16>,
 }
 
 impl Default for PassiveTree {

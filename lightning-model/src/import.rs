@@ -155,8 +155,11 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
     }
 
     for (mastery, selected) in &tree.mastery_effects {
-        let mastery = u32::from_str(mastery)?;
-        build.tree.masteries.push((mastery as u16, *selected as u16));
+        if let Ok(mastery) = u32::from_str(mastery) {
+            build.tree.masteries.insert(mastery as u16, *selected as u16);
+        } else {
+            eprintln!("Couldn't parse mastery effect id: {}", mastery);
+        }
     }
 
     for item in tree.items.iter().chain(items.items.iter()) {

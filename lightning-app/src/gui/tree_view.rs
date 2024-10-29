@@ -91,9 +91,18 @@ fn draw_hover_window(ctx: &egui::Context, state: &mut State) {
                     ui.label(egui::RichText::new(&node.name).color(egui::Color32::WHITE).size(20.0));
                     ui.separator();
                     ui.spacing_mut().item_spacing = item_spacing;
-                    for effect in &node.mastery_effects {
-                        for stat in &effect.stats {
-                            ui.label(mod_to_richtext(stat, Source::Mastery((node.skill, effect.effect)), state.config.show_debug));
+                    // Try and find if we have a selected mastery effect for that mastery
+                    if let Some(selected) = state.build.tree.masteries.get(&node.skill) {
+                        if let Some(effect) = node.mastery_effects.iter().find(|m| m.effect == *selected) {
+                            for stat in &effect.stats {
+                                ui.label(mod_to_richtext(stat, Source::Mastery((node.skill, effect.effect)), state.config.show_debug));
+                            }
+                        }
+                    } else {
+                        for effect in &node.mastery_effects {
+                            for stat in &effect.stats {
+                                ui.label(mod_to_richtext(stat, Source::Mastery((node.skill, effect.effect)), state.config.show_debug));
+                            }
                         }
                     }
                 }
