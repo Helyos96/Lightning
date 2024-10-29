@@ -229,7 +229,7 @@ const ACTIVE_STRINGS: [&str; 6] = [
 const INACTIVE_STRINGS: [&str; 6] = [
     "AscendancyFrameSmallNormal",
     "AscendancyFrameLargeNormal",
-    "PSSkillFrame",
+    "PSSkillFrameHighlighted",
     "NotableFrameCanAllocate",
     "KeystoneFrameUnallocated",
     "JewelFrameUnallocated",
