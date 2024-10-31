@@ -386,6 +386,11 @@ impl PassiveTree {
     pub fn flip_node(&mut self, node: u16) {
         if self.nodes.contains(&node) {
             let to_remove = self.find_path_remove(node);
+            for node_remove in &to_remove {
+                if TREE.nodes[&node_remove].is_mastery {
+                    self.masteries.remove(&node_remove);
+                }
+            }
             self.nodes = self
                 .nodes
                 .iter().copied()

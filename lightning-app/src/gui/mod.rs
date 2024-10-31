@@ -21,6 +21,7 @@ use strum::IntoEnumIterator;
 pub enum MainState {
     Tree,
     Config,
+    ChooseMastery(u16),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -118,6 +119,30 @@ impl State {
             key_down: ElementState::Released,
         }
     }
+}
+
+pub fn select_mastery_effect(ctx: &egui::Context, mastery: &Node) -> Option<u16> {
+    let mut found = None;
+    egui::Window::new("ChooseMastery")
+        .collapsible(false)
+        .movable(false)
+        .title_bar(false)
+        .resizable(false)
+        .fixed_pos(egui::Pos2::new(700.0, 350.0))
+        .show(ctx, |ui| {
+            ui.label(egui::RichText::new(&mastery.name).color(egui::Color32::WHITE).size(20.0));
+            egui::Frame::default().inner_margin(4.0).fill(egui::Color32::DARK_GRAY).show(ui, |ui| {
+                for effect in &mastery.mastery_effects {
+                    for stat in &effect.stats {
+                        if ui.selectable_label(false, egui::RichText::new(stat).color(egui::Color32::WHITE)).clicked() {
+                            found = Some(effect.effect);
+                            return;
+                        }
+                    }
+                }
+            });
+        });
+    found
 }
 
 const LEFT_PANEL_WIDTH: f32 = 240.0;

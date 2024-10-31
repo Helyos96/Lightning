@@ -18,6 +18,7 @@ use crate::tree_gl::TreeGl;
 use glow::HasContext;
 use glutin::surface::SwapInterval;
 use gui::{MainState, State, UiState};
+use lightning_model::data::TREE;
 use lightning_model::modifier::PropertyInt;
 use lightning_model::{build, calc, util};
 use lightning_model::hset;
@@ -221,7 +222,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                         }
                     }
                     UiState::Main(main_state) => {
-                        if main_state == MainState::Tree {
+                        if main_state == MainState::Tree || matches!(main_state, MainState::ChooseMastery(_)) {
                             if let Some(node) = state.hovered_node {
                                 if !state.build.tree.nodes.contains(&node.skill) {
                                     if state.path_hovered.is_none() {
@@ -260,6 +261,13 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                             }
                             if main_state == MainState::Config {
                                 gui::draw_config_panel(egui_ctx, &mut state);
+                            }
+                            if let MainState::ChooseMastery(node_id) = main_state {
+                                if let Some(effect) = gui::select_mastery_effect(egui_ctx, &TREE.nodes[&node_id]) {
+                                    state.build.tree.masteries.insert(node_id, effect);
+                                    state.ui_state = UiState::Main(MainState::Tree);
+                                    state.request_recalc = true;
+                                }
                             }
                             if state.show_settings {
                                 gui::settings::draw(egui_ctx, &mut state);
@@ -341,8 +349,12 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                         state.mouse_tree_drag = Some(state.mouse_pos);
                                     }
                                 } else if button_state == ElementState::Released {
-                                    if state.hovered_node.is_some() {
-                                        state.build.tree.flip_node(state.hovered_node.as_ref().unwrap().skill);
+                                    if let Some(node) = state.hovered_node {
+                                        if node.is_mastery && !state.build.tree.nodes.contains(&node.skill) {
+                                            state.ui_state = UiState::Main(MainState::ChooseMastery(node.skill));
+                                            state.hovered_node = None;
+                                        }
+                                        state.build.tree.flip_node(node.skill);
                                         state.request_regen = true;
                                         state.request_recalc = true;
                                         state.path_hovered = None;
