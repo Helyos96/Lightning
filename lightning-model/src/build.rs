@@ -85,10 +85,14 @@ pub enum StatId {
     ChaosDamageOverTime,
     PhysicalDamageOverTime,
     DamageOverTime,
+    MinFireDamage,
+    MaxFireDamage,
     FireDamage,
     ColdDamage,
     LightningDamage,
     ChaosDamage,
+    MinPhysicalDamage,
+    MaxPhysicalDamage,
     PhysicalDamage,
     Damage,
     AreaOfEffect,
@@ -135,10 +139,6 @@ pub enum StatId {
     Cost,
     LifeRegeneration,
     LifeRegenerationPct,
-    MinimumFireDamage,
-    MaximumFireDamage,
-    MinimumPhysicalDamage,
-    MaximumPhysicalDamage,
     PassiveSkillPoints,
 }
 
@@ -359,30 +359,6 @@ impl Build {
         mods
     }
 
-    pub fn calc_stat(&self, stat_id: StatId, mods: &[Mod], tags: &FxHashSet<GemTag>) -> Stat {
-        let mut stat = Stat::default();
-
-        for m in mods
-            .iter()
-            .filter(|m| m.stat == stat_id && tags.is_superset(&m.tags))
-        {
-            let mut amount = m.amount;
-            for f in &m.flags {
-                match f {
-                    Mutation::MultiplierProperty(_mp) => {
-                        amount *= 1
-                    }
-                    Mutation::MultiplierStat(_) => {
-                        // todo
-                    }
-                }
-            }
-            stat.adjust(m.typ, amount, m);
-        }
-
-        stat
-    }
-
     pub fn property_int(&self, p: PropertyInt) -> i64 {
         return self.properties_int.get(&p).copied().unwrap_or(0);
     }
@@ -494,6 +470,30 @@ impl Build {
     }
 }
 
+pub fn calc_stat(stat_id: StatId, mods: &[Mod], tags: &FxHashSet<GemTag>) -> Stat {
+    let mut stat = Stat::default();
+
+    for m in mods
+        .iter()
+        .filter(|m| m.stat == stat_id && tags.is_superset(&m.tags))
+    {
+        let mut amount = m.amount;
+        for f in &m.flags {
+            match f {
+                Mutation::MultiplierProperty(_mp) => {
+                    amount *= 1
+                }
+                Mutation::MultiplierStat(_) => {
+                    // todo
+                }
+            }
+        }
+        stat.adjust(m.typ, amount, m);
+    }
+
+    stat
+}
+
 impl Default for Stat {
     fn default() -> Self {
         Self {
@@ -516,11 +516,11 @@ impl Stat {
     }
 
     fn mult(&self) -> i64 {
-        ((100 + self.inc) * self.more) / 100
+        (100 + self.inc) * self.more
     }
 
     fn val100(&self) -> i64 {
-        self.base * self.mult()
+        (self.base * self.mult()) / 100
     }
 
     pub fn val(&self) -> i64 {
@@ -539,7 +539,7 @@ impl Stat {
     }
 
     pub fn calc_inv(&self, val: i64) -> i64 {
-        (val * 100) / self.mult()
+        (val * 10000) / self.mult()
     }
 }
 

@@ -44,7 +44,6 @@ pub struct State {
     // idx into gem_links; idx into gem_links.active_gems
     pub selected_gem: (usize, usize),
     pub last_instant: Instant,
-    instant_fps: Instant,
     pub show_settings: bool,
 
     pub active_skill_calc: FxHashMap<&'static str, i64>,
@@ -88,7 +87,6 @@ impl State {
             request_recalc: false,
             selected_gem: (0, 0),
             last_instant: Instant::now(),
-            instant_fps: Instant::now(),
             show_settings: false,
 
             active_skill_calc: FxHashMap::default(),
@@ -211,12 +209,6 @@ pub fn draw_left_panel(ctx: &egui::Context, state: &mut State) {
                     ui.label(stat.1.to_string());
                     ui.end_row();
                 }
-                let instant = Instant::now();
-                let fps = (1000000.0 / (instant - state.instant_fps).as_micros() as f32).round() as i32;
-                ui.label("FPS:");
-                ui.label(fps.to_string());
-                ui.end_row();
-                state.instant_fps = instant;
             });
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
                 if ui.button("Settings").clicked {

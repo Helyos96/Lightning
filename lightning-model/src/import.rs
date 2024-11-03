@@ -34,6 +34,8 @@ struct Item {
     rarity: item::Rarity,
     implicitMods: Option<Vec<String>>,
     explicitMods: Option<Vec<String>>,
+    fracturedMods: Option<Vec<String>>,
+    enchantMods: Option<Vec<String>>,
     craftedMods: Option<Vec<String>>,
     socketedItems: Option<Vec<Item>>,
     inventoryId: Option<String>,
@@ -55,6 +57,20 @@ struct PassiveTree {
     items: Vec<Item>,
     #[serde(default)]
     mastery_effects: FxHashMap<String, u32>,
+}
+
+impl Item {
+    pub fn quality(&self) -> i64 {
+        if let Some(quality_prop) = self.properties.iter().find(|p| p.name == "Quality") {
+            if quality_prop.values.len() > 0 {
+                let string = quality_prop.values[0].0.replace(&['+', '%'], "");
+                if let Ok(quality) = i64::from_str(&string) {
+                    return quality;
+                }
+            }
+        }
+        0
+    }
 }
 
 fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
@@ -105,12 +121,15 @@ fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
 fn conv_item(item: &Item) -> item::Item {
     let mut mods_expl = item.explicitMods.as_ref().unwrap_or(&vec![]).clone();
     mods_expl.extend(item.craftedMods.as_ref().unwrap_or(&vec![]).clone());
+    mods_expl.extend(item.fracturedMods.as_ref().unwrap_or(&vec![]).clone());
     item::Item {
         base_item: item.baseType.clone(),
         name: item.name.clone(),
         rarity: item.rarity,
         mods_impl: item.implicitMods.as_ref().unwrap_or(&vec![]).clone(),
         mods_expl,
+        mods_enchant: item.enchantMods.as_ref().unwrap_or(&vec![]).clone(),
+        quality: item.quality(),
     }
 }
 

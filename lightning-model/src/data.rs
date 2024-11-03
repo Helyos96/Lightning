@@ -1,5 +1,6 @@
 use crate::gem::GemData;
 use crate::item::BaseItem;
+use crate::tree::Node;
 use crate::tree::TreeData;
 use lazy_static::lazy_static;
 use rustc_hash::FxHashMap;

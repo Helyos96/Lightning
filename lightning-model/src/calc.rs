@@ -1,6 +1,6 @@
-use crate::build::{Build, Stat, StatId};
+use crate::build::{calc_stat, Build, Slot, Stat, StatId};
 use crate::gem::{Gem, GemTag};
-use crate::modifier::{Mod, Type};
+use crate::modifier::{Mod, Source, Type};
 use rustc_hash::FxHashMap;
 
 /*enum Val {
@@ -27,16 +27,24 @@ pub fn calc_gem(build: &Build, support_gems: &Vec<Gem>, active_gem: &Gem) -> FxH
     //dbg!(&stats);
 
     let damage_constants = [
-        (StatId::FireDamage, StatId::MinimumFireDamage, StatId::MaximumFireDamage),
+        (StatId::PhysicalDamage, StatId::MinPhysicalDamage, StatId::MaxPhysicalDamage, "physical"),
+        (StatId::FireDamage, StatId::MinFireDamage, StatId::MaxFireDamage, "fire"),
     ];
 
     for dt in &damage_constants {
-        let dmg = build.calc_stat(dt.0, &mods, tags);
-        let mut min = build.calc_stat(dt.1, &mods, tags);
-        let mut max = build.calc_stat(dt.2, &mods, tags);
+        let dmg = calc_stat(dt.0, &mods, tags);
+        let mut min = calc_stat(dt.1, &mods, tags);
+        let mut max = calc_stat(dt.2, &mods, tags);
 
         if max.val() < min.val() {
             eprintln!("ERR: max ({}) < min ({})", min.val(), max.val());
+        }
+
+        if tags.contains(&GemTag::Attack) {
+            for (min_item, max_item) in [Slot::Weapon].iter().map(|s| build.equipment.get(s)).flatten().map(|weapon| weapon.calc_dmg(dt.3)).flatten() {
+                min.adjust(Type::Base, min_item, &Mod { amount: min_item, typ: Type::Base, source: Source::Item, ..Default::default() });
+                max.adjust(Type::Base, max_item, &Mod { amount: max_item, typ: Type::Base, source: Source::Item, ..Default::default() });
+            }
         }
 
         if max.val() <= 0 {

@@ -1,6 +1,6 @@
-use crate::build::StatId;
+use crate::build::{calc_stat, StatId};
 use crate::data::ITEMS;
-use crate::modifier::{self, parse_mod, Mod, Source};
+use crate::modifier::{self, parse_mod, Mod, Source, Type};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use lazy_static::lazy_static;
@@ -71,6 +71,8 @@ pub struct Item {
     pub rarity: Rarity,
     pub mods_impl: Vec<String>,
     pub mods_expl: Vec<String>,
+    pub mods_enchant: Vec<String>,
+    pub quality: i64,
 }
 
 struct LocalModMatch {
@@ -89,8 +91,8 @@ impl LocalModMatch {
 
 lazy_static! {
     static ref LOCAL_MODS: Vec<LocalModMatch> = vec![
-        LocalModMatch { stat: StatId::MinimumPhysicalDamage, typ: modifier::Type::Base },
-        LocalModMatch { stat: StatId::MaximumPhysicalDamage, typ: modifier::Type::Base },
+        LocalModMatch { stat: StatId::MinPhysicalDamage, typ: modifier::Type::Base },
+        LocalModMatch { stat: StatId::MaxPhysicalDamage, typ: modifier::Type::Base },
         LocalModMatch { stat: StatId::PhysicalDamage, typ: modifier::Type::Inc },
     ];
 }
@@ -109,34 +111,39 @@ impl Item {
         &ITEMS[&self.base_item]
     }
 
-    pub fn calc_dmg(&self, dt: &str) -> (i64, i64) {
+    /// Compute the damage range for a specific damage type dt
+    pub fn calc_dmg(&self, dt: &str) -> Option<(i64, i64)> {
         let base_item = self.data();
 
         if !base_item.tags.contains("weapon") {
-            eprintln!("Calling calc_dmg on non-weapon item {}", base_item.name);
-            return (0, 0);
+            return None;
         }
+
+        let mods = self.calc_local_dmg_mods();
 
         if dt == "physical" {
             if let Some(min) = base_item.properties.physical_damage_min {
                 if let Some(max) = base_item.properties.physical_damage_max {
-                    return (min, max);
+                    let mut min_stat = calc_stat(StatId::MinPhysicalDamage, &mods, &hset!());
+                    let mut max_stat = calc_stat(StatId::MaxPhysicalDamage, &mods, &hset!());
+                    let mut dmg = calc_stat(StatId::PhysicalDamage, &mods, &hset!());
+                    min_stat.adjust(Type::Base, min, &Mod { ..Default::default() });
+                    max_stat.adjust(Type::Base, max, &Mod { ..Default::default() });
+                    dmg.adjust(Type::More, self.quality, &Mod { ..Default::default() });
+                    min_stat.assimilate(&dmg);
+                    max_stat.assimilate(&dmg);
+                    return Some((min_stat.val(), max_stat.val()));
                 }
             }
         }
 
-        (0, 0)
+        None
     }
 
     pub fn calc_local_dmg_mods(&self) -> Vec<Mod> {
         let mut mods = vec![];
 
-        for m in &self.mods_impl {
-            if let Some(modifiers) = parse_mod(m, Source::Item) {
-                mods.extend(modifiers.into_iter().filter(match_local));
-            }
-        }
-        for m in &self.mods_expl {
+        for m in self.mods_impl.iter().chain(&self.mods_expl).chain(&self.mods_enchant) {
             if let Some(modifiers) = parse_mod(m, Source::Item) {
                 mods.extend(modifiers.into_iter().filter(match_local));
             }
@@ -148,12 +155,7 @@ impl Item {
     pub fn calc_nonlocal_mods(&self) -> Vec<Mod> {
         let mut mods = vec![];
 
-        for m in &self.mods_impl {
-            if let Some(modifiers) = parse_mod(m, Source::Item) {
-                mods.extend(modifiers.into_iter().filter(|parsed_mod| !match_local(parsed_mod)));
-            }
-        }
-        for m in &self.mods_expl {
+        for m in self.mods_impl.iter().chain(&self.mods_expl).chain(&self.mods_enchant) {
             if let Some(modifiers) = parse_mod(m, Source::Item) {
                 mods.extend(modifiers.into_iter().filter(|parsed_mod| !match_local(parsed_mod)));
             }

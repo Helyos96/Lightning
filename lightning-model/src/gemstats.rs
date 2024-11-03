@@ -17,10 +17,10 @@ lazy_static! {
             Mod { stat: StatId::CastSpeed, typ: Type::Inc, ..Default::default() },
         ]);
         map.insert("spell_minimum_base_fire_damage", vec![
-            Mod { stat: StatId::MinimumFireDamage, typ: Type::Base, tags: hset![GemTag::Spell], ..Default::default() },
+            Mod { stat: StatId::MinFireDamage, typ: Type::Base, tags: hset![GemTag::Spell], ..Default::default() },
         ]);
         map.insert("spell_maximum_base_fire_damage", vec![
-            Mod { stat: StatId::MaximumFireDamage, typ: Type::Base, tags: hset![GemTag::Spell], ..Default::default() },
+            Mod { stat: StatId::MaxFireDamage, typ: Type::Base, tags: hset![GemTag::Spell], ..Default::default() },
         ]);
         map.insert("support_concentrated_effect_skill_area_of_effect_+%_final", vec![
             Mod { stat: StatId::AreaOfEffect, typ: Type::More, ..Default::default() },
