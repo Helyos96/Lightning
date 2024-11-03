@@ -32,11 +32,16 @@ struct Item {
     name: String,
     #[serde(default)]
     rarity: item::Rarity,
-    implicitMods: Option<Vec<String>>,
-    explicitMods: Option<Vec<String>>,
-    fracturedMods: Option<Vec<String>>,
-    enchantMods: Option<Vec<String>>,
-    craftedMods: Option<Vec<String>>,
+    #[serde(default)]
+    implicitMods: Vec<String>,
+    #[serde(default)]
+    explicitMods: Vec<String>,
+    #[serde(default)]
+    fracturedMods: Vec<String>,
+    #[serde(default)]
+    enchantMods: Vec<String>,
+    #[serde(default)]
+    craftedMods: Vec<String>,
     socketedItems: Option<Vec<Item>>,
     inventoryId: Option<String>,
     #[serde(default)]
@@ -119,16 +124,16 @@ fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
 }
 
 fn conv_item(item: &Item) -> item::Item {
-    let mut mods_expl = item.explicitMods.as_ref().unwrap_or(&vec![]).clone();
-    mods_expl.extend(item.craftedMods.as_ref().unwrap_or(&vec![]).clone());
-    mods_expl.extend(item.fracturedMods.as_ref().unwrap_or(&vec![]).clone());
+    let mut mods_expl = item.explicitMods.clone();
+    mods_expl.extend(item.craftedMods.clone());
+    mods_expl.extend(item.fracturedMods.clone());
     item::Item {
         base_item: item.baseType.clone(),
         name: item.name.clone(),
         rarity: item.rarity,
-        mods_impl: item.implicitMods.as_ref().unwrap_or(&vec![]).clone(),
+        mods_impl: item.implicitMods.clone(),
         mods_expl,
-        mods_enchant: item.enchantMods.as_ref().unwrap_or(&vec![]).clone(),
+        mods_enchant: item.enchantMods.clone(),
         quality: item.quality(),
     }
 }
@@ -182,7 +187,6 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
     }
 
     for item in tree.items.iter().chain(items.items.iter()) {
-        println!("item: {}", item.baseType);
         if let Some(socketed_items) = &item.socketedItems {
             let (gemlink, jewels) = extract_socketed(socketed_items);
             build.gem_links.push(gemlink);
