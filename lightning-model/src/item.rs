@@ -44,6 +44,7 @@ pub struct Properties {
     armour: Option<PropertyMinMax>,
     physical_damage_max: Option<i64>,
     physical_damage_min: Option<i64>,
+    attack_time: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -90,17 +91,23 @@ impl LocalModMatch {
 }
 
 lazy_static! {
-    static ref LOCAL_MODS: Vec<LocalModMatch> = vec![
+    static ref LOCAL_MODS_WEAPON: Vec<LocalModMatch> = vec![
         LocalModMatch { stat: StatId::MinPhysicalDamage, typ: modifier::Type::Base },
         LocalModMatch { stat: StatId::MaxPhysicalDamage, typ: modifier::Type::Base },
         LocalModMatch { stat: StatId::PhysicalDamage, typ: modifier::Type::Inc },
+        LocalModMatch { stat: StatId::AttackSpeed, typ: modifier::Type::Inc },
     ];
 }
 
-fn match_local(m: &Mod) -> bool {
-    for local_mod_match in LOCAL_MODS.iter() {
-        if local_mod_match.matches(m) {
-            return true;
+fn match_local(m: &Mod, is_weapon: bool) -> bool {
+    if !m.conditions.is_empty() || !m.flags.is_empty() {
+        return false;
+    }
+    if is_weapon {
+        for local_mod_match in LOCAL_MODS_WEAPON.iter() {
+            if local_mod_match.matches(m) {
+                return true;
+            }
         }
     }
     false
@@ -119,7 +126,7 @@ impl Item {
             return None;
         }
 
-        let mods = self.calc_local_dmg_mods();
+        let mods = self.calc_local_mods();
 
         if dt == "physical" {
             if let Some(min) = base_item.properties.physical_damage_min {
@@ -140,27 +147,33 @@ impl Item {
         None
     }
 
-    pub fn calc_local_dmg_mods(&self) -> Vec<Mod> {
+    pub fn attack_speed(&self) -> Option<i64> {
+        if let Some(attack_time) = self.data().properties.attack_time {
+            let mods = self.calc_local_mods();
+            let stat_attack_speed = calc_stat(StatId::AttackSpeed, &mods, &hset!());
+            return Some(stat_attack_speed.val_custom_inv(attack_time));
+        }
+        None
+    }
+
+    fn calc_mods(&self, local: bool) -> Vec<Mod> {
         let mut mods = vec![];
+        let is_weapon = self.data().tags.contains("weapon");
 
         for m in self.mods_impl.iter().chain(&self.mods_expl).chain(&self.mods_enchant) {
             if let Some(modifiers) = parse_mod(m, Source::Item) {
-                mods.extend(modifiers.into_iter().filter(match_local));
+                mods.extend(modifiers.into_iter().filter(|m| (local && match_local(m, is_weapon)) || (!local && !match_local(m, is_weapon))));
             }
         }
 
         mods
     }
 
+    pub fn calc_local_mods(&self) -> Vec<Mod> {
+        self.calc_mods(true)
+    }
+
     pub fn calc_nonlocal_mods(&self) -> Vec<Mod> {
-        let mut mods = vec![];
-
-        for m in self.mods_impl.iter().chain(&self.mods_expl).chain(&self.mods_enchant) {
-            if let Some(modifiers) = parse_mod(m, Source::Item) {
-                mods.extend(modifiers.into_iter().filter(|parsed_mod| !match_local(parsed_mod)));
-            }
-        }
-
-        mods
+        self.calc_mods(false)
     }
 }

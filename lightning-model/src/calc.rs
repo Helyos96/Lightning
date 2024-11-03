@@ -31,17 +31,20 @@ pub fn calc_gem(build: &Build, support_gems: &Vec<Gem>, active_gem: &Gem) -> FxH
         (StatId::FireDamage, StatId::MinFireDamage, StatId::MaxFireDamage, "fire"),
     ];
 
+    let stat_dmg = stats.stat(StatId::Damage);
     for dt in &damage_constants {
-        let dmg = calc_stat(dt.0, &mods, tags);
-        let mut min = calc_stat(dt.1, &mods, tags);
-        let mut max = calc_stat(dt.2, &mods, tags);
+        let dmg = stats.stat(dt.0);
+        let mut min = stats.stat(dt.1);
+        let mut max = stats.stat(dt.2);
 
         if max.val() < min.val() {
             eprintln!("ERR: max ({}) < min ({})", min.val(), max.val());
         }
 
         if tags.contains(&GemTag::Attack) {
-            for (min_item, max_item) in [Slot::Weapon].iter().map(|s| build.equipment.get(s)).flatten().map(|weapon| weapon.calc_dmg(dt.3)).flatten() {
+            // TODO: with physical damage, each weapon should be compared independently regarding
+            // enemy armour, not added together.
+            for (min_item, max_item) in [Slot::Weapon, Slot::Offhand].iter().map(|s| build.equipment.get(s)).flatten().map(|weapon| weapon.calc_dmg(dt.3)).flatten() {
                 min.adjust(Type::Base, min_item, &Mod { amount: min_item, typ: Type::Base, source: Source::Item, ..Default::default() });
                 max.adjust(Type::Base, max_item, &Mod { amount: max_item, typ: Type::Base, source: Source::Item, ..Default::default() });
             }
@@ -52,18 +55,51 @@ pub fn calc_gem(build: &Build, support_gems: &Vec<Gem>, active_gem: &Gem) -> FxH
         }
 
         min.assimilate(&dmg);
+        min.assimilate(&stat_dmg);
         max.assimilate(&dmg);
+        max.assimilate(&stat_dmg);
 
-        damage.push((min.val() + max.val()) / 2);
+        if let Some(damage_effectiveness) = active_gem.damage_effectiveness() {
+            damage.push((((min.val() + max.val()) / 2) * (100 + damage_effectiveness)) / 100);
+        } else {
+            damage.push((min.val() + max.val()) / 2);
+        }
     }
 
-    if let Some(mut time) = active_gem.data().cast_time {
+    let time = {
         if tags.contains(&GemTag::Spell) {
-            time = stats.stat(StatId::CastSpeed).calc_inv(time);
+            if let Some(time) = active_gem.data().cast_time {
+                stats.stat(StatId::CastSpeed).val_custom_inv(time)
+            } else {
+                0
+            }
         } else if tags.contains(&GemTag::Attack) {
-            time = stats.stat(StatId::AttackSpeed).calc_inv(time);
+            let mut div = 0;
+            let mut time = 0;
+            if let Some(weapon) = build.equipment.get(&Slot::Weapon) {
+                if let Some(item_speed) = weapon.attack_speed() {
+                    time += item_speed;
+                    div = div + 1;
+                }
+            }
+            if let Some(offhand) = build.equipment.get(&Slot::Offhand) {
+                if let Some(item_speed) = offhand.attack_speed() {
+                    time += item_speed;
+                    div = div + 1;
+                }
+            }
+            if div > 0 {
+                time /= div;
+                stats.stat(StatId::AttackSpeed).val_custom_inv(time)
+            } else {
+                0
+            }
+        } else {
+            0
         }
+    };
 
+    if time != 0 {
         let mut dps = 0;
         for d in damage {
             dps += (d * 1000) / time;

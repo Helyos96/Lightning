@@ -18,7 +18,7 @@ pub enum Slot {
     Belt,
     Amulet,
     Weapon,
-    Weapon2,
+    Offhand,
     Ring,
     Ring2,
     Flask(u16), // u16 -> Flask slot
@@ -37,7 +37,7 @@ impl TryFrom<(&str, u16)> for Slot {
             "Belt" => Ok(Slot::Belt),
             "Amulet" => Ok(Slot::Amulet),
             "Weapon" => Ok(Slot::Weapon),
-            "Weapon2" => Ok(Slot::Weapon2),
+            "Offhand" => Ok(Slot::Offhand),
             "Ring" => Ok(Slot::Ring),
             "Ring2" => Ok(Slot::Ring2),
             "Flask" => {
@@ -343,6 +343,14 @@ impl Build {
                 amount: 22, // 23 from quests -1 for level 1
                 ..Default::default()
             },
+            Mod {
+                stat: StatId::PhysicalDamage,
+                typ: Type::Inc,
+                amount: 1,
+                flags: vec![Mutation::MultiplierStat((5, StatId::Strength))],
+                tags: hset![GemTag::Melee],
+                ..Default::default()
+            },
         ];
         mods.extend(BANDIT_STATS.get(&self.bandit_choice).unwrap().clone());
         mods.extend(self.tree.calc_mods());
@@ -538,7 +546,11 @@ impl Stat {
         self.mods.extend(stat.mods.clone());
     }
 
-    pub fn calc_inv(&self, val: i64) -> i64 {
+    pub fn val_custom(&self, val: i64) -> i64 {
+        (val * self.mult()) / 10000
+    }
+
+    pub fn val_custom_inv(&self, val: i64) -> i64 {
         (val * 10000) / self.mult()
     }
 }

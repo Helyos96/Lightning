@@ -1,6 +1,7 @@
+use crate::build::StatId;
 use crate::data::GEMS;
 use crate::gemstats::GEMSTATS;
-use crate::modifier::{Mod, Source};
+use crate::modifier::{Mod, Source, Type};
 use crate::{item, util};
 use crate::data;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -53,6 +54,7 @@ pub struct Level {
     #[serde(default)]
     stat_requirements: Option<StatRequirements>,
     stats: Option<Vec<Option<LevelStat>>>,
+    damage_effectiveness: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -206,6 +208,10 @@ impl Gem {
             }
         }
 
+        if let Some(speed_multiplier) = &self.data().r#static.attack_speed_multiplier {
+            mods.push(Mod {stat: StatId::AttackSpeed, typ: Type::More, amount: *speed_multiplier as i64, ..Default::default()});
+        }
+
         mods
     }
 
@@ -238,5 +244,10 @@ impl Gem {
         }
 
         None
+    }
+
+    pub fn damage_effectiveness(&self) -> Option<i64> {
+        let level_data = self.data().per_level.get(&self.level)?;
+        level_data.damage_effectiveness
     }
 }

@@ -97,23 +97,23 @@ fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
         }) {
             let gem_data = &GEMS[gem_id];
             // Parsing stuff is just beautiful
-            let level = u32::from_str(
+            if let Ok(level) = u32::from_str(
                 gem.properties.iter().find(|p| p.name == "Level").unwrap().values[0]
                     .0
                     .split(' ')
                     .collect::<Vec<&str>>()[0],
-            )
-            .unwrap();
-            let new_gem = gem::Gem {
-                id: gem_id.to_string(),
-                enabled: true,
-                level,
-                qual: 0,
-                alt_qual: 0,
-            };
-            match gem_data.is_support {
-                true => gemlink.support_gems.push(new_gem),
-                false => gemlink.active_gems.push(new_gem),
+            ) {
+                let new_gem = gem::Gem {
+                    id: gem_id.to_string(),
+                    enabled: true,
+                    level,
+                    qual: 0,
+                    alt_qual: 0,
+                };
+                match gem_data.is_support {
+                    true => gemlink.support_gems.push(new_gem),
+                    false => gemlink.active_gems.push(new_gem),
+                }
             }
         } else {
             jewels.push(conv_item(gem));
