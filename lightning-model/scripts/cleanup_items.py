@@ -33,6 +33,7 @@ allowed_class = {
     "ManaFlask",
     "HybridFlask",
     "UtilityFlask",
+    "AbyssJewel",
     "Jewel",
     "Body Armour",
     "Rune Dagger",

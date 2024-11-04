@@ -28,6 +28,7 @@ pub enum ItemClass {
     ManaFlask,
     HybridFlask,
     UtilityFlask,
+    AbyssJewel,
     Jewel,
     #[serde(rename = "Body Armour")]
     BodyArmour,
