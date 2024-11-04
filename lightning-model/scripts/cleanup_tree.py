@@ -25,6 +25,7 @@ tree['classes'] = classes
 
 sprites = {}
 for (k,v) in tree['sprites'].items():
+    # Only keep best quality assets (0.3835 = highest zoom level)
     if '0.3835' not in v:
         continue
     sprites[k] = v["0.3835"]

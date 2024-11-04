@@ -76,16 +76,15 @@ pub fn calc_gem(build: &Build, support_gems: &Vec<Gem>, active_gem: &Gem) -> FxH
         } else if tags.contains(&GemTag::Attack) {
             let mut div = 0;
             let mut time = 0;
-            if let Some(weapon) = build.equipment.get(&Slot::Weapon) {
-                if let Some(item_speed) = weapon.attack_speed() {
-                    time += item_speed;
-                    div = div + 1;
-                }
-            }
-            if let Some(offhand) = build.equipment.get(&Slot::Offhand) {
-                if let Some(item_speed) = offhand.attack_speed() {
-                    time += item_speed;
-                    div = div + 1;
+            for slot in [Slot::Weapon, Slot::Offhand] {
+                if let Some(weapon) = build.equipment.get(&slot) {
+                    let weapon_restrictions = &active_gem.data().active_skill.as_ref().unwrap().weapon_restrictions;
+                    if !weapon_restrictions.is_empty() && weapon_restrictions.contains(&weapon.data().item_class) {
+                        if let Some(item_speed) = weapon.attack_speed() {
+                            time += item_speed;
+                            div += 1;
+                        }
+                    }
                 }
             }
             if div > 0 {

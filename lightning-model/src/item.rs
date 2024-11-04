@@ -15,8 +15,24 @@ pub enum ItemClass {
     Wand,
     Bow,
     Staff,
+    Warstaff,
     Shield,
     Sceptre,
+    FishingRod,
+    Quiver,
+    Boots,
+    Belt,
+    Helmet,
+    Gloves,
+    LifeFlask,
+    ManaFlask,
+    HybridFlask,
+    UtilityFlask,
+    Jewel,
+    #[serde(rename = "Body Armour")]
+    BodyArmour,
+    #[serde(rename = "Rune Dagger")]
+    RuneDagger,
     #[serde(rename = "One Hand Sword")]
     OneHandSword,
     #[serde(rename = "Thrusting One Hand Sword")]
@@ -52,7 +68,7 @@ pub struct BaseItem {
     name: String,
     tags: FxHashSet<String>,
     implicits: Vec<String>,
-    item_class: String,
+    pub item_class: ItemClass,
     properties: Properties,
 }
 

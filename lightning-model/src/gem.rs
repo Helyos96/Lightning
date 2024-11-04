@@ -1,6 +1,7 @@
 use crate::build::StatId;
 use crate::data::GEMS;
 use crate::gemstats::GEMSTATS;
+use crate::item::ItemClass;
 use crate::modifier::{Mod, Source, Type};
 use crate::{item, util};
 use crate::data;
@@ -13,6 +14,7 @@ pub struct ActiveSkill {
     display_name: String,
     id: String,
     stat_conversions: Option<FxHashMap<String, String>>,
+    pub weapon_restrictions: FxHashSet<ItemClass>,
     types: Option<Vec<String>>,
 }
 

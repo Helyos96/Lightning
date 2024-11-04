@@ -1,6 +1,6 @@
 use crate::data::TREE;
 use crate::gem::{Gem, GemTag};
-use crate::item::Item;
+use crate::item::{Item, ItemClass};
 use crate::modifier::{Condition, Mod, Mutation, PropertyBool, PropertyInt, Type};
 use crate::tree::{Class, PassiveTree, TreeData};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -351,6 +351,42 @@ impl Build {
                 tags: hset![GemTag::Melee],
                 ..Default::default()
             },
+            Mod {
+                stat: StatId::Damage,
+                typ: Type::More,
+                amount: 4,
+                flags: vec![
+                    Mutation::MultiplierProperty((1, PropertyInt::FrenzyCharges)),
+                ],
+                ..Default::default()
+            },
+            Mod {
+                stat: StatId::AttackSpeed,
+                typ: Type::Inc,
+                amount: 4,
+                flags: vec![
+                    Mutation::MultiplierProperty((1, PropertyInt::FrenzyCharges)),
+                ],
+                ..Default::default()
+            },
+            Mod {
+                stat: StatId::CastSpeed,
+                typ: Type::Inc,
+                amount: 4,
+                flags: vec![
+                    Mutation::MultiplierProperty((1, PropertyInt::FrenzyCharges)),
+                ],
+                ..Default::default()
+            },
+            Mod {
+                stat: StatId::CriticalStrikeChance,
+                typ: Type::Inc,
+                amount: 50,
+                flags: vec![
+                    Mutation::MultiplierProperty((1, PropertyInt::PowerCharges)),
+                ],
+                ..Default::default()
+            },
         ];
         mods.extend(BANDIT_STATS.get(&self.bandit_choice).unwrap().clone());
         mods.extend(self.tree.calc_mods());
@@ -383,15 +419,22 @@ impl Build {
         self.properties_bool.insert(p, val);
     }
 
-    /// Calc all stats irrelevant of damage types.
-    /// For any stat that may be affected by damage type,
-    /// use calc_stat_dmg.
+    pub fn is_holding(&self, item_classes: &FxHashSet<ItemClass>) -> bool {
+        self.equipment.iter().find(|(_, item)| item_classes.contains(&item.data().item_class)).is_some()
+    }
+
     pub fn calc_stats(&self, mods: &[Mod], tags: &FxHashSet<GemTag>) -> Stats {
         let mut stats: FxHashMap<StatId, Stat> = Default::default();
         let mut mods_sec_pass = vec![];
         let mut mods_third_pass = vec![];
 
-        for m in mods.iter().filter(|m| tags.is_superset(&m.tags)) {
+        for m in mods {
+            if !tags.is_superset(&m.tags) {
+                continue;
+            }
+            if !m.weapons.is_empty() && !self.is_holding(&m.weapons) {
+                continue;
+            }
             if !m.conditions.is_empty() {
                 mods_third_pass.push(m);
                 continue;
@@ -400,6 +443,7 @@ impl Build {
                 mods_sec_pass.push(m);
                 continue;
             }
+
             stats.entry(m.stat).or_default().adjust(m.typ, m.amount, m);
         }
 
@@ -438,6 +482,8 @@ impl Build {
             }
             for f in &m.conditions {
                 match f {
+                    // All the conditions are matched negatively
+                    // (if they don't match, continue to outer and disregard mod)
                     Condition::GreaterEqualProperty(mutation) => {
                         if self.property_int(mutation.1) < mutation.0 {
                             continue 'outer;
@@ -469,6 +515,11 @@ impl Build {
                             continue 'outer;
                         }
                     },
+                    Condition::WhileWielding(weapons) => {
+                        if !self.is_holding(weapons) {
+                            continue 'outer;
+                        }
+                    }
                 }
             }
             stats.entry(m.stat).or_default().adjust(m.typ, amount, m);

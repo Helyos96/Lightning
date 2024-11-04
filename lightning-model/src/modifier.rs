@@ -72,14 +72,6 @@ const ENDINGS_GEMTAGS: [(&str, GemTag); 14] = [
     ("with lightning skills", GemTag::Lightning),
 ];
 
-const ENDINGS_CONDITIONS: [(&str, Condition); 5] = [
-    ("while fortified", Condition::PropertyBool((true, PropertyBool::Fortified))),
-    ("if you've dealt a critical strike recently", Condition::PropertyBool((true, PropertyBool::DealtCritRecently))),
-    ("while leeching", Condition::PropertyBool((true, PropertyBool::Leeching))),
-    ("when on full life", Condition::PropertyBool((true, PropertyBool::OnFullLife))),
-    ("while on low life", Condition::PropertyBool((true, PropertyBool::OnLowLife))),
-];
-
 // Parses a string like '1.75' into i64 '175'
 fn parse_val100(val: &str) -> Option<i64> {
     let dec = Decimal::from_str(val).ok()?;
@@ -92,25 +84,33 @@ fn parse_val100(val: &str) -> Option<i64> {
 }
 
 lazy_static! {
-    static ref ENDINGS_WEAPON_RESTRICTIONS: [(&'static str, FxHashSet<ItemClass>); 18] = [
+    static ref ENDINGS_CONDITIONS: [(&'static str, Condition); 11] = [
+        ("while fortified", Condition::PropertyBool((true, PropertyBool::Fortified))),
+        ("if you've dealt a critical strike recently", Condition::PropertyBool((true, PropertyBool::DealtCritRecently))),
+        ("while leeching", Condition::PropertyBool((true, PropertyBool::Leeching))),
+        ("when on full life", Condition::PropertyBool((true, PropertyBool::OnFullLife))),
+        ("while on low life", Condition::PropertyBool((true, PropertyBool::OnLowLife))),
+        ("while holding a shield", Condition::WhileWielding(hset![ItemClass::Shield])),
+        ("while wielding a staff", Condition::WhileWielding(hset![ItemClass::Staff, ItemClass::Warstaff])),
+        ("while wielding a sword", Condition::WhileWielding(hset![ItemClass::OneHandSword, ItemClass::TwoHandSword, ItemClass::ThrustingOneHandSword])),
+        ("while wielding a dagger", Condition::WhileWielding(hset![ItemClass::Dagger, ItemClass::RuneDagger])),
+        ("while wielding a mace or sceptre", Condition::WhileWielding(hset![ItemClass::OneHandMace, ItemClass::TwoHandMace, ItemClass::Sceptre])),
+        ("while wielding a claw or dagger", Condition::WhileWielding(hset![ItemClass::Dagger, ItemClass::RuneDagger, ItemClass::Claw])),
+    ];
+
+    static ref ENDINGS_WEAPON_RESTRICTIONS: [(&'static str, FxHashSet<ItemClass>); 12] = [
         ("with axes", hset![ItemClass::OneHandAxe, ItemClass::TwoHandAxe]),
         ("with swords", hset![ItemClass::OneHandSword, ItemClass::TwoHandSword, ItemClass::ThrustingOneHandSword]),
         ("with maces", hset![ItemClass::OneHandMace, ItemClass::TwoHandMace]),
         ("with two handed melee weapons", hset![ItemClass::TwoHandSword, ItemClass::TwoHandMace, ItemClass::TwoHandAxe]),
         ("with one handed melee weapons", hset![ItemClass::OneHandSword, ItemClass::OneHandMace, ItemClass::OneHandAxe, ItemClass::ThrustingOneHandSword]),
         ("with one handed weapons", hset![ItemClass::OneHandSword, ItemClass::OneHandMace, ItemClass::OneHandAxe, ItemClass::ThrustingOneHandSword]),
-        ("while holding a shield", hset![ItemClass::Shield]),
-        ("while wielding a staff", hset![ItemClass::Staff]),
-        ("with staves", hset![ItemClass::Staff]),
+        ("with staves", hset![ItemClass::Staff, ItemClass::Warstaff]),
         ("with bows", hset![ItemClass::Bow]),
         ("with claws", hset![ItemClass::Claw]),
         ("with wands", hset![ItemClass::Wand]),
-        ("with daggers", hset![ItemClass::Dagger]),
-        ("while wielding a sword", hset![ItemClass::OneHandSword, ItemClass::TwoHandSword, ItemClass::ThrustingOneHandSword]),
-        ("while wielding a dagger", hset![ItemClass::Dagger]),
-        ("while wielding a mace or sceptre", hset![ItemClass::OneHandMace, ItemClass::TwoHandMace, ItemClass::Sceptre]),
+        ("with daggers", hset![ItemClass::Dagger, ItemClass::RuneDagger]),
         ("with maces or sceptres", hset![ItemClass::OneHandMace, ItemClass::TwoHandMace, ItemClass::Sceptre]),
-        ("while wielding a claw or dagger", hset![ItemClass::Dagger, ItemClass::Claw]),
     ];
 
     static ref BEGINNINGS: Vec<(Regex, Box<dyn Fn(&Captures) -> Option<Vec<Mod>> + Send + Sync>)> = vec![
@@ -255,30 +255,38 @@ lazy_static! {
         ), (
             regex!(r"^\+([0-9]+)%? to ([a-z]+) and ([a-z]+) resistances$"),
             Box::new(|c| {
+                let stat_tags_1 = STATS_MAP.get(format!("{} resistance", &c[2]).as_str()).cloned()?;
+                let stat_tags_2 = STATS_MAP.get(format!("{} resistance", &c[3]).as_str()).cloned()?;
                 Some(vec![Mod {
-                    stat: STATS_MAP.get(format!("{} resistance", &c[2]).as_str()).copied()?,
+                    stat: stat_tags_1.0,
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
+                    tags: stat_tags_1.1,
                     ..Default::default()
                 }, Mod {
-                    stat: STATS_MAP.get(format!("{} resistance", &c[3]).as_str()).copied()?,
+                    stat: stat_tags_2.0,
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
+                    tags: stat_tags_2.1,
                     ..Default::default()
                 }])
             })
         ), (
             regex!(r"^adds ([0-9]+) to ([0-9]+) ([a-z ]+)$"),
             Box::new(|c| {
+                let stat_tags_1 = STATS_MAP.get(format!("minimum {}", &c[3]).as_str()).cloned()?;
+                let stat_tags_2 = STATS_MAP.get(format!("maximum {}", &c[3]).as_str()).cloned()?;
                 Some(vec![Mod {
-                    stat: STATS_MAP.get(format!("minimum {}", &c[3]).as_str()).copied()?,
+                    stat: stat_tags_1.0,
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
+                    tags: stat_tags_1.1,
                     ..Default::default()
                 }, Mod {
-                    stat: STATS_MAP.get(format!("maximum {}", &c[3]).as_str()).copied()?,
+                    stat: stat_tags_2.0,
                     typ: Type::Base,
                     amount: i64::from_str(&c[2]).unwrap(),
+                    tags: stat_tags_2.1,
                     ..Default::default()
                 }])
             })
@@ -305,10 +313,12 @@ lazy_static! {
         ), (
             regex!(r"^damage penetrates ([0-9]+)% ([a-z]+) resistance$"),
             Box::new(|c| {
+                let stat_tags_1 = STATS_MAP.get(format!("{} damage penetration", &c[2]).as_str()).cloned()?;
                 Some(vec![Mod {
-                    stat: STATS_MAP.get(format!("{} damage penetration", &c[2]).as_str()).copied()?,
+                    stat: stat_tags_1.0,
                     typ: Type::Base,
                     amount: parse_val100(&c[1])?,
+                    tags: stat_tags_1.1,
                     ..Default::default()
                 }])
             })
@@ -339,90 +349,93 @@ lazy_static! {
 
     // Order is important for overlapping stats
     // like "area of effect" and "effect"
-    static ref STATS: Vec<(&'static str, StatId)> = vec![
-        ("strength", StatId::Strength),
-        ("dexterity", StatId::Dexterity),
-        ("intelligence", StatId::Intelligence),
-        ("attributes", StatId::Attributes),
-        ("attack speed", StatId::AttackSpeed),
-        ("cast speed", StatId::CastSpeed),
-        ("warcry speed", StatId::WarcrySpeed),
-        ("cooldown recovery speed", StatId::CooldownRecoverySpeed),
-        ("projectile speed", StatId::ProjectileSpeed),
-        ("trap throwing speed", StatId::TrapThrowingSpeed),
-        ("chance to block attack damage", StatId::ChanceToBlockAttackDamage),
-        ("chance to block spell damage", StatId::ChanceToBlockSpellDamage),
-        ("chance to suppress spell damage", StatId::ChanceToSuppressSpellDamage),
-        ("fire damage over time multiplier", StatId::FireDamageOverTimeMultiplier),
-        ("cold damage over time multiplier", StatId::ColdDamageOverTimeMultiplier),
-        ("chaos damage over time multiplier", StatId::ChaosDamageOverTimeMultiplier),
-        ("physical damage over time multiplier", StatId::PhysicalDamageOverTimeMultiplier),
-        ("damage over time multiplier", StatId::DamageOverTimeMultiplier),
-        ("fire damage over time", StatId::FireDamageOverTime),
-        ("cold damage over time", StatId::ColdDamageOverTime),
-        ("chaos damage over time", StatId::ChaosDamageOverTime),
-        ("physical damage over time", StatId::PhysicalDamageOverTime),
-        ("damage over time", StatId::DamageOverTime),
-        ("minimum fire damage", StatId::MinFireDamage),
-        ("maximum fire damage", StatId::MaxFireDamage),
-        ("fire damage", StatId::FireDamage),
-        ("cold damage", StatId::ColdDamage),
-        ("lightning damage", StatId::LightningDamage),
-        ("chaos damage", StatId::ChaosDamage),
-        ("minimum physical damage", StatId::MinPhysicalDamage),
-        ("maximum physical damage", StatId::MaxPhysicalDamage),
-        ("physical damage", StatId::PhysicalDamage),
-        ("damage", StatId::Damage),
-        ("area of effect", StatId::AreaOfEffect),
-        ("accuracy rating", StatId::AccuracyRating),
-        ("movement speed", StatId::MovementSpeed),
-        ("skill effect duration", StatId::SkillEffectDuration),
-        ("duration", StatId::Duration),
-        ("impale effect", StatId::ImpaleEffect),
-        ("minimum frenzy charges", StatId::MinimumFrenzyCharges),
-        ("minimum power charges", StatId::MinimumPowerCharges),
-        ("minimum endurance charges", StatId::MinimumEnduranceCharges),
-        ("maximum frenzy charges", StatId::MaximumFrenzyCharges),
-        ("maximum power charges", StatId::MaximumPowerCharges),
-        ("maximum endurance charges", StatId::MaximumEnduranceCharges),
-        ("maximum life", StatId::MaximumLife),
-        ("maximum mana", StatId::MaximumMana),
-        ("minimum rage", StatId::MinimumRage),
-        ("maximum rage", StatId::MaximumRage),
-        ("maximum energy shield", StatId::MaximumEnergyShield),
-        ("energy shield recharge rate", StatId::EnergyShieldRechargeRate),
-        ("life regeneration rate", StatId::LifeRegenerationRate),
-        ("mana regeneration rate", StatId::ManaRegenerationRate),
-        ("mana reservation efficiency", StatId::ManaReservationEfficiency),
-        ("critical strike chance", StatId::CriticalStrikeChance),
-        ("critical strike multiplier", StatId::CriticalStrikeMultiplier),
-        ("armour", StatId::Armour),
-        ("evasion rating", StatId::EvasionRating),
-        ("stun threshold", StatId::StunThreshold),
-        ("chance to avoid being stunned", StatId::ChanceToAvoidBeingStunned),
-        ("maximum fire resistance", StatId::MaximumFireResistance),
-        ("maximum cold resistance", StatId::MaximumColdResistance),
-        ("maximum lightning resistance", StatId::MaximumLightningResistance),
-        ("maximum chaos resistance", StatId::MaximumChaosResistance),
-        ("fire resistance", StatId::FireResistance),
-        ("cold resistance", StatId::ColdResistance),
-        ("lightning resistance", StatId::LightningResistance),
-        ("chaos resistance", StatId::ChaosResistance),
-        ("flask charges gained", StatId::FlaskChargesGained),
-        ("flask effect duration", StatId::FlaskEffectDuration),
-        ("flask recovery rate", StatId::FlaskRecoveryRate),
-        ("flask charges used", StatId::FlaskChargesUsed),
-        ("mana cost", StatId::ManaCost),
-        ("life cost", StatId::LifeCost),
-        ("cost", StatId::Cost),
-        ("passive skill points", StatId::PassiveSkillPoints),
-        ("passive skill point", StatId::PassiveSkillPoints),
+    static ref STATS: Vec<(&'static str, StatId, FxHashSet<GemTag>)> = vec![
+        ("strength", StatId::Strength, hset!()),
+        ("dexterity", StatId::Dexterity, hset!()),
+        ("intelligence", StatId::Intelligence, hset!()),
+        ("attributes", StatId::Attributes, hset!()),
+        ("attack speed", StatId::AttackSpeed, hset!()),
+        ("cast speed", StatId::CastSpeed, hset!()),
+        ("warcry speed", StatId::WarcrySpeed, hset!()),
+        ("cooldown recovery speed", StatId::CooldownRecoverySpeed, hset!()),
+        ("projectile speed", StatId::ProjectileSpeed, hset!()),
+        ("trap throwing speed", StatId::TrapThrowingSpeed, hset!()),
+        ("chance to block attack damage", StatId::ChanceToBlockAttackDamage, hset!()),
+        ("chance to block spell damage", StatId::ChanceToBlockSpellDamage, hset!()),
+        ("chance to suppress spell damage", StatId::ChanceToSuppressSpellDamage, hset!()),
+        ("fire damage over time multiplier", StatId::FireDamageOverTimeMultiplier, hset!()),
+        ("cold damage over time multiplier", StatId::ColdDamageOverTimeMultiplier, hset!()),
+        ("chaos damage over time multiplier", StatId::ChaosDamageOverTimeMultiplier, hset!()),
+        ("physical damage over time multiplier", StatId::PhysicalDamageOverTimeMultiplier, hset!()),
+        ("damage over time multiplier", StatId::DamageOverTimeMultiplier, hset!()),
+        ("fire damage over time", StatId::FireDamageOverTime, hset!()),
+        ("cold damage over time", StatId::ColdDamageOverTime, hset!()),
+        ("chaos damage over time", StatId::ChaosDamageOverTime, hset!()),
+        ("physical damage over time", StatId::PhysicalDamageOverTime, hset!()),
+        ("damage over time", StatId::DamageOverTime, hset!()),
+        ("minimum fire damage", StatId::MinFireDamage, hset!()),
+        ("maximum fire damage", StatId::MaxFireDamage, hset!()),
+        ("fire damage", StatId::FireDamage, hset!()),
+        ("cold damage", StatId::ColdDamage, hset!()),
+        ("lightning damage", StatId::LightningDamage, hset!()),
+        ("chaos damage", StatId::ChaosDamage, hset!()),
+        ("minimum physical attack damage", StatId::MinPhysicalDamage, hset!(GemTag::Attack)),
+        ("maximum physical attack damage", StatId::MaxPhysicalDamage, hset!(GemTag::Attack)),
+        ("minimum physical damage", StatId::MinPhysicalDamage, hset!()),
+        ("maximum physical damage", StatId::MaxPhysicalDamage, hset!()),
+        ("physical attack damage", StatId::PhysicalDamage, hset!(GemTag::Attack)),
+        ("physical damage", StatId::PhysicalDamage, hset!()),
+        ("damage", StatId::Damage, hset!()),
+        ("area of effect", StatId::AreaOfEffect, hset!()),
+        ("accuracy rating", StatId::AccuracyRating, hset!()),
+        ("movement speed", StatId::MovementSpeed, hset!()),
+        ("skill effect duration", StatId::SkillEffectDuration, hset!()),
+        ("duration", StatId::Duration, hset!()),
+        ("impale effect", StatId::ImpaleEffect, hset!()),
+        ("minimum frenzy charges", StatId::MinimumFrenzyCharges, hset!()),
+        ("minimum power charges", StatId::MinimumPowerCharges, hset!()),
+        ("minimum endurance charges", StatId::MinimumEnduranceCharges, hset!()),
+        ("maximum frenzy charges", StatId::MaximumFrenzyCharges, hset!()),
+        ("maximum power charges", StatId::MaximumPowerCharges, hset!()),
+        ("maximum endurance charges", StatId::MaximumEnduranceCharges, hset!()),
+        ("maximum life", StatId::MaximumLife, hset!()),
+        ("maximum mana", StatId::MaximumMana, hset!()),
+        ("minimum rage", StatId::MinimumRage, hset!()),
+        ("maximum rage", StatId::MaximumRage, hset!()),
+        ("maximum energy shield", StatId::MaximumEnergyShield, hset!()),
+        ("energy shield recharge rate", StatId::EnergyShieldRechargeRate, hset!()),
+        ("life regeneration rate", StatId::LifeRegenerationRate, hset!()),
+        ("mana regeneration rate", StatId::ManaRegenerationRate, hset!()),
+        ("mana reservation efficiency", StatId::ManaReservationEfficiency, hset!()),
+        ("critical strike chance", StatId::CriticalStrikeChance, hset!()),
+        ("critical strike multiplier", StatId::CriticalStrikeMultiplier, hset!()),
+        ("armour", StatId::Armour, hset!()),
+        ("evasion rating", StatId::EvasionRating, hset!()),
+        ("stun threshold", StatId::StunThreshold, hset!()),
+        ("chance to avoid being stunned", StatId::ChanceToAvoidBeingStunned, hset!()),
+        ("maximum fire resistance", StatId::MaximumFireResistance, hset!()),
+        ("maximum cold resistance", StatId::MaximumColdResistance, hset!()),
+        ("maximum lightning resistance", StatId::MaximumLightningResistance, hset!()),
+        ("maximum chaos resistance", StatId::MaximumChaosResistance, hset!()),
+        ("fire resistance", StatId::FireResistance, hset!()),
+        ("cold resistance", StatId::ColdResistance, hset!()),
+        ("lightning resistance", StatId::LightningResistance, hset!()),
+        ("chaos resistance", StatId::ChaosResistance, hset!()),
+        ("flask charges gained", StatId::FlaskChargesGained, hset!()),
+        ("flask effect duration", StatId::FlaskEffectDuration, hset!()),
+        ("flask recovery rate", StatId::FlaskRecoveryRate, hset!()),
+        ("flask charges used", StatId::FlaskChargesUsed, hset!()),
+        ("mana cost", StatId::ManaCost, hset!()),
+        ("life cost", StatId::LifeCost, hset!()),
+        ("cost", StatId::Cost, hset!()),
+        ("passive skill points", StatId::PassiveSkillPoints, hset!()),
+        ("passive skill point", StatId::PassiveSkillPoints, hset!()),
     ];
 
-    static ref STATS_MAP: FxHashMap<&'static str, StatId> = {
+    static ref STATS_MAP: FxHashMap<&'static str, (StatId, FxHashSet<GemTag>)> = {
         let mut map = FxHashMap::default();
         for entry in STATS.iter() {
-            map.insert(entry.0, entry.1);
+            map.insert(entry.0, (entry.1, entry.2.clone()));
         }
         map
     };
@@ -476,6 +489,7 @@ pub enum Condition {
     LesserEqualProperty((i64, PropertyInt)),
     LesserEqualStat((i64, StatId)),
     PropertyBool((bool, PropertyBool)),
+    WhileWielding(FxHashSet<ItemClass>),
 }
 
 #[derive(Default, Debug, Clone, Copy)]
