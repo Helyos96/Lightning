@@ -77,12 +77,19 @@ pub struct GemStat {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct QualityStat {
+    stat: String,
+    stats: FxHashMap<String, i32>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Static {
     crit_chance: Option<i32>,
     cooldown: Option<i32>,
     damage_effectiveness: Option<i32>,
     attack_speed_multiplier: Option<i32>,
     pub stats: Option<Vec<Option<GemStat>>>,
+    quality_stats: Vec<QualityStat>,
 }
 
 impl Static {
@@ -206,6 +213,21 @@ impl Gem {
                     } else {
                         //println!("failed: {id}");
                     }
+                }
+            }
+        }
+
+        for quality_stat in &self.data().r#static.quality_stats {
+            for (stat_name, val) in &quality_stat.stats {
+                if let Some(stat_mods) = GEMSTATS.get(stat_name.as_str()) {
+                    for m in stat_mods {
+                        let mut modifier = m.to_owned();
+                        modifier.amount = (*val as i64 * self.qual as i64) / 1000;
+                        modifier.source = Source::Gem;
+                        mods.push(modifier);
+                    }
+                } else {
+                    //println!("failed: {stat_name}");
                 }
             }
         }

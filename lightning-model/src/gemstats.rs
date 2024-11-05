@@ -13,6 +13,12 @@ lazy_static! {
         map.insert("damage_+%", vec![
             Mod { stat: StatId::Damage, typ: Type::Inc, ..Default::default() },
         ]);
+        map.insert("physical_damage_+%", vec![
+            Mod { stat: StatId::PhysicalDamage, typ: Type::Inc, ..Default::default() },
+        ]);
+        map.insert("melee_physical_damage_+%", vec![
+            Mod { stat: StatId::PhysicalDamage, typ: Type::Inc, tags: hset![GemTag::Melee], ..Default::default() },
+        ]);
         map.insert("base_cast_speed_+%", vec![
             Mod { stat: StatId::CastSpeed, typ: Type::Inc, ..Default::default() },
         ]);
@@ -27,6 +33,19 @@ lazy_static! {
         ]);
         map.insert("support_area_concentrate_area_damage_+%_final", vec![
             Mod { stat: StatId::Damage, typ: Type::More, tags: hset![GemTag::Area], ..Default::default() },
+        ]);
+
+        // (Awakened) Melee physical damage support
+        map.insert("support_melee_physical_damage_attack_speed_+%_final", vec![
+            Mod { stat: StatId::AttackSpeed, typ: Type::More, tags: hset![GemTag::Attack], ..Default::default() },
+        ]);
+        map.insert("support_melee_physical_damage_+%_final", vec![
+            Mod { stat: StatId::PhysicalDamage, typ: Type::More, tags: hset![GemTag::Melee], ..Default::default() },
+        ]);
+
+        // Brutality Support
+        map.insert("support_brutality_physical_damage_+%_final", vec![
+            Mod { stat: StatId::PhysicalDamage, typ: Type::More, tags: hset![], ..Default::default() },
         ]);
 
         map
