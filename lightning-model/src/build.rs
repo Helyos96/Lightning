@@ -140,6 +140,10 @@ pub enum StatId {
     LifeRegeneration,
     LifeRegenerationPct,
     PassiveSkillPoints,
+    FireDamagePen,
+    LightningDamagePen,
+    ChaosDamagePen,
+    ColdDamagePen,
 }
 
 #[derive(Serialize, Deserialize)]
