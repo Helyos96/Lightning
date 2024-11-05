@@ -9,7 +9,7 @@ use serde_with::serde_as;
 use lazy_static::lazy_static;
 use strum_macros::{AsRefStr, EnumIter};
 
-#[derive(Serialize, Deserialize, Eq, PartialEq, Hash, Debug)]
+#[derive(Serialize, Deserialize, Eq, PartialEq, Hash, Clone, Copy, Debug)]
 pub enum Slot {
     Helm,
     BodyArmour,
@@ -391,8 +391,14 @@ impl Build {
         ];
         mods.extend(BANDIT_STATS.get(&self.bandit_choice).unwrap().clone());
         mods.extend(self.tree.calc_mods());
-        for item in self.equipment.values() {
-            mods.extend(item.calc_nonlocal_mods());
+        for (slot, item) in &self.equipment {
+            if let Slot::TreeJewel(node_id) = slot {
+                if self.tree.nodes.contains(node_id) {
+                    mods.extend(item.calc_nonlocal_mods());
+                }
+            } else {
+                mods.extend(item.calc_nonlocal_mods());
+            }
         }
         if include_global {
             for gl in &self.gem_links {
@@ -473,12 +479,12 @@ impl Build {
         for f in &m.flags {
             match f {
                 Mutation::MultiplierProperty(mutation) => {
-                    amount *= self.property_int(mutation.1) / mutation.0;
+                    amount = (amount * self.property_int(mutation.1)) / mutation.0;
                 },
                 Mutation::MultiplierStat(mutation) => {
-                    amount *= match stats.get(&mutation.1) {
-                        Some(stat) => stat.val() / mutation.0,
-                        None => 1,
+                    amount = match stats.get(&mutation.1) {
+                        Some(stat) => (amount * stat.val()) / mutation.0,
+                        None => amount,
                     }
                 },
             }
@@ -506,7 +512,6 @@ impl Build {
                 mods_sec_pass.push(m);
                 continue;
             }
-
             stats.entry(m.stat).or_default().adjust(m.typ, m.amount, m);
         }
 
