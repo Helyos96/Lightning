@@ -154,6 +154,7 @@ pub struct Stat {
     base: i64,
     inc: i64,
     more: i64,
+    overrid: Option<i64>,
     mods: Vec<Mod>,
 }
 
@@ -423,6 +424,68 @@ impl Build {
         self.equipment.iter().find(|(_, item)| item_classes.contains(&item.data().item_class)).is_some()
     }
 
+    fn check_conditions(&self, stats: &FxHashMap<StatId, Stat>, m: &Mod) -> bool {
+        for c in &m.conditions {
+            match c {
+                Condition::GreaterEqualProperty(mutation) => {
+                    if self.property_int(mutation.1) < mutation.0 {
+                        return false;
+                    }
+                },
+                Condition::LesserEqualProperty(mutation) => {
+                    if self.property_int(mutation.1) > mutation.0 {
+                        return false;
+                    }
+                },
+                Condition::GreaterEqualStat(mutation) => {
+                    if let Some(stat) = stats.get(&mutation.1) {
+                        if stat.val() < mutation.0 {
+                            return false;
+                        }
+                    }
+                },
+                Condition::LesserEqualStat(mutation) => {
+                    if let Some(stat) = stats.get(&mutation.1) {
+                        if stat.val() > mutation.0 {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                },
+                Condition::PropertyBool(mutation) => {
+                    if self.property_bool(mutation.1) != mutation.0 {
+                        return false;
+                    }
+                },
+                Condition::WhileWielding(weapons) => {
+                    if !self.is_holding(weapons) {
+                        return false;
+                    }
+                }
+            }
+        }
+        true
+    }
+
+    fn apply_mutations(&self, stats: &FxHashMap<StatId, Stat>, m: &Mod) -> i64 {
+        let mut amount = m.amount;
+        for f in &m.flags {
+            match f {
+                Mutation::MultiplierProperty(mutation) => {
+                    amount *= self.property_int(mutation.1) / mutation.0;
+                },
+                Mutation::MultiplierStat(mutation) => {
+                    amount *= match stats.get(&mutation.1) {
+                        Some(stat) => stat.val() / mutation.0,
+                        None => 1,
+                    }
+                },
+            }
+        }
+        amount
+    }
+
     pub fn calc_stats(&self, mods: &[Mod], tags: &FxHashSet<GemTag>) -> Stats {
         let mut stats: FxHashMap<StatId, Stat> = Default::default();
         let mut mods_sec_pass = vec![];
@@ -448,79 +511,14 @@ impl Build {
         }
 
         for m in mods_sec_pass {
-            let mut amount = m.amount;
-            for f in &m.flags {
-                match f {
-                    Mutation::MultiplierProperty(mutation) => {
-                        amount *= self.property_int(mutation.1) / mutation.0;
-                    },
-                    Mutation::MultiplierStat(mutation) => {
-                        amount *= match stats.get(&mutation.1) {
-                            Some(stat) => stat.val() / mutation.0,
-                            None => 1,
-                        }
-                    },
-                }
-            }
+            let amount = self.apply_mutations(&stats, &m);
             stats.entry(m.stat).or_default().adjust(m.typ, amount, m);
         }
 
-        'outer: for m in mods_third_pass {
-            let mut amount = m.amount;
-            for f in &m.flags {
-                match f {
-                    Mutation::MultiplierProperty(mutation) => {
-                        amount *= self.property_int(mutation.1) / mutation.0;
-                    },
-                    Mutation::MultiplierStat(mutation) => {
-                        amount *= match stats.get(&mutation.1) {
-                            Some(stat) => stat.val() / mutation.0,
-                            None => 1,
-                        }
-                    },
-                }
-            }
-            for f in &m.conditions {
-                match f {
-                    // All the conditions are matched negatively
-                    // (if they don't match, continue to outer and disregard mod)
-                    Condition::GreaterEqualProperty(mutation) => {
-                        if self.property_int(mutation.1) < mutation.0 {
-                            continue 'outer;
-                        }
-                    },
-                    Condition::LesserEqualProperty(mutation) => {
-                        if self.property_int(mutation.1) > mutation.0 {
-                            continue 'outer;
-                        }
-                    },
-                    Condition::GreaterEqualStat(mutation) => {
-                        if let Some(stat) = stats.get(&mutation.1) {
-                            if stat.val() < mutation.0 {
-                                continue 'outer;
-                            }
-                        }
-                    },
-                    Condition::LesserEqualStat(mutation) => {
-                        if let Some(stat) = stats.get(&mutation.1) {
-                            if stat.val() > mutation.0 {
-                                continue 'outer;
-                            }
-                        } else {
-                            continue 'outer;
-                        }
-                    },
-                    Condition::PropertyBool(mutation) => {
-                        if self.property_bool(mutation.1) != mutation.0 {
-                            continue 'outer;
-                        }
-                    },
-                    Condition::WhileWielding(weapons) => {
-                        if !self.is_holding(weapons) {
-                            continue 'outer;
-                        }
-                    }
-                }
+        for m in mods_third_pass {
+            let amount = self.apply_mutations(&stats, &m);
+            if !self.check_conditions(&stats, &m) {
+                continue;
             }
             stats.entry(m.stat).or_default().adjust(m.typ, amount, m);
         }
@@ -529,6 +527,8 @@ impl Build {
     }
 }
 
+/// Computes a stat from a mod list
+/// WARNING: doesn't take into account mutations or conditions
 pub fn calc_stat(stat_id: StatId, mods: &[Mod], tags: &FxHashSet<GemTag>) -> Stat {
     let mut stat = Stat::default();
 
@@ -536,18 +536,7 @@ pub fn calc_stat(stat_id: StatId, mods: &[Mod], tags: &FxHashSet<GemTag>) -> Sta
         .iter()
         .filter(|m| m.stat == stat_id && tags.is_superset(&m.tags))
     {
-        let mut amount = m.amount;
-        for f in &m.flags {
-            match f {
-                Mutation::MultiplierProperty(_mp) => {
-                    amount *= 1
-                }
-                Mutation::MultiplierStat(_) => {
-                    // todo
-                }
-            }
-        }
-        stat.adjust(m.typ, amount, m);
+        stat.adjust(m.typ, m.amount, m);
     }
 
     stat
@@ -559,6 +548,7 @@ impl Default for Stat {
             base: 0,
             inc: 0,
             more: 100,
+            overrid: None,
             mods: vec![],
         }
     }
@@ -570,8 +560,20 @@ impl Stat {
             Type::Base => self.base += amount,
             Type::Inc => self.inc += amount,
             Type::More => self.more = (self.more * (100 + amount)) / 100,
+            Type::Override => {
+                if let Some(existing_override) = self.overrid {
+                    // Keep the lowest override, unsure if correct
+                    if amount < existing_override {
+                        self.overrid = Some(amount);
+                    }
+                } else {
+                    self.overrid = Some(amount);
+                }
+            }
         }
-        self.mods.push(m.to_owned());
+        let mut modifier = m.to_owned();
+        modifier.amount = amount;
+        self.mods.push(modifier);
     }
 
     fn mult(&self) -> i64 {
@@ -579,7 +581,23 @@ impl Stat {
     }
 
     fn val100(&self) -> i64 {
-        (self.base * self.mult()) / 100
+        if let Some(overrid) = self.overrid {
+            overrid * 100
+        } else {
+            (self.base * self.mult()) / 100
+        }
+    }
+
+    pub fn with_weapon(&self, weapon: ItemClass) -> Stat {
+        let mut stat = Stat::default();
+
+        for m in &self.mods {
+            if m.weapons.is_empty() || m.weapons.contains(&weapon) {
+                stat.adjust(m.typ, m.amount, m);
+            }
+        }
+
+        stat
     }
 
     pub fn val(&self) -> i64 {

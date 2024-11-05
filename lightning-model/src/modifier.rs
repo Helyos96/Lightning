@@ -447,6 +447,7 @@ pub enum Type {
     Base,
     Inc,
     More,
+    Override,
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]

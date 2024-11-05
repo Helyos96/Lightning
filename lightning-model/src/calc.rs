@@ -31,38 +31,45 @@ pub fn calc_gem(build: &Build, support_gems: &Vec<Gem>, active_gem: &Gem) -> FxH
         (StatId::FireDamage, StatId::MinFireDamage, StatId::MaxFireDamage, "fire"),
     ];
 
-    let stat_dmg = stats.stat(StatId::Damage);
+    let dmg_stat = stats.stat(StatId::Damage);
     for dt in &damage_constants {
-        let dmg = stats.stat(dt.0);
-        let mut min = stats.stat(dt.1);
-        let mut max = stats.stat(dt.2);
-
-        if max.val() < min.val() {
-            eprintln!("ERR: max ({}) < min ({})", min.val(), max.val());
-        }
+        let dmg_stat_dt = stats.stat(dt.0);
+        let added_min = stats.stat(dt.1);
+        let added_max = stats.stat(dt.2);
+        let mut min = 0;
+        let mut max = 0;
 
         if tags.contains(&GemTag::Attack) {
             // TODO: with physical damage, each weapon should be compared independently regarding
             // enemy armour, not added together.
-            for (min_item, max_item) in [Slot::Weapon, Slot::Offhand].iter().map(|s| build.equipment.get(s)).flatten().map(|weapon| weapon.calc_dmg(dt.3)).flatten() {
-                min.adjust(Type::Base, min_item, &Mod { amount: min_item, typ: Type::Base, source: Source::Item, ..Default::default() });
-                max.adjust(Type::Base, max_item, &Mod { amount: max_item, typ: Type::Base, source: Source::Item, ..Default::default() });
+            for weapon in [Slot::Weapon, Slot::Offhand].iter().map(|s| build.equipment.get(s)).flatten() {
+                let weapon_restrictions = &active_gem.data().active_skill.as_ref().unwrap().weapon_restrictions;
+                if weapon_restrictions.is_empty() || weapon_restrictions.contains(&weapon.data().item_class) {
+                    if let Some((min_item, max_item)) = weapon.calc_dmg(dt.3) {
+                        let mut stat_min = dmg_stat_dt.with_weapon(weapon.data().item_class);
+                        let mut stat_max = dmg_stat_dt.with_weapon(weapon.data().item_class);
+                        stat_min.adjust(Type::Base, min_item, &Mod { amount: min_item, typ: Type::Base, source: Source::Item, ..Default::default() });
+                        stat_max.adjust(Type::Base, max_item, &Mod { amount: max_item, typ: Type::Base, source: Source::Item, ..Default::default() });
+                        stat_min.assimilate(&dmg_stat);
+                        stat_max.assimilate(&dmg_stat);
+                        // TODO: added damage can have different effectiveness
+                        stat_min.assimilate(&added_min);
+                        stat_max.assimilate(&added_max);
+                        min += stat_min.val();
+                        max += stat_max.val();
+                    }
+                }
             }
         }
 
-        if max.val() <= 0 {
+        if max <= 0 {
             continue;
         }
 
-        min.assimilate(&dmg);
-        min.assimilate(&stat_dmg);
-        max.assimilate(&dmg);
-        max.assimilate(&stat_dmg);
-
         if let Some(damage_effectiveness) = active_gem.damage_effectiveness() {
-            damage.push((((min.val() + max.val()) / 2) * (100 + damage_effectiveness)) / 100);
+            damage.push((((min + max) / 2) * (100 + damage_effectiveness)) / 100);
         } else {
-            damage.push((min.val() + max.val()) / 2);
+            damage.push((min + max) / 2);
         }
     }
 
@@ -79,7 +86,7 @@ pub fn calc_gem(build: &Build, support_gems: &Vec<Gem>, active_gem: &Gem) -> FxH
             for slot in [Slot::Weapon, Slot::Offhand] {
                 if let Some(weapon) = build.equipment.get(&slot) {
                     let weapon_restrictions = &active_gem.data().active_skill.as_ref().unwrap().weapon_restrictions;
-                    if !weapon_restrictions.is_empty() && weapon_restrictions.contains(&weapon.data().item_class) {
+                    if weapon_restrictions.is_empty() || weapon_restrictions.contains(&weapon.data().item_class) {
                         if let Some(item_speed) = weapon.attack_speed() {
                             time += item_speed;
                             div += 1;
