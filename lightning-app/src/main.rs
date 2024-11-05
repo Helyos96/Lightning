@@ -263,7 +263,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                 gui::draw_config_panel(egui_ctx, &mut state);
                             }
                             if let MainState::ChooseMastery(node_id) = main_state {
-                                if let Some(effect) = gui::select_mastery_effect(egui_ctx, &TREE.nodes[&node_id]) {
+                                if let Some(effect) = gui::select_mastery_effect(egui_ctx, &state.build.tree.masteries, &TREE.nodes[&node_id]) {
                                     state.build.tree.masteries.insert(node_id, effect);
                                     state.ui_state = UiState::Main(MainState::Tree);
                                     state.request_recalc = true;
