@@ -197,8 +197,8 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                     let mods = state.build.calc_mods(true);
                     state.stats = Some(state.build.calc_stats(&mods, &hset![]));
                     state.defence_calc = calc::calc_defence(&state.build);
-                    if let Some(gem_link) = state.build.gem_links.get(state.selected_gem.0) {
-                        if let Some(active_gem) = gem_link.active_gems.get(state.selected_gem.1) {
+                    if let Some(gem_link) = state.build.gem_links.get(state.gemlink_cur) {
+                        if let Some(active_gem) = gem_link.active_gems.get(state.active_skill_cur) {
                             state.active_skill_calc = calc::calc_gem(&state.build, &gem_link.support_gems, active_gem);
                         }
                     }
@@ -291,7 +291,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                 }
 
                 egui_glow.paint(&window);
-                if egui_glow.egui_ctx.has_requested_repaint() {
+                if egui_glow.egui_ctx.has_requested_repaint() || state.request_recalc || state.request_regen {
                     window.request_redraw();
                 }
 

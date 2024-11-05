@@ -3,8 +3,7 @@ pub mod tree_view;
 pub mod settings;
 
 use crate::config::Config;
-use lightning_model::build::{BanditChoice, Build, StatId, Stats};
-use lightning_model::calc;
+use lightning_model::build::{BanditChoice, Build, GemLink, StatId, Stats};
 use lightning_model::data::TREE;
 use lightning_model::modifier::{PropertyBool, PropertyInt};
 use lightning_model::tree::Node;
@@ -41,8 +40,6 @@ pub struct State {
     pub import_account: String,
     pub import_character: String,
     pub request_recalc: bool,
-    // idx into gem_links; idx into gem_links.active_gems
-    pub selected_gem: (usize, usize),
     pub last_instant: Instant,
     pub show_settings: bool,
 
@@ -56,7 +53,8 @@ pub struct State {
 
     // widget-specific values
     builds_list_cur: usize,
-    active_skill_cur: usize,
+    pub gemlink_cur: usize,
+    pub active_skill_cur: usize,
     builds_dir_settings: String,
     framerate_settings: u64,
     pub level: i64,
@@ -85,7 +83,6 @@ impl State {
             import_account: String::new(),
             import_character: String::new(),
             request_recalc: false,
-            selected_gem: (0, 0),
             last_instant: Instant::now(),
             show_settings: false,
 
@@ -98,6 +95,7 @@ impl State {
             mouse_tree_drag: None,
 
             builds_list_cur: 0,
+            gemlink_cur: 0,
             active_skill_cur: 0,
             builds_dir_settings: config.builds_dir.clone().into_os_string().into_string().unwrap(),
             framerate_settings: config.framerate,
@@ -147,11 +145,39 @@ pub fn select_mastery_effect(ctx: &egui::Context, current_masteries: &FxHashMap<
 const LEFT_PANEL_WIDTH: f32 = 240.0;
 const TOP_PANEL_HEIGHT: f32 = 40.0;
 
-fn get_selected_text(state: &State) -> &str {
+fn text_gemlink(gemlink: &GemLink) -> String {
+    let mut ret = String::new();
+    for active_gem in &gemlink.active_gems {
+        ret += &active_gem.data().base_item.as_ref().unwrap().display_name;
+        ret += ", ";
+    }
+    return String::from(ret.trim_end_matches(", "));
+}
+
+fn selected_text_gemlink(state: &State) -> String {
+    if state.build.gem_links.len() == 0 {
+        return String::from("<No Gemlink>");
+    }
+    if let Some(selected) = state.build.gem_links.get(state.gemlink_cur) {
+        let mut ret = text_gemlink(selected);
+        if ret.len() > 30 {
+            ret = String::from(&ret[0..27]) + "...";
+        }
+        return ret;
+    }
+    return String::from("");
+}
+
+fn selected_text_active(state: &State) -> &str {
     if state.build.gem_links.iter().flat_map(|gl| &gl.active_gems).count() == 0 {
         return "<No Active Skill>";
     }
-    return &state.build.gem_links.iter().flat_map(|gl| &gl.active_gems).nth(state.active_skill_cur).unwrap().data().base_item.as_ref().unwrap().display_name;
+    if let Some(gemlink) = state.build.gem_links.get(state.gemlink_cur) {
+        if let Some(active_skill) = gemlink.active_gems.get(state.active_skill_cur) {
+            return &active_skill.data().base_item.as_ref().unwrap().display_name;
+        }
+    }
+    return "";
 }
 
 pub fn draw_left_panel(ctx: &egui::Context, state: &mut State) {
@@ -180,18 +206,30 @@ pub fn draw_left_panel(ctx: &egui::Context, state: &mut State) {
                     }
                 }
             );
-            egui::ComboBox::from_id_salt("combo_active_skill")
-                .selected_text(get_selected_text(state))
+            egui::ComboBox::from_id_salt("combo_gemlink")
+                .selected_text(selected_text_gemlink(state))
                 .show_ui(ui, |ui| {
                     ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
-                    let mut index = 0;
                     for gem_link in state.build.gem_links.iter().enumerate() {
-                        for active_gem in gem_link.1.active_gems.iter().enumerate() {
-                            if ui.selectable_value(&mut state.active_skill_cur, index, &active_gem.1.data().base_item.as_ref().unwrap().display_name).clicked() {
-                                state.selected_gem = (gem_link.0, active_gem.0);
-                                state.active_skill_calc = calc::calc_gem(&state.build, &gem_link.1.support_gems, active_gem.1);
+                        if gem_link.1.active_gems.is_empty() {
+                            continue;
+                        }
+                        if ui.selectable_value(&mut state.gemlink_cur, gem_link.0, &text_gemlink(gem_link.1)).clicked() {
+                            state.active_skill_cur = 0;
+                            state.request_recalc = true;
+                        }
+                    }
+                }
+            );
+            egui::ComboBox::from_id_salt("combo_active_skill")
+                .selected_text(selected_text_active(state))
+                .show_ui(ui, |ui| {
+                    ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
+                    if let Some(gemlink) = state.build.gem_links.get(state.gemlink_cur) {
+                        for active_gem in gemlink.active_gems.iter().enumerate() {
+                            if ui.selectable_value(&mut state.active_skill_cur, active_gem.0, &active_gem.1.data().base_item.as_ref().unwrap().display_name).clicked() {
+                                state.request_recalc = true;
                             }
-                            index += 1;
                         }
                     }
                 }
