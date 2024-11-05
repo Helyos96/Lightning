@@ -44,7 +44,6 @@ use winit::{
     event::{self, ElementState, MouseButton, StartCause},
     window::{Window, WindowAttributes},
     event::WindowEvent,
-    keyboard::{KeyCode, PhysicalKey},
 };
 
 
@@ -313,9 +312,11 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                 event_loop.exit();
             }
             event => {
-                window.request_redraw();
-                let process_event = !egui_glow.on_window_event(&window, &event).consumed;
-                if process_event {
+                let egui_event_result = egui_glow.on_window_event(&window, &event);
+                if egui_event_result.repaint {
+                    window.request_redraw();
+                }
+                if !egui_event_result.consumed {
                     match event {
                         WindowEvent::MouseWheel {
                             delta: event::MouseScrollDelta::LineDelta(_h, v),
@@ -325,6 +326,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                             if state.ui_state == UiState::Main(MainState::Tree) && gui::is_over_tree(&state.mouse_pos) {
                                 state.zoom_tmp = (state.zoom_tmp + v).clamp(1.0, 10.0);
                                 state.zoom = state.zoom_tmp.round();
+                                window.request_redraw();
                             }
                         }
                         WindowEvent::Resized(physical_size) => {
@@ -335,7 +337,8 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                     0,
                                     physical_size.width as i32,
                                     physical_size.height as i32,
-                                )
+                                );
+                                window.request_redraw();
                             };
                         }
                         WindowEvent::MouseInput {
@@ -347,6 +350,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                 if button_state == ElementState::Pressed {
                                     if state.ui_state == UiState::Main(MainState::Tree) && gui::is_over_tree(&state.mouse_pos) {
                                         state.mouse_tree_drag = Some(state.mouse_pos);
+                                        window.request_redraw();
                                     }
                                 } else if button_state == ElementState::Released {
                                     if let Some(node) = state.hovered_node {
@@ -359,26 +363,12 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                         state.request_recalc = true;
                                         state.path_hovered = None;
                                         state.path_red = None;
+                                        window.request_redraw();
                                     }
                                     state.mouse_tree_drag = None;
                                 }
                             }
                         }
-                        WindowEvent::KeyboardInput {
-                            event:
-                                event::KeyEvent {
-                                    physical_key: key,
-                                    state: key_state,
-                                    ..
-                                },
-                            ..
-                        } => match key {
-                            PhysicalKey::Code(KeyCode::ArrowLeft) => state.key_left = key_state,
-                            PhysicalKey::Code(KeyCode::ArrowRight) => state.key_right = key_state,
-                            PhysicalKey::Code(KeyCode::ArrowUp) => state.key_up = key_state,
-                            PhysicalKey::Code(KeyCode::ArrowDown) => state.key_down = key_state,
-                            _ => {}
-                        },
                         WindowEvent::CursorMoved { position, .. } => {
                             let (mut x, mut y) = (position.x as f32, position.y as f32);
                             state.mouse_pos = (x, y);
@@ -391,6 +381,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                     dy * 12500.0 / (state.dimensions.1 as f32 / 2.0) / state.zoom;
                                 state.mouse_tree_drag = Some(state.mouse_pos);
                                 state.hovered_node = None;
+                                window.request_redraw();
                             } else if gui::is_over_tree(&state.mouse_pos) {
                                 // There's gotta be simpler computations for this
                                 x -= state.dimensions.0 as f32 / 2.0;
@@ -405,10 +396,12 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                 y *= 12500.0 / state.zoom;
 
                                 state.hovered_node = tree_gl::hover::get_hovered_node(x, y);
+                                window.request_redraw();
                             } else if state.hovered_node.is_some() {
                                 state.hovered_node = None;
                                 state.path_hovered = None;
                                 state.request_regen = true;
+                                window.request_redraw();
                             }
                         }
                         _ => {}

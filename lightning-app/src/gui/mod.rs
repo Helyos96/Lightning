@@ -8,7 +8,6 @@ use lightning_model::build::{Build, Stats};
 use lightning_model::tree::Node;
 use rustc_hash::FxHashMap;
 use std::path::PathBuf;
-use egui_glow::egui_winit::winit::event::ElementState;
 use std::time::Instant;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -63,10 +62,6 @@ pub struct State {
 
     // Controls
     pub mouse_pos: (f32, f32),
-    pub key_left: ElementState,
-    pub key_right: ElementState,
-    pub key_up: ElementState,
-    pub key_down: ElementState,
 }
 
 impl State {
@@ -104,10 +99,6 @@ impl State {
             request_regen: false,
 
             mouse_pos: (0.0, 0.0),
-            key_left: ElementState::Released,
-            key_right: ElementState::Released,
-            key_up: ElementState::Released,
-            key_down: ElementState::Released,
         }
     }
 }
