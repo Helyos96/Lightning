@@ -30,6 +30,8 @@ pub enum UiState {
 pub struct State {
     pub ui_state: UiState,
     pub build: Build,
+    // Used for stat comparison on hover
+    pub build_compare: Option<Build>,
     pub config: Config,
     pub import_account: String,
     pub import_character: String,
@@ -69,6 +71,7 @@ impl State {
         Self {
             ui_state: UiState::ChooseBuild,
             build: Build::new_player(),
+            build_compare: None,
 
             import_account: String::new(),
             import_character: String::new(),

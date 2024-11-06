@@ -222,30 +222,6 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                     }
                     UiState::Main(main_state) => {
                         if main_state == MainState::Tree || matches!(main_state, MainState::ChooseMastery(_)) {
-                            if let Some(node) = state.hovered_node {
-                                if !state.build.tree.nodes.contains(&node.skill) {
-                                    if state.path_hovered.is_none() {
-                                        let path_hovered = state.build.tree.find_path(node.skill);
-                                        if state.path_hovered.is_none() && path_hovered.is_some() {
-                                            state.request_regen = true;
-                                        }
-                                        state.path_hovered = path_hovered;
-                                        state.path_red = None;
-                                    }
-                                } else if state.path_red.is_none() {
-                                    let path_red = state.build.tree.find_path_remove(node.skill);
-                                    state.request_regen = true;
-                                    state.path_hovered = None;
-                                    state.path_red = Some(path_red);
-                                }
-                            } else {
-                                if state.path_hovered.is_some() || state.path_red.is_some() {
-                                    state.request_regen = true;
-                                }
-                                state.path_hovered = None;
-                                state.path_red = None;
-                            }
-
                             tree_gl.draw(
                                 &gl,
                                 state.zoom,
@@ -372,36 +348,53 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                         WindowEvent::CursorMoved { position, .. } => {
                             let (mut x, mut y) = (position.x as f32, position.y as f32);
                             state.mouse_pos = (x, y);
-                            let aspect_ratio = state.dimensions.0 as f32 / state.dimensions.1 as f32;
-                            if let Some(drag) = state.mouse_tree_drag {
-                                let (dx, dy) = (x - drag.0, y - drag.1);
-                                state.tree_translate.0 +=
-                                    dx * 12500.0 / (state.dimensions.0 as f32 / 2.0) / (state.zoom / aspect_ratio);
-                                state.tree_translate.1 -=
-                                    dy * 12500.0 / (state.dimensions.1 as f32 / 2.0) / state.zoom;
-                                state.mouse_tree_drag = Some(state.mouse_pos);
-                                state.hovered_node = None;
-                                window.request_redraw();
-                            } else if gui::is_over_tree(&state.mouse_pos) {
-                                // There's gotta be simpler computations for this
-                                x -= state.dimensions.0 as f32 / 2.0;
-                                y -= state.dimensions.1 as f32 / 2.0;
-                                y = y.neg();
-                                x /= state.dimensions.0 as f32 / 2.0;
-                                y /= state.dimensions.1 as f32 / 2.0;
-                                x -= state.tree_translate.0 * (state.zoom / aspect_ratio) / 12500.0;
-                                y -= state.tree_translate.1 * state.zoom / 12500.0;
-                                x *= aspect_ratio;
-                                x *= 12500.0 / state.zoom;
-                                y *= 12500.0 / state.zoom;
+                            if state.ui_state == UiState::Main(MainState::Tree) && gui::is_over_tree(&state.mouse_pos) {
+                                let aspect_ratio = state.dimensions.0 as f32 / state.dimensions.1 as f32;
+                                if let Some(drag) = state.mouse_tree_drag {
+                                    let (dx, dy) = (x - drag.0, y - drag.1);
+                                    state.tree_translate.0 +=
+                                        dx * 12500.0 / (state.dimensions.0 as f32 / 2.0) / (state.zoom / aspect_ratio);
+                                    state.tree_translate.1 -=
+                                        dy * 12500.0 / (state.dimensions.1 as f32 / 2.0) / state.zoom;
+                                    state.mouse_tree_drag = Some(state.mouse_pos);
+                                    state.hovered_node = None;
+                                    window.request_redraw();
+                                } else if gui::is_over_tree(&state.mouse_pos) {
+                                    // There's gotta be simpler computations for this
+                                    x -= state.dimensions.0 as f32 / 2.0;
+                                    y -= state.dimensions.1 as f32 / 2.0;
+                                    y = y.neg();
+                                    x /= state.dimensions.0 as f32 / 2.0;
+                                    y /= state.dimensions.1 as f32 / 2.0;
+                                    x -= state.tree_translate.0 * (state.zoom / aspect_ratio) / 12500.0;
+                                    y -= state.tree_translate.1 * state.zoom / 12500.0;
+                                    x *= aspect_ratio;
+                                    x *= 12500.0 / state.zoom;
+                                    y *= 12500.0 / state.zoom;
 
-                                state.hovered_node = tree_gl::hover::get_hovered_node(x, y);
-                                window.request_redraw();
-                            } else if state.hovered_node.is_some() {
-                                state.hovered_node = None;
-                                state.path_hovered = None;
-                                state.request_regen = true;
-                                window.request_redraw();
+                                    let hovered_node = tree_gl::hover::get_hovered_node(x, y);
+                                    if hovered_node != state.hovered_node {
+                                        state.hovered_node = hovered_node;
+                                        if let Some(node) = hovered_node {
+                                            if !state.build.tree.nodes.contains(&node.skill) {
+                                                state.path_hovered = state.build.tree.find_path(node.skill);
+                                            } else {
+                                                state.path_red = Some(state.build.tree.find_path_remove(node.skill));
+                                            }
+                                        } else {
+                                            state.path_red = None;
+                                            state.path_hovered = None;
+                                        }
+                                        state.request_regen = true;
+                                        window.request_redraw();
+                                    }
+                                } else if state.hovered_node.is_some() {
+                                    state.hovered_node = None;
+                                    state.path_hovered = None;
+                                    state.build_compare = None;
+                                    state.request_regen = true;
+                                    window.request_redraw();
+                                }
                             }
                         }
                         _ => {}

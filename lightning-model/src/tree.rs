@@ -162,6 +162,12 @@ pub struct Node {
     pub r#in: Option<Vec<u16>>,
 }
 
+impl PartialEq for Node {
+    fn eq(&self, other: &Self) -> bool {
+        self.skill == other.skill
+    }
+}
+
 impl Node {
     pub fn node_type(&self) -> NodeType {
         if self.ascendancy.is_some() {
