@@ -115,6 +115,14 @@ fn draw_hover_window(ctx: &egui::Context, state: &mut State) {
                     }
                 }
             }
+            if !state.delta_compare.is_empty() {
+                ui.separator();
+                item_spacing.y -= 5.0;
+                ui.spacing_mut().item_spacing = item_spacing;
+                for (k, v) in &state.delta_compare {
+                    ui.label(format!("{}: {:+}", k, v));
+                }
+            }
         });
 }
 

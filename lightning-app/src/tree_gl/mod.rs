@@ -6,6 +6,7 @@ use glow::HasContext;
 use image::{ImageReader, RgbaImage};
 use lightning_model::build::Build;
 use lightning_model::data::TREE;
+use lightning_model::tree::Node;
 use rustc_hash::FxHashMap;
 
 fn load_texture(img: &RgbaImage, gl: &glow::Context) -> glow::Texture {
@@ -262,7 +263,7 @@ impl TreeGl {
         self.draw_data.clear();
     }
 
-    pub fn regen_active(&mut self, gl: &glow::Context, build: &Build, path_hovered: &Option<Vec<u16>>, path_red: &Option<Vec<u16>>,) {
+    pub fn regen_active(&mut self, gl: &glow::Context, build: &Build, path_hovered: &Option<Vec<u16>>, path_red: &Option<Vec<u16>>, hovered_node: Option<&Node>) {
         const REDRAW: [&str; 15] = [
             "nodes_active",
             "frames_active",
@@ -312,13 +313,18 @@ impl TreeGl {
         if let Some(path_red) = path_red {
             self.draw_data
                 .insert("connectors_red".to_string(), GlDrawData::new(gl, &connectors_gl(path_red, &TREE.sprites["line"].coords["LineConnectorActive"], 20.0)));
-            let data = nodes_gl_active(path_red, None);
-            self.draw_data
-                .insert("nodes_active_red".to_string(), GlDrawData::new(gl, &data[0]));
-            self.draw_data
-                .insert("frames_active_red".to_string(), GlDrawData::new(gl, &data[1]));
-            self.draw_data
-                .insert("ascendancy_frames_active_red".to_string(), GlDrawData::new(gl, &data[4]));
+            let index = path_red.iter().position(|x| *x == hovered_node.unwrap().skill).unwrap();
+            let mut path_red = path_red.clone();
+            path_red.remove(index);
+            if !path_red.is_empty() {
+                let data = nodes_gl_active(&path_red, None);
+                self.draw_data
+                    .insert("nodes_active_red".to_string(), GlDrawData::new(gl, &data[0]));
+                self.draw_data
+                    .insert("frames_active_red".to_string(), GlDrawData::new(gl, &data[1]));
+                self.draw_data
+                    .insert("ascendancy_frames_active_red".to_string(), GlDrawData::new(gl, &data[4]));
+            }
         }
         let data = jewels_gl(build);
         self.draw_data

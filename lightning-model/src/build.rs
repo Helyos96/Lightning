@@ -146,7 +146,7 @@ pub enum StatId {
     ColdDamagePen,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct GemLink {
     pub active_gems: Vec<Gem>,
     pub support_gems: Vec<Gem>,
@@ -223,7 +223,7 @@ lazy_static! {
 }
 
 #[serde_as]
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 pub struct Build {
     pub name: String,
     pub ascendancy: i32,

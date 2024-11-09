@@ -8,7 +8,20 @@ use rustc_hash::FxHashMap;
     int100(i64),
 }*/
 
-pub fn calc_gem(build: &Build, support_gems: &Vec<Gem>, active_gem: &Gem) -> FxHashMap<&'static str, i64> {
+pub fn compare(a: &FxHashMap<&'static str, i64>, b: &FxHashMap<&'static str, i64>) -> FxHashMap<&'static str, i64> {
+    let mut result = FxHashMap::default();
+    for key in a.keys().chain(b.keys()) {
+        let val_a = a.get(key).unwrap_or(&0);
+        let val_b = b.get(key).unwrap_or(&0);
+        let delta = val_b - val_a;
+        if delta != 0 {
+            result.insert(*key, delta);
+        }
+    }
+    result
+}
+
+pub fn calc_gem(build: &Build, support_gems: &[Gem], active_gem: &Gem) -> FxHashMap<&'static str, i64> {
     assert!(!active_gem.data().is_support);
     let mut ret = FxHashMap::default();
     //let display_name = &active_gem.data().base_item.as_ref().unwrap().display_name;
@@ -116,28 +129,28 @@ pub fn calc_gem(build: &Build, support_gems: &Vec<Gem>, active_gem: &Gem) -> FxH
     ret
 }
 
-pub fn calc_defence(build: &Build) -> Vec<(String, i64)> {
-    let mut ret = vec![];
+pub fn calc_defence(build: &Build) -> FxHashMap<&'static str, i64> {
+    let mut ret = FxHashMap::default();
     let mods = build.calc_mods(true);
     let stats = build.calc_stats(&mods, &hset![]);
 
-    ret.push(("Maximum Life".to_string(), stats.stat(StatId::MaximumLife).val_rounded_up()));
-    ret.push((
-        "Fire Resistance".to_string(),
+    ret.insert("Maximum Life", stats.stat(StatId::MaximumLife).val_rounded_up());
+    ret.insert(
+        "Fire Resistance",
         stats.stat(StatId::FireResistance).val(),
-    ));
-    ret.push((
-        "Cold Resistance".to_string(),
+    );
+    ret.insert(
+        "Cold Resistance",
         stats.stat(StatId::ColdResistance).val(),
-    ));
-    ret.push((
-        "Lightning Resistance".to_string(),
+    );
+    ret.insert(
+        "Lightning Resistance",
         stats.stat(StatId::LightningResistance).val(),
-    ));
-    ret.push((
-        "Chaos Resistance".to_string(),
+    );
+    ret.insert(
+        "Chaos Resistance",
         stats.stat(StatId::ChaosResistance).val(),
-    ));
+    );
     let mut life_regen = stats.stat(StatId::LifeRegeneration);
     let life_regen_pct = stats.stat(StatId::LifeRegenerationPct);
     let adjust_life_regen = Mod {
@@ -148,13 +161,13 @@ pub fn calc_defence(build: &Build) -> Vec<(String, i64)> {
     };
     life_regen.adjust(Type::Base, adjust_life_regen.amount(), &adjust_life_regen);
     life_regen.assimilate(&stats.stat(StatId::LifeRegenerationRate));
-    ret.push((
-        "Life Regeneration".to_string(),
+    ret.insert(
+        "Life Regeneration",
         life_regen.val(),
-    ));
-    ret.push(("Strength".to_string(), stats.stat(StatId::Strength).val()));
-    ret.push(("Dexterity".to_string(), stats.stat(StatId::Dexterity).val()));
-    ret.push(("Intelligence".to_string(), stats.stat(StatId::Intelligence).val()));
+    );
+    ret.insert("Strength", stats.stat(StatId::Strength).val());
+    ret.insert("Dexterity", stats.stat(StatId::Dexterity).val());
+    ret.insert("Intelligence", stats.stat(StatId::Intelligence).val());
 
     ret
 }

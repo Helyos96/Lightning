@@ -5,6 +5,8 @@ pub mod panel;
 
 use crate::config::Config;
 use lightning_model::build::{Build, Stats};
+use lightning_model::gem::Gem;
+use lightning_model::{calc, hset};
 use lightning_model::tree::Node;
 use rustc_hash::FxHashMap;
 use std::path::PathBuf;
@@ -40,7 +42,8 @@ pub struct State {
     pub show_settings: bool,
 
     pub active_skill_calc: FxHashMap<&'static str, i64>,
-    pub defence_calc: Vec<(String, i64)>,
+    pub defence_calc: FxHashMap<&'static str, i64>,
+    pub delta_compare: FxHashMap<&'static str, i64>,
     pub stats: Option<Stats>,
     pub hovered_node: Option<&'static Node>,
     pub path_hovered: Option<Vec<u16>>,
@@ -80,7 +83,8 @@ impl State {
             show_settings: false,
 
             active_skill_calc: FxHashMap::default(),
-            defence_calc: vec![],
+            defence_calc: FxHashMap::default(),
+            delta_compare: FxHashMap::default(),
             stats: None,
             hovered_node: None,
             path_hovered: None,
@@ -103,6 +107,43 @@ impl State {
 
             mouse_pos: (0.0, 0.0),
         }
+    }
+
+    fn active_gem(&self) -> Option<(&Gem, &[Gem])> {
+        if let Some(gem_link) = self.build.gem_links.get(self.gemlink_cur) {
+            if let Some(active_gem) = gem_link.active_gems.get(self.active_skill_cur) {
+                return Some((active_gem, &gem_link.support_gems));
+            }
+        }
+        None
+    }
+
+    pub fn compare(&self, build_compare: &Build) -> FxHashMap<&'static str, i64> {
+        let mut delta = FxHashMap::default();
+        if let Some(gem_link_compare) = build_compare.gem_links.get(self.gemlink_cur) {
+            if let Some(active_gem_compare) = gem_link_compare.active_gems.get(self.active_skill_cur) {
+                let active_gem_compare_calc = calc::calc_gem(build_compare, &gem_link_compare.support_gems, active_gem_compare);
+                delta.extend(calc::compare(&self.active_skill_calc, &active_gem_compare_calc));
+            }
+        }
+        let defence_compare_calc = calc::calc_defence(build_compare);
+        delta.extend(calc::compare(&self.defence_calc, &defence_compare_calc));
+        delta
+    }
+
+    pub fn recalc(&mut self) {
+        let mods = self.build.calc_mods(true);
+        self.stats = Some(self.build.calc_stats(&mods, &hset![]));
+        self.defence_calc = calc::calc_defence(&self.build);
+        if let Some((active_gem, support_gems)) = self.active_gem() {
+            self.active_skill_calc = calc::calc_gem(&self.build, support_gems, active_gem);
+        } else {
+            self.active_skill_calc.clear();
+        }
+        if let Some(build_compare) = self.build_compare.as_ref() {
+            self.delta_compare = self.compare(build_compare);
+        }
+        self.request_recalc = false;
     }
 }
 

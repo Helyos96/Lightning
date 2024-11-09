@@ -234,7 +234,7 @@ pub struct TreeData {
 }
 
 /// Player tree used in Build
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PassiveTree {
     pub class: Class,
     pub ascendancy: Option<Ascendancy>,

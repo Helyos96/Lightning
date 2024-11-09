@@ -20,8 +20,7 @@ use glutin::surface::SwapInterval;
 use gui::{MainState, State, UiState};
 use lightning_model::data::TREE;
 use lightning_model::modifier::PropertyInt;
-use lightning_model::{build, calc, util};
-use lightning_model::hset;
+use lightning_model::{build, util};
 use std::error::Error;
 use std::fs;
 use std::ops::Neg;
@@ -146,7 +145,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
         }
 
         self.tree_gl.init(&gl);
-        self.tree_gl.regen_active(&gl, &self.state.build, &None, &None);
+        self.tree_gl.regen_active(&gl, &self.state.build, &None, &None, None);
         window.set_visible(true);
 
         self.window = Some(window);
@@ -189,19 +188,11 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                 unsafe { gl.clear(glow::COLOR_BUFFER_BIT); };
 
                 if state.request_regen {
-                    tree_gl.regen_active(&gl, &state.build, &state.path_hovered, &state.path_red);
+                    tree_gl.regen_active(&gl, &state.build, &state.path_hovered, &state.path_red, state.hovered_node);
                     state.request_regen = false;
                 }
                 if state.request_recalc {
-                    let mods = state.build.calc_mods(true);
-                    state.stats = Some(state.build.calc_stats(&mods, &hset![]));
-                    state.defence_calc = calc::calc_defence(&state.build);
-                    if let Some(gem_link) = state.build.gem_links.get(state.gemlink_cur) {
-                        if let Some(active_gem) = gem_link.active_gems.get(state.active_skill_cur) {
-                            state.active_skill_calc = calc::calc_gem(&state.build, &gem_link.support_gems, active_gem);
-                        }
-                    }
-                    state.request_recalc = false;
+                    state.recalc();
                 }
 
                 match state.ui_state.clone() {
@@ -330,15 +321,21 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                     }
                                 } else if button_state == ElementState::Released {
                                     if let Some(node) = state.hovered_node {
-                                        if node.is_mastery && !state.build.tree.nodes.contains(&node.skill) {
-                                            state.ui_state = UiState::Main(MainState::ChooseMastery(node.skill));
-                                            state.hovered_node = None;
-                                        }
                                         state.build.tree.flip_node(node.skill);
+                                        if !state.build.tree.nodes.contains(&node.skill) {
+                                            state.path_red = None;
+                                            state.path_hovered = state.build.tree.find_path(node.skill);
+                                        } else {
+                                            if node.is_mastery {
+                                                state.ui_state = UiState::Main(MainState::ChooseMastery(node.skill));
+                                            }
+                                            state.path_hovered = None;
+                                        }
+                                        let mut build_compare = state.build.clone();
+                                        build_compare.tree.flip_node(node.skill);
+                                        state.build_compare = Some(build_compare);
                                         state.request_regen = true;
                                         state.request_recalc = true;
-                                        state.path_hovered = None;
-                                        state.path_red = None;
                                         window.request_redraw();
                                     }
                                     state.mouse_tree_drag = None;
@@ -376,14 +373,21 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                     if hovered_node != state.hovered_node {
                                         state.hovered_node = hovered_node;
                                         if let Some(node) = hovered_node {
+                                            let mut build_compare = state.build.clone();
+                                            build_compare.tree.flip_node(node.skill);
+                                            state.delta_compare = state.compare(&build_compare);
                                             if !state.build.tree.nodes.contains(&node.skill) {
                                                 state.path_hovered = state.build.tree.find_path(node.skill);
+                                                state.path_red = None;
                                             } else {
                                                 state.path_red = Some(state.build.tree.find_path_remove(node.skill));
+                                                state.path_hovered = None;
                                             }
                                         } else {
                                             state.path_red = None;
                                             state.path_hovered = None;
+                                            state.delta_compare.clear();
+                                            state.build_compare = None;
                                         }
                                         state.request_regen = true;
                                         window.request_redraw();
