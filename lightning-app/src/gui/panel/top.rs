@@ -63,6 +63,11 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 );
                 // Could optimize: don't recalc passives_count() every frame
                 ui.label(format!("Passives: {}/{}", state.build.tree.passives_count(), state.stats.as_ref().unwrap().stat(StatId::PassiveSkillPoints).val()));
+                if state.config.show_debug {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.label(format!("Redraws: {}", state.redraw_counter));
+                    });
+                }
                 ui.allocate_space(ui.available_size());
             });
         });

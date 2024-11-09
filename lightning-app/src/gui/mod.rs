@@ -67,6 +67,9 @@ pub struct State {
 
     // Controls
     pub mouse_pos: (f32, f32),
+
+    // Debug
+    pub redraw_counter: u64,
 }
 
 impl State {
@@ -106,6 +109,8 @@ impl State {
             request_regen: false,
 
             mouse_pos: (0.0, 0.0),
+
+            redraw_counter: 0,
         }
     }
 

@@ -273,6 +273,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                 if let Err(err) = surface.swap_buffers(&context) {
                     eprintln!("Failed to swap buffers: {err}");
                 }
+                state.redraw_counter += 1;
                 state.last_instant = Instant::now();
             }
             WindowEvent::CloseRequested => {

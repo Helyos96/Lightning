@@ -7,7 +7,8 @@
 		* ~~Basic jewels~~
 		* With radius shown
 		* Cluster jewels
-	* Stats compare on node hover
+	* ~~Stats compare on node hover~~
+		* Nice formatting
 	* Search function
 	* Calc functions (highest dps unallocated etc.)
 * Abyss jewels
@@ -36,3 +37,12 @@
 * Spectres
 * Trigger
 * Warcries / Exert
+* Defences
+	* Armour
+		* PDR
+	* Evasion
+	* Energy Shield
+	* Block
+	* Spell Suppression
+* Crit chance
+* Accuracy
