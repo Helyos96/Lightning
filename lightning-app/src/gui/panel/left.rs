@@ -103,9 +103,11 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
             ui.separator();
             egui::Grid::new("grid_defence_calc").show(ui, |ui| {
                 for stat in &state.defence_calc {
-                    ui.label(stat.0.to_string() + ":");
-                    ui.label(stat.1.to_string());
-                    ui.end_row();
+                    if *stat.1 != 0 {
+                        ui.label(stat.0.to_string() + ":");
+                        ui.label(stat.1.to_string());
+                        ui.end_row();
+                    }
                 }
             });
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {

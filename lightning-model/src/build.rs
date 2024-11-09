@@ -1,7 +1,7 @@
 use crate::data::TREE;
 use crate::gem::{Gem, GemTag};
 use crate::item::{Item, ItemClass};
-use crate::modifier::{Condition, Mod, Mutation, PropertyBool, PropertyInt, Type};
+use crate::modifier::{Condition, Mod, Mutation, PropertyBool, PropertyInt, Source, Type};
 use crate::tree::{Class, PassiveTree, TreeData};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -402,6 +402,16 @@ impl Build {
                 }
             } else {
                 mods.extend(item.calc_nonlocal_mods());
+                let defence = item.calc_defence();
+                if defence.armour.val() != 0 {
+                    mods.push(Mod { stat: StatId::Armour, typ: Type::Base, amount: defence.armour.val(), source: Source::Item, ..Default::default() });
+                }
+                if defence.energy_shield.val() != 0 {
+                    mods.push(Mod { stat: StatId::MaximumEnergyShield, typ: Type::Base, amount: defence.energy_shield.val(), source: Source::Item, ..Default::default() });
+                }
+                if defence.evasion.val() != 0 {
+                    mods.push(Mod { stat: StatId::EvasionRating, typ: Type::Base, amount: defence.evasion.val(), source: Source::Item, ..Default::default() });
+                }
             }
         }
         if include_global {
@@ -564,6 +574,10 @@ impl Default for Stat {
 }
 
 impl Stat {
+    pub fn adjust_mod(&mut self, m: &Mod) {
+        self.adjust(m.typ, m.amount, m);
+    }
+
     pub fn adjust(&mut self, t: Type, amount: i64, m: &Mod) {
         match t {
             Type::Base => self.base += amount,

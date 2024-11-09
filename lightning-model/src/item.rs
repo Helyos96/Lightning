@@ -1,4 +1,4 @@
-use crate::build::{calc_stat, StatId};
+use crate::build::{calc_stat, Stat, StatId};
 use crate::data::ITEMS;
 use crate::modifier::{self, parse_mod, Mod, Source, Type};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -50,7 +50,7 @@ pub enum ItemClass {
     TwoHandMace,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct PropertyMinMax {
     min: u32,
     max: u32,
@@ -62,6 +62,8 @@ pub struct Properties {
     physical_damage_max: Option<i64>,
     physical_damage_min: Option<i64>,
     attack_time: Option<i64>,
+    evasion: Option<PropertyMinMax>,
+    energy_shield: Option<PropertyMinMax>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -114,20 +116,33 @@ lazy_static! {
         LocalModMatch { stat: StatId::PhysicalDamage, typ: modifier::Type::Inc },
         LocalModMatch { stat: StatId::AttackSpeed, typ: modifier::Type::Inc },
     ];
+    static ref LOCAL_MODS_ARMOUR: Vec<LocalModMatch> = vec![
+        LocalModMatch { stat: StatId::EvasionRating, typ: modifier::Type::Base },
+        LocalModMatch { stat: StatId::EvasionRating, typ: modifier::Type::Inc },
+        LocalModMatch { stat: StatId::Armour, typ: modifier::Type::Base },
+        LocalModMatch { stat: StatId::Armour, typ: modifier::Type::Inc },
+        LocalModMatch { stat: StatId::MaximumEnergyShield, typ: modifier::Type::Base },
+        LocalModMatch { stat: StatId::MaximumEnergyShield, typ: modifier::Type::Inc },
+    ];
 }
 
-fn match_local(m: &Mod, is_weapon: bool) -> bool {
+fn match_local(m: &Mod, match_table: &[LocalModMatch]) -> bool {
     if !m.conditions.is_empty() || !m.flags.is_empty() {
         return false;
     }
-    if is_weapon {
-        for local_mod_match in LOCAL_MODS_WEAPON.iter() {
-            if local_mod_match.matches(m) {
-                return true;
-            }
+    for local_mod_match in match_table {
+        if local_mod_match.matches(m) {
+            return true;
         }
     }
     false
+}
+
+#[derive(Debug, Default)]
+pub struct DefenceCalc {
+    pub armour: Stat,
+    pub evasion: Stat,
+    pub energy_shield: Stat,
 }
 
 impl Item {
@@ -164,6 +179,34 @@ impl Item {
         None
     }
 
+    pub fn calc_defence(&self) -> DefenceCalc {
+        let mut ret = DefenceCalc::default();
+        let base_item = self.data();
+        if !base_item.tags.contains("armour") {
+            return ret;
+        }
+        let mods = self.calc_local_mods();
+
+        // TODO: sacred orb defence adjusting instead of average
+        if let Some(armour_prop) = &base_item.properties.armour {
+            ret.armour.adjust_mod(&Mod { typ: Type::Base, amount: ((armour_prop.min + armour_prop.max) / 2) as i64, ..Default::default() });
+        }
+        if let Some(energy_shield) = base_item.properties.energy_shield {
+            ret.energy_shield.adjust_mod(&Mod { typ: Type::Base, amount: ((energy_shield.min + energy_shield.max) / 2) as i64, ..Default::default() });
+        }
+        if let Some(evasion) = base_item.properties.evasion {
+            ret.evasion.adjust_mod(&Mod { typ: Type::Base, amount: ((evasion.min + evasion.max) / 2) as i64, ..Default::default() });
+        }
+        ret.armour.assimilate(&calc_stat(StatId::Armour, &mods, &hset!()));
+        ret.energy_shield.assimilate(&calc_stat(StatId::MaximumEnergyShield, &mods, &hset!()));
+        ret.evasion.assimilate(&calc_stat(StatId::EvasionRating, &mods, &hset!()));
+        ret.armour.adjust_mod(&Mod { typ: Type::More, amount: self.quality, ..Default::default()});
+        ret.energy_shield.adjust_mod(&Mod { typ: Type::More, amount: self.quality, ..Default::default()});
+        ret.evasion.adjust_mod(&Mod { typ: Type::More, amount: self.quality, ..Default::default()});
+
+        return ret;
+    }
+
     pub fn attack_speed(&self) -> Option<i64> {
         if let Some(attack_time) = self.data().properties.attack_time {
             let mods = self.calc_local_mods();
@@ -175,11 +218,18 @@ impl Item {
 
     fn calc_mods(&self, local: bool) -> Vec<Mod> {
         let mut mods = vec![];
-        let is_weapon = self.data().tags.contains("weapon");
+        let mut match_table: &[LocalModMatch] = &[];
+        let tags = &self.data().tags;
+
+        if tags.contains("weapon") {
+            match_table = &LOCAL_MODS_WEAPON;
+        } else if tags.contains("armour") {
+            match_table = &LOCAL_MODS_ARMOUR;
+        }
 
         for m in self.mods_impl.iter().chain(&self.mods_expl).chain(&self.mods_enchant) {
             if let Some(modifiers) = parse_mod(m, Source::Item) {
-                mods.extend(modifiers.into_iter().filter(|m| (local && match_local(m, is_weapon)) || (!local && !match_local(m, is_weapon))));
+                mods.extend(modifiers.into_iter().filter(|m| (local && match_local(m, match_table)) || (!local && !match_local(m, match_table))));
             }
         }
 

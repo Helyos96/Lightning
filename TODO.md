@@ -42,6 +42,7 @@
 		* PDR
 	* Evasion
 	* Energy Shield
+	* Ward
 	* Block
 	* Spell Suppression
 * Crit chance

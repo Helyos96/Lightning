@@ -135,22 +135,17 @@ pub fn calc_defence(build: &Build) -> FxHashMap<&'static str, i64> {
     let stats = build.calc_stats(&mods, &hset![]);
 
     ret.insert("Maximum Life", stats.stat(StatId::MaximumLife).val_rounded_up());
-    ret.insert(
-        "Fire Resistance",
-        stats.stat(StatId::FireResistance).val(),
-    );
-    ret.insert(
-        "Cold Resistance",
-        stats.stat(StatId::ColdResistance).val(),
-    );
-    ret.insert(
-        "Lightning Resistance",
-        stats.stat(StatId::LightningResistance).val(),
-    );
-    ret.insert(
-        "Chaos Resistance",
-        stats.stat(StatId::ChaosResistance).val(),
-    );
+    ret.insert("Fire Resistance", stats.stat(StatId::FireResistance).val());
+    ret.insert("Cold Resistance", stats.stat(StatId::ColdResistance).val());
+    ret.insert("Lightning Resistance", stats.stat(StatId::LightningResistance).val());
+    ret.insert("Chaos Resistance", stats.stat(StatId::ChaosResistance).val());
+    ret.insert("Strength", stats.stat(StatId::Strength).val());
+    ret.insert("Dexterity", stats.stat(StatId::Dexterity).val());
+    ret.insert("Intelligence", stats.stat(StatId::Intelligence).val());
+    ret.insert("Armour", stats.stat(StatId::Armour).val());
+    ret.insert("Evasion", stats.stat(StatId::EvasionRating).val());
+    ret.insert("Energy Shield", stats.stat(StatId::MaximumEnergyShield).val());
+
     let mut life_regen = stats.stat(StatId::LifeRegeneration);
     let life_regen_pct = stats.stat(StatId::LifeRegenerationPct);
     let adjust_life_regen = Mod {
@@ -161,13 +156,7 @@ pub fn calc_defence(build: &Build) -> FxHashMap<&'static str, i64> {
     };
     life_regen.adjust(Type::Base, adjust_life_regen.amount(), &adjust_life_regen);
     life_regen.assimilate(&stats.stat(StatId::LifeRegenerationRate));
-    ret.insert(
-        "Life Regeneration",
-        life_regen.val(),
-    );
-    ret.insert("Strength", stats.stat(StatId::Strength).val());
-    ret.insert("Dexterity", stats.stat(StatId::Dexterity).val());
-    ret.insert("Intelligence", stats.stat(StatId::Intelligence).val());
+    ret.insert("Life Regeneration", life_regen.val(),);
 
     ret
 }
