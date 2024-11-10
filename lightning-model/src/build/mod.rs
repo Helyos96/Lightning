@@ -1,7 +1,9 @@
+pub mod property;
+
 use crate::data::TREE;
 use crate::gem::{Gem, GemTag};
 use crate::item::{Item, ItemClass};
-use crate::modifier::{Condition, Mod, Mutation, PropertyBool, PropertyInt, Source, Type};
+use crate::modifier::{Condition, Mod, Mutation, Source, Type};
 use crate::tree::{Class, PassiveTree, TreeData};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -223,6 +225,17 @@ lazy_static! {
     };
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct Stats {
+    stats: FxHashMap<StatId, Stat>,
+}
+
+impl Stats {
+    pub fn stat(&self, s: StatId) -> Stat {
+        self.stats.get(&s).cloned().unwrap_or_default()
+    }
+}
+
 #[serde_as]
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct Build {
@@ -235,19 +248,8 @@ pub struct Build {
     pub tree: PassiveTree,
     #[serde(default)]
     pub bandit_choice: BanditChoice,
-    properties_int: FxHashMap<PropertyInt, i64>,
-    properties_bool: FxHashMap<PropertyBool, bool>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Stats {
-    stats: FxHashMap<StatId, Stat>,
-}
-
-impl Stats {
-    pub fn stat(&self, s: StatId) -> Stat {
-        self.stats.get(&s).cloned().unwrap_or_default()
-    }
+    properties_int: FxHashMap<property::Int, i64>,
+    properties_bool: FxHashMap<property::Bool, bool>,
 }
 
 impl Build {
@@ -257,7 +259,7 @@ impl Build {
             ascendancy: 0,
             ..Default::default()
         };
-        ret.set_property_int(PropertyInt::Level, 1);
+        ret.set_property_int(property::Int::Level, 1);
         ret
     }
 
@@ -272,7 +274,7 @@ impl Build {
                 stat: StatId::MaximumLife,
                 typ: Type::Base,
                 amount: 12,
-                flags: vec![Mutation::MultiplierProperty((1, PropertyInt::Level))],
+                flags: vec![Mutation::MultiplierProperty((1, property::Int::Level))],
                 ..Default::default()
             },
             Mod {
@@ -329,7 +331,7 @@ impl Build {
                 typ: Type::More,
                 amount: 1,
                 flags: vec![
-                    Mutation::MultiplierProperty((1, PropertyInt::Rage)),
+                    Mutation::MultiplierProperty((1, property::Int::Rage)),
                 ],
                 tags: hset![GemTag::Attack],
                 ..Default::default()
@@ -339,7 +341,7 @@ impl Build {
                 typ: Type::Base,
                 amount: 1,
                 flags: vec![
-                    Mutation::MultiplierProperty((1, PropertyInt::Level)),
+                    Mutation::MultiplierProperty((1, property::Int::Level)),
                 ],
                 ..Default::default()
             },
@@ -362,7 +364,7 @@ impl Build {
                 typ: Type::More,
                 amount: 4,
                 flags: vec![
-                    Mutation::MultiplierProperty((1, PropertyInt::FrenzyCharges)),
+                    Mutation::MultiplierProperty((1, property::Int::FrenzyCharges)),
                 ],
                 ..Default::default()
             },
@@ -371,7 +373,7 @@ impl Build {
                 typ: Type::Inc,
                 amount: 4,
                 flags: vec![
-                    Mutation::MultiplierProperty((1, PropertyInt::FrenzyCharges)),
+                    Mutation::MultiplierProperty((1, property::Int::FrenzyCharges)),
                 ],
                 ..Default::default()
             },
@@ -380,7 +382,7 @@ impl Build {
                 typ: Type::Inc,
                 amount: 4,
                 flags: vec![
-                    Mutation::MultiplierProperty((1, PropertyInt::FrenzyCharges)),
+                    Mutation::MultiplierProperty((1, property::Int::FrenzyCharges)),
                 ],
                 ..Default::default()
             },
@@ -389,7 +391,7 @@ impl Build {
                 typ: Type::Inc,
                 amount: 50,
                 flags: vec![
-                    Mutation::MultiplierProperty((1, PropertyInt::PowerCharges)),
+                    Mutation::MultiplierProperty((1, property::Int::PowerCharges)),
                 ],
                 ..Default::default()
             },
@@ -449,19 +451,59 @@ impl Build {
         mods
     }
 
-    pub fn property_int(&self, p: PropertyInt) -> i64 {
-        return self.properties_int.get(&p).copied().unwrap_or(0);
+    pub fn property_int_stats(&self, p: property::Int, stats: &FxHashMap<StatId, Stat>) -> i64 {
+        let min = {
+            match property::int_data(p).min {
+                property::Val::Val(i) => i,
+                property::Val::Stat(s) => {
+                    if let Some(stat) = stats.get(&s) {
+                        stat.val()
+                    } else {
+                        0
+                    }
+                }
+            }
+        };
+        let max = {
+            match property::int_data(p).max {
+                property::Val::Val(i) => i,
+                property::Val::Stat(s) => {
+                    if let Some(stat) = stats.get(&s) {
+                        stat.val()
+                    } else {
+                        0
+                    }
+                }
+            }
+        };
+        self.property_int(p).clamp(min, max)
     }
 
-    pub fn property_bool(&self, p: PropertyBool) -> bool {
+    pub fn property_int(&self, p: property::Int) -> i64 {
+        let min = {
+            match property::int_data(p).min {
+                property::Val::Val(i) => i,
+                property::Val::Stat(_) => i64::min_value()
+            }
+        };
+        let max = {
+            match property::int_data(p).max {
+                property::Val::Val(i) => i,
+                property::Val::Stat(_) => i64::max_value()
+            }
+        };
+        self.properties_int.get(&p).copied().unwrap_or(0).clamp(min, max)
+    }
+
+    pub fn property_bool(&self, p: property::Bool) -> bool {
         return self.properties_bool.get(&p).copied().unwrap_or(false);
     }
 
-    pub fn set_property_int(&mut self, p: PropertyInt, val: i64) {
+    pub fn set_property_int(&mut self, p: property::Int, val: i64) {
         self.properties_int.insert(p, val);
     }
 
-    pub fn set_property_bool(&mut self, p: PropertyBool, val: bool) {
+    pub fn set_property_bool(&mut self, p: property::Bool, val: bool) {
         self.properties_bool.insert(p, val);
     }
 
@@ -473,12 +515,12 @@ impl Build {
         for c in &m.conditions {
             match c {
                 Condition::GreaterEqualProperty(mutation) => {
-                    if self.property_int(mutation.1) < mutation.0 {
+                    if self.property_int_stats(mutation.1, stats) < mutation.0 {
                         return false;
                     }
                 },
                 Condition::LesserEqualProperty(mutation) => {
-                    if self.property_int(mutation.1) > mutation.0 {
+                    if self.property_int_stats(mutation.1, stats) > mutation.0 {
                         return false;
                     }
                 },
@@ -518,7 +560,7 @@ impl Build {
         for f in &m.flags {
             match f {
                 Mutation::MultiplierProperty(mutation) => {
-                    amount = (amount * self.property_int(mutation.1)) / mutation.0;
+                    amount = (amount * self.property_int_stats(mutation.1, stats)) / mutation.0;
                 },
                 Mutation::MultiplierStat(mutation) => {
                     amount = match stats.get(&mutation.1) {

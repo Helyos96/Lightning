@@ -1,5 +1,5 @@
 use std::{fs, io, ops::RangeInclusive, path::Path};
-use lightning_model::{build::{Build, StatId}, data::TREE, modifier::PropertyInt};
+use lightning_model::{build::{property, Build, StatId}, data::TREE};
 use crate::gui::{State, UiState};
 
 pub const HEIGHT: f32 = 40.0;
@@ -28,7 +28,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 }
                 ui.label("Level");
                 if ui.add(egui::DragValue::new(&mut state.level).range(RangeInclusive::new(1, 100))).changed() {
-                    state.build.set_property_int(PropertyInt::Level, state.level);
+                    state.build.set_property_int(property::Int::Level, state.level);
                     state.request_recalc = true;
                 }
                 egui::ComboBox::from_id_salt("combo_class")

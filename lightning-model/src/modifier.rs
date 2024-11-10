@@ -1,4 +1,4 @@
-use crate::build::{Slot, StatId};
+use crate::build::{property, Slot, StatId};
 /// 2 ways to parse a mod:
 ///
 /// 1. "Automatic": make sure all parts of your mod are declared
@@ -40,10 +40,10 @@ lazy_static! {
 }
 
 const ENDINGS: [(&str, Mutation); 4] = [
-    ("per level", Mutation::MultiplierProperty((1, PropertyInt::Level))),
-    ("per frenzy charge", Mutation::MultiplierProperty((1, PropertyInt::FrenzyCharges))),
-    ("per power charge", Mutation::MultiplierProperty((1, PropertyInt::PowerCharges))),
-    ("per endurance charge", Mutation::MultiplierProperty((1, PropertyInt::EnduranceCharges))),
+    ("per level", Mutation::MultiplierProperty((1, property::Int::Level))),
+    ("per frenzy charge", Mutation::MultiplierProperty((1, property::Int::FrenzyCharges))),
+    ("per power charge", Mutation::MultiplierProperty((1, property::Int::PowerCharges))),
+    ("per endurance charge", Mutation::MultiplierProperty((1, property::Int::EnduranceCharges))),
 ];
 
 const ENDINGS_GEMTAGS: [(&str, GemTag); 14] = [
@@ -76,11 +76,11 @@ fn parse_val100(val: &str) -> Option<i64> {
 
 lazy_static! {
     static ref ENDINGS_CONDITIONS: [(&'static str, Condition); 11] = [
-        ("while fortified", Condition::PropertyBool((true, PropertyBool::Fortified))),
-        ("if you've dealt a critical strike recently", Condition::PropertyBool((true, PropertyBool::DealtCritRecently))),
-        ("while leeching", Condition::PropertyBool((true, PropertyBool::Leeching))),
-        ("when on full life", Condition::PropertyBool((true, PropertyBool::OnFullLife))),
-        ("while on low life", Condition::PropertyBool((true, PropertyBool::OnLowLife))),
+        ("while fortified", Condition::PropertyBool((true, property::Bool::Fortified))),
+        ("if you've dealt a critical strike recently", Condition::PropertyBool((true, property::Bool::DealtCritRecently))),
+        ("while leeching", Condition::PropertyBool((true, property::Bool::Leeching))),
+        ("when on full life", Condition::PropertyBool((true, property::Bool::OnFullLife))),
+        ("while on low life", Condition::PropertyBool((true, property::Bool::OnLowLife))),
         ("while holding a shield", Condition::WhileWielding(hset![ItemClass::Shield])),
         ("while wielding a staff", Condition::WhileWielding(hset![ItemClass::Staff, ItemClass::Warstaff])),
         ("while wielding a sword", Condition::WhileWielding(hset![ItemClass::OneHandSword, ItemClass::TwoHandSword, ItemClass::ThrustingOneHandSword])),
@@ -446,26 +446,6 @@ pub enum Type {
     Override,
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
-pub enum PropertyInt {
-    Level,
-    PowerCharges,
-    FrenzyCharges,
-    EnduranceCharges,
-    Rage,
-}
-
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
-pub enum PropertyBool {
-    Blinded,
-    Onslaught,
-    Fortified,
-    DealtCritRecently,
-    Leeching,
-    OnFullLife,
-    OnLowLife,
-}
-
 pub enum Ending {
     Mutation(Mutation),
     Tag(GemTag),
@@ -476,16 +456,16 @@ pub enum Ending {
 #[derive(Debug, Clone)]
 pub enum Mutation {
     MultiplierStat((i64, StatId)),
-    MultiplierProperty((i64, PropertyInt)),
+    MultiplierProperty((i64, property::Int)),
 }
 
 #[derive(Debug, Clone)]
 pub enum Condition {
-    GreaterEqualProperty((i64, PropertyInt)),
+    GreaterEqualProperty((i64, property::Int)),
     GreaterEqualStat((i64, StatId)),
-    LesserEqualProperty((i64, PropertyInt)),
+    LesserEqualProperty((i64, property::Int)),
     LesserEqualStat((i64, StatId)),
-    PropertyBool((bool, PropertyBool)),
+    PropertyBool((bool, property::Bool)),
     WhileWielding(FxHashSet<ItemClass>),
 }
 

@@ -1,22 +1,22 @@
 use lazy_static::lazy_static;
-use lightning_model::modifier::{PropertyBool, PropertyInt};
+use lightning_model::build::property;
 use crate::gui::State;
 
 lazy_static! {
-    static ref PROPERTIES_INT: Vec<(PropertyInt, &'static str)> = vec![
-        (PropertyInt::FrenzyCharges, "Frenzy Charges"),
-        (PropertyInt::PowerCharges, "Power Charges"),
-        (PropertyInt::EnduranceCharges, "Endurance Charges"),
-        (PropertyInt::Rage, "Rage"),
+    static ref PROPERTIES_INT: Vec<(property::Int, &'static str)> = vec![
+        (property::Int::FrenzyCharges, "Frenzy Charges"),
+        (property::Int::PowerCharges, "Power Charges"),
+        (property::Int::EnduranceCharges, "Endurance Charges"),
+        (property::Int::Rage, "Rage"),
     ];
-    static ref PROPERTIES_BOOL: Vec<(PropertyBool, &'static str)> = vec![
-        (PropertyBool::Fortified, "Are you Fortified?"),
-        (PropertyBool::Blinded, "Are you Blind?"),
-        (PropertyBool::Onslaught, "Do you have Onslaught?"),
-        (PropertyBool::DealtCritRecently, "Dealt a Crit Recently?"),
-        (PropertyBool::Leeching, "Are you Leeching?"),
-        (PropertyBool::OnFullLife, "Are you on Full Life?"),
-        (PropertyBool::OnLowLife, "Are you on Low Life?"),
+    static ref PROPERTIES_BOOL: Vec<(property::Bool, &'static str)> = vec![
+        (property::Bool::Fortified, "Are you Fortified?"),
+        (property::Bool::Blinded, "Are you Blind?"),
+        (property::Bool::Onslaught, "Do you have Onslaught?"),
+        (property::Bool::DealtCritRecently, "Dealt a Crit Recently?"),
+        (property::Bool::Leeching, "Are you Leeching?"),
+        (property::Bool::OnFullLife, "Are you on Full Life?"),
+        (property::Bool::OnLowLife, "Are you on Low Life?"),
     ];
 }
 

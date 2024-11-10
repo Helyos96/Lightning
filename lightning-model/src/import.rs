@@ -170,7 +170,7 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
 
     let mut build = Build::new_player();
     build.name = character.to_string();
-    build.set_property_int(crate::modifier::PropertyInt::Level, items.character.level);
+    build.set_property_int(crate::build::property::Int::Level, items.character.level);
     build.tree.nodes = tree.hashes;
     build.tree.nodes_ex = tree.hashes_ex;
     if let Ok(class) = Class::from_str(&items.character.class_or_ascendancy) {
