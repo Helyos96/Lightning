@@ -75,13 +75,13 @@ fn draw_hover_window(ctx: &egui::Context, state: &mut State) {
 
                         ui.spacing_mut().item_spacing = item_spacing;
                         for stat in &item.mods_impl {
-                            ui.label(mod_to_richtext(stat, Source::Item, state.config.show_debug));
+                            ui.label(mod_to_richtext(stat, Source::Item(Slot::TreeJewel(node.skill)), state.config.show_debug));
                         }
                         if !item.mods_impl.is_empty() {
                             ui.separator();
                         }
                         for stat in &item.mods_expl {
-                            ui.label(mod_to_richtext(stat, Source::Item, state.config.show_debug));
+                            ui.label(mod_to_richtext(stat, Source::Item(Slot::TreeJewel(node.skill)), state.config.show_debug));
                         }
                     } else {
                         ui.label(egui::RichText::new(&node.name).color(egui::Color32::WHITE).size(20.0));

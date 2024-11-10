@@ -1,4 +1,4 @@
-use crate::build::StatId;
+use crate::build::{Slot, StatId};
 /// 2 ways to parse a mod:
 ///
 /// 1. "Automatic": make sure all parts of your mod are declared
@@ -41,18 +41,9 @@ lazy_static! {
 
 const ENDINGS: [(&str, Mutation); 4] = [
     ("per level", Mutation::MultiplierProperty((1, PropertyInt::Level))),
-    (
-        "per frenzy charge",
-        Mutation::MultiplierProperty((1, PropertyInt::FrenzyCharges)),
-    ),
-    (
-        "per power charge",
-        Mutation::MultiplierProperty((1, PropertyInt::PowerCharges)),
-    ),
-    (
-        "per endurance charge",
-        Mutation::MultiplierProperty((1, PropertyInt::EnduranceCharges)),
-    ),
+    ("per frenzy charge", Mutation::MultiplierProperty((1, PropertyInt::FrenzyCharges))),
+    ("per power charge", Mutation::MultiplierProperty((1, PropertyInt::PowerCharges))),
+    ("per endurance charge", Mutation::MultiplierProperty((1, PropertyInt::EnduranceCharges))),
 ];
 
 const ENDINGS_GEMTAGS: [(&str, GemTag); 14] = [
@@ -408,6 +399,7 @@ lazy_static! {
         ("maximum rage", StatId::MaximumRage, hset!()),
         ("maximum energy shield", StatId::MaximumEnergyShield, hset!()),
         ("energy shield recharge rate", StatId::EnergyShieldRechargeRate, hset!()),
+        ("energy shield", StatId::EnergyShield, hset!()),
         ("life regeneration rate", StatId::LifeRegenerationRate, hset!()),
         ("mana regeneration rate", StatId::ManaRegenerationRate, hset!()),
         ("mana reservation efficiency", StatId::ManaReservationEfficiency, hset!()),
@@ -503,7 +495,7 @@ pub enum Source {
     Innate,
     Node(u16),
     Mastery((u16, u16)),
-    Item,
+    Item(Slot),
     Gem,
 }
 

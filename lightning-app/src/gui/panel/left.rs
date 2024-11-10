@@ -1,6 +1,7 @@
 use lightning_model::build::{BanditChoice, GemLink};
 use strum::IntoEnumIterator;
 use crate::gui::{MainState, State, UiState};
+use thousands::Separable;
 
 pub const WIDTH: f32 = 240.0;
 
@@ -95,8 +96,8 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
             );
             egui::Grid::new("grid_active_skill_calc").show(ui, |ui| {
                 for (k, v) in &state.active_skill_calc {
-                    ui.label(k.to_string() + ":");
-                    ui.label(v.to_string());
+                    ui.label(format!("{k}:"));
+                    ui.label(v.separate_with_commas());
                     ui.end_row();
                 }
             });
@@ -104,8 +105,8 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
             egui::Grid::new("grid_defence_calc").show(ui, |ui| {
                 for stat in &state.defence_calc {
                     if *stat.1 != 0 {
-                        ui.label(stat.0.to_string() + ":");
-                        ui.label(stat.1.to_string());
+                        ui.label(format!("{}:", stat.0));
+                        ui.label(stat.1.separate_with_commas());
                         ui.end_row();
                     }
                 }

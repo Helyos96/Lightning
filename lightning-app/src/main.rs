@@ -420,7 +420,8 @@ fn create_window(event_loop: &winit::event_loop::ActiveEventLoop) -> (Window, Su
     let window_builder = WindowAttributes::default()
         .with_title(TITLE)
         .with_inner_size(LogicalSize::new(1024, 768))
-        .with_visible(false);
+        .with_visible(false)
+        .with_maximized(true);
     let (window, cfg) = glutin_winit::DisplayBuilder::new()
         .with_window_attributes(Some(window_builder.clone()))
         .build(event_loop, ConfigTemplateBuilder::new().with_multisampling(4), |mut configs| {

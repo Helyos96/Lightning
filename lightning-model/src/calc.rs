@@ -55,21 +55,23 @@ pub fn calc_gem(build: &Build, support_gems: &[Gem], active_gem: &Gem) -> FxHash
         if tags.contains(&GemTag::Attack) {
             // TODO: with physical damage, each weapon should be compared independently regarding
             // enemy armour, not added together.
-            for weapon in [Slot::Weapon, Slot::Offhand].iter().map(|s| build.equipment.get(s)).flatten() {
-                let weapon_restrictions = &active_gem.data().active_skill.as_ref().unwrap().weapon_restrictions;
-                if weapon_restrictions.is_empty() || weapon_restrictions.contains(&weapon.data().item_class) {
-                    if let Some((min_item, max_item)) = weapon.calc_dmg(dt.3) {
-                        let mut stat_min = dmg_stat_dt.with_weapon(weapon.data().item_class);
-                        let mut stat_max = dmg_stat_dt.with_weapon(weapon.data().item_class);
-                        stat_min.adjust(Type::Base, min_item, &Mod { amount: min_item, typ: Type::Base, source: Source::Item, ..Default::default() });
-                        stat_max.adjust(Type::Base, max_item, &Mod { amount: max_item, typ: Type::Base, source: Source::Item, ..Default::default() });
-                        stat_min.assimilate(&dmg_stat);
-                        stat_max.assimilate(&dmg_stat);
-                        // TODO: added damage can have different effectiveness
-                        stat_min.assimilate(&added_min);
-                        stat_max.assimilate(&added_max);
-                        min += stat_min.val();
-                        max += stat_max.val();
+            for slot in [Slot::Weapon, Slot::Offhand] {
+                if let Some(weapon) = build.equipment.get(&slot) {
+                    let weapon_restrictions = &active_gem.data().active_skill.as_ref().unwrap().weapon_restrictions;
+                    if weapon_restrictions.is_empty() || weapon_restrictions.contains(&weapon.data().item_class) {
+                        if let Some((min_item, max_item)) = weapon.calc_dmg(dt.3) {
+                            let mut stat_min = dmg_stat_dt.with_weapon(weapon.data().item_class);
+                            let mut stat_max = dmg_stat_dt.with_weapon(weapon.data().item_class);
+                            stat_min.adjust(Type::Base, min_item, &Mod { amount: min_item, typ: Type::Base, source: Source::Item(slot), ..Default::default() });
+                            stat_max.adjust(Type::Base, max_item, &Mod { amount: max_item, typ: Type::Base, source: Source::Item(slot), ..Default::default() });
+                            stat_min.assimilate(&dmg_stat);
+                            stat_max.assimilate(&dmg_stat);
+                            // TODO: added damage can have different effectiveness
+                            stat_min.assimilate(&added_min);
+                            stat_max.assimilate(&added_max);
+                            min += stat_min.val();
+                            max += stat_max.val();
+                        }
                     }
                 }
             }

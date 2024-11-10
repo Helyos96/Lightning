@@ -1,4 +1,4 @@
-use crate::build::{calc_stat, Stat, StatId};
+use crate::build::{calc_stat, Slot, Stat, StatId};
 use crate::data::ITEMS;
 use crate::modifier::{self, parse_mod, Mod, Source, Type};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -121,8 +121,8 @@ lazy_static! {
         LocalModMatch { stat: StatId::EvasionRating, typ: modifier::Type::Inc },
         LocalModMatch { stat: StatId::Armour, typ: modifier::Type::Base },
         LocalModMatch { stat: StatId::Armour, typ: modifier::Type::Inc },
-        LocalModMatch { stat: StatId::MaximumEnergyShield, typ: modifier::Type::Base },
-        LocalModMatch { stat: StatId::MaximumEnergyShield, typ: modifier::Type::Inc },
+        LocalModMatch { stat: StatId::EnergyShield, typ: modifier::Type::Base },
+        LocalModMatch { stat: StatId::EnergyShield, typ: modifier::Type::Inc },
     ];
 }
 
@@ -228,7 +228,7 @@ impl Item {
         }
 
         for m in self.mods_impl.iter().chain(&self.mods_expl).chain(&self.mods_enchant) {
-            if let Some(modifiers) = parse_mod(m, Source::Item) {
+            if let Some(modifiers) = parse_mod(m, Source::Innate) {
                 mods.extend(modifiers.into_iter().filter(|m| (local && match_local(m, match_table)) || (!local && !match_local(m, match_table))));
             }
         }
@@ -236,11 +236,15 @@ impl Item {
         mods
     }
 
-    pub fn calc_local_mods(&self) -> Vec<Mod> {
+    fn calc_local_mods(&self) -> Vec<Mod> {
         self.calc_mods(true)
     }
 
-    pub fn calc_nonlocal_mods(&self) -> Vec<Mod> {
-        self.calc_mods(false)
+    pub fn calc_nonlocal_mods(&self, slot: Slot) -> Vec<Mod> {
+        let mut mods = self.calc_mods(false);
+        for m in &mut mods {
+            m.source = Source::Item(slot);
+        }
+        mods
     }
 }

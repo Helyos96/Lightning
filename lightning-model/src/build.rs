@@ -112,6 +112,7 @@ pub enum StatId {
     MinimumRage,
     MaximumRage,
     MaximumEnergyShield,
+    EnergyShield,
     EnergyShieldRechargeRate,
     LifeRegenerationRate,
     ManaRegenerationRate,
@@ -392,25 +393,49 @@ impl Build {
                 ],
                 ..Default::default()
             },
+            Mod {
+                stat: StatId::MaximumFireResistance,
+                typ: Type::Base,
+                amount: 75,
+                ..Default::default()
+            },
+            Mod {
+                stat: StatId::MaximumColdResistance,
+                typ: Type::Base,
+                amount: 75,
+                ..Default::default()
+            },
+            Mod {
+                stat: StatId::MaximumLightningResistance,
+                typ: Type::Base,
+                amount: 75,
+                ..Default::default()
+            },
+            Mod {
+                stat: StatId::MaximumChaosResistance,
+                typ: Type::Base,
+                amount: 75,
+                ..Default::default()
+            },
         ];
         mods.extend(BANDIT_STATS.get(&self.bandit_choice).unwrap().clone());
         mods.extend(self.tree.calc_mods());
         for (slot, item) in &self.equipment {
             if let Slot::TreeJewel(node_id) = slot {
                 if self.tree.nodes.contains(node_id) {
-                    mods.extend(item.calc_nonlocal_mods());
+                    mods.extend(item.calc_nonlocal_mods(*slot));
                 }
             } else {
-                mods.extend(item.calc_nonlocal_mods());
+                mods.extend(item.calc_nonlocal_mods(*slot));
                 let defence = item.calc_defence();
                 if defence.armour.val() != 0 {
-                    mods.push(Mod { stat: StatId::Armour, typ: Type::Base, amount: defence.armour.val(), source: Source::Item, ..Default::default() });
+                    mods.push(Mod { stat: StatId::Armour, typ: Type::Base, amount: defence.armour.val(), source: Source::Item(*slot), ..Default::default() });
                 }
                 if defence.energy_shield.val() != 0 {
-                    mods.push(Mod { stat: StatId::MaximumEnergyShield, typ: Type::Base, amount: defence.energy_shield.val(), source: Source::Item, ..Default::default() });
+                    mods.push(Mod { stat: StatId::MaximumEnergyShield, typ: Type::Base, amount: defence.energy_shield.val(), source: Source::Item(*slot), ..Default::default() });
                 }
                 if defence.evasion.val() != 0 {
-                    mods.push(Mod { stat: StatId::EvasionRating, typ: Type::Base, amount: defence.evasion.val(), source: Source::Item, ..Default::default() });
+                    mods.push(Mod { stat: StatId::EvasionRating, typ: Type::Base, amount: defence.evasion.val(), source: Source::Item(*slot), ..Default::default() });
                 }
             }
         }
