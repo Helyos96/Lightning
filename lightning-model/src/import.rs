@@ -80,22 +80,18 @@ impl Item {
 
 fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
     let mut gemlink = GemLink {
-        active_gems: vec![],
-        support_gems: vec![],
+        gems: vec![],
         slot: build::Slot::Helm,
     };
     let mut jewels = vec![];
 
     for gem in gems {
         if let Some(gem_id) = GEMS.iter().find_map(|(key, val)| {
-            if let Some(base_item) = &val.base_item {
-                if base_item.display_name == gem.baseType {
-                    return Some(key);
-                }
+            if val.base_item.display_name == gem.baseType {
+                return Some(key);
             }
             None
         }) {
-            let gem_data = &GEMS[gem_id];
             // Parsing stuff is just beautiful
             let level = u32::from_str(
                 gem.properties.iter().find(|p| p.name == "Level").unwrap().values[0]
@@ -114,10 +110,7 @@ fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
                 qual,
                 alt_qual: 0,
             };
-            match gem_data.is_support {
-                true => gemlink.support_gems.push(new_gem),
-                false => gemlink.active_gems.push(new_gem),
-            }
+            gemlink.gems.push(new_gem);
         } else {
             jewels.push(conv_item(gem));
         }

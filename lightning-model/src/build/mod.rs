@@ -151,9 +151,19 @@ pub enum StatId {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct GemLink {
-    pub active_gems: Vec<Gem>,
-    pub support_gems: Vec<Gem>,
+    //pub active_gems: Vec<Gem>,
+    //pub support_gems: Vec<Gem>,
+    pub gems: Vec<Gem>,
     pub slot: Slot,
+}
+
+impl GemLink {
+    pub fn active_gems(&self) -> impl Iterator<Item = &Gem> {
+        self.gems.iter().filter(|g| g.data().active_skill.is_some())
+    }
+    pub fn support_gems(&self) -> impl Iterator<Item = &Gem> {
+        self.gems.iter().filter(|g| g.data().is_support)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -443,7 +453,7 @@ impl Build {
         }
         if include_global {
             for gl in &self.gem_links {
-                for ag in gl.active_gems.iter().filter(|g| g.data().tags.contains(&GemTag::Aura)) {
+                for ag in gl.active_gems().filter(|g| g.data().tags.contains(&GemTag::Aura)) {
                     mods.extend(ag.calc_mods());
                 }
             }

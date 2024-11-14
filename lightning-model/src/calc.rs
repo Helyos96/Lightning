@@ -21,7 +21,7 @@ pub fn compare(a: &FxHashMap<&'static str, i64>, b: &FxHashMap<&'static str, i64
     result
 }
 
-pub fn calc_gem(build: &Build, support_gems: &[Gem], active_gem: &Gem) -> FxHashMap<&'static str, i64> {
+pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, active_gem: &Gem) -> FxHashMap<&'static str, i64> {
     assert!(!active_gem.data().is_support);
     let mut ret = FxHashMap::default();
     //let display_name = &active_gem.data().base_item.as_ref().unwrap().display_name;

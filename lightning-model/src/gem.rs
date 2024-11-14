@@ -170,7 +170,7 @@ pub enum GemTag {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GemData {
     pub active_skill: Option<ActiveSkill>,
-    pub base_item: Option<BaseItem>,
+    pub base_item: BaseItem,
     pub cast_time: Option<i64>,
     pub is_support: bool,
     per_level: FxHashMap<u32, Level>,

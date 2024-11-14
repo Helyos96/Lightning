@@ -22,3 +22,7 @@ opt-level = 3
 opt-level = 3
 [profile.dev.package.fdeflate]
 opt-level = 3
+[profile.dev.package.egui]
+opt-level = 3
+[profile.dev.package.egui_extras]
+opt-level = 3

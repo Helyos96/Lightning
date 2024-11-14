@@ -1,40 +1,28 @@
-use lightning_model::build::{BanditChoice, GemLink};
+use lightning_model::build::BanditChoice;
 use strum::IntoEnumIterator;
 use crate::gui::{MainState, State, UiState};
 use thousands::Separable;
+use super::{text_gemlink, text_gemlink_cutoff};
 
 pub const WIDTH: f32 = 240.0;
-
-fn text_gemlink(gemlink: &GemLink) -> String {
-    let mut ret = String::new();
-    for active_gem in &gemlink.active_gems {
-        ret += &active_gem.data().base_item.as_ref().unwrap().display_name;
-        ret += ", ";
-    }
-    return String::from(ret.trim_end_matches(", "));
-}
 
 fn selected_text_gemlink(state: &State) -> String {
     if state.build.gem_links.len() == 0 {
         return String::from("<No Gemlink>");
     }
     if let Some(selected) = state.build.gem_links.get(state.gemlink_cur) {
-        let mut ret = text_gemlink(selected);
-        if ret.len() > 30 {
-            ret = String::from(&ret[0..27]) + "...";
-        }
-        return ret;
+        return text_gemlink_cutoff(selected, 30);
     }
     return String::from("");
 }
 
 fn selected_text_active(state: &State) -> &str {
-    if state.build.gem_links.iter().flat_map(|gl| &gl.active_gems).count() == 0 {
+    if state.build.gem_links.iter().flat_map(|gl| gl.active_gems()).count() == 0 {
         return "<No Active Skill>";
     }
     if let Some(gemlink) = state.build.gem_links.get(state.gemlink_cur) {
-        if let Some(active_skill) = gemlink.active_gems.get(state.active_skill_cur) {
-            return &active_skill.data().base_item.as_ref().unwrap().display_name;
+        if let Some(active_skill) = gemlink.active_gems().nth(state.active_skill_cur) {
+            return &active_skill.data().base_item.display_name;
         }
     }
     return "";
@@ -51,6 +39,9 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 }
                 if ui.button("Config").clicked() {
                     state.ui_state = UiState::Main(MainState::Config);
+                }
+                if ui.button("Skills").clicked() {
+                    state.ui_state = UiState::Main(MainState::Skills);
                 }
                 ui.end_row();
             });
@@ -71,7 +62,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 .show_ui(ui, |ui| {
                     ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
                     for gem_link in state.build.gem_links.iter().enumerate() {
-                        if gem_link.1.active_gems.is_empty() {
+                        if gem_link.1.active_gems().count() == 0 {
                             continue;
                         }
                         if ui.selectable_value(&mut state.gemlink_cur, gem_link.0, &text_gemlink(gem_link.1)).clicked() {
@@ -86,8 +77,8 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 .show_ui(ui, |ui| {
                     ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
                     if let Some(gemlink) = state.build.gem_links.get(state.gemlink_cur) {
-                        for active_gem in gemlink.active_gems.iter().enumerate() {
-                            if ui.selectable_value(&mut state.active_skill_cur, active_gem.0, &active_gem.1.data().base_item.as_ref().unwrap().display_name).clicked() {
+                        for active_gem in gemlink.active_gems().enumerate() {
+                            if ui.selectable_value(&mut state.active_skill_cur, active_gem.0, &active_gem.1.data().base_item.display_name).clicked() {
                                 state.request_recalc = true;
                             }
                         }

@@ -34,6 +34,9 @@ lazy_static! {
         map.insert("support_area_concentrate_area_damage_+%_final", vec![
             Mod { stat: StatId::Damage, typ: Type::More, tags: hset![GemTag::Area], ..Default::default() },
         ]);
+        map.insert("base_skill_area_of_effect_+%", vec![
+            Mod { stat: StatId::AreaOfEffect, typ: Type::Inc, tags: hset![], ..Default::default() },
+        ]);
 
         // (Awakened) Melee physical damage support
         map.insert("support_melee_physical_damage_attack_speed_+%_final", vec![
@@ -46,6 +49,11 @@ lazy_static! {
         // Brutality Support
         map.insert("support_brutality_physical_damage_+%_final", vec![
             Mod { stat: StatId::PhysicalDamage, typ: Type::More, tags: hset![], ..Default::default() },
+        ]);
+
+        // Pulverise Support
+        map.insert("support_pulverise_melee_area_damage_+%_final", vec![
+            Mod { stat: StatId::Damage, typ: Type::More, tags: hset![GemTag::Melee, GemTag::Area], ..Default::default() },
         ]);
 
         map

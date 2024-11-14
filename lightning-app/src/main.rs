@@ -224,9 +224,10 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                             gui::panel::left::draw(egui_ctx, &mut state);
                             if main_state == MainState::Tree {
                                 gui::tree_view::draw(egui_ctx, &mut state);
-                            }
-                            if main_state == MainState::Config {
+                            } else if main_state == MainState::Config {
                                 gui::panel::config::draw(egui_ctx, &mut state);
+                            } else if main_state == MainState::Skills {
+                                gui::panel::skills::draw(egui_ctx, &mut state);
                             }
                             if let MainState::ChooseMastery(node_id) = main_state {
                                 if let Some(effect) = gui::select_mastery_effect(egui_ctx, &state.build.tree.masteries, &TREE.nodes[&node_id]) {

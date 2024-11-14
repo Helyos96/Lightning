@@ -5,9 +5,11 @@ pub mod panel;
 
 use crate::config::Config;
 use lightning_model::build::{Build, Stats};
+use lightning_model::data::GEMS;
 use lightning_model::gem::Gem;
 use lightning_model::{calc, hset};
 use lightning_model::tree::Node;
+use panel::skills::SkillsPanelState;
 use rustc_hash::FxHashMap;
 use std::path::PathBuf;
 use std::time::Instant;
@@ -16,6 +18,7 @@ use std::time::Instant;
 pub enum MainState {
     Tree,
     Config,
+    Skills,
     ChooseMastery(u16),
 }
 
@@ -49,6 +52,9 @@ pub struct State {
     pub path_hovered: Option<Vec<u16>>,
     pub path_red: Option<Vec<u16>>,
     pub mouse_tree_drag: Option<(f32, f32)>,
+
+    // Panels (TODO: separate other panels stuff into structs)
+    panel_skills: SkillsPanelState,
 
     // widget-specific values
     builds_list_cur: usize,
@@ -94,6 +100,8 @@ impl State {
             path_red: None,
             mouse_tree_drag: None,
 
+            panel_skills: Default::default(),
+
             builds_list_cur: 0,
             gemlink_cur: 0,
             active_skill_cur: 0,
@@ -114,20 +122,11 @@ impl State {
         }
     }
 
-    fn active_gem(&self) -> Option<(&Gem, &[Gem])> {
-        if let Some(gem_link) = self.build.gem_links.get(self.gemlink_cur) {
-            if let Some(active_gem) = gem_link.active_gems.get(self.active_skill_cur) {
-                return Some((active_gem, &gem_link.support_gems));
-            }
-        }
-        None
-    }
-
     pub fn compare(&self, build_compare: &Build) -> FxHashMap<&'static str, i64> {
         let mut delta = FxHashMap::default();
         if let Some(gem_link_compare) = build_compare.gem_links.get(self.gemlink_cur) {
-            if let Some(active_gem_compare) = gem_link_compare.active_gems.get(self.active_skill_cur) {
-                let active_gem_compare_calc = calc::calc_gem(build_compare, &gem_link_compare.support_gems, active_gem_compare);
+            if let Some(active_gem_compare) = gem_link_compare.active_gems().nth(self.active_skill_cur) {
+                let active_gem_compare_calc = calc::calc_gem(build_compare, gem_link_compare.support_gems(), active_gem_compare);
                 delta.extend(calc::compare(&self.active_skill_calc, &active_gem_compare_calc));
             }
         }
@@ -140,13 +139,40 @@ impl State {
         let mods = self.build.calc_mods(true);
         self.stats = Some(self.build.calc_stats(&mods, &hset![]));
         self.defence_calc = calc::calc_defence(&self.build);
-        if let Some((active_gem, support_gems)) = self.active_gem() {
-            self.active_skill_calc = calc::calc_gem(&self.build, support_gems, active_gem);
-        } else {
-            self.active_skill_calc.clear();
+        self.active_skill_calc.clear();
+        if let Some(gem_link) = self.build.gem_links.get(self.gemlink_cur) {
+            if let Some(active_gem) = gem_link.active_gems().nth(self.active_skill_cur) {
+                self.active_skill_calc = calc::calc_gem(&self.build, gem_link.support_gems().filter(|g| g.enabled), active_gem);
+            }
         }
         if let Some(build_compare) = self.build_compare.as_ref() {
             self.delta_compare = self.compare(build_compare);
+        }
+        if self.panel_skills.selected_gem.is_some() {
+            if self.build.gem_links.len() > self.panel_skills.selected_gemlink {
+                let mut vec = vec![];
+                let mut build_compare = self.build.clone();
+                for (i, (id, gem_data)) in GEMS.iter().enumerate() {
+                    let gem = Gem {
+                        id: id.clone(),
+                        enabled: true,
+                        level: 20,
+                        qual: 20,
+                        alt_qual: 0,
+                    };
+                    if i > 0 {
+                        build_compare.gem_links[self.panel_skills.selected_gemlink].gems.pop();
+                    }
+                    build_compare.gem_links[self.panel_skills.selected_gemlink].gems.push(gem);
+                    let compare = self.compare(&build_compare);
+                    let delta_dps = compare.get("DPS").unwrap_or(&0);
+                    vec.push((*delta_dps, gem_data.base_item.display_name.as_str()));
+                }
+                vec.sort_by(|a, b| b.0.cmp(&a.0));
+                self.panel_skills.computed_gems = Some(vec);
+            }
+        } else {
+            self.panel_skills.computed_gems = None;
         }
         self.request_recalc = false;
     }

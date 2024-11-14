@@ -16,9 +16,9 @@
 * Unique items
 * Skills GUI
 	* Gemlinks area
-	* Skills comboboxes
+	* Skills enabled comboboxes
 	* Stats compare on hover checkbox
-	* Stats compare on hover skill
+	* Stats compare on hover skill in dropdown
 	* Order skills by dps increase
 * Items GUI
 	* Equipment comboboxes
