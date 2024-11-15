@@ -2,7 +2,7 @@ Super Scuffed Build planner for Path of Exile.
 
 Needed something fun to do to learn Rust. Don't use this.
 
-![Main view](https://user-images.githubusercontent.com/67038113/215327041-289e3cd8-fcf6-4565-a48e-0f5f0be54ec8.png)
+![Main view](https://github.com/user-attachments/assets/934af00f-c7cb-433a-b89e-1e8adfcafd28)
 
 lightning-model is a framework for computing mods, stats, importing characters and a static data store.<br />
 lightning-app is a GL+egui+winit UI.

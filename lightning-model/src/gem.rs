@@ -183,6 +183,23 @@ pub struct GemData {
     pub types: FxHashSet<data::ActiveSkillTypes>,
 }
 
+impl GemData {
+    pub fn display_name(&'static self) -> &'static str {
+        if let Some(active_skill) = self.active_skill.as_ref() {
+            &active_skill.display_name
+        } else {
+            &self.base_item.display_name
+        }
+    }
+
+    pub fn max_level(&self) -> i32 {
+        if let Some(max_level) = self.base_item.max_level {
+            return max_level;
+        }
+        return 20;
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Gem {
     pub id: String,

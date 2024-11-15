@@ -22,10 +22,50 @@ fn selected_text_active(state: &State) -> &str {
     }
     if let Some(gemlink) = state.build.gem_links.get(state.gemlink_cur) {
         if let Some(active_skill) = gemlink.active_gems().nth(state.active_skill_cur) {
-            return &active_skill.data().base_item.display_name;
+            return active_skill.data().display_name();
         }
     }
     return "";
+}
+
+fn calc_result_color(label: &str) -> egui::Color32 {
+    match label {
+        "Maximum Life" => egui::Color32::LIGHT_RED,
+        "Life Regeneration" => egui::Color32::LIGHT_RED,
+        "Strength" => egui::Color32::LIGHT_RED,
+
+        "Fire Resistance" => egui::Color32::RED,
+
+        "Dexterity" => egui::Color32::GREEN,
+        "Chaos Resistance" => egui::Color32::DARK_GREEN,
+        "Evasion" => egui::Color32::GREEN,
+
+        "Intelligence" => egui::Color32::LIGHT_BLUE,
+        "Cold Resistance" => egui::Color32::LIGHT_BLUE,
+        "Energy Shield" => egui::Color32::LIGHT_BLUE,
+
+        "Lightning Resistance" => egui::Color32::YELLOW,
+        _ => egui::Color32::WHITE,
+    }
+}
+
+fn val_format(label: &str, val: i64) -> String {
+    match label {
+        "Speed" => format!("{:.2}", 1000.0 / val as f32),
+        _ => val.separate_with_commas(),
+    }
+}
+
+// TODO: cache these
+fn draw_calc_result_row(ui: &mut egui::Ui, label: &str, val: Option<&i64>) {
+    if let Some(val) = val {
+        if *val == 0 {
+            return;
+        }
+        ui.label(egui::RichText::new(format!("{label}:")).color(calc_result_color(label)));
+        ui.label(egui::RichText::new(val_format(label, *val)).color(calc_result_color(label)));
+        ui.end_row();
+    }
 }
 
 pub fn draw(ctx: &egui::Context, state: &mut State) {
@@ -78,7 +118,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                     ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
                     if let Some(gemlink) = state.build.gem_links.get(state.gemlink_cur) {
                         for active_gem in gemlink.active_gems().enumerate() {
-                            if ui.selectable_value(&mut state.active_skill_cur, active_gem.0, &active_gem.1.data().base_item.display_name).clicked() {
+                            if ui.selectable_value(&mut state.active_skill_cur, active_gem.0, active_gem.1.data().display_name()).clicked() {
                                 state.request_recalc = true;
                             }
                         }
@@ -86,21 +126,26 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 }
             );
             egui::Grid::new("grid_active_skill_calc").show(ui, |ui| {
-                for (k, v) in &state.active_skill_calc {
-                    ui.label(format!("{k}:"));
-                    ui.label(v.separate_with_commas());
-                    ui.end_row();
-                }
+                draw_calc_result_row(ui, "DPS", state.active_skill_calc.get("DPS"));
+                draw_calc_result_row(ui, "Speed", state.active_skill_calc.get("Speed"));
             });
             ui.separator();
             egui::Grid::new("grid_defence_calc").show(ui, |ui| {
-                for stat in &state.defence_calc {
-                    if *stat.1 != 0 {
-                        ui.label(format!("{}:", stat.0));
-                        ui.label(stat.1.separate_with_commas());
-                        ui.end_row();
-                    }
-                }
+                draw_calc_result_row(ui, "Maximum Life", state.defence_calc.get("Maximum Life"));
+                draw_calc_result_row(ui, "Life Regeneration", state.defence_calc.get("Life Regeneration"));
+                ui.separator(); ui.end_row();
+                draw_calc_result_row(ui, "Fire Resistance", state.defence_calc.get("Fire Resistance"));
+                draw_calc_result_row(ui, "Cold Resistance", state.defence_calc.get("Cold Resistance"));
+                draw_calc_result_row(ui, "Lightning Resistance", state.defence_calc.get("Lightning Resistance"));
+                draw_calc_result_row(ui, "Chaos Resistance", state.defence_calc.get("Chaos Resistance"));
+                ui.separator(); ui.end_row();
+                draw_calc_result_row(ui, "Armour", state.defence_calc.get("Armour"));
+                draw_calc_result_row(ui, "Evasion", state.defence_calc.get("Evasion"));
+                draw_calc_result_row(ui, "Energy Shield", state.defence_calc.get("Energy Shield"));
+                ui.separator(); ui.end_row();
+                draw_calc_result_row(ui, "Strength", state.defence_calc.get("Strength"));
+                draw_calc_result_row(ui, "Dexterity", state.defence_calc.get("Dexterity"));
+                draw_calc_result_row(ui, "Intelligence", state.defence_calc.get("Intelligence"));
             });
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
                 if ui.button("Settings").clicked {

@@ -166,7 +166,7 @@ impl State {
                     build_compare.gem_links[self.panel_skills.selected_gemlink].gems.push(gem);
                     let compare = self.compare(&build_compare);
                     let delta_dps = compare.get("DPS").unwrap_or(&0);
-                    vec.push((*delta_dps, gem_data.base_item.display_name.as_str()));
+                    vec.push((*delta_dps, gem_data.display_name()));
                 }
                 vec.sort_by(|a, b| b.0.cmp(&a.0));
                 self.panel_skills.computed_gems = Some(vec);

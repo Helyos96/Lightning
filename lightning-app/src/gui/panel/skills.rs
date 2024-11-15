@@ -29,10 +29,10 @@ fn draw_skill_dropdown(ui: &mut egui::Ui, panel_skills: &mut SkillsPanelState, s
         if is_currently_selected {
             &mut panel_skills.selected_gem_text
         } else {
-            &mut socketed_gem.data().base_item.display_name.clone()
+            &mut socketed_gem.data().display_name().to_owned()
         }
     };
-    let edit = egui::TextEdit::singleline(name).hint_text(&socketed_gem.data().base_item.display_name);
+    let edit = egui::TextEdit::singleline(name).hint_text(socketed_gem.data().display_name());
     let edit_output = edit.show(ui);
     let r = edit_output.response;
     let popup_id = egui::Id::new(format!("popup {}", i));
@@ -43,9 +43,6 @@ fn draw_skill_dropdown(ui: &mut egui::Ui, panel_skills: &mut SkillsPanelState, s
         if panel_skills.computed_gems.is_none() {
             *request_recalc = true;
         }
-    }
-    if r.changed() {
-
     }
     if ui.memory(|m| m.is_popup_open(popup_id)) {
         if let Some(computed_gems) = panel_skills.computed_gems.as_ref() {
