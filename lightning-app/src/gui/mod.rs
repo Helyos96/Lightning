@@ -4,6 +4,7 @@ pub mod settings;
 pub mod panel;
 
 use crate::config::Config;
+use egui_glow::egui_winit::winit::event::Modifiers;
 use lightning_model::build::{Build, Stats};
 use lightning_model::data::GEMS;
 use lightning_model::gem::Gem;
@@ -11,6 +12,7 @@ use lightning_model::{calc, hset};
 use lightning_model::tree::Node;
 use panel::skills::SkillsPanelState;
 use rustc_hash::FxHashMap;
+use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -37,12 +39,14 @@ pub struct State {
     pub build: Build,
     // Used for stat comparison on hover
     pub build_compare: Option<Build>,
+    pub history: VecDeque<Build>,
     pub config: Config,
     pub import_account: String,
     pub import_character: String,
     pub request_recalc: bool,
     pub last_instant: Instant,
     pub show_settings: bool,
+    pub modifiers: Modifiers,
 
     pub active_skill_calc: FxHashMap<&'static str, i64>,
     pub defence_calc: FxHashMap<&'static str, i64>,
@@ -84,12 +88,14 @@ impl State {
             ui_state: UiState::ChooseBuild,
             build: Build::new_player(),
             build_compare: None,
+            history: Default::default(),
 
             import_account: String::new(),
             import_character: String::new(),
             request_recalc: false,
             last_instant: Instant::now(),
             show_settings: false,
+            modifiers: Default::default(),
 
             active_skill_calc: FxHashMap::default(),
             defence_calc: FxHashMap::default(),
@@ -119,6 +125,21 @@ impl State {
             mouse_pos: (0.0, 0.0),
 
             redraw_counter: 0,
+        }
+    }
+
+    pub fn snapshot(&mut self) {
+        if self.history.len() >= 100 {
+            self.history.pop_front();
+        }
+        self.history.push_back(self.build.clone());
+    }
+
+    pub fn undo(&mut self) {
+        if let Some(build) = self.history.pop_front() {
+            self.build = build;
+            self.request_recalc = true;
+            self.request_regen = true;
         }
     }
 

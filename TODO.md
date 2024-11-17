@@ -15,11 +15,15 @@
 * All the gem stats need modifiers
 * Unique items
 * Skills GUI
-	* Gemlinks area
-	* Skills enabled comboboxes
+	* ~~Gemlinks area~~
+	* ~~Skills enabled comboboxes~~
 	* Stats compare on hover checkbox
 	* Stats compare on hover skill in dropdown
-	* Order skills by dps increase
+	* ~~Order skills by dps increase~~
+	* ~~Add gem~~
+	* ~~Replace gem~~
+	* Default level/quality
+		* Check against gem's max level
 * Items GUI
 	* Equipment comboboxes
 		* Stats compare if remove
@@ -38,12 +42,13 @@
 * Trigger
 * Warcries / Exert
 * Defences
-	* Armour
+	* ~~Armour~~
 		* PDR
-	* Evasion
-	* Energy Shield
+	* ~~Evasion~~
+	* ~~Energy Shield~~
 	* Ward
 	* Block
 	* Spell Suppression
 * Crit chance
 * Accuracy
+* ~~Undo~~/Redo

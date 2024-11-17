@@ -43,6 +43,7 @@ use winit::{
     event::{self, ElementState, MouseButton, StartCause},
     window::{Window, WindowAttributes},
     event::WindowEvent,
+    keyboard::Key,
 };
 
 
@@ -323,6 +324,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                     }
                                 } else if button_state == ElementState::Released {
                                     if let Some(node) = state.hovered_node {
+                                        state.snapshot();
                                         state.build.tree.flip_node(node.skill);
                                         if !state.build.tree.nodes.contains(&node.skill) {
                                             state.path_red = None;
@@ -343,6 +345,16 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                     state.mouse_tree_drag = None;
                                 }
                             }
+                        }
+                        WindowEvent::KeyboardInput { event, .. } => {
+                            if event.logical_key == Key::Character("z".into()) {
+                                if state.modifiers.state().control_key() {
+                                    state.undo();
+                                }
+                            }
+                        }
+                        WindowEvent::ModifiersChanged(modifiers) => {
+                            state.modifiers = modifiers;
                         }
                         WindowEvent::CursorMoved { position, .. } => {
                             let (mut x, mut y) = (position.x as f32, position.y as f32);
