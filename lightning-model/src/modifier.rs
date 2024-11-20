@@ -171,17 +171,11 @@ lazy_static! {
                 Some(ret)
             })
         ), (
-            regex!(r"^(minions have )?((\+|-)?[0-9]+)%? (?:to )?(?:all )?([a-z ]+)$"),
+            regex!(r"^(minions have )?([+-]?[0-9]+)%? (?:to )?(?:all )?([a-z ]+)$"),
             Box::new(|c| {
-                let stat_tags = parse_stat(&c[4])?;
+                let stat_tags = parse_stat(&c[3])?;
                 let insert_minion_tag = c.get(1).is_some();
-                let mut amount = i64::from_str(&c[2]).unwrap();
-                if let Some(capture) = c.get(3) {
-                    amount = match capture.as_str() {
-                        "-" => amount.neg(),
-                        _ => amount,
-                    };
-                }
+                let amount = i64::from_str(&c[2]).unwrap();
                 Some(stat_tags.iter().map(|s| {
                     let mut ret = Mod {
                         stat: s.0,

@@ -498,6 +498,13 @@ impl Build {
                 amount: 75,
                 ..Default::default()
             },
+            Mod {
+                stat: StatId::AccuracyRating,
+                typ: Type::Base,
+                amount: 2,
+                flags: vec![Mutation::MultiplierStat((1, StatId::Dexterity))],
+                ..Default::default()
+            },
         ];
         mods.extend(BANDIT_STATS.get(&self.bandit_choice).unwrap().clone());
         mods.extend(CAMPAIGN_STATS.get(&self.campaign_choice).unwrap().clone());
