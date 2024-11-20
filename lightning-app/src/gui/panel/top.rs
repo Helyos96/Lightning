@@ -1,5 +1,6 @@
 use std::{fs, io, ops::RangeInclusive, path::Path};
-use lightning_model::{build::{property, Build, StatId}, data::TREE};
+use lightning_model::{build::{property, BanditChoice, Build, CampaignChoice, StatId}, data::TREE};
+use strum::IntoEnumIterator;
 use crate::gui::{State, UiState};
 
 pub const HEIGHT: f32 = 40.0;
@@ -61,8 +62,35 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                         }
                     }
                 );
+
+                egui::ComboBox::from_id_salt("bandit_choice")
+                    .selected_text(state.build.bandit_choice.as_ref())
+                    .show_ui(ui, |ui| {
+                        ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
+                        for bandit_choice in BanditChoice::iter() {
+                            if ui.selectable_label(bandit_choice == state.build.bandit_choice, bandit_choice.as_ref()).clicked() {
+                                state.build.bandit_choice = bandit_choice;
+                                state.request_recalc = true;
+                            }
+                        }
+                    }
+                );
+                egui::ComboBox::from_id_salt("campaign_choice")
+                    .selected_text(state.build.campaign_choice.as_ref())
+                    .show_ui(ui, |ui| {
+                        ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
+                        for campaign_choice in CampaignChoice::iter() {
+                            if ui.selectable_label(campaign_choice == state.build.campaign_choice, campaign_choice.as_ref()).clicked() {
+                                state.build.campaign_choice = campaign_choice;
+                                state.request_recalc = true;
+                            }
+                        }
+                    }
+                );
+
                 // Could optimize: don't recalc passives_count() every frame
                 ui.label(format!("Passives: {}/{}", state.build.tree.passives_count(), state.stats.as_ref().unwrap().stat(StatId::PassiveSkillPoints).val()));
+
                 if state.config.show_debug {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.label(format!("Redraws: {}", state.redraw_counter));

@@ -52,3 +52,4 @@
 * Crit chance
 * Accuracy
 * ~~Undo~~/Redo
+* All the mods and gems

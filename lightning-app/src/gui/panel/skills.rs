@@ -99,9 +99,11 @@ fn draw_skill_dropdown(ui: &mut egui::Ui, panel_skills: &mut SkillsPanelState, s
 }
 
 enum Action {
-    PushGem(&'static str),
+    AddGem(&'static str),
     SwapGem(&'static str),
     RemoveGem(usize),
+    AddGemlink,
+    RemoveSelectedGemlink,
 }
 
 fn gem_from_display_name(display_name: &str) -> Gem {
@@ -120,9 +122,18 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
     egui::CentralPanel::default()
         .show(ctx, |ui| {
             ui.columns(2, |uis| {
+                egui::Grid::new("grid_ui_gemlink").show(&mut uis[0], |ui| {
+                    if ui.button("New").clicked() {
+                        action = Some(Action::AddGemlink);
+                    }
+                    if ui.button("Delete").clicked() {
+                        action = Some(Action::RemoveSelectedGemlink);
+                    }
+                    ui.end_row();
+                });
                 egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(&mut uis[0], |ui| {
                     for (i, gemlink) in state.build.gem_links.iter().enumerate() {
-                        if ui.selectable_label(false, &text_gemlink_cutoff(gemlink, 40)).clicked() {
+                        if ui.selectable_label(i == state.panel_skills.selected_gemlink, &text_gemlink_cutoff(gemlink, 40)).clicked() {
                             if state.panel_skills.selected_gemlink != i {
                                 state.panel_skills.selected_gemlink = i;
                                 state.panel_skills.computed_gems = None;
@@ -198,7 +209,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                                 });
                                 row.col(|ui| {
                                     if let Some(gem_name) = draw_skill_dropdown(ui, &mut state.panel_skills, None, gemlink.gems.len(), &mut state.request_recalc) {
-                                        action = Some(Action::PushGem(gem_name));
+                                        action = Some(Action::AddGem(gem_name));
                                     }
                                 });
                                 row.col(|_| {
@@ -230,12 +241,20 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                     eprintln!("Trying to swap gem \"{gem_name}\" but no selected gemlink");
                 }
             }
-            Action::PushGem(gem_name) => {
+            Action::AddGem(gem_name) => {
                 let gem = gem_from_display_name(gem_name);
                 if let Some(gemlink) = state.build.gem_links.get_mut(state.panel_skills.selected_gemlink) {
                     gemlink.gems.push(gem);
                 } else {
                     eprintln!("Trying to push gem \"{gem_name}\" but no selected gemlink");
+                }
+            }
+            Action::AddGemlink => {
+                state.build.gem_links.push(Default::default());
+            }
+            Action::RemoveSelectedGemlink => {
+                if state.build.gem_links.len() >= state.panel_skills.selected_gemlink + 1 {
+                    state.build.gem_links.remove(state.panel_skills.selected_gemlink);
                 }
             }
         }

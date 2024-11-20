@@ -1,4 +1,4 @@
-use crate::build::{calc_stat, Build, Slot, Stat, StatId};
+use crate::build::{self, calc_stat, property, Build, Slot, Stat, StatId};
 use crate::gem::{Gem, GemTag};
 use crate::modifier::{Mod, Source, Type};
 use rustc_hash::FxHashMap;
@@ -120,11 +120,21 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
         }
     };
 
+    let monster_build = Build::new_player();
+    let monster_mods = monster_build.calc_mods_monster(build.property_int(property::Int::Level).min(83));
+    let monster_stats = monster_build.calc_stats(&monster_mods, &hset![]);
+    let mut total_damage: i64 = damage.iter().sum();
+
+    if tags.contains(&GemTag::Attack) {
+        let accuracy = stats.stat(StatId::AccuracyRating).val() as f32;
+        let monster_evasion = monster_stats.stat(StatId::EvasionRating).val() as f32;
+        let chance_to_hit_f = ((1.25 * accuracy) / (accuracy + (monster_evasion * 0.2).powf(0.9))).min(1.0);
+        total_damage = (total_damage as f32 * chance_to_hit_f) as i64;
+        ret.insert("Chance to Hit", (chance_to_hit_f * 100.0) as i64);
+    }
+
     if time != 0 {
-        let mut dps = 0;
-        for d in damage {
-            dps += (d * 1000) / time;
-        }
+        let dps = (total_damage * 1000) / time;
         ret.insert("DPS", dps);
         ret.insert("Speed", time);
     }
@@ -138,9 +148,13 @@ pub fn calc_defence(build: &Build) -> FxHashMap<&'static str, i64> {
 
     ret.insert("Maximum Life", stats.stat(StatId::MaximumLife).val_rounded_up());
     ret.insert("Fire Resistance", stats.stat(StatId::FireResistance).val());
+    ret.insert("Maximum Fire Resistance", stats.stat(StatId::MaximumFireResistance).val());
     ret.insert("Cold Resistance", stats.stat(StatId::ColdResistance).val());
+    ret.insert("Maximum Cold Resistance", stats.stat(StatId::MaximumColdResistance).val());
     ret.insert("Lightning Resistance", stats.stat(StatId::LightningResistance).val());
+    ret.insert("Maximum Lightning Resistance", stats.stat(StatId::MaximumLightningResistance).val());
     ret.insert("Chaos Resistance", stats.stat(StatId::ChaosResistance).val());
+    ret.insert("Maximum Chaos Resistance", stats.stat(StatId::MaximumChaosResistance).val());
     ret.insert("Strength", stats.stat(StatId::Strength).val());
     ret.insert("Dexterity", stats.stat(StatId::Dexterity).val());
     ret.insert("Intelligence", stats.stat(StatId::Intelligence).val());

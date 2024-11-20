@@ -28,12 +28,6 @@ lazy_static! {
         map.insert("spell_maximum_base_fire_damage", vec![
             Mod { stat: StatId::MaxFireDamage, typ: Type::Base, tags: hset![GemTag::Spell], ..Default::default() },
         ]);
-        map.insert("support_concentrated_effect_skill_area_of_effect_+%_final", vec![
-            Mod { stat: StatId::AreaOfEffect, typ: Type::More, ..Default::default() },
-        ]);
-        map.insert("support_area_concentrate_area_damage_+%_final", vec![
-            Mod { stat: StatId::Damage, typ: Type::More, tags: hset![GemTag::Area], ..Default::default() },
-        ]);
         map.insert("base_skill_area_of_effect_+%", vec![
             Mod { stat: StatId::AreaOfEffect, typ: Type::Inc, tags: hset![], ..Default::default() },
         ]);
@@ -45,15 +39,20 @@ lazy_static! {
         map.insert("support_melee_physical_damage_+%_final", vec![
             Mod { stat: StatId::PhysicalDamage, typ: Type::More, tags: hset![GemTag::Melee], ..Default::default() },
         ]);
-
-        // Brutality Support
+        // (Awakened) Brutality Support
         map.insert("support_brutality_physical_damage_+%_final", vec![
             Mod { stat: StatId::PhysicalDamage, typ: Type::More, tags: hset![], ..Default::default() },
         ]);
-
         // Pulverise Support
         map.insert("support_pulverise_melee_area_damage_+%_final", vec![
             Mod { stat: StatId::Damage, typ: Type::More, tags: hset![GemTag::Melee, GemTag::Area], ..Default::default() },
+        ]);
+        // Concentrated Effect Support
+        map.insert("support_concentrated_effect_skill_area_of_effect_+%_final", vec![
+            Mod { stat: StatId::AreaOfEffect, typ: Type::More, ..Default::default() },
+        ]);
+        map.insert("support_area_concentrate_area_damage_+%_final", vec![
+            Mod { stat: StatId::Damage, typ: Type::More, tags: hset![GemTag::Area], ..Default::default() },
         ]);
 
         map

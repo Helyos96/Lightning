@@ -1,3 +1,4 @@
+use crate::default_monster_stats::MonsterStats;
 use crate::gem::GemData;
 use crate::item::BaseItem;
 use crate::tree::Node;
@@ -144,4 +145,6 @@ lazy_static! {
         bincode::deserialize(include_bytes!("../data/base_items.bc")).expect("Failed to deserialize base items");
     pub static ref TREE: TreeData =
         bincode::deserialize(include_bytes!("../data/tree.bc")).expect("Failed to deserialize tree");
+    pub static ref MONSTER_STATS: FxHashMap<i64, MonsterStats> =
+        bincode::deserialize(include_bytes!("../data/default_monster_stats.bc")).expect("Failed to deserialize default monster stats");
 }

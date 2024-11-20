@@ -144,20 +144,15 @@ impl std::fmt::Display for ParseError {
 impl std::error::Error for ParseError {}
 
 pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>> {
-    // Passive Tree
-    let url = "https://pathofexile.com/character-window/get-passive-skills?realm=pc&accountName=".to_string()
-        + account
-        + "&character="
-        + character;
-    println!("{url}");
     let client = reqwest::blocking::ClientBuilder::new().user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0").build()?;
+
+    // Passive Tree
+    let url = format!("https://pathofexile.com/character-window/get-passive-skills?realm=pc&accountName={account}&character={character}");
+    println!("{url}");
     let tree = client.get(url).send()?.json::<PassiveTree>()?;
 
     // Items, Skills, CharData
-    let url = "https://pathofexile.com/character-window/get-items?realm=pc&accountName=".to_string()
-        + account
-        + "&character="
-        + character;
+    let url = format!("https://pathofexile.com/character-window/get-items?realm=pc&accountName={account}&character={character}");
     println!("{url}");
     let items = client.get(url).send()?.json::<ItemsSkillsChar>()?;
 

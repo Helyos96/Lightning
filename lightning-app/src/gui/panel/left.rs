@@ -1,5 +1,3 @@
-use lightning_model::build::BanditChoice;
-use strum::IntoEnumIterator;
 use crate::gui::{MainState, State, UiState};
 use thousands::Separable;
 use super::{text_gemlink, text_gemlink_cutoff};
@@ -49,21 +47,42 @@ fn calc_result_color(label: &str) -> egui::Color32 {
     }
 }
 
-fn val_format(label: &str, val: i64) -> String {
-    match label {
-        "Speed" => format!("{:.2}", 1000.0 / val as f32),
-        _ => val.separate_with_commas(),
-    }
+enum Format {
+    Flat,
+    Percent,
+    PercentOtherStat(i64),
+}
+
+fn val_format(label: &str, val: i64, fmt: Format) -> String {
+    let second = match fmt {
+        Format::Flat => {
+            match label {
+                "Speed" => format!("{:.2}", 1000.0 / val as f32),
+                _ => val.separate_with_commas(),
+            }
+        }
+        Format::Percent => {
+            format!("{}%", val)
+        }
+        Format::PercentOtherStat(val_2) => {
+            if val > val_2 {
+                format!("{}% ({:+}%)", val_2, val - val_2)
+            } else {
+                format!("{}%", val)
+            }
+        }
+    };
+    second
 }
 
 // TODO: cache these
-fn draw_calc_result_row(ui: &mut egui::Ui, label: &str, val: Option<&i64>) {
+fn draw_calc_result_row(ui: &mut egui::Ui, label: &str, val: Option<&i64>, fmt: Format) {
     if let Some(val) = val {
         if *val == 0 {
             return;
         }
         ui.label(egui::RichText::new(format!("{label}:")).color(calc_result_color(label)));
-        ui.label(egui::RichText::new(val_format(label, *val)).color(calc_result_color(label)));
+        ui.label(egui::RichText::new(val_format(label, *val, fmt)).color(calc_result_color(label)));
         ui.end_row();
     }
 }
@@ -85,18 +104,6 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 }
                 ui.end_row();
             });
-            egui::ComboBox::from_id_salt("bandit_choice")
-                .selected_text(state.build.bandit_choice.as_ref())
-                .show_ui(ui, |ui| {
-                    ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
-                    for bandit_choice in BanditChoice::iter() {
-                        if ui.selectable_label(bandit_choice == state.build.bandit_choice, bandit_choice.as_ref()).clicked() {
-                            state.build.bandit_choice = bandit_choice;
-                            state.request_recalc = true;
-                        }
-                    }
-                }
-            );
             egui::ComboBox::from_id_salt("combo_gemlink")
                 .selected_text(selected_text_gemlink(state))
                 .show_ui(ui, |ui| {
@@ -126,26 +133,27 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 }
             );
             egui::Grid::new("grid_active_skill_calc").show(ui, |ui| {
-                draw_calc_result_row(ui, "DPS", state.active_skill_calc.get("DPS"));
-                draw_calc_result_row(ui, "Speed", state.active_skill_calc.get("Speed"));
+                draw_calc_result_row(ui, "DPS", state.active_skill_calc.get("DPS"), Format::Flat);
+                draw_calc_result_row(ui, "Speed", state.active_skill_calc.get("Speed"), Format::Flat);
+                draw_calc_result_row(ui, "Chance to Hit", state.active_skill_calc.get("Chance to Hit"), Format::Percent);
             });
             ui.separator();
             egui::Grid::new("grid_defence_calc").show(ui, |ui| {
-                draw_calc_result_row(ui, "Maximum Life", state.defence_calc.get("Maximum Life"));
-                draw_calc_result_row(ui, "Life Regeneration", state.defence_calc.get("Life Regeneration"));
+                draw_calc_result_row(ui, "Maximum Life", state.defence_calc.get("Maximum Life"), Format::Flat);
+                draw_calc_result_row(ui, "Life Regeneration", state.defence_calc.get("Life Regeneration"), Format::Flat);
                 ui.separator(); ui.end_row();
-                draw_calc_result_row(ui, "Fire Resistance", state.defence_calc.get("Fire Resistance"));
-                draw_calc_result_row(ui, "Cold Resistance", state.defence_calc.get("Cold Resistance"));
-                draw_calc_result_row(ui, "Lightning Resistance", state.defence_calc.get("Lightning Resistance"));
-                draw_calc_result_row(ui, "Chaos Resistance", state.defence_calc.get("Chaos Resistance"));
+                draw_calc_result_row(ui, "Fire Resistance", state.defence_calc.get("Fire Resistance"), Format::PercentOtherStat(*state.defence_calc.get("Maximum Fire Resistance").unwrap()));
+                draw_calc_result_row(ui, "Cold Resistance", state.defence_calc.get("Cold Resistance"), Format::PercentOtherStat(*state.defence_calc.get("Maximum Cold Resistance").unwrap()));
+                draw_calc_result_row(ui, "Lightning Resistance", state.defence_calc.get("Lightning Resistance"), Format::PercentOtherStat(*state.defence_calc.get("Maximum Lightning Resistance").unwrap()));
+                draw_calc_result_row(ui, "Chaos Resistance", state.defence_calc.get("Chaos Resistance"), Format::PercentOtherStat(*state.defence_calc.get("Maximum Chaos Resistance").unwrap()));
                 ui.separator(); ui.end_row();
-                draw_calc_result_row(ui, "Armour", state.defence_calc.get("Armour"));
-                draw_calc_result_row(ui, "Evasion", state.defence_calc.get("Evasion"));
-                draw_calc_result_row(ui, "Energy Shield", state.defence_calc.get("Energy Shield"));
+                draw_calc_result_row(ui, "Armour", state.defence_calc.get("Armour"), Format::Flat);
+                draw_calc_result_row(ui, "Evasion", state.defence_calc.get("Evasion"), Format::Flat);
+                draw_calc_result_row(ui, "Energy Shield", state.defence_calc.get("Energy Shield"), Format::Flat);
                 ui.separator(); ui.end_row();
-                draw_calc_result_row(ui, "Strength", state.defence_calc.get("Strength"));
-                draw_calc_result_row(ui, "Dexterity", state.defence_calc.get("Dexterity"));
-                draw_calc_result_row(ui, "Intelligence", state.defence_calc.get("Intelligence"));
+                draw_calc_result_row(ui, "Strength", state.defence_calc.get("Strength"), Format::Flat);
+                draw_calc_result_row(ui, "Dexterity", state.defence_calc.get("Dexterity"), Format::Flat);
+                draw_calc_result_row(ui, "Intelligence", state.defence_calc.get("Intelligence"), Format::Flat);
             });
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
                 if ui.button("Settings").clicked {

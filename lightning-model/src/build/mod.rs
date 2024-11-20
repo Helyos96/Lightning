@@ -1,6 +1,6 @@
 pub mod property;
 
-use crate::data::TREE;
+use crate::data::{MONSTER_STATS, TREE};
 use crate::gem::{Gem, GemTag};
 use crate::item::{Item, ItemClass};
 use crate::modifier::{Condition, Mod, Mutation, Source, Type};
@@ -11,8 +11,9 @@ use serde_with::serde_as;
 use lazy_static::lazy_static;
 use strum_macros::{AsRefStr, EnumIter};
 
-#[derive(Serialize, Deserialize, Eq, PartialEq, Hash, Clone, Copy, Debug)]
+#[derive(Serialize, Deserialize, Default, Eq, PartialEq, Hash, Clone, Copy, Debug)]
 pub enum Slot {
+    #[default]
     Helm,
     BodyArmour,
     Gloves,
@@ -149,7 +150,7 @@ pub enum StatId {
     ColdDamagePen,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct GemLink {
     //pub active_gems: Vec<Gem>,
     //pub support_gems: Vec<Gem>,
@@ -182,6 +183,14 @@ pub enum BanditChoice {
     Oak,
     #[default]
     KillAll,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, AsRefStr, EnumIter)]
+pub enum CampaignChoice {
+    #[default]
+    Beach,
+    ActFive,
+    ActTen,
 }
 
 lazy_static! {
@@ -233,6 +242,64 @@ lazy_static! {
         ]);
         ret
     };
+
+    pub static ref CAMPAIGN_STATS: FxHashMap<CampaignChoice, Vec<Mod>> = {
+        let mut ret = FxHashMap::default();
+        ret.insert(CampaignChoice::Beach, vec![]);
+        ret.insert(CampaignChoice::ActFive, vec![
+            Mod {
+                stat: StatId::FireResistance,
+                typ: Type::Base,
+                amount: -30,
+                ..Default::default()
+            },
+            Mod {
+                stat: StatId::ColdResistance,
+                typ: Type::Base,
+                amount: -30,
+                ..Default::default()
+            },
+            Mod {
+                stat: StatId::LightningResistance,
+                typ: Type::Base,
+                amount: -30,
+                ..Default::default()
+            },
+            Mod {
+                stat: StatId::ChaosResistance,
+                typ: Type::Base,
+                amount: -30,
+                ..Default::default()
+            },
+        ]);
+        ret.insert(CampaignChoice::ActTen, vec![
+            Mod {
+                stat: StatId::FireResistance,
+                typ: Type::Base,
+                amount: -60,
+                ..Default::default()
+            },
+            Mod {
+                stat: StatId::ColdResistance,
+                typ: Type::Base,
+                amount: -60,
+                ..Default::default()
+            },
+            Mod {
+                stat: StatId::LightningResistance,
+                typ: Type::Base,
+                amount: -60,
+                ..Default::default()
+            },
+            Mod {
+                stat: StatId::ChaosResistance,
+                typ: Type::Base,
+                amount: -60,
+                ..Default::default()
+            },
+        ]);
+        ret
+    };
 }
 
 #[derive(Debug, Clone, Default)]
@@ -258,6 +325,8 @@ pub struct Build {
     pub tree: PassiveTree,
     #[serde(default)]
     pub bandit_choice: BanditChoice,
+    #[serde(default)]
+    pub campaign_choice: CampaignChoice,
     properties_int: FxHashMap<property::Int, i64>,
     properties_bool: FxHashMap<property::Bool, bool>,
 }
@@ -431,6 +500,7 @@ impl Build {
             },
         ];
         mods.extend(BANDIT_STATS.get(&self.bandit_choice).unwrap().clone());
+        mods.extend(CAMPAIGN_STATS.get(&self.campaign_choice).unwrap().clone());
         mods.extend(self.tree.calc_mods());
         for (slot, item) in &self.equipment {
             if let Slot::TreeJewel(node_id) = slot {
@@ -458,6 +528,31 @@ impl Build {
                 }
             }
         }
+        mods
+    }
+
+    pub fn calc_mods_monster(&self, level: i64) -> Vec<Mod> {
+        let default_stats = MONSTER_STATS.get(&level).unwrap();
+        let mods = vec![
+            Mod {
+                stat: StatId::MaximumLife,
+                typ: Type::Base,
+                amount: default_stats.life,
+                ..Default::default()
+            },
+            Mod {
+                stat: StatId::EvasionRating,
+                typ: Type::Base,
+                amount: default_stats.evasion,
+                ..Default::default()
+            },
+            Mod {
+                stat: StatId::Armour,
+                typ: Type::Base,
+                amount: default_stats.armour,
+                ..Default::default()
+            },
+        ];
         mods
     }
 
