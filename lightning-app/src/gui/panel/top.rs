@@ -1,5 +1,5 @@
 use std::{fs, io, ops::RangeInclusive, path::Path};
-use lightning_model::{build::{property, BanditChoice, Build, CampaignChoice, StatId}, data::TREE};
+use lightning_model::{build::{property, stat::StatId, BanditChoice, Build, CampaignChoice}, data::TREE};
 use strum::IntoEnumIterator;
 use crate::gui::{State, UiState};
 

@@ -1,4 +1,4 @@
-use crate::build::StatId;
+use crate::build::stat::StatId;
 use crate::data::gem::GemData;
 use crate::data::GEMS;
 use crate::gemstats::GEMSTATS;

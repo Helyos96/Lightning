@@ -1,4 +1,5 @@
-use crate::build::{calc_stat, Slot, Stat, StatId};
+use crate::build::stat::{calc_stat, Stat, StatId};
+use crate::build::Slot;
 use crate::data::base_item::{BaseItem, Rarity};
 use crate::data::ITEMS;
 use crate::modifier::{self, parse_mod, Mod, Source, Type};

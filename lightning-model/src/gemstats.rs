@@ -1,4 +1,4 @@
-use crate::build::StatId;
+use crate::build::stat::StatId;
 use crate::data::gem::GemTag;
 use crate::modifier::{Mod, Type};
 use lazy_static::lazy_static;

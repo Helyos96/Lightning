@@ -1,4 +1,5 @@
-use crate::build::{self, calc_stat, property, Build, Slot, Stat, StatId};
+use crate::build::stat::StatId;
+use crate::build::{self, property, Build, Slot};
 use crate::data::gem::GemTag;
 use crate::gem::Gem;
 use crate::modifier::{Mod, Source, Type};

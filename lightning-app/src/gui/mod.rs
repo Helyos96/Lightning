@@ -5,7 +5,8 @@ pub mod panel;
 
 use crate::config::Config;
 use egui_glow::egui_winit::winit::event::Modifiers;
-use lightning_model::build::{Build, Stats};
+use lightning_model::build::stat::Stats;
+use lightning_model::build::Build;
 use lightning_model::data::tree::Node;
 use lightning_model::data::GEMS;
 use lightning_model::gem::Gem;
