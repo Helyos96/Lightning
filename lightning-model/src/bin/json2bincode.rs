@@ -1,7 +1,7 @@
-use lightning_model::default_monster_stats::MonsterStats;
-use lightning_model::gem::GemData;
-use lightning_model::item::BaseItem;
-use lightning_model::tree::TreeData;
+use lightning_model::data::base_item::BaseItem;
+use lightning_model::data::default_monster_stats::MonsterStats;
+use lightning_model::data::gem::GemData;
+use lightning_model::data::tree::TreeData;
 use rustc_hash::FxHashMap;
 use std::fs;
 use std::io;
