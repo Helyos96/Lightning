@@ -1,10 +1,12 @@
 pub mod property;
 
+use crate::data::base_item::ItemClass;
+use crate::data::gem::GemTag;
 use crate::data::{MONSTER_STATS, TREE};
-use crate::gem::{Gem, GemTag};
-use crate::item::{Item, ItemClass};
+use crate::gem::Gem;
+use crate::item::Item;
 use crate::modifier::{Condition, Mod, Mutation, Source, Type};
-use crate::tree::{Class, PassiveTree, TreeData};
+use crate::tree::PassiveTree;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
@@ -148,6 +150,8 @@ pub enum StatId {
     LightningDamagePen,
     ChaosDamagePen,
     ColdDamagePen,
+    ChanceToHit,
+    ChanceToEvade,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize)]

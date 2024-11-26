@@ -1,7 +1,6 @@
 use super::draw_data::{get_rect, node_pos};
 use lazy_static::lazy_static;
-use lightning_model::data::TREE;
-use lightning_model::tree::{Node, NodeType};
+use lightning_model::data::{tree::{Node, NodeType}, TREE};
 use quadtree_f32::{Item, ItemId, QuadTree};
 
 lazy_static! {

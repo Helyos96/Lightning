@@ -41,6 +41,7 @@
 * Spectres
 * Trigger
 * Warcries / Exert
+* Auras / Global mods
 * Defences
 	* ~~Armour~~
 		* PDR

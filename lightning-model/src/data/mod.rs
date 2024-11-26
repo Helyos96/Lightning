@@ -1,10 +1,14 @@
-use crate::default_monster_stats::MonsterStats;
-use crate::gem::GemData;
-use crate::item::BaseItem;
-use crate::tree::Node;
-use crate::tree::TreeData;
+pub mod base_item;
+pub mod default_monster_stats;
+pub mod gem;
+pub mod tree;
+
+use base_item::BaseItem;
+use default_monster_stats::MonsterStats;
+use gem::GemData;
 use lazy_static::lazy_static;
 use rustc_hash::FxHashMap;
+use tree::TreeData;
 use std::error::Error;
 use std::fs;
 use std::io;
@@ -140,11 +144,11 @@ pub enum ActiveSkillTypes {
 
 lazy_static! {
     pub static ref GEMS: FxHashMap<String, GemData> =
-        bincode::deserialize(include_bytes!("../data/gems.bc")).expect("Failed to deserialize GEMS");
+        bincode::deserialize(include_bytes!("../../data/gems.bc")).expect("Failed to deserialize GEMS");
     pub static ref ITEMS: FxHashMap<String, BaseItem> =
-        bincode::deserialize(include_bytes!("../data/base_items.bc")).expect("Failed to deserialize base items");
+        bincode::deserialize(include_bytes!("../../data/base_items.bc")).expect("Failed to deserialize base items");
     pub static ref TREE: TreeData =
-        bincode::deserialize(include_bytes!("../data/tree.bc")).expect("Failed to deserialize tree");
+        bincode::deserialize(include_bytes!("../../data/tree.bc")).expect("Failed to deserialize tree");
     pub static ref MONSTER_STATS: FxHashMap<i64, MonsterStats> =
-        bincode::deserialize(include_bytes!("../data/default_monster_stats.bc")).expect("Failed to deserialize default monster stats");
+        bincode::deserialize(include_bytes!("../../data/default_monster_stats.bc")).expect("Failed to deserialize default monster stats");
 }

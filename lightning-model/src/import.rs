@@ -3,10 +3,11 @@
 /// Import build data from pathofexile.com
 
 use crate::build::{self, Build, GemLink, Slot};
+use crate::data::base_item::Rarity;
+use crate::data::tree::{Ascendancy, Class};
 use crate::data::GEMS;
 use crate::gem;
 use crate::item;
-use crate::tree::{Ascendancy, Class};
 use serde::Deserialize;
 use rustc_hash::FxHashMap;
 use std::error::Error;
@@ -31,7 +32,7 @@ struct Item {
     baseType: String,
     name: String,
     #[serde(default)]
-    rarity: item::Rarity,
+    rarity: Rarity,
     #[serde(default)]
     implicitMods: Vec<String>,
     #[serde(default)]

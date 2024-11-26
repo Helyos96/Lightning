@@ -5,8 +5,8 @@ use draw_data::*;
 use glow::HasContext;
 use image::{ImageReader, RgbaImage};
 use lightning_model::build::Build;
+use lightning_model::data::tree::Node;
 use lightning_model::data::TREE;
-use lightning_model::tree::Node;
 use rustc_hash::FxHashMap;
 
 fn load_texture(img: &RgbaImage, gl: &glow::Context) -> glow::Texture {

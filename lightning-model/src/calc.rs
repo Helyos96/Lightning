@@ -1,5 +1,6 @@
 use crate::build::{self, calc_stat, property, Build, Slot, Stat, StatId};
-use crate::gem::{Gem, GemTag};
+use crate::data::gem::GemTag;
+use crate::gem::Gem;
 use crate::modifier::{Mod, Source, Type};
 use rustc_hash::FxHashMap;
 
@@ -126,11 +127,15 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
     let mut total_damage: i64 = damage.iter().sum();
 
     if tags.contains(&GemTag::Attack) {
+        // TODO: per-weapon accuracy
+        let mut chance_to_hit_stat = stats.stat(StatId::ChanceToHit);
         let accuracy = stats.stat(StatId::AccuracyRating).val() as f32;
         let monster_evasion = monster_stats.stat(StatId::EvasionRating).val() as f32;
-        let chance_to_hit_f = ((1.25 * accuracy) / (accuracy + (monster_evasion * 0.2).powf(0.9))).min(1.0);
-        total_damage = (total_damage as f32 * chance_to_hit_f) as i64;
-        ret.insert("Chance to Hit", (chance_to_hit_f * 100.0) as i64);
+        let chance_to_hit_accuracy = ((((1.25 * accuracy) / (accuracy + (monster_evasion * 0.2).powf(0.9))) * 100.0) as i64).clamp(0, 100);
+        chance_to_hit_stat.adjust_mod(&Mod { amount: chance_to_hit_accuracy, typ: Type::Base, ..Default::default()});
+        let chance_to_hit = chance_to_hit_stat.val();
+        total_damage = (total_damage * chance_to_hit) / 100;
+        ret.insert("Chance to Hit", chance_to_hit);
     }
 
     if time != 0 {

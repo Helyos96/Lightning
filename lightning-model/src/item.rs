@@ -1,88 +1,10 @@
 use crate::build::{calc_stat, Slot, Stat, StatId};
+use crate::data::base_item::{BaseItem, Rarity};
 use crate::data::ITEMS;
 use crate::modifier::{self, parse_mod, Mod, Source, Type};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use lazy_static::lazy_static;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ItemClass {
-    Unarmed,
-    Ring,
-    Amulet,
-    Claw,
-    Dagger,
-    Wand,
-    Bow,
-    Staff,
-    Warstaff,
-    Shield,
-    Sceptre,
-    FishingRod,
-    Quiver,
-    Boots,
-    Belt,
-    Helmet,
-    Gloves,
-    LifeFlask,
-    ManaFlask,
-    HybridFlask,
-    UtilityFlask,
-    AbyssJewel,
-    Jewel,
-    #[serde(rename = "Body Armour")]
-    BodyArmour,
-    #[serde(rename = "Rune Dagger")]
-    RuneDagger,
-    #[serde(rename = "One Hand Sword")]
-    OneHandSword,
-    #[serde(rename = "Thrusting One Hand Sword")]
-    ThrustingOneHandSword,
-    #[serde(rename = "One Hand Axe")]
-    OneHandAxe,
-    #[serde(rename = "One Hand Mace")]
-    OneHandMace,
-    #[serde(rename = "Two Hand Sword")]
-    TwoHandSword,
-    #[serde(rename = "Two Hand Axe")]
-    TwoHandAxe,
-    #[serde(rename = "Two Hand Mace")]
-    TwoHandMace,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct PropertyMinMax {
-    min: u32,
-    max: u32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Properties {
-    armour: Option<PropertyMinMax>,
-    physical_damage_max: Option<i64>,
-    physical_damage_min: Option<i64>,
-    attack_time: Option<i64>,
-    evasion: Option<PropertyMinMax>,
-    energy_shield: Option<PropertyMinMax>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BaseItem {
-    name: String,
-    tags: FxHashSet<String>,
-    implicits: Vec<String>,
-    pub item_class: ItemClass,
-    properties: Properties,
-}
-
-#[derive(Debug, Default, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
-pub enum Rarity {
-    #[default]
-    Normal,
-    Magic,
-    Rare,
-    Unique,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Item {

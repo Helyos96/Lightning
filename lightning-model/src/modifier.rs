@@ -1,16 +1,9 @@
 use crate::build::{property, Slot, StatId};
-/// 2 ways to parse a mod:
-///
-/// 1. "Automatic": make sure all parts of your mod are declared
-///    in TAGS, STATS, BEGINNINGS and ENDINGS.
-/// 2. (todo) "Exotic": one-shot parsing of the entire mod
-///    through ONESHOTS.
-///
-/// All strings need to be lowercase.
-
-use crate::gem::{Gem, GemTag};
+use crate::data::base_item::ItemClass;
+use crate::data::gem::GemTag;
+use crate::gem::Gem;
 use crate::data::ActiveSkillTypes;
-use crate::item::{self, Item, ItemClass};
+use crate::item::{self, Item};
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -318,6 +311,16 @@ lazy_static! {
                     ..Default::default()
                 }])
             })
+        ), (
+            regex!(r"^your hits can't be evaded$"),
+            Box::new(|_| {
+                Some(vec![Mod {
+                    stat: StatId::ChanceToHit,
+                    typ: Type::Override,
+                    amount: 100,
+                    ..Default::default()
+                }])
+            })
         ),
     ];
 
@@ -482,7 +485,7 @@ pub struct Mod {
     pub conditions: Vec<Condition>,
     pub tags: FxHashSet<GemTag>,
     pub source: Source,
-    pub weapons: FxHashSet<ItemClass>
+    pub weapons: FxHashSet<ItemClass>,
 }
 
 impl Mod {
@@ -630,7 +633,7 @@ fn test_parse() {
 
 #[test]
 fn count_tree_parses() {
-    use crate::tree::NodeType;
+    use crate::data::tree::NodeType;
 
     let mut nb_mods = 0;
     let mut nb_mods_success = 0;

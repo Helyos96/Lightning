@@ -1,6 +1,5 @@
 use crate::build::StatId;
-//use crate::gem::Tag;
-use crate::gem::GemTag;
+use crate::data::gem::GemTag;
 use crate::modifier::{Mod, Type};
 use lazy_static::lazy_static;
 use std::collections::HashMap;

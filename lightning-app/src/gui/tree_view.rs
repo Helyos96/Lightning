@@ -1,7 +1,7 @@
 use super::State;
-use lightning_model::item::Rarity;
+use lightning_model::data::base_item::Rarity;
+use lightning_model::data::tree::NodeType;
 use lightning_model::modifier::Source;
-use lightning_model::tree::NodeType;
 use lightning_model::build::Slot;
 
 fn rarity_to_color(rarity: Rarity) -> egui::Color32 {
@@ -111,7 +111,9 @@ fn draw_hover_window(ctx: &egui::Context, state: &mut State) {
                     ui.separator();
                     ui.spacing_mut().item_spacing = item_spacing;
                     for stat in &node.stats {
-                        ui.label(mod_to_richtext(stat, Source::Node(node.skill), state.config.show_debug));
+                        for mod_str in stat.split('\n') {
+                            ui.label(mod_to_richtext(mod_str, Source::Node(node.skill), state.config.show_debug));
+                        }
                     }
                 }
             }

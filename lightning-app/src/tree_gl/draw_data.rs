@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use lightning_model::build::{Build, Slot};
+use lightning_model::data::tree::{Ascendancy, Class, Node, NodeType, Rect, Sprite};
 use lightning_model::data::TREE;
-use lightning_model::tree::{self, Ascendancy, Class, Node, NodeType, Rect, Sprite};
 use std::collections::HashMap;
 use std::ops::Neg;
 
@@ -49,7 +49,7 @@ fn norm_tex(x: f32, y: f32, w: u16, h: u16) -> (f32, f32) {
     (x / w as f32, y / h as f32)
 }
 
-pub fn get_rect(node: &Node, active: bool) -> Option<(&'static tree::Rect, &'static tree::Sprite)> {
+pub fn get_rect(node: &Node, active: bool) -> Option<(&'static Rect, &'static Sprite)> {
     let (key, icon): (&str, &str) = match node.node_type() {
         NodeType::Normal | NodeType::AscendancyNormal | NodeType::JewelSocket => ("normalInactive", &node.icon),
         NodeType::Notable | NodeType::AscendancyNotable => ("notableInactive", &node.icon),
@@ -75,7 +75,7 @@ pub struct DrawData {
 }
 
 impl DrawData {
-    pub fn append(&mut self, x: f32, y: f32, rect: &tree::Rect, sprite: &tree::Sprite, vflip: bool, scale: f32) {
+    pub fn append(&mut self, x: f32, y: f32, rect: &Rect, sprite: &Sprite, vflip: bool, scale: f32) {
         self.vertices.extend([
             norm(x - (rect.w as f32 * scale) / 2.0, y - (rect.h as f32 * scale) / 2.0), // Bottom Left
             norm(x - (rect.w as f32 * scale) / 2.0, y + (rect.h as f32 * scale) / 2.0), // Top Left
