@@ -51,6 +51,7 @@ pub struct Level {
     stat_requirements: Option<StatRequirements>,
     pub stats: Option<Vec<Option<LevelStat>>>,
     pub damage_effectiveness: Option<i64>,
+    pub damage_multiplier: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -80,7 +81,8 @@ pub struct QualityStat {
 pub struct Static {
     pub crit_chance: Option<i32>,
     pub cooldown: Option<i32>,
-    pub damage_effectiveness: Option<i32>,
+    pub damage_effectiveness: Option<i64>,
+    pub damage_multiplier: Option<i64>,
     pub attack_speed_multiplier: Option<i32>,
     pub stats: Option<Vec<Option<GemStat>>>,
     pub quality_stats: Vec<QualityStat>,

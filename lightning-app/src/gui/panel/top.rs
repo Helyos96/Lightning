@@ -1,5 +1,5 @@
 use std::{fs, io, ops::RangeInclusive, path::Path};
-use lightning_model::{build::{property, stat::StatId, BanditChoice, Build, CampaignChoice}, data::TREE};
+use lightning_model::{build::{property, BanditChoice, Build, CampaignChoice}, data::TREE};
 use strum::IntoEnumIterator;
 use crate::gui::{State, UiState};
 
@@ -89,7 +89,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 );
 
                 // Could optimize: don't recalc passives_count() every frame
-                ui.label(format!("Passives: {}/{}", state.build.tree.passives_count(), state.stats.as_ref().unwrap().stat(StatId::PassiveSkillPoints).val()));
+                ui.label(format!("Passives: {}/{}", state.passives_count, state.passives_max));
 
                 if state.config.show_debug {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {

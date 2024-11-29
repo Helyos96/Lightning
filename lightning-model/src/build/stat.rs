@@ -1,5 +1,6 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use crate::{data::{base_item::ItemClass, gem::GemTag}, modifier::{Mod, Type}};
+use lazy_static::lazy_static;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum StatId {
@@ -96,9 +97,21 @@ pub struct Stats {
     pub stats: FxHashMap<StatId, Stat>,
 }
 
+lazy_static! {
+    static ref DEFAULT_STAT: Stat = Stat::default();
+}
+
 impl Stats {
-    pub fn stat(&self, s: StatId) -> Stat {
-        self.stats.get(&s).cloned().unwrap_or_default()
+    pub fn stat(&self, s: StatId) -> &Stat {
+        self.stats.get(&s).unwrap_or(&DEFAULT_STAT)
+    }
+
+    pub fn val(&self, s: StatId) -> i64 {
+        if let Some(stat) = self.stats.get(&s) {
+            stat.val()
+        } else {
+            0
+        }
     }
 }
 
@@ -112,14 +125,11 @@ pub struct Stat {
 }
 
 /// Computes a stat from a mod list
-/// WARNING: doesn't take into account mutations or conditions
-pub fn calc_stat(stat_id: StatId, mods: &[Mod], tags: &FxHashSet<GemTag>) -> Stat {
+/// WARNING: doesn't take into account mutations, conditions or tags
+pub fn calc_stat(stat_id: StatId, mods: &[Mod]) -> Stat {
     let mut stat = Stat::default();
 
-    for m in mods
-        .iter()
-        .filter(|m| m.stat == stat_id && tags.is_superset(&m.tags))
-    {
+    for m in mods.iter().filter(|m| m.stat == stat_id) {
         stat.adjust(m.typ, m.amount, m);
     }
 

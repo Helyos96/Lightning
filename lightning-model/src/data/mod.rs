@@ -142,6 +142,15 @@ pub enum ActiveSkillTypes {
     NeverExertable,
 }
 
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+pub enum DamageType {
+    Physical,
+    Cold,
+    Fire,
+    Lightning,
+    Chaos,
+}
+
 lazy_static! {
     pub static ref GEMS: FxHashMap<String, GemData> =
         bincode::deserialize(include_bytes!("../../data/gems.bc")).expect("Failed to deserialize GEMS");

@@ -5,7 +5,6 @@ pub mod panel;
 
 use crate::config::Config;
 use egui_glow::egui_winit::winit::event::Modifiers;
-use lightning_model::build::stat::Stats;
 use lightning_model::build::Build;
 use lightning_model::data::tree::Node;
 use lightning_model::data::GEMS;
@@ -52,7 +51,8 @@ pub struct State {
     pub active_skill_calc: FxHashMap<&'static str, i64>,
     pub defence_calc: FxHashMap<&'static str, i64>,
     pub delta_compare: FxHashMap<&'static str, i64>,
-    pub stats: Option<Stats>,
+    pub passives_count: usize,
+    pub passives_max: i64,
     pub hovered_node: Option<&'static Node>,
     pub path_hovered: Option<Vec<u16>>,
     pub path_red: Option<Vec<u16>>,
@@ -101,7 +101,8 @@ impl State {
             active_skill_calc: FxHashMap::default(),
             defence_calc: FxHashMap::default(),
             delta_compare: FxHashMap::default(),
-            stats: None,
+            passives_count: 0,
+            passives_max: 0,
             hovered_node: None,
             path_hovered: None,
             path_red: None,
@@ -159,7 +160,9 @@ impl State {
 
     pub fn recalc(&mut self) {
         let mods = self.build.calc_mods(true);
-        self.stats = Some(self.build.calc_stats(&mods, &hset![]));
+        let stats = self.build.calc_stats(&mods, &hset![]);
+        self.passives_count = self.build.tree.passives_count();
+        self.passives_max = stats.val(lightning_model::build::stat::StatId::PassiveSkillPoints);
         self.defence_calc = calc::calc_defence(&self.build);
         self.active_skill_calc.clear();
         if let Some(gem_link) = self.build.gem_links.get(self.gemlink_cur) {

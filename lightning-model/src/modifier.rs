@@ -116,6 +116,7 @@ lazy_static! {
                         typ: Type::Inc,
                         amount,
                         tags: s.1.clone(),
+                        global: s.2,
                         ..Default::default()
                     };
                     if insert_minion_tag {
@@ -142,6 +143,7 @@ lazy_static! {
                         typ: Type::Inc,
                         amount,
                         tags: s.1.clone(),
+                        global: s.2,
                         ..Default::default()
                     };
                     if insert_minion_tag {
@@ -155,6 +157,7 @@ lazy_static! {
                         typ: Type::Inc,
                         amount,
                         tags: s.1.clone(),
+                        global: s.2,
                         ..Default::default()
                     };
                     if insert_minion_tag {
@@ -176,6 +179,7 @@ lazy_static! {
                         typ: Type::Base,
                         amount,
                         tags: s.1.clone(),
+                        global: s.2,
                         ..Default::default()
                     };
                     if insert_minion_tag {
@@ -194,6 +198,7 @@ lazy_static! {
                         typ: Type::More,
                         amount: i64::from_str(&c[1]).unwrap(),
                         tags: s.1.clone(),
+                        global: s.2,
                         ..Default::default()
                     }
                 }).collect())
@@ -208,6 +213,7 @@ lazy_static! {
                         typ: Type::More,
                         amount: i64::from_str(&c[1]).unwrap().neg(),
                         tags: s.1.clone(),
+                        global: s.2,
                         ..Default::default()
                     }
                 }).collect())
@@ -222,12 +228,14 @@ lazy_static! {
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
                     tags: stat_tags_1.1,
+                    global: stat_tags_1.2,
                     ..Default::default()
                 }, Mod {
                     stat: stat_tags_2.0,
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
                     tags: stat_tags_2.1,
+                    global: stat_tags_2.2,
                     ..Default::default()
                 }])
             })
@@ -309,6 +317,7 @@ lazy_static! {
                     stat: stat_tags_1.0,
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
+                    global: stat_tags_1.2,
                     ..Default::default()
                 }])
             })
@@ -482,11 +491,12 @@ pub struct Mod {
     pub stat: StatId,
     pub typ: Type,
     pub amount: i64,
-    pub flags: Vec<Mutation>,
+    pub mutations: Vec<Mutation>,
     pub conditions: Vec<Condition>,
     pub tags: FxHashSet<GemTag>,
     pub source: Source,
     pub weapons: FxHashSet<ItemClass>,
+    pub global: bool,
 }
 
 impl Mod {
@@ -520,8 +530,9 @@ fn parse_ending(m: &str) -> Option<(usize, Ending)> {
     None
 }
 
-fn parse_stat_nomulti(input: &str) -> Option<(StatId, FxHashSet<GemTag>)> {
+fn parse_stat_nomulti(input: &str) -> Option<(StatId, FxHashSet<GemTag>, bool)> {
     let mut tags = hset![];
+    let mut global = false;
 
     let stat = STATS.iter().find(|s| {
         if input.ends_with(s.0) {
@@ -535,18 +546,20 @@ fn parse_stat_nomulti(input: &str) -> Option<(StatId, FxHashSet<GemTag>)> {
     for chunk in remainder.split_terminator(' ') {
         if let Some(t) = TAGS.get(chunk) {
             tags.insert(*t);
+        } else if chunk == "global" {
+            global = true;
         } else {
             return None;
         }
     }
 
-    Some((stat.1, tags))
+    Some((stat.1, tags, global))
 }
 
 /// Attempts to parse a chunk like "melee physical damage"
-fn parse_stat(input: &str) -> Option<Vec<(StatId, FxHashSet<GemTag>)>> {
+fn parse_stat(input: &str) -> Option<Vec<(StatId, FxHashSet<GemTag>, bool)>> {
     if let Some(stats) = MULTISTATS.get(input) {
-        return Some(stats.iter().map(|id| (*id, hset![])).collect());
+        return Some(stats.iter().map(|id| (*id, hset![], false)).collect());
     }
 
     if let Some(stat) = parse_stat_nomulti(input) {
@@ -602,7 +615,7 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
             if let Some(mut mods) = begin.1(&cap) {
                 for modifier in &mut mods {
                     modifier.tags.extend(tags.clone());
-                    modifier.flags.extend(flags.clone());
+                    modifier.mutations.extend(flags.clone());
                     modifier.weapons.extend(weapons.clone());
                     modifier.conditions.extend(conditions.clone());
                     modifier.source = source;

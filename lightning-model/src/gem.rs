@@ -95,8 +95,21 @@ impl Gem {
         None
     }
 
-    pub fn damage_effectiveness(&self) -> Option<i64> {
-        let level_data = self.data().per_level.get(&self.level)?;
-        level_data.damage_effectiveness
+    pub fn added_effectiveness(&self) -> Option<i64> {
+        if let Some(level_data) = self.data().per_level.get(&self.level) {
+            if level_data.damage_effectiveness.is_some() {
+                return level_data.damage_effectiveness;
+            }
+        }
+        self.data().r#static.damage_effectiveness
+    }
+
+    pub fn damage_multiplier(&self) -> Option<i64> {
+        if let Some(level_data) = self.data().per_level.get(&self.level) {
+            if level_data.damage_multiplier.is_some() {
+                return level_data.damage_multiplier;
+            }
+        }
+        self.data().r#static.damage_multiplier
     }
 }

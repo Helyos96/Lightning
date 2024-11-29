@@ -249,7 +249,7 @@ impl Build {
                 stat: StatId::MaximumLife,
                 typ: Type::Base,
                 amount: 12,
-                flags: vec![Mutation::MultiplierProperty((1, property::Int::Level))],
+                mutations: vec![Mutation::MultiplierProperty((1, property::Int::Level))],
                 ..Default::default()
             },
             Mod {
@@ -262,7 +262,7 @@ impl Build {
                 stat: StatId::MaximumLife,
                 typ: Type::Base,
                 amount: 1,
-                flags: vec![Mutation::MultiplierStat((2, StatId::Strength))],
+                mutations: vec![Mutation::MultiplierStat((2, StatId::Strength))],
                 ..Default::default()
             },
             Mod {
@@ -305,7 +305,7 @@ impl Build {
                 stat: StatId::Damage,
                 typ: Type::More,
                 amount: 1,
-                flags: vec![
+                mutations: vec![
                     Mutation::MultiplierProperty((1, property::Int::Rage)),
                 ],
                 tags: hset![GemTag::Attack],
@@ -315,7 +315,7 @@ impl Build {
                 stat: StatId::PassiveSkillPoints,
                 typ: Type::Base,
                 amount: 1,
-                flags: vec![
+                mutations: vec![
                     Mutation::MultiplierProperty((1, property::Int::Level)),
                 ],
                 ..Default::default()
@@ -330,7 +330,7 @@ impl Build {
                 stat: StatId::PhysicalDamage,
                 typ: Type::Inc,
                 amount: 1,
-                flags: vec![Mutation::MultiplierStat((5, StatId::Strength))],
+                mutations: vec![Mutation::MultiplierStat((5, StatId::Strength))],
                 tags: hset![GemTag::Melee],
                 ..Default::default()
             },
@@ -338,7 +338,7 @@ impl Build {
                 stat: StatId::Damage,
                 typ: Type::More,
                 amount: 4,
-                flags: vec![
+                mutations: vec![
                     Mutation::MultiplierProperty((1, property::Int::FrenzyCharges)),
                 ],
                 ..Default::default()
@@ -347,7 +347,7 @@ impl Build {
                 stat: StatId::AttackSpeed,
                 typ: Type::Inc,
                 amount: 4,
-                flags: vec![
+                mutations: vec![
                     Mutation::MultiplierProperty((1, property::Int::FrenzyCharges)),
                 ],
                 ..Default::default()
@@ -356,7 +356,7 @@ impl Build {
                 stat: StatId::CastSpeed,
                 typ: Type::Inc,
                 amount: 4,
-                flags: vec![
+                mutations: vec![
                     Mutation::MultiplierProperty((1, property::Int::FrenzyCharges)),
                 ],
                 ..Default::default()
@@ -365,7 +365,7 @@ impl Build {
                 stat: StatId::CriticalStrikeChance,
                 typ: Type::Inc,
                 amount: 50,
-                flags: vec![
+                mutations: vec![
                     Mutation::MultiplierProperty((1, property::Int::PowerCharges)),
                 ],
                 ..Default::default()
@@ -398,7 +398,13 @@ impl Build {
                 stat: StatId::AccuracyRating,
                 typ: Type::Base,
                 amount: 2,
-                flags: vec![Mutation::MultiplierStat((1, StatId::Dexterity))],
+                mutations: vec![Mutation::MultiplierStat((1, StatId::Dexterity))],
+                ..Default::default()
+            },
+            Mod {
+                stat: StatId::CriticalStrikeMultiplier,
+                typ: Type::Base,
+                amount: 150,
                 ..Default::default()
             },
         ];
@@ -565,7 +571,7 @@ impl Build {
 
     fn apply_mutations(&self, stats: &FxHashMap<StatId, Stat>, m: &Mod) -> i64 {
         let mut amount = m.amount;
-        for f in &m.flags {
+        for f in &m.mutations {
             match f {
                 Mutation::MultiplierProperty(mutation) => {
                     amount = (amount * self.property_int_stats(mutation.1, stats)) / mutation.0;
@@ -597,7 +603,7 @@ impl Build {
                 mods_third_pass.push(m);
                 continue;
             }
-            if !m.flags.is_empty() {
+            if !m.mutations.is_empty() {
                 mods_sec_pass.push(m);
                 continue;
             }

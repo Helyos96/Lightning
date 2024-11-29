@@ -50,6 +50,7 @@ fn calc_result_color(label: &str) -> egui::Color32 {
 enum Format {
     Flat,
     Percent,
+    Percent100,
     PercentOtherStat(i64),
 }
 
@@ -63,6 +64,9 @@ fn val_format(label: &str, val: i64, fmt: Format) -> String {
         }
         Format::Percent => {
             format!("{}%", val)
+        }
+        Format::Percent100 => {
+            format!("{}%", (val as f32 / 100.0))
         }
         Format::PercentOtherStat(val_2) => {
             if val > val_2 {
@@ -135,7 +139,11 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
             egui::Grid::new("grid_active_skill_calc").show(ui, |ui| {
                 draw_calc_result_row(ui, "DPS", state.active_skill_calc.get("DPS"), Format::Flat);
                 draw_calc_result_row(ui, "Speed", state.active_skill_calc.get("Speed"), Format::Flat);
-                draw_calc_result_row(ui, "Chance to Hit", state.active_skill_calc.get("Chance to Hit"), Format::Percent);
+                draw_calc_result_row(ui, "Chance to Hit (MH)", state.active_skill_calc.get("Chance to Hit (MH)"), Format::Percent);
+                draw_calc_result_row(ui, "Chance to Hit (OH)", state.active_skill_calc.get("Chance to Hit (OH)"), Format::Percent);
+                draw_calc_result_row(ui, "Crit Chance (MH)", state.active_skill_calc.get("Crit Chance (MH)"), Format::Percent100);
+                draw_calc_result_row(ui, "Crit Chance (OH)", state.active_skill_calc.get("Crit Chance (OH)"), Format::Percent100);
+                draw_calc_result_row(ui, "Crit Multi", state.active_skill_calc.get("Crit Multi"), Format::Percent);
             });
             ui.separator();
             egui::Grid::new("grid_defence_calc").show(ui, |ui| {

@@ -1,7 +1,7 @@
 use crate::build::stat::{calc_stat, Stat, StatId};
 use crate::build::Slot;
 use crate::data::base_item::{BaseItem, Rarity};
-use crate::data::ITEMS;
+use crate::data::{DamageType, ITEMS};
 use crate::modifier::{self, parse_mod, Mod, Source, Type};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -38,6 +38,9 @@ lazy_static! {
         LocalModMatch { stat: StatId::MaxPhysicalDamage, typ: modifier::Type::Base },
         LocalModMatch { stat: StatId::PhysicalDamage, typ: modifier::Type::Inc },
         LocalModMatch { stat: StatId::AttackSpeed, typ: modifier::Type::Inc },
+        LocalModMatch { stat: StatId::AccuracyRating, typ: modifier::Type::Base },
+        LocalModMatch { stat: StatId::AccuracyRating, typ: modifier::Type::Override },
+        LocalModMatch { stat: StatId::CriticalStrikeChance, typ: modifier::Type::Inc },
     ];
     static ref LOCAL_MODS_ARMOUR: Vec<LocalModMatch> = vec![
         LocalModMatch { stat: StatId::EvasionRating, typ: modifier::Type::Base },
@@ -45,12 +48,13 @@ lazy_static! {
         LocalModMatch { stat: StatId::Armour, typ: modifier::Type::Base },
         LocalModMatch { stat: StatId::Armour, typ: modifier::Type::Inc },
         LocalModMatch { stat: StatId::EnergyShield, typ: modifier::Type::Base },
+        // TODO: corrupted implicits max ES are global
         LocalModMatch { stat: StatId::EnergyShield, typ: modifier::Type::Inc },
     ];
 }
 
 fn match_local(m: &Mod, match_table: &[LocalModMatch]) -> bool {
-    if !m.conditions.is_empty() || !m.flags.is_empty() {
+    if !m.conditions.is_empty() || !m.mutations.is_empty() || m.global {
         return false;
     }
     for local_mod_match in match_table {
@@ -74,7 +78,7 @@ impl Item {
     }
 
     /// Compute the damage range for a specific damage type dt
-    pub fn calc_dmg(&self, dt: &str) -> Option<(i64, i64)> {
+    pub fn calc_dmg(&self, dt: DamageType) -> Option<(i64, i64)> {
         let base_item = self.data();
 
         if !base_item.tags.contains("weapon") {
@@ -83,19 +87,24 @@ impl Item {
 
         let mods = self.calc_local_mods();
 
-        if dt == "physical" {
-            if let Some(min) = base_item.properties.physical_damage_min {
-                if let Some(max) = base_item.properties.physical_damage_max {
-                    let mut min_stat = calc_stat(StatId::MinPhysicalDamage, &mods, &hset!());
-                    let mut max_stat = calc_stat(StatId::MaxPhysicalDamage, &mods, &hset!());
-                    let mut dmg = calc_stat(StatId::PhysicalDamage, &mods, &hset!());
-                    min_stat.adjust(Type::Base, min, &Mod { ..Default::default() });
-                    max_stat.adjust(Type::Base, max, &Mod { ..Default::default() });
-                    dmg.adjust(Type::More, self.quality, &Mod { ..Default::default() });
-                    min_stat.assimilate(&dmg);
-                    max_stat.assimilate(&dmg);
-                    return Some((min_stat.val(), max_stat.val()));
+        match dt {
+            DamageType::Physical => {
+                if let Some(min) = base_item.properties.physical_damage_min {
+                    if let Some(max) = base_item.properties.physical_damage_max {
+                        let mut min_stat = calc_stat(StatId::MinPhysicalDamage, &mods);
+                        let mut max_stat = calc_stat(StatId::MaxPhysicalDamage, &mods);
+                        let mut dmg = calc_stat(StatId::PhysicalDamage, &mods);
+                        min_stat.adjust(Type::Base, min, &Mod { ..Default::default() });
+                        max_stat.adjust(Type::Base, max, &Mod { ..Default::default() });
+                        dmg.adjust(Type::More, self.quality, &Mod { ..Default::default() });
+                        min_stat.assimilate(&dmg);
+                        max_stat.assimilate(&dmg);
+                        return Some((min_stat.val(), max_stat.val()));
+                    }
                 }
+            },
+            _ => {
+                return None;
             }
         }
 
@@ -120,9 +129,9 @@ impl Item {
         if let Some(evasion) = base_item.properties.evasion {
             ret.evasion.adjust_mod(&Mod { typ: Type::Base, amount: ((evasion.min + evasion.max) / 2) as i64, ..Default::default() });
         }
-        ret.armour.assimilate(&calc_stat(StatId::Armour, &mods, &hset!()));
-        ret.energy_shield.assimilate(&calc_stat(StatId::MaximumEnergyShield, &mods, &hset!()));
-        ret.evasion.assimilate(&calc_stat(StatId::EvasionRating, &mods, &hset!()));
+        ret.armour.assimilate(&calc_stat(StatId::Armour, &mods));
+        ret.energy_shield.assimilate(&calc_stat(StatId::MaximumEnergyShield, &mods));
+        ret.evasion.assimilate(&calc_stat(StatId::EvasionRating, &mods));
         ret.armour.adjust_mod(&Mod { typ: Type::More, amount: self.quality, ..Default::default()});
         ret.energy_shield.adjust_mod(&Mod { typ: Type::More, amount: self.quality, ..Default::default()});
         ret.evasion.adjust_mod(&Mod { typ: Type::More, amount: self.quality, ..Default::default()});
@@ -130,11 +139,26 @@ impl Item {
         return ret;
     }
 
+    pub fn accuracy(&self) -> Stat {
+        let mods = self.calc_local_mods();
+        calc_stat(StatId::AccuracyRating, &mods)
+    }
+
     pub fn attack_speed(&self) -> Option<i64> {
         if let Some(attack_time) = self.data().properties.attack_time {
             let mods = self.calc_local_mods();
-            let stat_attack_speed = calc_stat(StatId::AttackSpeed, &mods, &hset!());
+            let stat_attack_speed = calc_stat(StatId::AttackSpeed, &mods);
             return Some(stat_attack_speed.val_custom_inv(attack_time));
+        }
+        None
+    }
+
+    pub fn crit_chance(&self) -> Option<i64> {
+        if let Some(crit_chance) = self.data().properties.critical_strike_chance {
+            let mods = self.calc_local_mods();
+            let mut stat_crit_chance = calc_stat(StatId::CriticalStrikeChance, &mods);
+            stat_crit_chance.adjust_mod(&Mod { typ: Type::Base, amount: crit_chance, ..Default::default() });
+            return Some(stat_crit_chance.val());
         }
         None
     }

@@ -12,12 +12,11 @@
 	* Search function
 	* Calc functions (highest dps unallocated etc.)
 * Abyss jewels
-* All the gem stats need modifiers
 * Unique items
 * Skills GUI
 	* ~~Gemlinks area~~
 	* ~~Skills enabled comboboxes~~
-	* Stats compare on hover checkbox
+	* Stats compare on hover enable checkbox
 	* Stats compare on hover skill in dropdown
 	* ~~Order skills by dps increase~~
 	* ~~Add gem~~
@@ -51,6 +50,7 @@
 	* Block
 	* Spell Suppression
 * Crit chance
-* Accuracy
+* ~~Accuracy~~
+	* Per-weapon + local weapon accuracy mods
 * ~~Undo~~/Redo
 * All the mods and gems
