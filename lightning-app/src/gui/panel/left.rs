@@ -5,7 +5,7 @@ use super::{text_gemlink, text_gemlink_cutoff};
 pub const WIDTH: f32 = 240.0;
 
 fn selected_text_gemlink(state: &State) -> String {
-    if state.build.gem_links.len() == 0 {
+    if state.build.gem_links.is_empty() {
         return String::from("<No Gemlink>");
     }
     if let Some(selected) = state.build.gem_links.get(state.gemlink_cur) {
@@ -55,7 +55,7 @@ enum Format {
 }
 
 fn val_format(label: &str, val: i64, fmt: Format) -> String {
-    let second = match fmt {
+    match fmt {
         Format::Flat => {
             match label {
                 "Speed" => format!("{:.2}", 1000.0 / val as f32),
@@ -75,8 +75,7 @@ fn val_format(label: &str, val: i64, fmt: Format) -> String {
                 format!("{}%", val)
             }
         }
-    };
-    second
+    }
 }
 
 // TODO: cache these

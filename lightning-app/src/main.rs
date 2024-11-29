@@ -173,7 +173,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
         event: winit::event::WindowEvent,
     ) {
         let gl = self.gl.as_mut().unwrap();
-        let mut state = &mut self.state;
+        let state = &mut self.state;
         let window = self.window.as_mut().unwrap();
         let surface = self.gl_surface.as_mut().unwrap();
         let context = self.gl_context.as_mut().unwrap();
@@ -189,7 +189,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                 unsafe { gl.clear(glow::COLOR_BUFFER_BIT); };
 
                 if state.request_regen {
-                    tree_gl.regen_active(&gl, &state.build, &state.path_hovered, &state.path_red, state.hovered_node);
+                    tree_gl.regen_active(gl, &state.build, &state.path_hovered, &state.path_red, state.hovered_node);
                     state.request_regen = false;
                 }
                 if state.request_recalc {
@@ -198,13 +198,13 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
 
                 match state.ui_state.clone() {
                     UiState::ChooseBuild => {
-                        egui_glow.run(&window, |egui_ctx| {
-                            gui::build_selection::draw(egui_ctx, &mut state);
+                        egui_glow.run(window, |egui_ctx| {
+                            gui::build_selection::draw(egui_ctx, state);
                             if state.show_settings {
-                                gui::settings::draw(egui_ctx, &mut state);
+                                gui::settings::draw(egui_ctx, state);
                                 if vsync != state.config.vsync {
                                     vsync = state.config.vsync;
-                                    set_vsync(&surface, &context, vsync);
+                                    set_vsync(surface, context, vsync);
                                 }
                             }
                         });
@@ -215,20 +215,20 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                     UiState::Main(main_state) => {
                         if main_state == MainState::Tree || matches!(main_state, MainState::ChooseMastery(_)) {
                             tree_gl.draw(
-                                &gl,
+                                gl,
                                 state.zoom,
                                 state.tree_translate,
                             );
                         }
-                        egui_glow.run(&window, |egui_ctx| {
-                            gui::panel::top::draw(egui_ctx, &mut state);
-                            gui::panel::left::draw(egui_ctx, &mut state);
+                        egui_glow.run(window, |egui_ctx| {
+                            gui::panel::top::draw(egui_ctx, state);
+                            gui::panel::left::draw(egui_ctx, state);
                             if main_state == MainState::Tree {
-                                gui::tree_view::draw(egui_ctx, &mut state);
+                                gui::tree_view::draw(egui_ctx, state);
                             } else if main_state == MainState::Config {
-                                gui::panel::config::draw(egui_ctx, &mut state);
+                                gui::panel::config::draw(egui_ctx, state);
                             } else if main_state == MainState::Skills {
-                                gui::panel::skills::draw(egui_ctx, &mut state);
+                                gui::panel::skills::draw(egui_ctx, state);
                             }
                             if let MainState::ChooseMastery(node_id) = main_state {
                                 if let Some(effect) = gui::select_mastery_effect(egui_ctx, &state.build.tree.masteries, &TREE.nodes[&node_id]) {
@@ -238,10 +238,10 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                 }
                             }
                             if state.show_settings {
-                                gui::settings::draw(egui_ctx, &mut state);
+                                gui::settings::draw(egui_ctx, state);
                                 if vsync != state.config.vsync {
                                     vsync = state.config.vsync;
-                                    set_vsync(&surface, &context, vsync);
+                                    set_vsync(surface, context, vsync);
                                 }
                             }
                         });
@@ -251,14 +251,14 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                         state.ui_state = UiState::ChooseBuild;
                     }
                 };
-                if let Err(err) = process_state(&mut state) {
+                if let Err(err) = process_state(state) {
                     eprintln!("State Error: {:?}: {}", state.ui_state, err);
                     if state.ui_state == UiState::ImportBuild {
                         state.ui_state = UiState::ChooseBuild;
                     }
                 }
 
-                egui_glow.paint(&window);
+                egui_glow.paint(window);
                 if egui_glow.egui_ctx.has_requested_repaint() || state.request_recalc || state.request_regen {
                     window.request_redraw();
                 }
@@ -272,7 +272,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                         std::thread::sleep(sleep_for);
                     }
                 }
-                if let Err(err) = surface.swap_buffers(&context) {
+                if let Err(err) = surface.swap_buffers(context) {
                     eprintln!("Failed to swap buffers: {err}");
                 }
                 state.redraw_counter += 1;
@@ -282,7 +282,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                 event_loop.exit();
             }
             event => {
-                let egui_event_result = egui_glow.on_window_event(&window, &event);
+                let egui_event_result = egui_glow.on_window_event(window, &event);
                 if egui_event_result.repaint {
                     window.request_redraw();
                 }
@@ -347,10 +347,8 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                             }
                         }
                         WindowEvent::KeyboardInput { event, .. } => {
-                            if event.logical_key == Key::Character("z".into()) {
-                                if state.modifiers.state().control_key() {
-                                    state.undo();
-                                }
+                            if event.logical_key == Key::Character("z".into()) && state.modifiers.state().control_key() {
+                                state.undo();
                             }
                         }
                         WindowEvent::ModifiersChanged(modifiers) => {

@@ -19,11 +19,7 @@ fn draw_skill_dropdown(ui: &mut egui::Ui, panel_skills: &mut SkillsPanelState, s
 
     let is_currently_selected = {
         match panel_skills.selected_gem {
-            Some(index) => if index == i {
-                true
-            } else {
-                false
-            },
+            Some(index) => index == i,
             None => false
         }
     };
@@ -253,7 +249,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 state.build.gem_links.push(Default::default());
             }
             Action::RemoveSelectedGemlink => {
-                if state.build.gem_links.len() >= state.panel_skills.selected_gemlink + 1 {
+                if state.build.gem_links.len() > state.panel_skills.selected_gemlink {
                     state.build.gem_links.remove(state.panel_skills.selected_gemlink);
                 }
             }

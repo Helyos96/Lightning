@@ -232,7 +232,7 @@ pub fn calc_defence(build: &Build) -> FxHashMap<&'static str, i64> {
         ..Default::default()
     };
     life_regen.adjust(Type::Base, adjust_life_regen.amount(), &adjust_life_regen);
-    life_regen.assimilate(&stats.stat(StatId::LifeRegenerationRate));
+    life_regen.assimilate(stats.stat(StatId::LifeRegenerationRate));
     ret.insert("Life Regeneration", life_regen.val(),);
 
     ret

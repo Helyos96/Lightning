@@ -68,8 +68,8 @@ struct PassiveTree {
 impl Item {
     pub fn quality(&self) -> i64 {
         if let Some(quality_prop) = self.properties.iter().find(|p| p.name == "Quality") {
-            if quality_prop.values.len() > 0 {
-                let string = quality_prop.values[0].0.replace(&['+', '%'], "");
+            if !quality_prop.values.is_empty() {
+                let string = quality_prop.values[0].0.replace(['+', '%'], "");
                 if let Ok(quality) = i64::from_str(&string) {
                     return quality;
                 }
@@ -102,7 +102,7 @@ fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
             ).unwrap_or(1);
             let mut qual = 0;
             if let Some(qual_entry) = gem.properties.iter().find(|p| p.name == "Quality") {
-                qual = i32::from_str(&qual_entry.values[0].0.replace(&['+', '%'], "")).unwrap_or(0);
+                qual = i32::from_str(&qual_entry.values[0].0.replace(['+', '%'], "")).unwrap_or(0);
             }
             let new_gem = gem::Gem {
                 id: gem_id.to_string(),

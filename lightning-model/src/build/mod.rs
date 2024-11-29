@@ -497,13 +497,13 @@ impl Build {
         let min = {
             match property::int_data(p).min {
                 property::Val::Val(i) => i,
-                property::Val::Stat(_) => i64::min_value()
+                property::Val::Stat(_) => i64::MIN
             }
         };
         let max = {
             match property::int_data(p).max {
                 property::Val::Val(i) => i,
-                property::Val::Stat(_) => i64::max_value()
+                property::Val::Stat(_) => i64::MAX
             }
         };
         self.properties_int.get(&p).copied().unwrap_or(0).clamp(min, max)
@@ -611,13 +611,13 @@ impl Build {
         }
 
         for m in mods_sec_pass {
-            let amount = self.apply_mutations(&stats, &m);
+            let amount = self.apply_mutations(&stats, m);
             stats.entry(m.stat).or_default().adjust(m.typ, amount, m);
         }
 
         for m in mods_third_pass {
-            let amount = self.apply_mutations(&stats, &m);
-            if !self.check_conditions(&stats, &m) {
+            let amount = self.apply_mutations(&stats, m);
+            if !self.check_conditions(&stats, m) {
                 continue;
             }
             stats.entry(m.stat).or_default().adjust(m.typ, amount, m);

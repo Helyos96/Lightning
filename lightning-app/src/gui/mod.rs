@@ -218,9 +218,9 @@ pub fn select_mastery_effect(ctx: &egui::Context, current_masteries: &FxHashMap<
                 for effect in mastery.mastery_effects.iter().filter(|e| current_masteries.iter().find(|(_, cur_effect)| **cur_effect == e.effect).is_none()) {
                     let mut string = String::new();
                     for (i, stat) in effect.stats.iter().enumerate() {
-                        string.push_str(&stat);
+                        string.push_str(stat);
                         if i != effect.stats.len() - 1 {
-                            string.push_str("\n");
+                            string.push('\n');
                         }
                     }
                     if ui.selectable_label(false, egui::RichText::new(string).color(egui::Color32::WHITE)).clicked() {
