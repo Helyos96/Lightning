@@ -261,8 +261,8 @@ lazy_static! {
         ), (
             regex!(r"^adds ([0-9]+) to ([0-9]+) ([a-z ]+)$"),
             Box::new(|c| {
-                let stat_tags_1 = STATS_MAP.get(format!("minimum {}", &c[3]).as_str()).cloned()?;
-                let stat_tags_2 = STATS_MAP.get(format!("maximum {}", &c[3]).as_str()).cloned()?;
+                let stat_tags_1 = STATS_MAP.get(format!("added minimum {}", &c[3]).as_str()).cloned()?;
+                let stat_tags_2 = STATS_MAP.get(format!("added maximum {}", &c[3]).as_str()).cloned()?;
                 Some(vec![Mod {
                     stat: stat_tags_1.0,
                     typ: Type::Base,
@@ -375,16 +375,14 @@ lazy_static! {
         ("chaos damage over time", StatId::ChaosDamageOverTime, hset!()),
         ("physical damage over time", StatId::PhysicalDamageOverTime, hset!()),
         ("damage over time", StatId::DamageOverTime, hset!()),
-        ("minimum fire damage", StatId::MinFireDamage, hset!()),
-        ("maximum fire damage", StatId::MaxFireDamage, hset!()),
         ("fire damage", StatId::FireDamage, hset!()),
         ("cold damage", StatId::ColdDamage, hset!()),
         ("lightning damage", StatId::LightningDamage, hset!()),
         ("chaos damage", StatId::ChaosDamage, hset!()),
         ("minimum physical attack damage", StatId::MinPhysicalDamage, hset!(GemTag::Attack)),
         ("maximum physical attack damage", StatId::MaxPhysicalDamage, hset!(GemTag::Attack)),
-        ("minimum physical damage", StatId::MinPhysicalDamage, hset!()),
-        ("maximum physical damage", StatId::MaxPhysicalDamage, hset!()),
+        ("added minimum physical damage", StatId::AddedMinPhysicalDamage, hset!()),
+        ("added maximum physical damage", StatId::AddedMaxPhysicalDamage, hset!()),
         ("physical attack damage", StatId::PhysicalDamage, hset!(GemTag::Attack)),
         ("physical damage", StatId::PhysicalDamage, hset!()),
         ("damage", StatId::Damage, hset!()),

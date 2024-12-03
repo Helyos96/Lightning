@@ -1,6 +1,6 @@
 use crate::build::stat::StatId;
 use crate::data::gem::GemData;
-use crate::data::GEMS;
+use crate::data::{DamageType, GEMS};
 use crate::gemstats::GEMSTATS;
 use crate::modifier::{Mod, Source, Type};
 use crate::{item, util};
@@ -93,6 +93,10 @@ impl Gem {
         }
 
         None
+    }
+
+    pub fn crit_chance(&self) -> Option<i64> {
+        self.data().r#static.crit_chance
     }
 
     pub fn added_effectiveness(&self) -> Option<i64> {

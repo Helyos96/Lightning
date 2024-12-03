@@ -35,15 +35,23 @@ fn calc_dmg_crit_accuracy(damage: i64, crit_chance: i64, crit_multi: i64, chance
 
 struct DamageGroup {
     stat_id: StatId,
+    added_min_id: StatId,
+    added_max_id: StatId,
+    base_min_id: StatId,
+    base_max_id: StatId,
     min_id: StatId,
     max_id: StatId,
     damage_type: DamageType,
 }
 
 impl DamageGroup {
-    fn new(stat_id: StatId, min_id: StatId, max_id: StatId, damage_type: DamageType) -> Self {
+    const fn new(stat_id: StatId, added_min_id: StatId, added_max_id: StatId, base_min_id: StatId, base_max_id: StatId, min_id: StatId, max_id: StatId, damage_type: DamageType) -> Self {
         DamageGroup {
             stat_id,
+            added_min_id,
+            added_max_id,
+            base_min_id,
+            base_max_id,
             min_id,
             max_id,
             damage_type,
@@ -51,44 +59,76 @@ impl DamageGroup {
     }
 }
 
-fn calc_weapon_average_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dmg_stat: &Stat, slot: Slot, dg: &DamageGroup) -> i64 {
-    let dmg_stat_dt = stats.stat(dg.stat_id);
-    let added_min_stat = stats.stat(dg.min_id);
-    let added_max_stat = stats.stat(dg.max_id);
-    //let mut avg = 0;
-    // TODO: with physical damage, each weapon should be compared independently regarding
-    // enemy armour, not added together.
+enum DamageSource {
+    Slot(Slot),
+    Gem,
+}
 
+struct DamageInstanceType {
+    typ: DamageType,
+    amount: i64,
+    chance_to_hit: i64,
+    crit_chance: i64,
+}
+
+struct DamageInstance {
+    source: DamageSource,
+    instance_type: Vec<DamageInstanceType>,
+}
+
+fn calc_average_dmg(stats: &Stats, active_gem: &Gem, mut base_min: i64, mut base_max: i64, mut added_min: i64, mut added_max: i64, dg: &DamageGroup) -> i64 {
+    if let Some(damage_multiplier) = active_gem.damage_multiplier() {
+        base_min = (base_min * (10000 + damage_multiplier)) / 10000;
+        base_max = (base_max * (10000 + damage_multiplier)) / 10000;
+    }
+
+    if let Some(added_effectiveness) = active_gem.added_effectiveness() {
+        added_min = (added_min * (100 + added_effectiveness)) / 100;
+        added_max = (added_max * (100 + added_effectiveness)) / 100;
+    }
+
+    // These stats are like "10% more maximum physical attack damage"
+    let mut stat_min_dt = stats.stat(dg.min_id).clone();
+    let mut stat_max_dt = stats.stat(dg.max_id).clone();
+    stat_min_dt.adjust_mod(&Mod { typ: Type::Base, amount: base_min + added_min, ..Default::default() });
+    stat_max_dt.adjust_mod(&Mod { typ: Type::Base, amount: base_max + added_max, ..Default::default() });
+
+    (stat_min_dt.val() + stat_max_dt.val()) / 2
+}
+
+fn calc_weapon_average_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, slot: Slot, dg: &DamageGroup) -> i64 {
     if let Some((min_item, max_item)) = weapon.calc_dmg(dg.damage_type) {
-        let mut stat_min = dmg_stat_dt.with_weapon(weapon.data().item_class);
-        let mut stat_max = dmg_stat_dt.with_weapon(weapon.data().item_class);
-        stat_min.adjust(Type::Base, min_item, &Mod { amount: min_item, typ: Type::Base, source: Source::Item(slot), ..Default::default() });
-        stat_max.adjust(Type::Base, max_item, &Mod { amount: max_item, typ: Type::Base, source: Source::Item(slot), ..Default::default() });
-        stat_min.assimilate(dmg_stat);
-        stat_max.assimilate(dmg_stat);
-
-        let mut added_min_stat = added_min_stat.with_weapon(weapon.data().item_class);
-        let mut added_max_stat = added_max_stat.with_weapon(weapon.data().item_class);
-        added_min_stat.assimilate(dmg_stat);
-        added_max_stat.assimilate(dmg_stat);
-        let mut added_damage = (added_min_stat.val() + added_max_stat.val()) / 2;
-        if let Some(added_effectiveness) = active_gem.added_effectiveness() {
-            added_damage = (added_damage * (100 + added_effectiveness)) / 100;
-        }
-
-        let mut base_damage = (stat_min.val() + stat_max.val()) / 2;
-        if let Some(damage_multiplier) = active_gem.damage_multiplier() {
-            base_damage = (base_damage * (10000 + damage_multiplier)) / 10000;
-        }
-
-        return base_damage + added_damage;
+        let item_class = Some(weapon.data().item_class);
+        let added_min_stat = stats.stat(dg.added_min_id).with_weapon(item_class);
+        let added_max_stat = stats.stat(dg.added_max_id).with_weapon(item_class);
+        let average = calc_average_dmg(stats, active_gem, min_item, max_item, added_min_stat.val(), added_max_stat.val(), dg);
+        let dmg_stat_dt = stats.stat(dg.stat_id).with_weapon(item_class);
+        let mut dmg_stat = stats.stat(StatId::Damage).with_weapon(item_class);
+        dmg_stat.assimilate(&dmg_stat_dt);
+        dmg_stat.adjust(Type::Base, average, &Mod { amount: average, typ: Type::Base, source: Source::Item(slot), ..Default::default() });
+        return dmg_stat.val();
     }
     0
 }
 
-fn calc_crit_chance_weapon(stats: &Stats, weapon: &Item) -> i64 {
+fn calc_spell_average_dmg(stats: &Stats, active_gem: &Gem, dg: &DamageGroup) -> i64 {
+    // e.g Added Fire Damage
+    let added_min_stat = stats.stat(dg.added_min_id).with_weapon(None);
+    let added_max_stat = stats.stat(dg.added_max_id).with_weapon(None);
+    // Base damage usually from spells
+    let base_min_stat = stats.stat(dg.base_min_id).with_weapon(None);
+    let base_max_stat = stats.stat(dg.base_max_id).with_weapon(None);
+    let average = calc_average_dmg(stats, active_gem, base_min_stat.val(), base_max_stat.val(), added_min_stat.val(), added_max_stat.val(), dg);
+    let dmg_stat_dt = stats.stat(dg.stat_id).with_weapon(None);
+    let mut dmg_stat = stats.stat(StatId::Damage).with_weapon(None);
+    dmg_stat.assimilate(&dmg_stat_dt);
+    dmg_stat.adjust(Type::Base, average, &Mod { amount: average, typ: Type::Base, ..Default::default() });
+    return dmg_stat.val();
+}
+
+fn calc_crit_chance(stats: &Stats, crit_chance: Option<i64>) -> i64 {
     let mut crit_chance_stat = stats.stat(StatId::CriticalStrikeChance).to_owned();
-    if let Some(crit_chance) = weapon.crit_chance() {
+    if let Some(crit_chance) = crit_chance {
         crit_chance_stat.adjust_mod(&Mod { typ: Type::Base, amount: crit_chance, ..Default::default() });
     }
     crit_chance_stat.val()
@@ -124,22 +164,26 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
     let monster_mods = monster_build.calc_mods_monster(build.property_int(property::Int::Level).min(83));
     let monster_stats = monster_build.calc_stats(&monster_mods, &hset![]);
 
-    let damage_constants = [
-        DamageGroup::new(StatId::PhysicalDamage, StatId::MinPhysicalDamage, StatId::MaxPhysicalDamage, DamageType::Physical),
-        DamageGroup::new(StatId::FireDamage, StatId::MinFireDamage, StatId::MaxFireDamage, DamageType::Fire),
+    const DAMAGE_GROUPS: [DamageGroup; 5] = [
+        DamageGroup::new(StatId::PhysicalDamage, StatId::AddedMinPhysicalDamage, StatId::AddedMaxPhysicalDamage, StatId::BaseMinPhysicalDamage, StatId::BaseMaxPhysicalDamage, StatId::MinPhysicalDamage, StatId::MaxPhysicalDamage, DamageType::Physical),
+        DamageGroup::new(StatId::FireDamage, StatId::AddedMinFireDamage, StatId::AddedMaxFireDamage, StatId::BaseMinFireDamage, StatId::BaseMaxFireDamage, StatId::MinFireDamage, StatId::MaxFireDamage, DamageType::Fire),
+        DamageGroup::new(StatId::ColdDamage, StatId::AddedMinColdDamage, StatId::AddedMaxColdDamage, StatId::BaseMinColdDamage, StatId::BaseMaxColdDamage, StatId::MinColdDamage, StatId::MaxColdDamage, DamageType::Cold),
+        DamageGroup::new(StatId::LightningDamage, StatId::AddedMinLightningDamage, StatId::AddedMaxLightningDamage, StatId::BaseMinLightningDamage, StatId::BaseMaxLightningDamage, StatId::MinLightningDamage, StatId::MaxLightningDamage, DamageType::Lightning),
+        DamageGroup::new(StatId::ChaosDamage, StatId::AddedMinChaosDamage, StatId::AddedMaxChaosDamage, StatId::BaseMinChaosDamage, StatId::BaseMaxChaosDamage, StatId::MinChaosDamage, StatId::MaxChaosDamage, DamageType::Chaos),
     ];
 
     let crit_multi = stats.val(StatId::CriticalStrikeMultiplier);
     ret.insert("Crit Multi", crit_multi);
 
-    let dmg_stat = stats.stat(StatId::Damage);
+    let mut damage_instances = vec![];
+
     if tags.contains(&GemTag::Attack) {
         for slot in [Slot::Weapon, Slot::Offhand] {
             if let Some(weapon) = build.equipment.get(&slot) {
                 let weapon_restrictions = &active_gem.data().active_skill.as_ref().unwrap().weapon_restrictions;
                 if weapon_restrictions.is_empty() || weapon_restrictions.contains(&weapon.data().item_class) {
                     let chance_to_hit = calc_chance_hit_weapon(&stats, &monster_stats, weapon);
-                    let crit_chance = calc_crit_chance_weapon(&stats, weapon);
+                    let crit_chance = calc_crit_chance(&stats, weapon.crit_chance());
 
                     if slot == Slot::Weapon {
                         ret.insert("Chance to Hit (MH)", chance_to_hit);
@@ -149,13 +193,43 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
                         ret.insert("Crit Chance (OH)", crit_chance);
                     }
 
-                    for dt in &damage_constants {
-                        let avg_damage = calc_weapon_average_dmg(&stats, weapon, active_gem, dmg_stat, slot, dt);
+                    let mut dmg_inst = DamageInstance {
+                        source: DamageSource::Slot(slot),
+                        instance_type: vec![],
+                    };
+                    for dg in &DAMAGE_GROUPS {
+                        let avg_damage = calc_weapon_average_dmg(&stats, weapon, active_gem, slot, dg);
                         if avg_damage > 0 {
-                            damage.push(calc_dmg_crit_accuracy(avg_damage, crit_chance, crit_multi, chance_to_hit));
+                            dmg_inst.instance_type.push(DamageInstanceType {
+                                typ: dg.damage_type,
+                                amount: avg_damage,
+                                chance_to_hit,
+                                crit_chance,
+                            });
+                            damage.push(calc_dmg_crit_accuracy(avg_damage, 0, crit_multi, chance_to_hit));
                         }
                     }
+                    damage_instances.push(dmg_inst);
                 }
+            }
+        }
+    } else if tags.contains(&GemTag::Spell) {
+        let crit_chance = calc_crit_chance(&stats, active_gem.crit_chance());
+        ret.insert("Crit Chance", crit_chance);
+        let mut dmg_inst = DamageInstance {
+            source: DamageSource::Gem,
+            instance_type: vec![],
+        };
+        for dg in &DAMAGE_GROUPS {
+            let avg_damage = calc_spell_average_dmg(&stats, active_gem, dg);
+            if avg_damage > 0 {
+                dmg_inst.instance_type.push(DamageInstanceType {
+                    typ: dg.damage_type,
+                    amount: avg_damage,
+                    chance_to_hit: 100,
+                    crit_chance,
+                });
+                damage.push(calc_dmg_crit_accuracy(avg_damage, crit_chance, crit_multi, 100));
             }
         }
     }

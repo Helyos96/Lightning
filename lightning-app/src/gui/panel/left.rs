@@ -140,6 +140,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 draw_calc_result_row(ui, "Speed", state.active_skill_calc.get("Speed"), Format::Flat);
                 draw_calc_result_row(ui, "Chance to Hit (MH)", state.active_skill_calc.get("Chance to Hit (MH)"), Format::Percent);
                 draw_calc_result_row(ui, "Chance to Hit (OH)", state.active_skill_calc.get("Chance to Hit (OH)"), Format::Percent);
+                draw_calc_result_row(ui, "Crit Chance", state.active_skill_calc.get("Crit Chance"), Format::Percent100);
                 draw_calc_result_row(ui, "Crit Chance (MH)", state.active_skill_calc.get("Crit Chance (MH)"), Format::Percent100);
                 draw_calc_result_row(ui, "Crit Chance (OH)", state.active_skill_calc.get("Crit Chance (OH)"), Format::Percent100);
                 draw_calc_result_row(ui, "Crit Multi", state.active_skill_calc.get("Crit Multi"), Format::Percent);

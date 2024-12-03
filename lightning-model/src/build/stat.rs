@@ -28,12 +28,38 @@ pub enum StatId {
     ChaosDamageOverTime,
     PhysicalDamageOverTime,
     DamageOverTime,
+    BaseMinFireDamage,
+    BaseMaxFireDamage,
+    AddedMinFireDamage,
+    AddedMaxFireDamage,
     MinFireDamage,
     MaxFireDamage,
     FireDamage,
+    BaseMinColdDamage,
+    BaseMaxColdDamage,
+    AddedMinColdDamage,
+    AddedMaxColdDamage,
+    MinColdDamage,
+    MaxColdDamage,
     ColdDamage,
+    BaseMinLightningDamage,
+    BaseMaxLightningDamage,
+    AddedMinLightningDamage,
+    AddedMaxLightningDamage,
+    MinLightningDamage,
+    MaxLightningDamage,
     LightningDamage,
+    BaseMinChaosDamage,
+    BaseMaxChaosDamage,
+    AddedMinChaosDamage,
+    AddedMaxChaosDamage,
+    MinChaosDamage,
+    MaxChaosDamage,
     ChaosDamage,
+    BaseMinPhysicalDamage,
+    BaseMaxPhysicalDamage,
+    AddedMinPhysicalDamage,
+    AddedMaxPhysicalDamage,
     MinPhysicalDamage,
     MaxPhysicalDamage,
     PhysicalDamage,
@@ -186,11 +212,11 @@ impl Stat {
         }
     }
 
-    pub fn with_weapon(&self, weapon: ItemClass) -> Stat {
+    pub fn with_weapon(&self, weapon: Option<ItemClass>) -> Stat {
         let mut stat = Stat::default();
 
         for m in &self.mods {
-            if m.weapons.is_empty() || m.weapons.contains(&weapon) {
+            if m.weapons.is_empty() || (weapon.is_some() && m.weapons.contains(&weapon.unwrap())) {
                 stat.adjust(m.typ, m.amount, m);
             }
         }

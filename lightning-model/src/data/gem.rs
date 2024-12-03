@@ -79,7 +79,7 @@ pub struct QualityStat {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Static {
-    pub crit_chance: Option<i32>,
+    pub crit_chance: Option<i64>,
     pub cooldown: Option<i32>,
     pub damage_effectiveness: Option<i64>,
     pub damage_multiplier: Option<i64>,

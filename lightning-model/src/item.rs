@@ -34,8 +34,8 @@ impl LocalModMatch {
 
 lazy_static! {
     static ref LOCAL_MODS_WEAPON: Vec<LocalModMatch> = vec![
-        LocalModMatch { stat: StatId::MinPhysicalDamage, typ: modifier::Type::Base },
-        LocalModMatch { stat: StatId::MaxPhysicalDamage, typ: modifier::Type::Base },
+        LocalModMatch { stat: StatId::AddedMinPhysicalDamage, typ: modifier::Type::Base },
+        LocalModMatch { stat: StatId::AddedMaxPhysicalDamage, typ: modifier::Type::Base },
         LocalModMatch { stat: StatId::PhysicalDamage, typ: modifier::Type::Inc },
         LocalModMatch { stat: StatId::AttackSpeed, typ: modifier::Type::Inc },
         LocalModMatch { stat: StatId::AccuracyRating, typ: modifier::Type::Base },
@@ -91,8 +91,8 @@ impl Item {
             DamageType::Physical => {
                 if let Some(min) = base_item.properties.physical_damage_min {
                     if let Some(max) = base_item.properties.physical_damage_max {
-                        let mut min_stat = calc_stat(StatId::MinPhysicalDamage, &mods);
-                        let mut max_stat = calc_stat(StatId::MaxPhysicalDamage, &mods);
+                        let mut min_stat = calc_stat(StatId::AddedMinPhysicalDamage, &mods);
+                        let mut max_stat = calc_stat(StatId::AddedMaxPhysicalDamage, &mods);
                         let mut dmg = calc_stat(StatId::PhysicalDamage, &mods);
                         min_stat.adjust(Type::Base, min, &Mod { ..Default::default() });
                         max_stat.adjust(Type::Base, max, &Mod { ..Default::default() });
