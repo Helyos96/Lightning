@@ -87,7 +87,7 @@ lazy_static! {
         ("with axes", hset![ItemClass::OneHandAxe, ItemClass::TwoHandAxe]),
         ("with swords", hset![ItemClass::OneHandSword, ItemClass::TwoHandSword, ItemClass::ThrustingOneHandSword]),
         ("with maces", hset![ItemClass::OneHandMace, ItemClass::TwoHandMace]),
-        ("with two handed melee weapons", hset![ItemClass::TwoHandSword, ItemClass::TwoHandMace, ItemClass::TwoHandAxe]),
+        ("with two handed melee weapons", hset![ItemClass::TwoHandSword, ItemClass::TwoHandMace, ItemClass::TwoHandAxe, ItemClass::Warstaff, ItemClass::Staff]),
         ("with one handed melee weapons", hset![ItemClass::OneHandSword, ItemClass::OneHandMace, ItemClass::OneHandAxe, ItemClass::ThrustingOneHandSword]),
         ("with one handed weapons", hset![ItemClass::OneHandSword, ItemClass::OneHandMace, ItemClass::OneHandAxe, ItemClass::ThrustingOneHandSword]),
         ("with staves", hset![ItemClass::Staff, ItemClass::Warstaff]),
@@ -328,6 +328,16 @@ lazy_static! {
                     stat: StatId::ChanceToHit,
                     typ: Type::Override,
                     amount: 100,
+                    ..Default::default()
+                }])
+            })
+        ), (
+            regex!(r"^never deal critical strikes$"),
+            Box::new(|_| {
+                Some(vec![Mod {
+                    stat: StatId::CriticalStrikeChance,
+                    typ: Type::Override,
+                    amount: 0,
                     ..Default::default()
                 }])
             })

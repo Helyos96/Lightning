@@ -95,10 +95,7 @@ fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
         }) {
             // Parsing stuff is just beautiful
             let level = u32::from_str(
-                gem.properties.iter().find(|p| p.name == "Level").unwrap().values[0]
-                    .0
-                    .split(' ')
-                    .collect::<Vec<&str>>()[0],
+                gem.properties.iter().find(|p| p.name == "Level").unwrap().values[0].0.split(' ').collect::<Vec<&str>>()[0],
             ).unwrap_or(1);
             let mut qual = 0;
             if let Some(qual_entry) = gem.properties.iter().find(|p| p.name == "Quality") {

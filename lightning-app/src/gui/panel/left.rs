@@ -2,7 +2,8 @@ use crate::gui::{MainState, State, UiState};
 use thousands::Separable;
 use super::{text_gemlink, text_gemlink_cutoff};
 
-pub const WIDTH: f32 = 240.0;
+// TODO: should be responsive with DPI
+pub const WIDTH: f32 = 280.0;
 
 fn selected_text_gemlink(state: &State) -> String {
     if state.build.gem_links.is_empty() {
@@ -84,7 +85,10 @@ fn draw_calc_result_row(ui: &mut egui::Ui, label: &str, val: Option<&i64>, fmt: 
         if *val == 0 {
             return;
         }
-        ui.label(egui::RichText::new(format!("{label}:")).color(calc_result_color(label)));
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.set_width(WIDTH * 0.5);
+            ui.label(egui::RichText::new(format!("{label}:")).color(calc_result_color(label)));
+        });
         ui.label(egui::RichText::new(val_format(label, *val, fmt)).color(calc_result_color(label)));
         ui.end_row();
     }
@@ -146,19 +150,25 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 draw_calc_result_row(ui, "Crit Multi", state.active_skill_calc.get("Crit Multi"), Format::Percent);
             });
             ui.separator();
-            egui::Grid::new("grid_defence_calc").show(ui, |ui| {
+            egui::Grid::new("grid_defence_calc_life").show(ui, |ui| {
                 draw_calc_result_row(ui, "Maximum Life", state.defence_calc.get("Maximum Life"), Format::Flat);
                 draw_calc_result_row(ui, "Life Regeneration", state.defence_calc.get("Life Regeneration"), Format::Flat);
-                ui.separator(); ui.end_row();
+            });
+            ui.separator();
+            egui::Grid::new("grid_defence_calc_res").show(ui, |ui| {
                 draw_calc_result_row(ui, "Fire Resistance", state.defence_calc.get("Fire Resistance"), Format::PercentOtherStat(*state.defence_calc.get("Maximum Fire Resistance").unwrap()));
                 draw_calc_result_row(ui, "Cold Resistance", state.defence_calc.get("Cold Resistance"), Format::PercentOtherStat(*state.defence_calc.get("Maximum Cold Resistance").unwrap()));
                 draw_calc_result_row(ui, "Lightning Resistance", state.defence_calc.get("Lightning Resistance"), Format::PercentOtherStat(*state.defence_calc.get("Maximum Lightning Resistance").unwrap()));
                 draw_calc_result_row(ui, "Chaos Resistance", state.defence_calc.get("Chaos Resistance"), Format::PercentOtherStat(*state.defence_calc.get("Maximum Chaos Resistance").unwrap()));
-                ui.separator(); ui.end_row();
+            });
+            ui.separator();
+            egui::Grid::new("grid_defence_calc_def").show(ui, |ui| {
                 draw_calc_result_row(ui, "Armour", state.defence_calc.get("Armour"), Format::Flat);
                 draw_calc_result_row(ui, "Evasion", state.defence_calc.get("Evasion"), Format::Flat);
                 draw_calc_result_row(ui, "Energy Shield", state.defence_calc.get("Energy Shield"), Format::Flat);
-                ui.separator(); ui.end_row();
+            });
+            ui.separator();
+            egui::Grid::new("grid_defence_calc_stats").show(ui, |ui| {
                 draw_calc_result_row(ui, "Strength", state.defence_calc.get("Strength"), Format::Flat);
                 draw_calc_result_row(ui, "Dexterity", state.defence_calc.get("Dexterity"), Format::Flat);
                 draw_calc_result_row(ui, "Intelligence", state.defence_calc.get("Intelligence"), Format::Flat);

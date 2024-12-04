@@ -8,31 +8,6 @@ use crate::item::Item;
 use crate::modifier::{Mod, Source, Type};
 use rustc_hash::FxHashMap;
 
-/*enum Val {
-    int(i64),
-    int100(i64),
-}*/
-
-pub fn compare(a: &FxHashMap<&'static str, i64>, b: &FxHashMap<&'static str, i64>) -> FxHashMap<&'static str, i64> {
-    let mut result = FxHashMap::default();
-    for key in a.keys().chain(b.keys()) {
-        let val_a = a.get(key).unwrap_or(&0);
-        let val_b = b.get(key).unwrap_or(&0);
-        let delta = val_b - val_a;
-        if delta != 0 {
-            result.insert(*key, delta);
-        }
-    }
-    result
-}
-
-fn calc_dmg_crit_accuracy(damage: i64, crit_chance: i64, crit_multi: i64, chance_to_hit: i64) -> i64 {
-    let effective_crit_chance = (crit_chance * chance_to_hit) / 100;
-    let damage_crit = (damage * chance_to_hit * effective_crit_chance * crit_multi) / 100000000;
-    let damage_noncrit = (damage * chance_to_hit * (10000 - effective_crit_chance)) / 1000000;
-    damage_crit + damage_noncrit
-}
-
 struct DamageGroup {
     stat_id: StatId,
     added_min_id: StatId,
@@ -74,6 +49,26 @@ struct DamageInstanceType {
 struct DamageInstance {
     source: DamageSource,
     instance_type: Vec<DamageInstanceType>,
+}
+
+pub fn compare(a: &FxHashMap<&'static str, i64>, b: &FxHashMap<&'static str, i64>) -> FxHashMap<&'static str, i64> {
+    let mut result = FxHashMap::default();
+    for key in a.keys().chain(b.keys()) {
+        let val_a = a.get(key).unwrap_or(&0);
+        let val_b = b.get(key).unwrap_or(&0);
+        let delta = val_b - val_a;
+        if delta != 0 {
+            result.insert(*key, delta);
+        }
+    }
+    result
+}
+
+fn calc_dmg_crit_accuracy(damage: i64, crit_chance: i64, crit_multi: i64, chance_to_hit: i64) -> i64 {
+    let effective_crit_chance = (crit_chance * chance_to_hit) / 100;
+    let damage_crit = (damage * chance_to_hit * effective_crit_chance * crit_multi) / 100000000;
+    let damage_noncrit = (damage * chance_to_hit * (10000 - effective_crit_chance)) / 1000000;
+    damage_crit + damage_noncrit
 }
 
 fn calc_average_dmg(stats: &Stats, active_gem: &Gem, mut base_min: i64, mut base_max: i64, mut added_min: i64, mut added_max: i64, dg: &DamageGroup) -> i64 {
@@ -173,7 +168,6 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
     ];
 
     let crit_multi = stats.val(StatId::CriticalStrikeMultiplier);
-    ret.insert("Crit Multi", crit_multi);
 
     let mut damage_instances = vec![];
 
@@ -185,12 +179,14 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
                     let chance_to_hit = calc_chance_hit_weapon(&stats, &monster_stats, weapon);
                     let crit_chance = calc_crit_chance(&stats, weapon.crit_chance());
 
-                    if slot == Slot::Weapon {
-                        ret.insert("Chance to Hit (MH)", chance_to_hit);
-                        ret.insert("Crit Chance (MH)", crit_chance);
-                    } else {
-                        ret.insert("Chance to Hit (OH)", chance_to_hit);
-                        ret.insert("Crit Chance (OH)", crit_chance);
+                    if crit_chance > 0 {
+                        if slot == Slot::Weapon {
+                            ret.insert("Chance to Hit (MH)", chance_to_hit);
+                            ret.insert("Crit Chance (MH)", crit_chance);
+                        } else {
+                            ret.insert("Chance to Hit (OH)", chance_to_hit);
+                            ret.insert("Crit Chance (OH)", crit_chance);
+                        }
                     }
 
                     let mut dmg_inst = DamageInstance {
@@ -206,7 +202,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
                                 chance_to_hit,
                                 crit_chance,
                             });
-                            damage.push(calc_dmg_crit_accuracy(avg_damage, 0, crit_multi, chance_to_hit));
+                            damage.push(calc_dmg_crit_accuracy(avg_damage, crit_chance, crit_multi, chance_to_hit));
                         }
                     }
                     damage_instances.push(dmg_inst);
@@ -215,7 +211,9 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
         }
     } else if tags.contains(&GemTag::Spell) {
         let crit_chance = calc_crit_chance(&stats, active_gem.crit_chance());
-        ret.insert("Crit Chance", crit_chance);
+        if crit_chance > 0 {
+            ret.insert("Crit Chance", crit_chance);
+        }
         let mut dmg_inst = DamageInstance {
             source: DamageSource::Gem,
             instance_type: vec![],
@@ -232,6 +230,10 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
                 damage.push(calc_dmg_crit_accuracy(avg_damage, crit_chance, crit_multi, 100));
             }
         }
+    }
+
+    if ret.contains_key("Crit Chance") || ret.contains_key("Crit Chance (MH)") || ret.contains_key("Crit Chance (OH)") {
+        ret.insert("Crit Multi", crit_multi);
     }
 
     let time = {
