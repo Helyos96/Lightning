@@ -40,6 +40,7 @@ pub struct State {
     // Used for stat comparison on hover
     pub build_compare: Option<Build>,
     pub history: VecDeque<Build>,
+    pub history_idx: usize,
     pub config: Config,
     pub import_account: String,
     pub import_character: String,
@@ -90,6 +91,7 @@ impl State {
             build: Build::new_player(),
             build_compare: None,
             history: Default::default(),
+            history_idx: 0,
 
             import_account: String::new(),
             import_character: String::new(),
@@ -130,18 +132,41 @@ impl State {
         }
     }
 
+    pub fn reset_history(&mut self) {
+        self.history.clear();
+        self.history_idx = 0;
+        self.snapshot();
+    }
+
     pub fn snapshot(&mut self) {
-        if self.history.len() >= 100 {
-            self.history.pop_front();
+        if self.history_idx > 0 {
+            self.history.drain(0..self.history_idx);
+            self.history_idx = 0;
         }
-        self.history.push_back(self.build.clone());
+        self.history.push_front(self.build.clone());
+        if self.history.len() >= 40 {
+            self.history.pop_back();
+        }
     }
 
     pub fn undo(&mut self) {
-        if let Some(build) = self.history.pop_front() {
-            self.build = build;
+        if let Some(build) = self.history.get(self.history_idx + 1) {
+            self.build = build.clone();
+            self.history_idx += 1;
             self.request_recalc = true;
             self.request_regen = true;
+        }
+    }
+
+    pub fn redo(&mut self) {
+        if self.history_idx == 0 {
+            return;
+        }
+        if let Some(build) = self.history.get(self.history_idx - 1) {
+            self.build = build.clone();
+            self.request_recalc = true;
+            self.request_regen = true;
+            self.history_idx -= 1;
         }
     }
 

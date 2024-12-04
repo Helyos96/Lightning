@@ -50,13 +50,15 @@ use winit::{
 const TITLE: &str = "Lightning";
 
 fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
-    state.ui_state = match &state.ui_state {
+    let ui_state = state.ui_state.clone();
+    state.ui_state = match &ui_state {
         UiState::LoadBuild(path) => {
             state.build = util::load_build(path)?;
             state.level = state.build.property_int(property::Int::Level);
             state.request_recalc = true;
-            println!("Loaded build from {}", &path.display());
             state.request_regen = true;
+            state.reset_history();
+            println!("Loaded build from {}", &path.display());
             UiState::Main(MainState::Tree)
         }
         #[cfg(feature = "import")]
@@ -65,6 +67,7 @@ fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
             state.level = state.build.property_int(property::Int::Level);
             state.request_recalc = true;
             state.request_regen = true;
+            state.reset_history();
             println!("Fetched build: {} {}", &state.import_account, &state.import_character);
             UiState::Main(MainState::Tree)
         }
@@ -73,6 +76,7 @@ fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
             state.level = state.build.property_int(property::Int::Level);
             state.request_recalc = true;
             state.request_regen = true;
+            state.reset_history();
             UiState::Main(MainState::Tree)
         }
         _ => state.ui_state.clone(),
@@ -324,8 +328,8 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                     }
                                 } else if button_state == ElementState::Released {
                                     if let Some(node) = state.hovered_node {
-                                        state.snapshot();
                                         state.build.tree.flip_node(node.skill);
+                                        state.snapshot();
                                         if !state.build.tree.nodes.contains(&node.skill) {
                                             state.path_red = None;
                                             state.path_hovered = state.build.tree.find_path(node.skill);
@@ -347,8 +351,11 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                             }
                         }
                         WindowEvent::KeyboardInput { event, .. } => {
-                            if event.logical_key == Key::Character("z".into()) && state.modifiers.state().control_key() {
+                            if event.logical_key == Key::Character("z".into()) && event.state.is_pressed() && state.modifiers.state().control_key() {
                                 state.undo();
+                            }
+                            if event.logical_key == Key::Character("y".into()) && event.state.is_pressed() && state.modifiers.state().control_key() {
+                                state.redo();
                             }
                         }
                         WindowEvent::ModifiersChanged(modifiers) => {
