@@ -1,4 +1,4 @@
-use crate::data::tree::{Ascendancy, Class, TreeData};
+use crate::data::tree::{Ascendancy, Class, NodeType, TreeData};
 use crate::data::TREE;
 use crate::modifier::{parse_mod, Mod, Source};
 use lazy_static::lazy_static;
@@ -182,6 +182,10 @@ impl PassiveTree {
         } else if let Some(path) = self.find_path(node) {
             self.nodes.extend_from_slice(&path[0..path.len() - 1]);
         }
+    }
+
+    pub fn jewel_slots(&self) -> Vec<u16> {
+        self.nodes.iter().filter(|n| TREE.nodes[n].node_type() == NodeType::JewelSocket).copied().collect()
     }
 
     pub fn set_class(&mut self, class: Class) {

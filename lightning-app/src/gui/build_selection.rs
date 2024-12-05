@@ -22,12 +22,14 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
             });
             ui.separator();
             let build_files = get_build_files(&state.config.builds_dir).unwrap_or_default();
-            egui::Frame::default().inner_margin(4.0).fill(egui::Color32::DARK_GRAY).show(ui, |ui| {
-                for item in build_files {
-                    if ui.selectable_label(false, egui::RichText::new(item.clone().with_extension("").file_name().unwrap().to_str().unwrap()).color(egui::Color32::WHITE)).clicked() {
-                        state.ui_state = UiState::LoadBuild(item.clone());
+            ui.columns(1, |uis| {
+                egui::Frame::default().inner_margin(4.0).fill(egui::Color32::DARK_GRAY).show(&mut uis[0], |ui| {
+                    for item in build_files {
+                        if ui.selectable_label(false, egui::RichText::new(item.clone().with_extension("").file_name().unwrap().to_str().unwrap()).color(egui::Color32::WHITE)).clicked() {
+                            state.ui_state = UiState::LoadBuild(item.clone());
+                        }
                     }
-                }
+                });
             });
             #[cfg(feature = "import")]
             {

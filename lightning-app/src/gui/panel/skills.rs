@@ -129,7 +129,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 });
                 egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(&mut uis[0], |ui| {
                     for (i, gemlink) in state.build.gem_links.iter().enumerate() {
-                        if ui.selectable_label(i == state.panel_skills.selected_gemlink, &text_gemlink_cutoff(gemlink, 40)).clicked() {
+                        if ui.selectable_label(i == state.panel_skills.selected_gemlink, text_gemlink_cutoff(gemlink, 40)).clicked() {
                             if state.panel_skills.selected_gemlink != i {
                                 state.panel_skills.selected_gemlink = i;
                                 state.panel_skills.computed_gems = None;

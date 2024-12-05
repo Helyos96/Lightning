@@ -145,12 +145,12 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
     let client = reqwest::blocking::ClientBuilder::new().user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0").build()?;
 
     // Passive Tree
-    let url = format!("https://pathofexile.com/character-window/get-passive-skills?realm=pc&accountName={account}&character={character}");
+    let url = format!("https://pathofexile.com/character-window/get-passive-skills?realm=pc&accountName={account}&character={character}").replace('#', "%23");
     println!("{url}");
     let tree = client.get(url).send()?.json::<PassiveTree>()?;
 
     // Items, Skills, CharData
-    let url = format!("https://pathofexile.com/character-window/get-items?realm=pc&accountName={account}&character={character}");
+    let url = format!("https://pathofexile.com/character-window/get-items?realm=pc&accountName={account}&character={character}").replace('#', "%23");
     println!("{url}");
     let items = client.get(url).send()?.json::<ItemsSkillsChar>()?;
 
@@ -183,10 +183,9 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
             build.inventory.extend(jewels);
         }
         if let Some(inventory_id) = &item.inventoryId {
+            build.inventory.push(conv_item(item));
             if let Ok(slot) = Slot::try_from((inventory_id.as_str(), item.x.unwrap_or(0))) {
-                build.equipment.insert(slot, conv_item(item));
-            } else {
-                build.inventory.push(conv_item(item));
+                build.equipment.insert(slot, build.inventory.len() - 1);
             }
         }
     }

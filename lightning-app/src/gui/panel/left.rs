@@ -10,7 +10,7 @@ fn selected_text_gemlink(state: &State) -> String {
         return String::from("<No Gemlink>");
     }
     if let Some(selected) = state.build.gem_links.get(state.gemlink_cur) {
-        return text_gemlink_cutoff(selected, 30);
+        return text_gemlink_cutoff(selected, 35);
     }
     return String::from("");
 }
@@ -109,17 +109,21 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 if ui.button("Skills").clicked() {
                     state.ui_state = UiState::Main(MainState::Skills);
                 }
+                if ui.button("Items").clicked() {
+                    state.ui_state = UiState::Main(MainState::Items);
+                }
                 ui.end_row();
             });
             egui::ComboBox::from_id_salt("combo_gemlink")
                 .selected_text(selected_text_gemlink(state))
+                .width(ui.available_width())
                 .show_ui(ui, |ui| {
                     ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
                     for gem_link in state.build.gem_links.iter().enumerate() {
                         if gem_link.1.active_gems().count() == 0 {
                             continue;
                         }
-                        if ui.selectable_value(&mut state.gemlink_cur, gem_link.0, &text_gemlink(gem_link.1)).clicked() {
+                        if ui.selectable_value(&mut state.gemlink_cur, gem_link.0, text_gemlink(gem_link.1)).clicked() {
                             state.active_skill_cur = 0;
                             state.request_recalc = true;
                         }
@@ -128,6 +132,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
             );
             egui::ComboBox::from_id_salt("combo_active_skill")
                 .selected_text(selected_text_active(state))
+                .width(ui.available_width())
                 .show_ui(ui, |ui| {
                     ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
                     if let Some(gemlink) = state.build.gem_links.get(state.gemlink_cur) {

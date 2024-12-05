@@ -21,10 +21,12 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 if ui.button("<< Builds").clicked() {
                     state.ui_state = UiState::ChooseBuild;
                 }
-                ui.text_edit_singleline(&mut state.build.name);
-                if ui.button("Save").clicked() {
+                ui.add(egui::TextEdit::singleline(&mut state.build.name).desired_width(100.0));
+                if ui.add_enabled(state.can_save, egui::Button::new("Save")).clicked() {
                     if let Err(err) = save_build(&state.build, &state.config.builds_dir) {
                         eprintln!("Failed to save build: {err}");
+                    } else {
+                        state.can_save = false;
                     }
                 }
                 ui.label("Level");

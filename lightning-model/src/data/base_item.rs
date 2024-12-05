@@ -1,6 +1,8 @@
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
+use crate::build::Slot;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ItemClass {
     Unarmed,
@@ -44,6 +46,26 @@ pub enum ItemClass {
     TwoHandAxe,
     #[serde(rename = "Two Hand Mace")]
     TwoHandMace,
+}
+
+impl ItemClass {
+    pub fn allowed_slots(&self) -> Vec<Slot> {
+        use ItemClass::*;
+        match self {
+            TwoHandSword|TwoHandAxe|TwoHandMace|Warstaff|Staff|Bow => vec![Slot::Weapon],
+            OneHandAxe|OneHandMace|OneHandSword|RuneDagger|Sceptre|ThrustingOneHandSword => vec![Slot::Weapon, Slot::Offhand],
+            Quiver|Shield => vec![Slot::Offhand],
+            Helmet => vec![Slot::Helm],
+            Amulet => vec![Slot::Amulet],
+            BodyArmour => vec![Slot::BodyArmour],
+            Belt => vec![Slot::Belt],
+            Gloves => vec![Slot::Gloves],
+            Boots => vec![Slot::Boots],
+            Ring => vec![Slot::Ring, Slot::Ring2],
+            Jewel => vec![Slot::TreeJewel(0)],
+            _ => vec![],
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

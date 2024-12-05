@@ -2,6 +2,7 @@ pub mod build_selection;
 pub mod tree_view;
 pub mod settings;
 pub mod panel;
+pub mod utils;
 
 use crate::config::Config;
 use egui_glow::egui_winit::winit::event::Modifiers;
@@ -21,6 +22,7 @@ pub enum MainState {
     Tree,
     Config,
     Skills,
+    Items,
     ChooseMastery(u16),
 }
 
@@ -69,6 +71,7 @@ pub struct State {
     builds_dir_settings: String,
     framerate_settings: u64,
     pub level: i64,
+    can_save: bool,
 
     // OpenGL stuff
     pub dimensions: (u32, u32),
@@ -118,6 +121,7 @@ impl State {
             builds_dir_settings: config.builds_dir.clone().into_os_string().into_string().unwrap(),
             framerate_settings: config.framerate,
             level: 1,
+            can_save: true,
             config: config, // needs to be after fields that depend on config
 
             dimensions: (1280, 720),
@@ -184,6 +188,7 @@ impl State {
     }
 
     pub fn recalc(&mut self) {
+        self.can_save = true;
         let mods = self.build.calc_mods(true);
         let stats = self.build.calc_stats(&mods, &hset![]);
         self.passives_count = self.build.tree.passives_count();

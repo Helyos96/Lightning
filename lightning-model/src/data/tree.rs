@@ -110,7 +110,7 @@ pub struct MasteryEffect {
     pub stats: Vec<String>,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum NodeType {
     Normal,
     Notable,

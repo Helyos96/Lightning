@@ -2,37 +2,11 @@ use crate::build::stat::{Stat, StatId, Stats};
 use crate::build::{self, property, Build, Slot};
 use crate::data::default_monster_stats::MonsterStats;
 use crate::data::gem::GemTag;
-use crate::data::DamageType;
+use crate::data::{DamageGroup, DamageType, DAMAGE_GROUPS};
 use crate::gem::Gem;
 use crate::item::Item;
 use crate::modifier::{Mod, Source, Type};
 use rustc_hash::FxHashMap;
-
-struct DamageGroup {
-    stat_id: StatId,
-    added_min_id: StatId,
-    added_max_id: StatId,
-    base_min_id: StatId,
-    base_max_id: StatId,
-    min_id: StatId,
-    max_id: StatId,
-    damage_type: DamageType,
-}
-
-impl DamageGroup {
-    const fn new(stat_id: StatId, added_min_id: StatId, added_max_id: StatId, base_min_id: StatId, base_max_id: StatId, min_id: StatId, max_id: StatId, damage_type: DamageType) -> Self {
-        DamageGroup {
-            stat_id,
-            added_min_id,
-            added_max_id,
-            base_min_id,
-            base_max_id,
-            min_id,
-            max_id,
-            damage_type,
-        }
-    }
-}
 
 enum DamageSource {
     Slot(Slot),
@@ -159,21 +133,13 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
     let monster_mods = monster_build.calc_mods_monster(build.property_int(property::Int::Level).min(83));
     let monster_stats = monster_build.calc_stats(&monster_mods, &hset![]);
 
-    const DAMAGE_GROUPS: [DamageGroup; 5] = [
-        DamageGroup::new(StatId::PhysicalDamage, StatId::AddedMinPhysicalDamage, StatId::AddedMaxPhysicalDamage, StatId::BaseMinPhysicalDamage, StatId::BaseMaxPhysicalDamage, StatId::MinPhysicalDamage, StatId::MaxPhysicalDamage, DamageType::Physical),
-        DamageGroup::new(StatId::FireDamage, StatId::AddedMinFireDamage, StatId::AddedMaxFireDamage, StatId::BaseMinFireDamage, StatId::BaseMaxFireDamage, StatId::MinFireDamage, StatId::MaxFireDamage, DamageType::Fire),
-        DamageGroup::new(StatId::ColdDamage, StatId::AddedMinColdDamage, StatId::AddedMaxColdDamage, StatId::BaseMinColdDamage, StatId::BaseMaxColdDamage, StatId::MinColdDamage, StatId::MaxColdDamage, DamageType::Cold),
-        DamageGroup::new(StatId::LightningDamage, StatId::AddedMinLightningDamage, StatId::AddedMaxLightningDamage, StatId::BaseMinLightningDamage, StatId::BaseMaxLightningDamage, StatId::MinLightningDamage, StatId::MaxLightningDamage, DamageType::Lightning),
-        DamageGroup::new(StatId::ChaosDamage, StatId::AddedMinChaosDamage, StatId::AddedMaxChaosDamage, StatId::BaseMinChaosDamage, StatId::BaseMaxChaosDamage, StatId::MinChaosDamage, StatId::MaxChaosDamage, DamageType::Chaos),
-    ];
-
     let crit_multi = stats.val(StatId::CriticalStrikeMultiplier);
 
     let mut damage_instances = vec![];
 
     if tags.contains(&GemTag::Attack) {
         for slot in [Slot::Weapon, Slot::Offhand] {
-            if let Some(weapon) = build.equipment.get(&slot) {
+            if let Some(weapon) = build.get_equipped(slot) {
                 let weapon_restrictions = &active_gem.data().active_skill.as_ref().unwrap().weapon_restrictions;
                 if weapon_restrictions.is_empty() || weapon_restrictions.contains(&weapon.data().item_class) {
                     let chance_to_hit = calc_chance_hit_weapon(&stats, &monster_stats, weapon);
@@ -247,7 +213,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
             let mut div = 0;
             let mut time = 0;
             for slot in [Slot::Weapon, Slot::Offhand] {
-                if let Some(weapon) = build.equipment.get(&slot) {
+                if let Some(weapon) = build.get_equipped(slot) {
                     let weapon_restrictions = &active_gem.data().active_skill.as_ref().unwrap().weapon_restrictions;
                     if weapon_restrictions.is_empty() || weapon_restrictions.contains(&weapon.data().item_class) {
                         if let Some(item_speed) = weapon.attack_speed() {

@@ -216,7 +216,8 @@ pub struct Build {
     pub ascendancy: i32,
     pub gem_links: Vec<GemLink>,
     #[serde_as(as = "FxHashMap<serde_with::json::JsonString, _>")]
-    pub equipment: FxHashMap<Slot, Item>,
+    // usize is index into inventory
+    pub equipment: FxHashMap<Slot, usize>,
     pub inventory: Vec<Item>,
     pub tree: PassiveTree,
     #[serde(default)]
@@ -411,7 +412,8 @@ impl Build {
         mods.extend(BANDIT_STATS.get(&self.bandit_choice).unwrap().clone());
         mods.extend(CAMPAIGN_STATS.get(&self.campaign_choice).unwrap().clone());
         mods.extend(self.tree.calc_mods());
-        for (slot, item) in &self.equipment {
+        for (slot, idx) in &self.equipment {
+            let item = &self.inventory[*idx];
             if let Slot::TreeJewel(node_id) = slot {
                 if self.tree.nodes.contains(node_id) {
                     mods.extend(item.calc_nonlocal_mods(*slot));
@@ -463,6 +465,13 @@ impl Build {
             },
         ];
         mods
+    }
+
+    pub fn get_equipped(&self, slot: Slot) -> Option<&Item> {
+        if let Some(idx) = self.equipment.get(&slot) {
+            return Some(&self.inventory[*idx]);
+        }
+        None
     }
 
     pub fn property_int_stats(&self, p: property::Int, stats: &FxHashMap<StatId, Stat>) -> i64 {
@@ -522,7 +531,7 @@ impl Build {
     }
 
     pub fn is_holding(&self, item_classes: &FxHashSet<ItemClass>) -> bool {
-        self.equipment.iter().find(|(_, item)| item_classes.contains(&item.data().item_class)).is_some()
+        self.equipment.iter().find(|(_, idx)| item_classes.contains(&self.inventory[**idx].data().item_class)).is_some()
     }
 
     fn check_conditions(&self, stats: &FxHashMap<StatId, Stat>, m: &Mod) -> bool {

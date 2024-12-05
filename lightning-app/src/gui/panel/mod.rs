@@ -1,9 +1,10 @@
-use lightning_model::build::GemLink;
-
 pub mod left;
 pub mod top;
 pub mod config;
 pub mod skills;
+pub mod items;
+
+use lightning_model::build::GemLink;
 
 fn text_gemlink(gemlink: &GemLink) -> String {
 	if gemlink.active_gems().count() == 0 {

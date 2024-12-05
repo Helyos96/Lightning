@@ -40,11 +40,12 @@ const ENDINGS: [(&str, Mutation); 4] = [
     ("per endurance charge", Mutation::MultiplierProperty((1, property::Int::EnduranceCharges))),
 ];
 
-const ENDINGS_GEMTAGS: [(&str, GemTag); 14] = [
+const ENDINGS_GEMTAGS: [(&str, GemTag); 15] = [
     ("of aura skills", GemTag::Aura),
     ("of curse skills", GemTag::Curse),
     ("of hex skills", GemTag::Hex),
     ("with attack skills", GemTag::Attack),
+    ("to attacks", GemTag::Attack),
     ("of attacks", GemTag::Attack),
     ("of skills", GemTag::Active_Skill),
     ("with mines", GemTag::Mine),

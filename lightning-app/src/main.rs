@@ -233,6 +233,8 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                 gui::panel::config::draw(egui_ctx, state);
                             } else if main_state == MainState::Skills {
                                 gui::panel::skills::draw(egui_ctx, state);
+                            } else if main_state == MainState::Items {
+                                gui::panel::items::draw(egui_ctx, state);
                             }
                             if let MainState::ChooseMastery(node_id) = main_state {
                                 if let Some(effect) = gui::select_mastery_effect(egui_ctx, &state.build.tree.masteries, &TREE.nodes[&node_id]) {
@@ -328,6 +330,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                     }
                                 } else if button_state == ElementState::Released {
                                     if let Some(node) = state.hovered_node {
+                                        state.build_compare = Some(state.build.clone());
                                         state.build.tree.flip_node(node.skill);
                                         state.snapshot();
                                         if !state.build.tree.nodes.contains(&node.skill) {
@@ -339,9 +342,6 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                             }
                                             state.path_hovered = None;
                                         }
-                                        let mut build_compare = state.build.clone();
-                                        build_compare.tree.flip_node(node.skill);
-                                        state.build_compare = Some(build_compare);
                                         state.request_regen = true;
                                         state.request_recalc = true;
                                         window.request_redraw();
