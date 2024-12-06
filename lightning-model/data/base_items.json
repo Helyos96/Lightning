@@ -52991,12 +52991,12 @@
     "name": "Chimerascale Gauntlets",
     "properties": {
       "armour": {
-        "max": 176,
+        "max": 203,
         "min": 176
       },
       "energy_shield": null,
       "evasion": {
-        "max": 176,
+        "max": 203,
         "min": 176
       },
       "movement_speed": null,
@@ -53054,12 +53054,12 @@
     "name": "Wyvernscale Gauntlets",
     "properties": {
       "armour": {
-        "max": 205,
+        "max": 236,
         "min": 205
       },
       "energy_shield": null,
       "evasion": {
-        "max": 205,
+        "max": 236,
         "min": 205
       },
       "movement_speed": null,

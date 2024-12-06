@@ -178,7 +178,7 @@ impl State {
         let mut delta = FxHashMap::default();
         if let Some(gem_link_compare) = build_compare.gem_links.get(self.gemlink_cur) {
             if let Some(active_gem_compare) = gem_link_compare.active_gems().nth(self.active_skill_cur) {
-                let active_gem_compare_calc = calc::calc_gem(build_compare, gem_link_compare.support_gems(), active_gem_compare);
+                let active_gem_compare_calc = calc::calc_gem(build_compare, gem_link_compare.support_gems().filter(|g| g.enabled), active_gem_compare);
                 delta.extend(calc::compare(&self.active_skill_calc, &active_gem_compare_calc));
             }
         }

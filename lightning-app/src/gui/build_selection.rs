@@ -35,7 +35,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
             {
                 ui.separator();
                 ui.label("From pathofexile.com");
-                ui.add(egui::TextEdit::singleline(&mut state.import_account).hint_text("Account"));
+                ui.add(egui::TextEdit::singleline(&mut state.import_account).hint_text("Account#1234"));
                 ui.add(egui::TextEdit::singleline(&mut state.import_character).hint_text("Character"));
 
                 if ui.button("Import").clicked() {

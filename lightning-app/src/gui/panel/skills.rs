@@ -58,6 +58,7 @@ fn draw_skill_dropdown(ui: &mut egui::Ui, panel_skills: &mut SkillsPanelState, s
                     // Disable label text selection, otherwise the cursor doesn't select the entire line
                     // when you hover a label.
                     ui.style_mut().interaction.selectable_labels = false;
+                    ui.spacing_mut().item_spacing = [ui.spacing().item_spacing.x, ui.spacing().item_spacing.y - 2.0].into();
                     let table = TableBuilder::new(ui)
                         .column(Column::remainder())
                         .column(Column::remainder())

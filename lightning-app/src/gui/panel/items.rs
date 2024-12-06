@@ -18,6 +18,9 @@ fn item_to_richtext(item: &Item) -> egui::RichText {
     egui::RichText::new(&item.name).color(rarity_to_color(item.rarity))
 }
 
+// TODO: DPI Aware
+const COMBO_WIDTH: f32 = 200.0;
+
 fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<Option<usize>> {
     let mut ret = None;
     let idx = state.build.equipment.get(&slot);
@@ -25,11 +28,12 @@ fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<O
         Some(item) => item_to_richtext(item),
         None => egui::RichText::new("<No Item>"),
     };
+    let mut item_hover = None;
     let response = egui::ComboBox::from_id_salt(format!("item_choice_{:?}", slot))
-        // TODO: DPI Aware
-        .width(200.0)
+        .width(COMBO_WIDTH)
         .selected_text(selected_text)
         .show_ui(ui, |ui| {
+            ui.spacing_mut().item_spacing = [ui.spacing().item_spacing.x, ui.spacing().item_spacing.y - 2.0].into();
             if ui.selectable_label(false, "<No Item>").clicked() && idx.is_some() {
                 ret = Some(None);
             }
@@ -38,13 +42,15 @@ fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<O
                 if response.clicked() {
                     ret = Some(Some(i));
                 } else if response.hovered() {
-                    // TODO: gets hidden by combobox popup.
-                    draw_item_window(ui, item, [state.mouse_pos.0 + 15.0, state.mouse_pos.1 + 15.0], state.config.show_debug);
+                    item_hover = Some(item);
                 }
             }
         }).response;
-    if response.hovered() && idx.is_some() {
-        draw_item_window(ui, state.build.get_equipped(slot).unwrap(), [state.mouse_pos.0 + 15.0, state.mouse_pos.1 + 15.0], state.config.show_debug);
+
+    if let Some(item) = item_hover {
+        draw_item_window(ui, item, [response.rect.max.x + 10.0, response.rect.min.y], state.config.show_debug);
+    } else if response.hovered() && idx.is_some() {
+        draw_item_window(ui, state.build.get_equipped(slot).unwrap(), [response.rect.max.x + 10.0, response.rect.min.y], state.config.show_debug);
     }
 
     match ret {

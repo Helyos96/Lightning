@@ -243,7 +243,7 @@ impl Build {
     /// Innate, Passive Tree, Items, Global Skills (Auras..)
     /// todo: add some caching to not parse & collect all mods
     /// every time.
-    pub fn calc_mods(&self, include_global: bool) -> Vec<Mod> {
+    pub fn calc_mods(&self, _include_global: bool) -> Vec<Mod> {
         let class_data = &TREE.classes[&self.tree.class];
         let mut mods = vec![
             Mod {
@@ -432,13 +432,14 @@ impl Build {
                 }
             }
         }
-        if include_global {
+        // TODO auras
+        /*if include_global {
             for gl in &self.gem_links {
                 for ag in gl.active_gems().filter(|g| g.data().tags.contains(&GemTag::Aura)) {
                     mods.extend(ag.calc_mods());
                 }
             }
-        }
+        }*/
         mods
     }
 
