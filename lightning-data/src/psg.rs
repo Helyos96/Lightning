@@ -1,6 +1,6 @@
 use std::io::{self, Cursor, Seek};
 use byteorder::{LittleEndian, ReadBytesExt};
-use crate::read_file;
+use crate::utils::read_file;
 
 /// Parser for passiveskillgraph.psg and other PSG files (PoE2 0.1.0)
 /// Adapted from https://github.com/Project-Path-of-Exile-Wiki/PyPoE/blob/dev/PyPoE/poe/file/psg.py

@@ -174,7 +174,6 @@ pub fn parse_description(reader: &mut BufReader<File>) -> io::Result<Vec<Transla
     let mut trad_count: usize = 0;
     let mut state = TradCount;
     let mut trads = vec![];
-    let mut stat = String::new();
 
     loop {
         let mut line = String::new();

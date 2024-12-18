@@ -1,10 +1,10 @@
 #![allow(dead_code)]
 
-use std::{fs::File, io::{self, BufWriter, Cursor, Read, Seek}, process::Command, str::FromStr};
-use byteorder::{LittleEndian};
+use std::{fs::{self, File}, io::{BufReader, BufWriter}, process::Command, str::FromStr};
+use argh::FromArgs;
 use csd::parse_csd;
-use dat_schema::{Column, DatSchema, Table, Type};
-use byteorder::ReadBytesExt;
+use dat_schema::{DatSchema, Table};
+use datc64::{dump, ForeignRow, Val};
 use lightning_model::data::poe2::tree;
 use psg::parse_psg;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -12,253 +12,28 @@ use rustc_hash::{FxHashMap, FxHashSet};
 mod dat_schema;
 mod psg;
 mod csd;
-
-#[derive(Clone, Debug)]
-struct ForeignRow {
-    dat_file: String,
-    rowid: u64,
-    key: Option<String>,
-}
-
-#[derive(Clone, Debug)]
-enum Val {
-    Bool(bool),
-    Integer(i64),
-    Float(f32),
-    String(String),
-    Row(u64),
-    ForeignRow(ForeignRow),
-    Array(Vec<Val>),
-}
-
-impl Val {
-    fn string(&self) -> &str {
-        if let Val::String(string) = self {
-            string
-        } else {
-            panic!("not a string");
-        }
-    }
-
-    fn integer(&self) -> i64 {
-        if let Val::Integer(i) = *self {
-            i
-        } else {
-            panic!("not a bool");
-        }
-    }
-
-    fn bool(&self) -> bool {
-        if let Val::Bool(b) = *self {
-            b
-        } else {
-            panic!("not a bool");
-        }
-    }
-
-    fn row(&self) -> u64 {
-        if let Val::Row(r) = *self {
-            r
-        } else {
-            panic!("not a row");
-        }
-    }
-
-    fn foreign_row(&self) -> &ForeignRow {
-        if let Val::ForeignRow(fr) = self {
-            fr
-        } else {
-            panic!("not a foreign row");
-        }
-    }
-
-    fn skill_id(&self) -> u16 {
-        if let Val::Integer(i) = *self {
-            (i as i16) as u16
-        } else {
-            panic!("not an integer");
-        }
-    }
-}
-
-fn read_file(name: &str) -> io::Result<Vec<u8>> {
-    let mut file = File::open(name)?;
-    let mut buffer = vec![];
-    file.read_to_end(&mut buffer)?;
-    Ok(buffer)
-}
-
-const PATTERN_VAR_DATA: [u8; 8] = [0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB];
-const PATTERN_VAR_END: [u8; 4] = [0x00, 0x00, 0x00, 0x00];
-
-fn make_foreign_row(column: &Column, rid: u64) -> Option<Val> {
-    if rid == 0xfefefefefefefefe || rid == 0x100000000000000 {
-        return None;
-    }
-    if let Some(references) = &column.references {
-        return Some(Val::ForeignRow(ForeignRow { dat_file: references.table.clone(), rowid: rid, key: references.column.clone() }));
-    }
-    None
-}
-
-fn get_val(column: &Column, cursor: &mut Cursor<&Vec<u8>>, strict: bool) -> io::Result<Option<Val>> {
-    let val = match column.r#type {
-        Type::bool => {
-            let b = cursor.read_u8()?;
-            if strict && b > 1 {
-                return Err(io::Error::new(io::ErrorKind::Other, format!("Bad bool: {b}")));
-            }
-            Some(Val::Bool(b != 0))
-        },
-        Type::foreignrow => {
-            let rid = cursor.read_u64::<LittleEndian>()?;
-            let _unk = cursor.read_u64::<LittleEndian>()?;
-            make_foreign_row(column, rid)
-        },
-        Type::array => {
-            None
-        }
-        Type::string => {
-            let mut buf: Vec<u16> = vec![];
-            loop {
-                let word = cursor.read_u16::<LittleEndian>()?;
-                if word == 0 {
-                    break;
-                }
-                buf.push(word);
-            }
-            if let Ok(utf16_string) = String::from_utf16(&buf) {
-                Some(Val::String(utf16_string))
-            } else {
-                None
-            }
-        },
-        Type::enumrow => {
-            cursor.read_u32::<LittleEndian>()?;
-            None
-        },
-        Type::row => {
-            let rid = cursor.read_u64::<LittleEndian>()?;
-            Some(Val::Row(rid))
-        },
-        Type::i32 => {
-            let i = cursor.read_i32::<LittleEndian>()?;
-            Some(Val::Integer(i as i64))
-        },
-        Type::i16 => {
-            let i = cursor.read_i16::<LittleEndian>()?;
-            Some(Val::Integer(i as i64))
-        },
-        Type::f32 => {
-            let f = cursor.read_f32::<LittleEndian>()?;
-            Some(Val::Float(f))
-        },
-    };
-    Ok(val)
-}
-
-fn dump_datc64(dat_schema: &DatSchema, name: &str, strict: bool) -> io::Result<Vec<FxHashMap<String, Val>>> {
-    if let Some(table) = dat_schema.tables.iter().find(|t| t.name == name) {
-        let buf = read_file(&format!(r"C:\PoE2\out\data\{}.datc64", name.to_lowercase()))?;
-        if let Some(var_offset) = find_pattern(&buf, &PATTERN_VAR_DATA) {
-            let mut ret = vec![];
-            let mut cursor = Cursor::new(&buf);
-            let nb_rows = cursor.read_u32::<LittleEndian>()?;
-            let row_len = (var_offset - 4) / nb_rows as usize;
-            for row in 0..nb_rows {
-                cursor.set_position(4 + (row as u64 * row_len as u64));
-                let mut col_data = FxHashMap::default();
-                for column in &table.columns {
-                    if column.array {
-                        let length = cursor.read_i64::<LittleEndian>()?;
-                        let offset = cursor.read_u64::<LittleEndian>()?;
-                        let mut cursor = cursor.clone();
-                        if cursor.seek(io::SeekFrom::Start(var_offset as u64 + offset)).is_ok() {
-                            if length <= 0 || length > 100000 {
-                                continue;
-                            }
-                            let mut array = vec![];
-                            for _ in 0..length {
-                                let val = get_val(column, &mut cursor, strict);
-                                if let Ok(Some(val)) = val {
-                                    array.push(val);
-                                } else {
-                                    break;
-                                }
-                            }
-                            if let Some(name) = &column.name {
-                                col_data.insert(name.clone(), Val::Array(array));
-                            }
-                        }
-                    } else {
-                        if column.r#type.is_var_data() {
-                            let mut new_cursor = cursor.clone();
-                            let offset = column.r#type.var_offset(&mut cursor)?;
-                            if new_cursor.seek(io::SeekFrom::Start(var_offset as u64 + offset)).is_ok() {
-                                if let Some(name) = &column.name {
-                                    let val = get_val(column, &mut new_cursor, false);
-                                    if let Ok(Some(val)) = val {
-                                        col_data.insert(name.clone(), val);
-                                    }
-                                }
-                            }
-                        } else {
-                            let val = get_val(column, &mut cursor, false)?;
-                            if let Some(name) = &column.name {
-                                if val.is_some() {
-                                    col_data.insert(name.clone(), val.unwrap());
-                                }
-                            }
-                        }
-                    }
-                }
-                if row == 0 && cursor.position() != (4 + ((row + 1) as u64 * row_len as u64)) {
-                    println!("Warning: {}.datc64: Bad cursor: {}, expected {}", name.to_lowercase(), cursor.position(), (4 + ((row + 1) as u64 * row_len as u64)));
-                }
-                ret.push(col_data);
-            }
-            return Ok(ret);
-        } else {
-            return Err(io::Error::new(io::ErrorKind::Other, "couldn't find var pattern"));
-        }
-    } else {
-        return Err(io::Error::new(io::ErrorKind::Other, format!("No dat schema for {name}")));
-    }
-}
-
-fn find_pattern(data: &[u8], pattern: &[u8]) -> Option<usize> {
-    if data.len() < pattern.len() {
-        return None;
-    }
-    for i in 0..data.len() - pattern.len() {
-        if &data[i..i+pattern.len()] == pattern {
-            return Some(i);
-        }
-    }
-    None
-}
+mod datc64;
+mod utils;
 
 /// Creates a single spritesheet from a bunch of DDS file paths
-/// Requires `bun_extract_file` (https://github.com/zao/ooz) and `magick` (https://imagemagick.org/script/download.php) in PATH
+/// Requires `bun_extract_file` (https://github.com/zao/ooz/releases) and `magick` (https://imagemagick.org/script/download.php) in PATH
 /// @name: {name}.png
 /// @dds_files: list of DDS file paths within Content.ggpk
 /// @single_wh: dimension for a single sprite, both width and height (square)
-fn generate_spritesheet(name: &str, dds_files: &FxHashSet<String>) -> tree::Sprite {
-    const MAX_ITEMS_PER_LINE: usize = 16;
-    const LENGTH: usize = 64;
+fn generate_spritesheet(name: &str, dds_files: &FxHashSet<String>, max_items_per_line: usize, length: usize, extract_dds: bool, poe_dir: &str) -> tree::Sprite {
+    if extract_dds {
+        println!("Extracting {} DDS files with bun_extract_file...", dds_files.len());
+        Command::new("bun_extract_file")
+            .args(["extract-files", format!("{poe_dir}/Content.ggpk").as_str(), format!("{poe_dir}/out").as_str()])
+            .args(dds_files)
+            .output()
+            .expect("failed to execute bun_extract_file");
+    }
 
-    println!("Extracting {} DDS files with bun_extract_file...", dds_files.len());
-    Command::new("bun_extract_file")
-        .args(["extract-files", "C:/PoE2/Content.ggpk", "C:/PoE2/out"])
-        .args(dds_files)
-        .output()
-        .expect("failed to execute bun_extract_file");
-
-    let h = (dds_files.len() + 16) / MAX_ITEMS_PER_LINE;
+    let h = (dds_files.len() + 16) / max_items_per_line;
     let mut dds_filelist = vec![];
-
     for dds_path in dds_files {
-        dds_filelist.push(format!("C:/PoE2/out/{}", dds_path.to_lowercase()));
+        dds_filelist.push(format!("{poe_dir}/out/{}", dds_path.to_lowercase()));
     }
 
     println!("Making {name}.png with magick...");
@@ -269,20 +44,20 @@ fn generate_spritesheet(name: &str, dds_files: &FxHashSet<String>) -> tree::Spri
         .args(["-resize", "64x64"])
         .args(["-geometry", "+0+0"])
         .arg("-tile")
-        .arg(format!("{}x{}", MAX_ITEMS_PER_LINE, h).as_str())
+        .arg(format!("{}x{}", max_items_per_line, h).as_str())
         .arg(format!("{name}.png"))
         .output()
         .expect("failed to execute magick");
 
     let mut coords = FxHashMap::default();
     for (i, dds_path) in dds_files.iter().enumerate() {
-        coords.insert(dds_path.to_string(), tree::Rect { h: LENGTH as u16, w: LENGTH as u16, x: ((i % MAX_ITEMS_PER_LINE) * LENGTH) as u16, y: ((i / MAX_ITEMS_PER_LINE) * LENGTH) as u16 });
+        coords.insert(dds_path.to_string(), tree::Rect { h: length as u16, w: length as u16, x: ((i % max_items_per_line) * length) as u16, y: ((i / max_items_per_line) * length) as u16 });
     }
 
     tree::Sprite {
         filename: format!("{name}.png"),
-        w: (MAX_ITEMS_PER_LINE * LENGTH) as u16,
-        h: (((dds_files.len() + MAX_ITEMS_PER_LINE) / MAX_ITEMS_PER_LINE) * LENGTH) as u16,
+        w: (max_items_per_line * length) as u16,
+        h: (((dds_files.len() + max_items_per_line) / max_items_per_line) * length) as u16,
         coords,
     }
 }
@@ -305,15 +80,43 @@ fn get_foreign_val(dats: &FxHashMap<String, Vec<FxHashMap<String, Val>>>, foreig
     None
 }
 
+#[derive(FromArgs)]
+/// PoE2 game data extractor & processor
+struct Args {
+    /// path of exile 2 root dir
+    #[argh(option, short = 'p')]
+    poe_dir: String,
+    /// dat schema JSON file path
+    #[argh(option, short = 's')]
+    schema: String,
+    /// extract all datc64/psg/csd files
+    #[argh(switch, short = 'e')]
+    extract_dat: bool,
+    /// extract required DDS files
+    #[argh(switch, short = 'd')]
+    extract_dds: bool,
+}
+
 fn main() {
-    let dat_schema: DatSchema = {
-        serde_json::from_slice(include_bytes!("schema.min.json")).expect("Failed to deserialize dat_schema")
-    };
+    let args: Args = argh::from_env();
+    let poe_dir = &args.poe_dir;
+
+    let schema_file = fs::File::open(args.schema).expect("Failed to open dat schema");
+    let dat_schema: DatSchema = serde_json::from_reader(BufReader::new(schema_file)).expect("Failed to deserialize dat schema");
+
+    if args.extract_dat {
+        println!("Extracting all datc64/psg/csd files..");
+        Command::new("bun_extract_file")
+            .args(["extract-files", "--regex", format!("{poe_dir}/Content.ggpk").as_str(), "C:/PoE2/out", "data/.*", "metadata/.*psg", "metadata/.*csd"])
+            .output()
+            .expect("failed to execute bun_extract_file");
+    }
+
     let tables: Vec<Table> = dat_schema.tables.iter().filter(|t| [2,3].contains(&t.valid_for)).cloned().collect();
     let mut datc64_dumps = FxHashMap::default();
     let mut success = 0;
     for table in &tables {
-        match dump_datc64(&dat_schema, &table.name, false) {
+        match dump(&dat_schema, &table.name, false) {
             Err(err) => eprintln!("{}: {err}", table.name),
             Ok(table_dump) => {
                 datc64_dumps.insert(table.name.clone(), table_dump);
@@ -321,12 +124,12 @@ fn main() {
             }
         }
     }
-    println!("Success dac64 parses: {success}/{}", tables.len());
+    println!("Success datc64 parses: {success}/{}", tables.len());
 
-    if let Ok(ret) = dump_datc64(&dat_schema,"PassiveSkills", false) {
+    if let Ok(ret) = dump(&dat_schema,"PassiveSkills", false) {
         if let Ok(graph) = parse_psg() {
-            let mut translations = parse_csd("C:/PoE2/out/metadata/statdescriptions/passive_skill_stat_descriptions.csd").unwrap();
-            translations.0.extend(parse_csd("C:/PoE2/out/metadata/statdescriptions/stat_descriptions.csd").unwrap().0);
+            let mut translations = parse_csd(format!("{poe_dir}/out/metadata/statdescriptions/passive_skill_stat_descriptions.csd").as_str()).unwrap();
+            translations.0.extend(parse_csd(format!("{poe_dir}/out/metadata/statdescriptions/stat_descriptions.csd").as_str()).unwrap().0);
             let mut nodes = FxHashMap::default();
             let mut groups = FxHashMap::default();
             for (i, group) in graph.groups.iter().enumerate() {
@@ -397,7 +200,7 @@ fn main() {
             
             let dds_files: FxHashSet<String> = nodes.iter().map(|n| n.1.icon.to_string()).collect();
             let mut sprites = FxHashMap::default();
-            let skills_ss = generate_spritesheet("skills-3", &dds_files);
+            let skills_ss = generate_spritesheet("skills-3", &dds_files, 16, 64, args.extract_dds, &args.poe_dir);
             sprites.insert("normalActive".to_string(), skills_ss);
             let jewel_slots = nodes.iter().filter(|n| n.1.is_jewel_socket).map(|n| *n.0).collect();
 
