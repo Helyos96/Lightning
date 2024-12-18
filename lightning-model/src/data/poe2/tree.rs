@@ -5,13 +5,12 @@ use strum_macros::{AsRefStr, EnumString, IntoStaticStr};
 #[derive(Default, Clone, Copy, Hash, Eq, PartialEq, Debug, Serialize, Deserialize, EnumString, AsRefStr)]
 pub enum Class {
     #[default]
-    Scion,
-    Marauder,
     Ranger,
     Witch,
-    Duelist,
-    Templar,
-    Shadow,
+    Warrior,
+    Mercenary,
+    Monk,
+    Sorceress,
 }
 
 impl Class {
@@ -19,38 +18,34 @@ impl Class {
         use Class::*;
         use Ascendancy::*;
         match self {
-            Scion => vec![Ascendant],
-            Marauder => vec![Berserker, Chieftain, Juggernaut],
-            Ranger => vec![Deadeye, Raider, Pathfinder],
-            Witch => vec![Necromancer, Occultist, Elementalist],
-            Duelist => vec![Slayer, Gladiator, Champion],
-            Templar => vec![Inquisitor, Hierophant, Guardian],
-            Shadow => vec![Assassin, Saboteur, Trickster],
+            Ranger => vec![Deadeye, Pathfinder],
+            Witch => vec![BloodMage, Infernalist],
+            Warrior => vec![Titan, Warbringer],
+            Mercenary => vec![Witchhunter, GemlingLegionnaire],
+            Monk => vec![Invoker, AcolyteOfChayula],
+            Sorceress => vec![Stormweaver, Chronomancer],
         }
     }
 }
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, Debug, Serialize, Deserialize, EnumString, IntoStaticStr)]
 pub enum Ascendancy {
-    Inquisitor,
-    Hierophant,
-    Guardian,
-    Slayer,
-    Gladiator,
-    Champion,
-    Assassin,
-    Saboteur,
-    Trickster,
-    Juggernaut,
-    Berserker,
-    Chieftain,
-    Necromancer,
-    Occultist,
-    Elementalist,
     Deadeye,
-    Raider,
     Pathfinder,
-    Ascendant,
+    BloodMage,
+    Infernalist,
+    Titan,
+    Warbringer,
+    Witchhunter,
+    #[serde(rename = "Gemling Legionnaire")]
+    #[strum(serialize = "Gemling Legionnaire")]
+    GemlingLegionnaire,
+    Invoker,
+    #[serde(rename = "Acolyte of Chayula")]
+    #[strum(serialize = "Acolyte of Chayula")]
+    AcolyteOfChayula,
+    Stormweaver,
+    Chronomancer,
 }
 
 impl Ascendancy {
@@ -58,25 +53,18 @@ impl Ascendancy {
         use Class::*;
         use Ascendancy::*;
         match self {
-            Inquisitor => Templar,
-            Hierophant => Templar,
-            Guardian => Templar,
-            Slayer => Duelist,
-            Gladiator => Duelist,
-            Champion => Duelist,
-            Assassin => Shadow,
-            Saboteur => Shadow,
-            Trickster => Shadow,
-            Juggernaut => Marauder,
-            Berserker => Marauder,
-            Chieftain => Marauder,
-            Necromancer => Witch,
-            Occultist => Witch,
-            Elementalist => Witch,
             Deadeye => Ranger,
-            Raider => Ranger,
             Pathfinder => Ranger,
-            Ascendant => Scion,
+            BloodMage => Witch,
+            Infernalist => Witch,
+            Titan => Warrior,
+            Warbringer => Warrior,
+            Witchhunter => Mercenary,
+            GemlingLegionnaire => Mercenary,
+            Invoker => Monk,
+            AcolyteOfChayula => Monk,
+            Stormweaver => Sorceress,
+            Chronomancer => Sorceress,
         }
     }
 }
@@ -104,18 +92,11 @@ pub struct ClassData {
     pub base_int: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MasteryEffect {
-    pub effect: u16,
-    pub stats: Vec<String>,
-}
-
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum NodeType {
     Normal,
     Notable,
     Keystone,
-    Mastery,
     AscendancyNormal,
     AscendancyNotable,
     JewelSocket,
@@ -128,10 +109,6 @@ pub struct Node {
     pub stats: Vec<String>,
     pub icon: String,
     pub name: String,
-    pub active_icon: Option<String>,
-    pub inactive_icon: Option<String>,
-    #[serde(default)]
-    pub is_mastery: bool,
     #[serde(default)]
     pub is_notable: bool,
     #[serde(default)]
@@ -140,13 +117,10 @@ pub struct Node {
     pub is_ascendancy_start: bool,
     #[serde(default)]
     pub is_jewel_socket: bool,
-    #[serde(default)]
-    pub is_proxy: bool,
     #[serde(rename = "ascendancyName")]
     pub ascendancy: Option<Ascendancy>,
     pub class_start_index: Option<i32>,
     #[serde(default)]
-    pub mastery_effects: Vec<MasteryEffect>,
     pub group: Option<u16>,
     pub orbit: Option<u16>,
     pub orbit_index: Option<u16>,
@@ -173,8 +147,6 @@ impl Node {
             NodeType::Notable
         } else if self.is_keystone {
             NodeType::Keystone
-        } else if self.is_mastery {
-            NodeType::Mastery
         } else if self.is_jewel_socket {
             NodeType::JewelSocket
         } else {

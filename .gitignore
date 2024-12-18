@@ -1,2 +1,5 @@
 /target
 lightning-model/build.json
+lightning-data/tree.json
+lightning-data/skills-3.png
+lightning-data/src/schema.min.json

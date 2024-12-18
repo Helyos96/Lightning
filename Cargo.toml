@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "lightning-model",
     "lightning-app",
+	"lightning-data",
 ]
 
 [profile.prod]

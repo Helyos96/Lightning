@@ -1,3 +1,4 @@
+#[macro_export]
 macro_rules! regex {
     ($re:expr) => {
         Regex::new(&$re).unwrap()

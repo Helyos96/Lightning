@@ -14,6 +14,11 @@ const SLOTS: [Slot; 10] = [
     Slot::Ring2,
 ];
 
+#[derive(Default)]
+pub struct ItemsPanelState {
+    pub selected_item: Option<usize>,
+}
+
 fn item_to_richtext(item: &Item) -> egui::RichText {
     egui::RichText::new(&item.name).color(rarity_to_color(item.rarity))
 }

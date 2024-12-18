@@ -468,6 +468,25 @@ impl Build {
         mods
     }
 
+    pub fn remove_inventory(&mut self, idx_remove: usize) {
+        if idx_remove >= self.inventory.len() {
+            eprintln!("Trying to remove inventory item {idx_remove} but len is {}", self.inventory.len());
+            return;
+        }
+        // Remove slots where the item is equipped 
+        let equipped_slots: Vec<Slot> = self.equipment.iter().filter(|(_, v)| **v == idx_remove).map(|(k, _)| k).copied().collect();
+        for slot in equipped_slots {
+            self.equipment.remove(&slot);
+        }
+        // Adjust slot idx in remaining equipment
+        for idx in self.equipment.values_mut() {
+            if *idx >= idx_remove {
+                *idx -= 1;
+            }
+        }
+        self.inventory.remove(idx_remove);
+    }
+
     pub fn get_equipped(&self, slot: Slot) -> Option<&Item> {
         if let Some(idx) = self.equipment.get(&slot) {
             return Some(&self.inventory[*idx]);

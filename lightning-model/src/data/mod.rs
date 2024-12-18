@@ -2,6 +2,7 @@ pub mod base_item;
 pub mod default_monster_stats;
 pub mod gem;
 pub mod tree;
+pub mod poe2;
 
 use base_item::BaseItem;
 use default_monster_stats::MonsterStats;
