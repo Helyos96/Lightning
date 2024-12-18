@@ -327,7 +327,6 @@ fn main() {
         if let Ok(graph) = parse_psg() {
             let mut translations = parse_csd("C:/PoE2/out/metadata/statdescriptions/passive_skill_stat_descriptions.csd").unwrap();
             translations.0.extend(parse_csd("C:/PoE2/out/metadata/statdescriptions/stat_descriptions.csd").unwrap().0);
-            //dbg!(&translations);
             let mut nodes = FxHashMap::default();
             let mut groups = FxHashMap::default();
             for (i, group) in graph.groups.iter().enumerate() {
@@ -348,11 +347,20 @@ fn main() {
                             let mut stat_val_idx = 1;
                             for stat in stats_dat {
                                 if let Some(stat_id) = get_foreign_val(&datc64_dumps, stat.foreign_row(), Some("Id")) {
-                                    // TODO: Stats with more than 1 arg
-                                    let stat_val = node_dat.get(&format!("Stat{}Value", stat_val_idx)).unwrap().integer();
-                                    stat_val_idx += 1;
-                                    if let Some(stat_text) = translations.format(stat_id.string(), &[stat_val]) {
-                                        stats.push(stat_text);
+                                    if let Some(nb_args) = translations.nb_args(stat_id.string()) {
+                                        // TODO: doing something wrong when nb_arbs >= 2
+                                        let mut stat_vals = vec![];
+                                        for _ in 0..nb_args {
+                                            stat_vals.push(node_dat.get(&format!("Stat{}Value", stat_val_idx)).unwrap().integer());
+                                            stat_val_idx += 1;
+                                        }
+                                        if let Some(stat_text) = translations.format(stat_id.string(), &stat_vals) {
+                                            stats.push(stat_text);
+                                        } else {
+                                            println!("failed {} {:?}", stat_id.string(), stat_vals);
+                                        }
+                                    } else {
+                                        println!("failed {}", stat_id.string());
                                     }
                                 }
                             }

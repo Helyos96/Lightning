@@ -5,13 +5,13 @@ use lightning_model::regex;
 
 /// Parsing for .csd files, usually translation templates
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Range {
     min: i64,
     max: i64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Argument {
     SingleValue(i64),
     MinMax(Range),
@@ -31,9 +31,15 @@ impl Argument {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+pub enum Mutation {
+    Negate,
+}
+
+#[derive(Debug, Clone)]
 pub struct Translation {
     args: Vec<Argument>,
+    mutations: FxHashMap<usize, Mutation>,
     text: String,
 }
 
@@ -71,8 +77,12 @@ impl Translations {
         let translation = stat_translations.iter().find(|t| t.matches(params))?;
         let mut ret = translation.text.clone();
 
-        for (i, param) in params.iter().enumerate() {
+        for (i, mut param) in params.iter().copied().enumerate() {
+            if let Some(Mutation::Negate) = translation.mutations.get(&i) {
+                param *= -1;
+            }
             ret = ret.replace(&format!("{{{}}}", i), &param.to_string());
+            ret = ret.replace(&format!("{{{}:+d}}", i), &format!("+{}", &param.to_string()));
         }
 
         let regex_square_brackets = regex!("\\[([a-zA-Z ]+)(\\|[a-zA-Z ]+)?\\]");
@@ -84,7 +94,6 @@ impl Translations {
             }
         }).to_string();
 
-        // TODO: negate 1
         Some(ret)
     }
 
@@ -97,6 +106,17 @@ impl Translations {
         }
         None
     }
+}
+
+pub fn parse_mutations(txt: &str) -> FxHashMap<usize, Mutation> {
+    let mut ret = FxHashMap::default();
+    let regex_negate = regex!(r"negate ([0-9]+)");
+
+    for cap in regex_negate.captures_iter(txt) {
+        ret.insert(cap[1].parse::<usize>().unwrap() - 1, Mutation::Negate);
+    }
+
+    ret
 }
 
 pub fn parse_arg(txt: &str) -> Option<Argument> {
@@ -143,18 +163,16 @@ pub fn parse_args(txt: &str) -> Vec<Argument> {
 ///     # "{0:+d} to Maximum Darkness per Level"
 ///
 /// Does not care about languages other than the first one.
-pub fn parse_description(reader: &mut BufReader<File>) -> io::Result<(String, Vec<Translation>)> {
+pub fn parse_description(reader: &mut BufReader<File>) -> io::Result<Vec<Translation>> {
     enum State {
-        Description,
         TradCount,
         Trad(usize),
     }
     use State::*;
 
-    let regex_desc = regex!("1 ([a-z_+%-]+)");
-    let regex_trad = regex!("((?:[0-9#|-]+ )+)\"([a-zA-Z_+%\\[\\]{}0-9 |\\\\-]+)\"");
+    let regex_trad = regex!("((?:[0-9#|-]+ )+)\"(.+?)\" ?(.*)");
     let mut trad_count: usize = 0;
-    let mut state = Description;
+    let mut state = TradCount;
     let mut trads = vec![];
     let mut stat = String::new();
 
@@ -167,14 +185,6 @@ pub fn parse_description(reader: &mut BufReader<File>) -> io::Result<(String, Ve
         let line = line.trim_start_matches('\t');
 
         match state {
-            Description => {
-                if let Some(cap) = regex_desc.captures(line) {
-                    stat = cap[1].to_string();
-                } else {
-                    return Err(io::Error::new(ErrorKind::Other, "Couldn't parse description"));
-                }
-                state = TradCount;
-            },
             TradCount => {
                 if let Ok(count) = line.trim().parse::<usize>() {
                     if count == 0 {
@@ -190,13 +200,18 @@ pub fn parse_description(reader: &mut BufReader<File>) -> io::Result<(String, Ve
                 if let Some(cap) = regex_trad.captures(line) {
                     let args = parse_args(&cap[1]);
                     if args.len() > 0 {
-                        trads.push(Translation { args: args, text: cap[2].to_string() });
+                        let mutations = if cap.get(3).is_some() {
+                            parse_mutations(&cap[3])
+                        } else {
+                            FxHashMap::default()
+                        };
+                        trads.push(Translation { args: args, text: cap[2].to_string(), mutations });
                     }
                 } else {
                     return Err(io::Error::new(ErrorKind::Other, "Couldn't parse trad"));
                 }
                 if i == trad_count - 1 {
-                    return Ok((stat, trads));
+                    return Ok(trads);
                 }
                 state = Trad(i + 1);
             },
@@ -210,19 +225,30 @@ pub fn parse_csd(name: &str) -> io::Result<Translations> {
     let file = File::open(name)?;
     let mut reader = BufReader::new(file);
     let mut ret = Translations::default();
+    let regex_desc = regex!("[0-9]+ ([a-zA-Z0-9_+% -]+)");
 
     loop {
         let mut line = String::new();
         let length = reader.read_line(&mut line)?;
-
         if length == 0 {
             return Ok(ret);
         }
 
         let trimmed = line.trim();
         if trimmed == "description" {
-            if let Ok((stat, trads)) = parse_description(&mut reader) {
-                ret.0.insert(stat, trads);
+            let mut line = String::new();
+            let length = reader.read_line(&mut line)?;
+            if length == 0 {
+                return Ok(ret);
+            }
+            if let Some(cap) = regex_desc.captures(&line) {
+                if let Ok(trads) = parse_description(&mut reader) {
+                    for stat in cap[1].split(' ') {
+                        ret.0.insert(stat.to_string(), trads.clone());
+                    }
+                }
+            } else {
+                return Err(io::Error::new(ErrorKind::Other, "Couldn't parse description"));
             }
         }
     }
