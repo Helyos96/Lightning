@@ -305,7 +305,6 @@ pub fn parse_description<R: BufRead>(reader: &mut R) -> io::Result<Vec<Translati
 }
 
 /// Parses a csd file.
-/// /!\ Assumes UTF-8 encoding, you will most likely need to convert as game files are almost always UTF-16le.
 pub fn parse_csd(name: &str) -> io::Result<Translations> {
     let file = File::open(name)?;
     let transcoded_reader = DecodeReaderBytesBuilder::new()

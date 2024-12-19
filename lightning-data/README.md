@@ -14,5 +14,3 @@ cargo run --release -- -s <path_to_dat_schema_json> -p <path_to_poe2_dir> -e -d
 ```
 
 Run `cargo run -- --help` for usage information. Use `-e` only on the first run and on game updates. `-d` only if DDS files change.
-
-IMPORTANT: You'll have to manually convert `stat_descriptions.csd` and `passive_skill_stat_descriptions.csd` to UTF-8, as lightning-data doesn't yet handle the UTF-16 text in those files.
