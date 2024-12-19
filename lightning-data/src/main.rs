@@ -160,10 +160,10 @@ fn main() {
                                         if let Some(stat_text) = translations.format(stat_id.string(), &stat_vals) {
                                             stats.push(stat_text);
                                         } else {
-                                            println!("failed {} {:?}", stat_id.string(), stat_vals);
+                                            println!("failed desc '{}' args {:?}", stat_id.string(), stat_vals);
                                         }
                                     } else {
-                                        println!("failed {}", stat_id.string());
+                                        println!("failed desc '{}'", stat_id.string());
                                     }
                                 }
                             }

@@ -2,6 +2,9 @@ use std::{fs::File, io::{self, BufRead, BufReader, ErrorKind}};
 use rustc_hash::FxHashMap;
 use regex::{Captures, Regex};
 use lightning_model::regex;
+use encoding_rs::UTF_16LE;
+use encoding_rs_io::DecodeReaderBytesBuilder;
+use lazy_static::lazy_static;
 
 /// Parsing for .csd files, usually translation templates
 
@@ -21,19 +24,88 @@ impl Argument {
     pub fn matches(&self, number: i64) -> bool {
         use Argument::*;
         match self {
-            SingleValue(i) => {
-                *i == number
-            }
-            MinMax(range) => {
-                number >= range.min && number <= range.max
-            }
+            SingleValue(i) => *i == number,
+            MinMax(range) => number >= range.min && number <= range.max,
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum Mutation {
+    DivideBy0dp(i64),
+    DivideBy1dp(i64),
+    DivideBy2dp(i64),
+    DivideByThenTimes0dp(i64, i64),
     Negate,
+    NegateAndDouble,
+    Plus(i64),
+    Times(i64),
+    TimesFloat(f32),
+}
+
+lazy_static! {
+    static ref REGEX_DECIMAL: Regex = regex!(r"[0-9+]\.[0-9+]");
+}
+
+impl Mutation {
+    fn apply_to(&self, number: i64) -> String {
+        use Mutation::*;
+        let mut ret = match self {
+            DivideBy0dp(i) => format!("{}", number / i),
+            DivideBy1dp(i) => format!("{:.1}", number as f32 / *i as f32),
+            DivideBy2dp(i) => format!("{:.2}", number as f32 / *i as f32),
+            DivideByThenTimes0dp(d, t) => format!("{}", (number / d) * t),
+            Negate => format!("{}", -number),
+            NegateAndDouble => format!("{}", number * -2),
+            Plus(i) => format!("{}", number + i),
+            Times(i) => format!("{}", number * i),
+            TimesFloat(f) => format!("{:.1}", number as f32 * f),
+        };
+        // Sadly rust's format!() doesn't have an equivalent to "%g"
+        // and there are no crates that provide this in a simple way.
+        // Just remove trailing zeroes for floats, then trailing '.'
+        if REGEX_DECIMAL.is_match(&ret) {
+            ret = ret.trim_end_matches('0').trim_end_matches('.').to_string();
+        }
+        ret
+    }
+
+    fn from_str(text: &str) -> Option<Mutation> {
+        use Mutation::*;
+        match text {
+            "30%_of_value" => Some(TimesFloat(0.3)),
+            "divide_by_two_0dp" => Some(DivideBy0dp(2)),
+            "divide_by_three" => Some(DivideBy1dp(3)),
+            "divide_by_four" => Some(DivideBy1dp(4)),
+            "divide_by_five" => Some(DivideBy1dp(5)),
+            "divide_by_one_hundred" => Some(DivideBy1dp(100)),
+            "divide_by_one_hundred_2dp" => Some(DivideBy2dp(100)),
+            "divide_by_one_hundred_2dp_if_required" => Some(DivideBy2dp(100)),
+            "divide_by_ten_0dp" => Some(DivideBy0dp(10)),
+            "divide_by_ten_1dp" => Some(DivideBy1dp(10)),
+            "divide_by_ten_1dp_if_required" => Some(DivideBy1dp(10)),
+            "divide_by_fifteen_0dp" => Some(DivideBy0dp(15)),
+            "divide_by_twenty_then_double_0dp" => Some(DivideByThenTimes0dp(20, 2)),
+            "divide_by_fifty" => Some(DivideBy1dp(50)),
+            "double" => Some(Times(2)),
+            "milliseconds_to_seconds" => Some(DivideBy1dp(1000)),
+            "milliseconds_to_seconds_0dp" => Some(DivideBy0dp(1000)),
+            "milliseconds_to_seconds_1dp" => Some(DivideBy1dp(1000)),
+            "milliseconds_to_seconds_2dp" => Some(DivideBy2dp(1000)),
+            "milliseconds_to_seconds_2dp_if_required" => Some(DivideBy2dp(1000)),
+            "negate" => Some(Negate),
+            "negate_and_double" => Some(NegateAndDouble),
+            "per_minute_to_per_second" => Some(DivideBy1dp(60)),
+            "per_minute_to_per_second_0dp" => Some(DivideBy0dp(60)),
+            "per_minute_to_per_second_1dp" => Some(DivideBy1dp(60)),
+            "per_minute_to_per_second_2dp" => Some(DivideBy2dp(60)),
+            "per_minute_to_per_second_2dp_if_required" => Some(DivideBy2dp(60)),
+            "plus_two_hundred" => Some(Plus(200)),
+            "times_one_point_five" => Some(TimesFloat(1.5)),
+            "times_twenty" => Some(Times(20)),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -77,12 +149,16 @@ impl Translations {
         let translation = stat_translations.iter().find(|t| t.matches(params))?;
         let mut ret = translation.text.clone();
 
-        for (i, mut param) in params.iter().copied().enumerate() {
-            if let Some(Mutation::Negate) = translation.mutations.get(&i) {
-                param *= -1;
-            }
-            ret = ret.replace(&format!("{{{}}}", i), &param.to_string());
-            ret = ret.replace(&format!("{{{}:+d}}", i), &format!("+{}", &param.to_string()));
+        for (i, param) in params.iter().copied().enumerate() {
+            let param = if let Some(mutation) = translation.mutations.get(&i) {
+                mutation.apply_to(param)
+            } else {
+                format!("{}", param)
+            };
+
+            ret = ret.replace(&format!("{{{}}}", i), &param);
+            ret = ret.replace(&format!("{{{}:d}}", i), &param);
+            ret = ret.replace(&format!("{{{}:+d}}", i), &format!("+{}", &param));
         }
 
         let regex_square_brackets = regex!("\\[([a-zA-Z ]+)(\\|[a-zA-Z ]+)?\\]");
@@ -110,10 +186,20 @@ impl Translations {
 
 pub fn parse_mutations(txt: &str) -> FxHashMap<usize, Mutation> {
     let mut ret = FxHashMap::default();
-    let regex_negate = regex!(r"negate ([0-9]+)");
 
-    for cap in regex_negate.captures_iter(txt) {
-        ret.insert(cap[1].parse::<usize>().unwrap() - 1, Mutation::Negate);
+    let mut cur_mutation = None;
+    for m in txt.split(' ') {
+        if let Some(mutation) = Mutation::from_str(m) {
+            cur_mutation = Some(mutation);
+        } else if let Ok(idx) = m.parse::<usize>() {
+            if let Some(cur_mut) = cur_mutation {
+                ret.insert(idx - 1, cur_mut);
+                cur_mutation = None;
+            }
+        } else {
+            //println!("failed: {m}");
+            cur_mutation = None;
+        }
     }
 
     ret
@@ -163,14 +249,14 @@ pub fn parse_args(txt: &str) -> Vec<Argument> {
 ///     # "{0:+d} to Maximum Darkness per Level"
 ///
 /// Does not care about languages other than the first one.
-pub fn parse_description(reader: &mut BufReader<File>) -> io::Result<Vec<Translation>> {
+pub fn parse_description<R: BufRead>(reader: &mut R) -> io::Result<Vec<Translation>> {
     enum State {
         TradCount,
         Trad(usize),
     }
     use State::*;
 
-    let regex_trad = regex!("((?:[0-9#|-]+ )+)\"(.+?)\" ?(.*)");
+    let regex_trad = regex!("((?:[0-9#|-]+ )+)\"(.+?)\" ?(.+)?");
     let mut trad_count: usize = 0;
     let mut state = TradCount;
     let mut trads = vec![];
@@ -181,7 +267,7 @@ pub fn parse_description(reader: &mut BufReader<File>) -> io::Result<Vec<Transla
         if length == 0 {
             return Err(io::Error::new(ErrorKind::UnexpectedEof, "EOF"));
         }
-        let line = line.trim_start_matches('\t');
+        let line = line.trim().trim_start_matches('\t');
 
         match state {
             TradCount => {
@@ -222,13 +308,16 @@ pub fn parse_description(reader: &mut BufReader<File>) -> io::Result<Vec<Transla
 /// /!\ Assumes UTF-8 encoding, you will most likely need to convert as game files are almost always UTF-16le.
 pub fn parse_csd(name: &str) -> io::Result<Translations> {
     let file = File::open(name)?;
-    let mut reader = BufReader::new(file);
+    let transcoded_reader = DecodeReaderBytesBuilder::new()
+        .encoding(Some(UTF_16LE))
+        .build(file);
+    let mut utf8_reader = BufReader::new(transcoded_reader);
     let mut ret = Translations::default();
     let regex_desc = regex!("[0-9]+ ([a-zA-Z0-9_+% -]+)");
 
     loop {
         let mut line = String::new();
-        let length = reader.read_line(&mut line)?;
+        let length = utf8_reader.read_line(&mut line)?;
         if length == 0 {
             return Ok(ret);
         }
@@ -236,12 +325,12 @@ pub fn parse_csd(name: &str) -> io::Result<Translations> {
         let trimmed = line.trim();
         if trimmed == "description" {
             let mut line = String::new();
-            let length = reader.read_line(&mut line)?;
+            let length = utf8_reader.read_line(&mut line)?;
             if length == 0 {
                 return Ok(ret);
             }
             if let Some(cap) = regex_desc.captures(&line) {
-                if let Ok(trads) = parse_description(&mut reader) {
+                if let Ok(trads) = parse_description(&mut utf8_reader) {
                     for stat in cap[1].split(' ') {
                         ret.0.insert(stat.to_string(), trads.clone());
                     }
