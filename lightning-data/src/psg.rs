@@ -29,8 +29,8 @@ pub struct Node {
     pub connections: Vec<(u32, i32)>,
 }
 
-pub fn parse_psg() -> io::Result<Graph> {
-    let buf = read_file(r"C:\PoE2\out\metadata\passiveskillgraph.psg")?;
+pub fn parse_psg(filename: &str) -> io::Result<Graph> {
+    let buf = read_file(filename)?;
     let mut cursor = Cursor::new(&buf);
     // Ignore 13 unk bytes
     cursor.seek_relative(13)?;

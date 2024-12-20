@@ -9,15 +9,9 @@ use lazy_static::lazy_static;
 /// Parsing for .csd files, usually translation templates
 
 #[derive(Debug, Clone)]
-pub struct Range {
-    min: i64,
-    max: i64,
-}
-
-#[derive(Debug, Clone)]
-pub enum Argument {
+enum Argument {
     SingleValue(i64),
-    MinMax(Range),
+    MinMax(i64, i64),
 }
 
 impl Argument {
@@ -25,13 +19,13 @@ impl Argument {
         use Argument::*;
         match self {
             SingleValue(i) => *i == number,
-            MinMax(range) => number >= range.min && number <= range.max,
+            MinMax(min, max) => number >= *min && number <= *max,
         }
     }
 }
 
 #[derive(Debug, Clone)]
-pub enum Mutation {
+enum Mutation {
     DivideBy0dp(i64),
     DivideBy1dp(i64),
     DivideBy2dp(i64),
@@ -159,11 +153,15 @@ impl Translations {
                 format!("{}", param)
             };
 
+            if i == 0 {
+                ret = ret.replace("{}", &param);
+            }
             ret = ret.replace(&format!("{{{}}}", i), &param);
             ret = ret.replace(&format!("{{{}:d}}", i), &param);
             ret = ret.replace(&format!("{{{}:+d}}", i), &format!("+{}", &param));
         }
 
+        // Takes care of stuff like "[HitDamage|Hits]"
         ret = REGEX_SQUARE_BRACKETS.replace_all(&ret, |caps: &Captures| {
             if caps.get(2).is_some() {
                 format!("{}", &caps[2][1..])
@@ -186,7 +184,7 @@ impl Translations {
     }
 }
 
-pub fn parse_mutations(txt: &str) -> FxHashMap<usize, Mutation> {
+fn parse_mutations(txt: &str) -> FxHashMap<usize, Mutation> {
     let mut ret = FxHashMap::default();
 
     let mut cur_mutation = None;
@@ -207,9 +205,9 @@ pub fn parse_mutations(txt: &str) -> FxHashMap<usize, Mutation> {
     ret
 }
 
-pub fn parse_arg(txt: &str) -> Option<Argument> {
+fn parse_arg(txt: &str) -> Option<Argument> {
     if txt == "#" {
-        return Some(Argument::MinMax(Range { min: i64::min_value(), max: i64::max_value() }));
+        return Some(Argument::MinMax(i64::min_value(), i64::max_value()));
     }
     if let Ok(number) = txt.parse::<i64>() {
         return Some(Argument::SingleValue(number));
@@ -227,12 +225,12 @@ pub fn parse_arg(txt: &str) -> Option<Argument> {
             cap[2].parse().unwrap()
         };
 
-        return Some(Argument::MinMax(Range { min, max }));
+        return Some(Argument::MinMax(min, max));
     }
     None
 }
 
-pub fn parse_args(txt: &str) -> Vec<Argument> {
+fn parse_args(txt: &str) -> Vec<Argument> {
     let mut ret = vec![];
     for arg_txt in txt.split(' ') {
         if let Some(arg) = parse_arg(arg_txt) {
