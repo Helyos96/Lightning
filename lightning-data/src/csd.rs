@@ -44,7 +44,10 @@ pub enum Mutation {
 }
 
 lazy_static! {
-    static ref REGEX_DECIMAL: Regex = regex!(r"[0-9+]\.[0-9+]");
+    static ref REGEX_SQUARE_BRACKETS: Regex = regex!("\\[([a-zA-Z ]+)(\\|[a-zA-Z ]+)?\\]");
+    static ref REGEX_ARG: Regex = regex!("([0-9#-]+)\\|([0-9#-]+)");
+    static ref REGEX_TRAD: Regex = regex!("((?:[0-9#|-]+ )+)\"(.+?)\" ?(.+)?");
+    static ref REGEX_DESC: Regex = regex!("[0-9]+ ([a-zA-Z0-9_+% -]+)");
 }
 
 impl Mutation {
@@ -64,7 +67,7 @@ impl Mutation {
         // Sadly rust's format!() doesn't have an equivalent to "%g"
         // and there are no crates that provide this in a simple way.
         // Just remove trailing zeroes for floats, then trailing '.'
-        if REGEX_DECIMAL.is_match(&ret) {
+        if ret.contains('.') {
             ret = ret.trim_end_matches('0').trim_end_matches('.').to_string();
         }
         ret
@@ -161,8 +164,7 @@ impl Translations {
             ret = ret.replace(&format!("{{{}:+d}}", i), &format!("+{}", &param));
         }
 
-        let regex_square_brackets = regex!("\\[([a-zA-Z ]+)(\\|[a-zA-Z ]+)?\\]");
-        ret = regex_square_brackets.replace_all(&ret, |caps: &Captures| {
+        ret = REGEX_SQUARE_BRACKETS.replace_all(&ret, |caps: &Captures| {
             if caps.get(2).is_some() {
                 format!("{}", &caps[2][1..])
             } else {
@@ -212,8 +214,7 @@ pub fn parse_arg(txt: &str) -> Option<Argument> {
     if let Ok(number) = txt.parse::<i64>() {
         return Some(Argument::SingleValue(number));
     }
-    let regex_arg = regex!("([0-9#-]+)\\|([0-9#-]+)");
-    if let Some(cap) = regex_arg.captures(txt) {
+    if let Some(cap) = REGEX_ARG.captures(txt) {
         let min = if &cap[1] == "#" {
             i64::min_value()
         } else {
@@ -256,7 +257,6 @@ pub fn parse_description<R: BufRead>(reader: &mut R) -> io::Result<Vec<Translati
     }
     use State::*;
 
-    let regex_trad = regex!("((?:[0-9#|-]+ )+)\"(.+?)\" ?(.+)?");
     let mut trad_count: usize = 0;
     let mut state = TradCount;
     let mut trads = vec![];
@@ -282,7 +282,7 @@ pub fn parse_description<R: BufRead>(reader: &mut R) -> io::Result<Vec<Translati
                 }
             },
             Trad(i) => {
-                if let Some(cap) = regex_trad.captures(line) {
+                if let Some(cap) = REGEX_TRAD.captures(line) {
                     let args = parse_args(&cap[1]);
                     if args.len() > 0 {
                         let mutations = if cap.get(3).is_some() {
@@ -312,7 +312,6 @@ pub fn parse_csd(name: &str) -> io::Result<Translations> {
         .build(file);
     let mut utf8_reader = BufReader::new(transcoded_reader);
     let mut ret = Translations::default();
-    let regex_desc = regex!("[0-9]+ ([a-zA-Z0-9_+% -]+)");
 
     loop {
         let mut line = String::new();
@@ -328,7 +327,7 @@ pub fn parse_csd(name: &str) -> io::Result<Translations> {
             if length == 0 {
                 return Ok(ret);
             }
-            if let Some(cap) = regex_desc.captures(&line) {
+            if let Some(cap) = REGEX_DESC.captures(&line) {
                 if let Ok(trads) = parse_description(&mut utf8_reader) {
                     for stat in cap[1].split(' ') {
                         ret.0.insert(stat.to_string(), trads.clone());
