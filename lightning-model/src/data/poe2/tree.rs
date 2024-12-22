@@ -117,6 +117,8 @@ pub struct Node {
     pub is_ascendancy_start: bool,
     #[serde(default)]
     pub is_jewel_socket: bool,
+    #[serde(default)]
+    pub is_just_icon: bool,
     #[serde(rename = "ascendancyName")]
     pub ascendancy: Option<Ascendancy>,
     pub class_start_index: Option<i32>,

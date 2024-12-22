@@ -126,7 +126,7 @@ fn main() {
     }
     println!("Success datc64 parses: {success}/{}", tables.len());
 
-    if let Ok(ret) = dump(poe_dir, &dat_schema, "PassiveSkills", false) {
+    if let Ok(passive_skills) = dump(poe_dir, &dat_schema, "PassiveSkills", false) {
         if let Ok(graph) = parse_psg(&format!("{poe_dir}/out/metadata/passiveskillgraph.psg")) {
             let mut translations = parse_csd(format!("{poe_dir}/out/metadata/statdescriptions/passive_skill_stat_descriptions.csd").as_str()).unwrap();
             translations.0.extend(parse_csd(format!("{poe_dir}/out/metadata/statdescriptions/stat_descriptions.csd").as_str()).unwrap().0);
@@ -143,7 +143,7 @@ fn main() {
                 });
             }
             for node_graph in graph.groups.iter().flat_map(|g| &g.nodes) {
-                if let Some(node_dat) = ret.iter().find(|nd| nd["PassiveSkillGraphId"].skill_id() == node_graph.passive_skill as u16) {
+                if let Some(node_dat) = passive_skills.iter().find(|nd| nd["PassiveSkillGraphId"].integer() as u16 == node_graph.passive_skill as u16) {
                     if node_dat.contains_key("Icon_DDSFile") && node_dat.contains_key("Name") && !node_dat["Name"].string().starts_with("[DNT]") {
                         let mut stats = vec![];
                         if let Some(Val::Array(stats_dat)) = node_dat.get("Stats") {
@@ -185,6 +185,7 @@ fn main() {
                             is_keystone: node_dat["IsKeystone"].bool(),
                             is_ascendancy_start: node_dat["IsAscendancyStartingNode"].bool(),
                             is_jewel_socket: node_dat["IsJewelSocket"].bool(),
+                            is_just_icon: node_dat["IsJustIcon"].bool(),
                             ascendancy,
                             class_start_index: None,
                             group: Some(node_graph.group as u16),
@@ -196,6 +197,9 @@ fn main() {
                         nodes.insert(node_graph.passive_skill as u16, node);
                     }
                 }
+            }
+            for (i, root_node) in graph.root_nodes.iter().enumerate() {
+                nodes.get_mut(&(root_node.0 as u16)).unwrap().class_start_index = Some(i as i32);
             }
             
             let dds_files: FxHashSet<String> = nodes.iter().map(|n| n.1.icon.to_string()).collect();

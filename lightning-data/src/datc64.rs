@@ -61,14 +61,6 @@ impl Val {
             panic!("not a foreign row");
         }
     }
-
-    pub fn skill_id(&self) -> u16 {
-        if let Val::Integer(i) = *self {
-            (i as i16) as u16
-        } else {
-            panic!("not an integer");
-        }
-    }
 }
 
 const PATTERN_VAR_DATA: [u8; 8] = [0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB];
