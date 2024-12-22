@@ -50,6 +50,8 @@ pub enum Type {
     i32,
     i16,
     f32,
+    u32,
+    u16,
 }
 
 impl Type {

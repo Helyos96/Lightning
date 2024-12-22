@@ -132,6 +132,14 @@ fn get_val(column: &Column, cursor: &mut Cursor<&Vec<u8>>, strict: bool) -> io::
             let i = cursor.read_i16::<LittleEndian>()?;
             Some(Val::Integer(i as i64))
         },
+        Type::u32 => {
+            let i = cursor.read_u32::<LittleEndian>()?;
+            Some(Val::Integer(i as i64))
+        },
+        Type::u16 => {
+            let i = cursor.read_u16::<LittleEndian>()?;
+            Some(Val::Integer(i as i64))
+        },
         Type::f32 => {
             let f = cursor.read_f32::<LittleEndian>()?;
             Some(Val::Float(f))
@@ -140,9 +148,9 @@ fn get_val(column: &Column, cursor: &mut Cursor<&Vec<u8>>, strict: bool) -> io::
     Ok(val)
 }
 
-pub fn dump(dat_schema: &DatSchema, name: &str, strict: bool) -> io::Result<Vec<FxHashMap<String, Val>>> {
+pub fn dump(poe_dir: &str, dat_schema: &DatSchema, name: &str, strict: bool) -> io::Result<Vec<FxHashMap<String, Val>>> {
     if let Some(table) = dat_schema.tables.iter().find(|t| t.name == name) {
-        let buf = read_file(&format!(r"C:\PoE2\out\data\{}.datc64", name.to_lowercase()))?;
+        let buf = read_file(&format!("{poe_dir}/out/data/{}.datc64", name.to_lowercase()))?;
         if let Some(var_offset) = find_pattern(&buf, &PATTERN_VAR_DATA) {
             let mut ret = vec![];
             let mut cursor = Cursor::new(&buf);

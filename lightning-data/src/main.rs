@@ -116,7 +116,7 @@ fn main() {
     let mut datc64_dumps = FxHashMap::default();
     let mut success = 0;
     for table in &tables {
-        match dump(&dat_schema, &table.name, false) {
+        match dump(poe_dir, &dat_schema, &table.name, false) {
             Err(err) => eprintln!("{}: {err}", table.name),
             Ok(table_dump) => {
                 datc64_dumps.insert(table.name.clone(), table_dump);
@@ -126,7 +126,7 @@ fn main() {
     }
     println!("Success datc64 parses: {success}/{}", tables.len());
 
-    if let Ok(ret) = dump(&dat_schema, "PassiveSkills", false) {
+    if let Ok(ret) = dump(poe_dir, &dat_schema, "PassiveSkills", false) {
         if let Ok(graph) = parse_psg(&format!("{poe_dir}/out/metadata/passiveskillgraph.psg")) {
             let mut translations = parse_csd(format!("{poe_dir}/out/metadata/statdescriptions/passive_skill_stat_descriptions.csd").as_str()).unwrap();
             translations.0.extend(parse_csd(format!("{poe_dir}/out/metadata/statdescriptions/stat_descriptions.csd").as_str()).unwrap().0);
