@@ -1,4 +1,6 @@
 #![allow(dead_code)]
+#![allow(clippy::manual_find)]
+#![allow(clippy::needless_return)]
 
 use std::{fs::{self, File}, io::{BufReader, BufWriter}, process::Command, str::FromStr};
 use argh::FromArgs;
@@ -191,7 +193,7 @@ fn main() {
                             group: Some(node_graph.group as u16),
                             orbit: Some(node_graph.radius as u16),
                             orbit_index: Some(node_graph.position as u16),
-                            out: Some(node_graph.connections.iter().map(|ng| (*ng).0 as u16).collect()),
+                            out: Some(node_graph.connections.iter().map(|ng| ng.0 as u16).collect()),
                             r#in: None,
                         };
                         nodes.insert(node_graph.passive_skill as u16, node);
@@ -212,7 +214,7 @@ fn main() {
             let mut nodes_final = nodes.clone();
             for node in &mut nodes_final {
                 let in_nodes: Vec<u16> = nodes.iter().filter(|(_, n)| n.out.is_some() && n.out.as_ref().unwrap().contains(node.0)).map(|(id, _)| *id).collect();
-                if in_nodes.len() > 0 {
+                if !in_nodes.is_empty() {
                     node.1.r#in = Some(in_nodes);
                 }
             }

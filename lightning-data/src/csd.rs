@@ -164,9 +164,9 @@ impl Translations {
         // Takes care of stuff like "[HitDamage|Hits]"
         ret = REGEX_SQUARE_BRACKETS.replace_all(&ret, |caps: &Captures| {
             if caps.get(2).is_some() {
-                format!("{}", &caps[2][1..])
+                caps[2][1..].to_string()
             } else {
-                format!("{}", &caps[1])
+                caps[1].to_string()
             }
         }).to_string();
 
@@ -176,7 +176,7 @@ impl Translations {
     /// Attemps to retrieve the amount of arguments for a specific StatId.
     pub fn nb_args(&self, stat_id: &str) -> Option<usize> {
         if let Some(translations) = self.0.get(stat_id) {
-            if let Some(translation) = translations.get(0) {
+            if let Some(translation) = translations.first() {
                 return Some(translation.nb_args());
             }
         }
@@ -207,20 +207,20 @@ fn parse_mutations(txt: &str) -> FxHashMap<usize, Mutation> {
 
 fn parse_arg(txt: &str) -> Option<Argument> {
     if txt == "#" {
-        return Some(Argument::MinMax(i64::min_value(), i64::max_value()));
+        return Some(Argument::MinMax(i64::MIN, i64::MAX));
     }
     if let Ok(number) = txt.parse::<i64>() {
         return Some(Argument::SingleValue(number));
     }
     if let Some(cap) = REGEX_ARG.captures(txt) {
         let min = if &cap[1] == "#" {
-            i64::min_value()
+            i64::MIN
         } else {
             cap[1].parse().unwrap()
         };
 
         let max = if &cap[2] == "#" {
-            i64::max_value()
+            i64::MAX
         } else {
             cap[2].parse().unwrap()
         };
@@ -282,13 +282,13 @@ pub fn parse_description<R: BufRead>(reader: &mut R) -> io::Result<Vec<Translati
             Trad(i) => {
                 if let Some(cap) = REGEX_TRAD.captures(line) {
                     let args = parse_args(&cap[1]);
-                    if args.len() > 0 {
+                    if !args.is_empty() {
                         let mutations = if cap.get(3).is_some() {
                             parse_mutations(&cap[3])
                         } else {
                             FxHashMap::default()
                         };
-                        trads.push(Translation { args: args, text: cap[2].to_string(), mutations });
+                        trads.push(Translation { args, text: cap[2].to_string(), mutations });
                     }
                 } else {
                     return Err(io::Error::new(ErrorKind::Other, "Couldn't parse trad"));

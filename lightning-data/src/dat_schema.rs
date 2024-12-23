@@ -57,10 +57,7 @@ pub enum Type {
 impl Type {
     pub fn is_var_data(&self) -> bool {
         use Type::*;
-        match self {
-            string|array => true,
-            _ => false,
-        }
+        matches!(self, string|array)
     }
 
     pub fn var_offset(&self, cursor: &mut Cursor<&Vec<u8>>) -> io::Result<u64> {

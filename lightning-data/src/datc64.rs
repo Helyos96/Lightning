@@ -173,24 +173,22 @@ pub fn dump(poe_dir: &str, dat_schema: &DatSchema, name: &str, strict: bool) -> 
                                 col_data.insert(name.clone(), Val::Array(array));
                             }
                         }
-                    } else {
-                        if column.r#type.is_var_data() {
-                            let mut new_cursor = cursor.clone();
-                            let offset = column.r#type.var_offset(&mut cursor)?;
-                            if new_cursor.seek(io::SeekFrom::Start(var_offset as u64 + offset)).is_ok() {
-                                if let Some(name) = &column.name {
-                                    let val = get_val(column, &mut new_cursor, false);
-                                    if let Ok(Some(val)) = val {
-                                        col_data.insert(name.clone(), val);
-                                    }
+                    } else if column.r#type.is_var_data() {
+                        let mut new_cursor = cursor.clone();
+                        let offset = column.r#type.var_offset(&mut cursor)?;
+                        if new_cursor.seek(io::SeekFrom::Start(var_offset as u64 + offset)).is_ok() {
+                            if let Some(name) = &column.name {
+                                let val = get_val(column, &mut new_cursor, false);
+                                if let Ok(Some(val)) = val {
+                                    col_data.insert(name.clone(), val);
                                 }
                             }
-                        } else {
-                            let val = get_val(column, &mut cursor, false)?;
-                            if let Some(name) = &column.name {
-                                if val.is_some() {
-                                    col_data.insert(name.clone(), val.unwrap());
-                                }
+                        }
+                    } else {
+                        let val = get_val(column, &mut cursor, false)?;
+                        if let Some(name) = &column.name {
+                            if let Some(val) = val {
+                                col_data.insert(name.clone(), val);
                             }
                         }
                     }

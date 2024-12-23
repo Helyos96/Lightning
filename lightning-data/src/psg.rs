@@ -35,7 +35,7 @@ pub fn parse_psg(filename: &str) -> io::Result<Graph> {
     // Ignore 13 unk bytes
     cursor.seek_relative(13)?;
     let root_length = cursor.read_u32::<LittleEndian>()?;
-    let root_nodes: Vec<(u32, u32)> = (0..root_length).into_iter().map(|_| (cursor.read_u32::<LittleEndian>().unwrap(), cursor.read_u32::<LittleEndian>().unwrap())).collect();
+    let root_nodes: Vec<(u32, u32)> = (0..root_length).map(|_| (cursor.read_u32::<LittleEndian>().unwrap(), cursor.read_u32::<LittleEndian>().unwrap())).collect();
     let group_length = cursor.read_u32::<LittleEndian>()?;
     let mut groups = vec![];
     for group in 0..group_length {
@@ -50,7 +50,7 @@ pub fn parse_psg(filename: &str) -> io::Result<Graph> {
             let radius = cursor.read_u32::<LittleEndian>()?;
             let position = cursor.read_u32::<LittleEndian>()?;
             let connections_length = cursor.read_u32::<LittleEndian>()?;
-            let connections: Vec<(u32, i32)> = (0..connections_length).into_iter().map(|_| (cursor.read_u32::<LittleEndian>().unwrap(), cursor.read_i32::<LittleEndian>().unwrap())).collect();
+            let connections: Vec<(u32, i32)> = (0..connections_length).map(|_| (cursor.read_u32::<LittleEndian>().unwrap(), cursor.read_i32::<LittleEndian>().unwrap())).collect();
             nodes.push(Node {
                 group: group + 1,
                 passive_skill: rowid,
