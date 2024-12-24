@@ -141,7 +141,7 @@ fn get_val(column: &Column, cursor: &mut Cursor<&Vec<u8>>, strict: bool) -> io::
 }
 
 pub fn dump(poe_dir: &str, dat_schema: &DatSchema, name: &str, strict: bool) -> io::Result<Vec<FxHashMap<String, Val>>> {
-    if let Some(table) = dat_schema.tables.iter().find(|t| t.name == name) {
+    if let Some(table) = dat_schema.tables.iter().find(|t| t.valid_for >= 2 && t.name == name) {
         let buf = read_file(&format!("{poe_dir}/out/data/{}.datc64", name.to_lowercase()))?;
         if let Some(var_offset) = find_pattern(&buf, &PATTERN_VAR_DATA) {
             let mut ret = vec![];

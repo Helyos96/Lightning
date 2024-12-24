@@ -109,7 +109,7 @@ fn main() {
     if args.extract_dat {
         println!("Extracting all datc64/psg/csd files..");
         Command::new("bun_extract_file")
-            .args(["extract-files", "--regex", format!("{poe_dir}/Content.ggpk").as_str(), "C:/PoE2/out", "data/.*", "metadata/.*psg", "metadata/.*csd"])
+            .args(["extract-files", "--regex", &format!("{poe_dir}/Content.ggpk"), &format!("{poe_dir}/out"), "data/.*", "metadata/.*psg", "metadata/.*csd"])
             .output()
             .expect("failed to execute bun_extract_file");
     }
