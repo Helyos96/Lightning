@@ -43,8 +43,9 @@ fn generate_spritesheet(name: &str, dds_files: &FxHashSet<String>, max_items_per
         .arg("montage")
         .args(&dds_filelist)
         .args(["-background", "None"])
-        .args(["-resize", "64x64"])
-        .args(["-geometry", "+0+0"])
+        //.args(["-resize", "64x64"])
+        //.args(["-geometry", "+0+0"])
+        .args(["-mode", "Concatenate"])
         .arg("-tile")
         .arg(format!("{}x{}", max_items_per_line, h).as_str())
         .arg(format!("{name}.png"))
@@ -52,8 +53,25 @@ fn generate_spritesheet(name: &str, dds_files: &FxHashSet<String>, max_items_per
         .expect("failed to execute magick");
 
     let mut coords = FxHashMap::default();
+    let mut x = 0;
+    let mut y = 0;
+    let mut max_height = 0;
+
     for (i, dds_path) in dds_files.iter().enumerate() {
-        coords.insert(dds_path.to_string(), tree::Rect { h: length as u16, w: length as u16, x: ((i % max_items_per_line) * length) as u16, y: ((i / max_items_per_line) * length) as u16 });
+        if i % max_items_per_line == 0 {
+            x = 0;
+            y += max_height;
+            max_height = 0;
+        }
+        coords.insert(dds_path.to_string(), tree::Rect { h: length as u16, w: length as u16, x: x as u16, y: y as u16 });
+        println!("Opening {dds_path}");
+        let file = File::open(format!("{poe_dir}/out/{}", dds_path.to_lowercase())).expect("Failed to open DDS file");
+        let mut reader = BufReader::new(file);
+        let dds_header = dds::DDS::parse_header(&mut reader).unwrap();
+        x += dds_header.width;
+        if dds_header.height > max_height {
+            max_height = dds_header.height;
+        }
     }
 
     tree::Sprite {
@@ -82,52 +100,24 @@ fn get_foreign_val(dats: &FxHashMap<String, Vec<FxHashMap<String, Val>>>, foreig
     None
 }
 
-#[derive(FromArgs)]
-/// PoE2 game data extractor & processor
-struct Args {
-    /// path of exile 2 root dir
-    #[argh(option, short = 'p')]
-    poe_dir: String,
-    /// dat schema JSON file path
-    #[argh(option, short = 's')]
-    schema: String,
-    /// extract all datc64/psg/csd files
-    #[argh(switch, short = 'e')]
-    extract_dat: bool,
-    /// extract required DDS files
-    #[argh(switch, short = 'd')]
-    extract_dds: bool,
-}
-
-fn main() {
-    let args: Args = argh::from_env();
-    let poe_dir = &args.poe_dir;
-
-    let schema_file = fs::File::open(args.schema).expect("Failed to open dat schema");
-    let dat_schema: DatSchema = serde_json::from_reader(BufReader::new(schema_file)).expect("Failed to deserialize dat schema");
-
-    if args.extract_dat {
-        println!("Extracting all datc64/psg/csd files..");
-        Command::new("bun_extract_file")
-            .args(["extract-files", "--regex", &format!("{poe_dir}/Content.ggpk"), &format!("{poe_dir}/out"), "data/.*", "metadata/.*psg", "metadata/.*csd"])
-            .output()
-            .expect("failed to execute bun_extract_file");
-    }
-
-    let tables: Vec<Table> = dat_schema.tables.iter().filter(|t| [2,3].contains(&t.valid_for)).cloned().collect();
-    let mut datc64_dumps = FxHashMap::default();
-    let mut success = 0;
-    for table in &tables {
-        match dump(poe_dir, &dat_schema, &table.name, false) {
-            Err(err) => eprintln!("{}: {err}", table.name),
-            Ok(table_dump) => {
-                datc64_dumps.insert(table.name.clone(), table_dump);
-                success += 1;
+fn extract_tree_ui_art(poe_dir: &str, dat_schema: &DatSchema, extract_dds: bool) -> Option<tree::Sprite> {
+    if let Ok(ui_art) = dump(poe_dir, &dat_schema, "PassiveSkillTreeUIArt", false) {
+        if let Some(row) = ui_art.iter().find(|row| row["Id"].string() == "Character") {
+            let mut dds_files = FxHashSet::default();
+            for (field, val) in row {
+                if field != "Id" {
+                    dds_files.insert(format!("{}.dds", val.string()));
+                }
             }
+            dbg!(&dds_files);
+            return Some(generate_spritesheet("art.png", &dds_files, 16, 64, extract_dds, poe_dir));
         }
     }
-    println!("Success datc64 parses: {success}/{}", tables.len());
+    None
+}
 
+
+fn extract_tree(poe_dir: &str, dat_schema: &DatSchema, datc64_dumps: &FxHashMap<String, Vec<FxHashMap<String, Val>>>, args: &Args) {
     if let Ok(passive_skills) = dump(poe_dir, &dat_schema, "PassiveSkills", false) {
         if let Ok(graph) = parse_psg(&format!("{poe_dir}/out/metadata/passiveskillgraph.psg")) {
             let mut translations = parse_csd(format!("{poe_dir}/out/metadata/statdescriptions/passive_skill_stat_descriptions.csd").as_str()).unwrap();
@@ -153,7 +143,7 @@ fn main() {
                             for stat in stats_dat {
                                 if let Some(stat_id) = get_foreign_val(&datc64_dumps, stat.foreign_row(), Some("Id")) {
                                     if let Some(nb_args) = translations.nb_args(stat_id.string()) {
-                                        // TODO: doing something wrong when nb_arbs >= 2
+                                        // TODO: doing something wrong when nb_args >= 2
                                         let mut stat_vals = vec![];
                                         for _ in 0..nb_args {
                                             stat_vals.push(node_dat.get(&format!("Stat{}Value", stat_val_idx)).unwrap().integer());
@@ -208,6 +198,7 @@ fn main() {
             let mut sprites = FxHashMap::default();
             let skills_ss = generate_spritesheet("skills-3", &dds_files, 16, 64, args.extract_dds, &args.poe_dir);
             sprites.insert("normalActive".to_string(), skills_ss);
+            sprites.insert("art".to_string(), extract_tree_ui_art(poe_dir, dat_schema, args.extract_dds).unwrap());
             let jewel_slots = nodes.iter().filter(|n| n.1.is_jewel_socket).map(|n| *n.0).collect();
 
             // Fill node.in
@@ -241,4 +232,54 @@ fn main() {
             }
         }
     }
+}
+
+#[derive(FromArgs)]
+/// PoE2 game data extractor & processor
+struct Args {
+    /// path of exile 2 root dir
+    #[argh(option, short = 'p')]
+    poe_dir: String,
+    /// dat schema JSON file path
+    #[argh(option, short = 's')]
+    schema: String,
+    /// extract all datc64/psg/csd files
+    #[argh(switch, short = 'e')]
+    extract_dat: bool,
+    /// extract required DDS files
+    #[argh(switch, short = 'd')]
+    extract_dds: bool,
+}
+
+fn main() {
+    let args: Args = argh::from_env();
+    let poe_dir = &args.poe_dir;
+
+    let schema_file = fs::File::open(&args.schema).expect("Failed to open dat schema");
+    let dat_schema: DatSchema = serde_json::from_reader(BufReader::new(schema_file)).expect("Failed to deserialize dat schema");
+
+    if args.extract_dat {
+        println!("Extracting all datc64/psg/csd files..");
+        Command::new("bun_extract_file")
+            .args(["extract-files", "--regex", &format!("{poe_dir}/Content.ggpk"), &format!("{poe_dir}/out"), "data/.*", "metadata/.*psg", "metadata/.*csd"])
+            .output()
+            .expect("failed to execute bun_extract_file");
+    }
+
+    let tables: Vec<Table> = dat_schema.tables.iter().filter(|t| t.valid_for >= 2).cloned().collect();
+    let mut datc64_dumps = FxHashMap::default();
+    let mut success = 0;
+    for table in &tables {
+        match dump(poe_dir, &dat_schema, &table.name, false) {
+            Err(err) => eprintln!("{}: {err}", table.name),
+            Ok(table_dump) => {
+                datc64_dumps.insert(table.name.clone(), table_dump);
+                success += 1;
+            }
+        }
+    }
+    println!("Success datc64 parses: {success}/{}", tables.len());
+
+    extract_tree(poe_dir, &dat_schema, &datc64_dumps, &args);
+
 }
