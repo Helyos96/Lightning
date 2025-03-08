@@ -179,7 +179,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 draw_calc_result_row(ui, "Intelligence", state.defence_calc.get("Intelligence"), Format::Flat);
             });
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
-                if ui.button("Settings").clicked {
+                if ui.button("Settings").clicked() {
                     state.show_settings = !state.show_settings;
                 }
             });

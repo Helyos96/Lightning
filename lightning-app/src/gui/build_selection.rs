@@ -16,7 +16,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 if ui.button("New Build").clicked() {
                     state.ui_state = UiState::NewBuild;
                 }
-                if ui.button("Settings").clicked {
+                if ui.button("Settings").clicked() {
                     state.show_settings = !state.show_settings;
                 }
             });

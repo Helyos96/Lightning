@@ -23,7 +23,7 @@ fn load_texture(img: &RgbaImage, gl: &glow::Context) -> glow::Texture {
             0,
             glow::RGBA,
             glow::UNSIGNED_BYTE,
-            Some(img.as_raw()),
+            glow::PixelUnpackData::Slice(Some(img.as_raw())),
         );
 
         gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MAG_FILTER, glow::LINEAR as i32);
