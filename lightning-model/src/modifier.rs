@@ -588,11 +588,10 @@ lazy_static! {
 ///    2.1. any amount of ENDINGS
 ///    2.2. a BEGINNING
 pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
-    if let Some(mods_opt) = CACHE.lock().unwrap().get(input) {
-        match mods_opt {
-            Some(mods) => return Some(mods.to_owned()),
-            None => return None,
-        }
+    let mut cache = CACHE.lock().expect("Unable to lock CACHE");
+
+    if let Some(mods_opt) = cache.get(input) {
+        return mods_opt.to_owned();
     }
 
     let mut m = &input[0..];
@@ -629,13 +628,13 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
                     modifier.conditions.extend(conditions.clone());
                     modifier.source = source;
                 }
-                CACHE.lock().unwrap().insert(input.to_string(), Some(mods.clone()));
+                cache.insert(input.to_string(), Some(mods.clone()));
                 return Some(mods);
             }
         }
     }
 
-    CACHE.lock().unwrap().insert(input.to_string(), None);
+    cache.insert(input.to_string(), None);
     None
 }
 

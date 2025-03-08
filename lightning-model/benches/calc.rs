@@ -16,7 +16,7 @@ fn fetch() -> Result<Build, Box<dyn std::error::Error>> {
         }
     }
 
-    let player = import::character("Darkee", "BenQT")?;
+    let player = import::character("Ben_#4007", "BenQT")?;
     serde_json::to_writer(&fs::File::create(BUILD_PATH)?, &player)?;
     Ok(player)
 }

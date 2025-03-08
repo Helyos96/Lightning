@@ -22,7 +22,7 @@ mod utils;
 /// @name: {name}.png
 /// @dds_files: list of DDS file paths within Content.ggpk
 /// @single_wh: dimension for a single sprite, both width and height (square)
-fn generate_spritesheet(name: &str, dds_files: &FxHashSet<String>, max_items_per_line: usize, length: usize, extract_dds: bool, poe_dir: &str) -> tree::Sprite {
+fn generate_spritesheet(name: &str, dds_files: &FxHashSet<String>, mut max_items_per_line: usize, extract_dds: bool, poe_dir: &str) -> tree::Sprite {
     if extract_dds {
         println!("Extracting {} DDS files with bun_extract_file...", dds_files.len());
         Command::new("bun_extract_file")
@@ -32,22 +32,24 @@ fn generate_spritesheet(name: &str, dds_files: &FxHashSet<String>, max_items_per
             .expect("failed to execute bun_extract_file");
     }
 
-    let h = (dds_files.len() + 16) / max_items_per_line;
+    let nb_rows = (dds_files.len() + max_items_per_line - 1) / max_items_per_line;
     let mut dds_filelist = vec![];
     for dds_path in dds_files {
         dds_filelist.push(format!("{poe_dir}/out/{}", dds_path.to_lowercase()));
     }
 
-    println!("Making {name}.png with magick...");
+    if nb_rows == 1 {
+        max_items_per_line = dds_filelist.len();
+    }
+
+    println!("Making {}x{} {name}.png spritesheet with magick...", max_items_per_line, nb_rows);
     Command::new("magick")
         .arg("montage")
         .args(&dds_filelist)
         .args(["-background", "None"])
-        //.args(["-resize", "64x64"])
-        //.args(["-geometry", "+0+0"])
         .args(["-mode", "Concatenate"])
         .arg("-tile")
-        .arg(format!("{}x{}", max_items_per_line, h).as_str())
+        .arg(format!("{}x{}", max_items_per_line, nb_rows).as_str())
         .arg(format!("{name}.png"))
         .output()
         .expect("failed to execute magick");
@@ -56,28 +58,29 @@ fn generate_spritesheet(name: &str, dds_files: &FxHashSet<String>, max_items_per
     let mut x = 0;
     let mut y = 0;
     let mut max_height = 0;
-
+    let mut w = 0;
     for (i, dds_path) in dds_files.iter().enumerate() {
         if i % max_items_per_line == 0 {
             x = 0;
             y += max_height;
             max_height = 0;
         }
-        coords.insert(dds_path.to_string(), tree::Rect { h: length as u16, w: length as u16, x: x as u16, y: y as u16 });
-        println!("Opening {dds_path}");
         let file = File::open(format!("{poe_dir}/out/{}", dds_path.to_lowercase())).expect("Failed to open DDS file");
         let mut reader = BufReader::new(file);
         let dds_header = dds::DDS::parse_header(&mut reader).unwrap();
-        x += dds_header.width;
         if dds_header.height > max_height {
             max_height = dds_header.height;
         }
+        coords.insert(dds_path.to_string(), tree::Rect { h: dds_header.height as u16, w: dds_header.width as u16, x: x as u16, y: y as u16 });
+        w = w.max(x + dds_header.width);
+        x += dds_header.width;
     }
 
+    println!("dimensions: {}x{}", w, (y + max_height));
     tree::Sprite {
         filename: format!("{name}.png"),
-        w: (max_items_per_line * length) as u16,
-        h: (((dds_files.len() + max_items_per_line) / max_items_per_line) * length) as u16,
+        w: w as u16, // TODO
+        h: (y + max_height) as u16, // TODO
         coords,
     }
 }
@@ -106,16 +109,35 @@ fn extract_tree_ui_art(poe_dir: &str, dat_schema: &DatSchema, extract_dds: bool)
             let mut dds_files = FxHashSet::default();
             for (field, val) in row {
                 if field != "Id" {
-                    dds_files.insert(format!("{}.dds", val.string()));
+                    dds_files.insert(format!("{}.dds", val.string().replace("Art/2DArt", "Art/Textures/Interface/2D/2DArt")));
                 }
             }
-            dbg!(&dds_files);
-            return Some(generate_spritesheet("art.png", &dds_files, 16, 64, extract_dds, poe_dir));
+            return Some(generate_spritesheet("frame-3", &dds_files, 8, extract_dds, poe_dir));
         }
     }
     None
 }
 
+fn extract_jewel_ui_art(poe_dir: &str, dat_schema: &DatSchema, extract_dds: bool) -> Option<tree::Sprite> {
+    if let Ok(ui_art) = dump(poe_dir, &dat_schema, "PassiveJewelArt", false) {
+        let mut dds_files = FxHashSet::default();
+        for row in ui_art {
+            dds_files.insert(format!("{}.dds", row["SocketedImage"].string().replace("Art/2DArt", "Art/Textures/Interface/2D/2DArt")));
+        }
+        return Some(generate_spritesheet("jewel-3", &dds_files, 8, extract_dds, poe_dir));
+    }
+    None
+}
+
+fn desaturate_image(path: &str, save_path: &str) {
+    Command::new("magick")
+        .arg(path)
+        .arg("-modulate")
+        .arg("60")
+        .arg(save_path)
+        .output()
+        .expect("failed to execute magick");
+}
 
 fn extract_tree(poe_dir: &str, dat_schema: &DatSchema, datc64_dumps: &FxHashMap<String, Vec<FxHashMap<String, Val>>>, args: &Args) {
     if let Ok(passive_skills) = dump(poe_dir, &dat_schema, "PassiveSkills", false) {
@@ -196,9 +218,14 @@ fn extract_tree(poe_dir: &str, dat_schema: &DatSchema, datc64_dumps: &FxHashMap<
             
             let dds_files: FxHashSet<String> = nodes.iter().map(|n| n.1.icon.to_string()).collect();
             let mut sprites = FxHashMap::default();
-            let skills_ss = generate_spritesheet("skills-3", &dds_files, 16, 64, args.extract_dds, &args.poe_dir);
+            let skills_ss = generate_spritesheet("skills-3", &dds_files, 16, args.extract_dds, &args.poe_dir);
+            desaturate_image("skills-3.png", "skills-disabled-3.png");
+            let mut skills_ss_disabled = skills_ss.clone();
+            skills_ss_disabled.filename = "skills-disabled-3.png".to_string();
             sprites.insert("normalActive".to_string(), skills_ss);
-            sprites.insert("art".to_string(), extract_tree_ui_art(poe_dir, dat_schema, args.extract_dds).unwrap());
+            sprites.insert("normalInactive".to_string(), skills_ss_disabled);
+            sprites.insert("frame".to_string(), extract_tree_ui_art(poe_dir, dat_schema, args.extract_dds).unwrap());
+            sprites.insert("jewel".to_string(), extract_jewel_ui_art(poe_dir, dat_schema, args.extract_dds).unwrap());
             let jewel_slots = nodes.iter().filter(|n| n.1.is_jewel_socket).map(|n| *n.0).collect();
 
             // Fill node.in

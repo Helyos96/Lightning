@@ -69,7 +69,7 @@ impl Ascendancy {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Rect {
     pub x: u16,
     pub y: u16,
@@ -77,7 +77,7 @@ pub struct Rect {
     pub h: u16,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Sprite {
     pub filename: String,
     pub w: u16,
