@@ -15,6 +15,7 @@ mod gui;
 mod tree_gl;
 
 use crate::tree_gl::TreeGl;
+use egui_glow::egui_winit::winit::platform::x11::EventLoopBuilderExtX11;
 use glow::HasContext;
 use glutin::surface::SwapInterval;
 use gui::{MainState, State, UiState};
@@ -429,6 +430,9 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
 }
 
 fn main() {
+    #[cfg(target_os = "linux")]
+    let event_loop = EventLoop::builder().with_x11().build().unwrap();
+    #[cfg(not(target_os = "linux"))]
     let event_loop = EventLoop::new().unwrap();
     let mut app = GlowApp::new();
     event_loop.run_app(&mut app).expect("failed to run app");
