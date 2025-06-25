@@ -15,6 +15,7 @@ mod gui;
 mod tree_gl;
 
 use crate::tree_gl::TreeGl;
+#[cfg(target_os = "linux")]
 use egui_glow::egui_winit::winit::platform::x11::EventLoopBuilderExtX11;
 use glow::HasContext;
 use glutin::surface::SwapInterval;
