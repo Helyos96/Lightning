@@ -29,6 +29,7 @@ lazy_static! {
         map.insert("curse", GemTag::Curse);
         map.insert("minion", GemTag::Minion);
         map.insert("totem", GemTag::Totem);
+        map.insert("area", GemTag::Area);
         map
     };
 }

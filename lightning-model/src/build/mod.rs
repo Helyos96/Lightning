@@ -285,6 +285,12 @@ impl Build {
                 ..Default::default()
             },
             Mod {
+                stat: StatId::MaximumRage,
+                typ: Type::Base,
+                amount: 30,
+                ..Default::default()
+            },
+            Mod {
                 stat: StatId::Strength,
                 typ: Type::Base,
                 amount: class_data.base_str,
