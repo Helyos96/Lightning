@@ -138,7 +138,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         let (window, surface, context) = create_window(event_loop);
         let gl = std::sync::Arc::new(glow_context(&context));
-        let egui_glow = egui_glow::EguiGlow::new(event_loop, gl.clone(), None, None, true);
+        let egui_glow = egui_glow::EguiGlow::new(event_loop, gl.clone(), None, Some(2.0), true);
         egui_glow.egui_ctx.style_mut(|style| {
             style.animation_time = 0.0;
             style.text_styles.get_mut(&egui::TextStyle::Body).unwrap().size = 14.0;
@@ -447,7 +447,7 @@ fn create_window(event_loop: &winit::event_loop::ActiveEventLoop) -> (Window, Su
         .with_maximized(true);
     let (window, cfg) = glutin_winit::DisplayBuilder::new()
         .with_window_attributes(Some(window_builder.clone()))
-        .build(event_loop, ConfigTemplateBuilder::new().with_multisampling(4), |mut configs| {
+        .build(event_loop, ConfigTemplateBuilder::new(), |mut configs| {
             configs.next().unwrap()
         })
         .expect("Failed to create OpenGL window");

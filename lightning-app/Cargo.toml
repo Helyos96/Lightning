@@ -9,9 +9,9 @@ lightning-model = { path = "../lightning-model", default-features = false }
 glutin = "0.32.*"
 glutin-winit = "0.5.*"
 raw-window-handle = "0.6.*"
-egui = "0.31.*"
-egui_glow = { version = "0.31.*", features = ["winit", "clipboard"] }
-egui_extras = "0.31.*"
+egui = "0.32.*"
+egui_glow = { version = "0.32.*", features = ["winit", "clipboard"] }
+egui_extras = "0.32.*"
 glow = "0.16.*"
 dirs = "4.*"
 serde = "1.0.*"
