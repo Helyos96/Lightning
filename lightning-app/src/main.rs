@@ -354,6 +354,9 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                             if event.logical_key == Key::Character("y".into()) && event.state.is_pressed() && state.modifiers.state().control_key() {
                                 state.redo();
                             }
+                            if event.logical_key == Key::Character("s".into()) && event.state.is_pressed() && state.modifiers.state().control_key() {
+                                state.save_build();
+                            }
                         }
                         WindowEvent::ModifiersChanged(modifiers) => {
                             state.modifiers = modifiers;

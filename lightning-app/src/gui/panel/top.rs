@@ -1,16 +1,9 @@
-use std::{fs, io, ops::RangeInclusive, path::Path};
-use lightning_model::{build::{property, BanditChoice, Build, CampaignChoice}, data::TREE};
+use std::{ops::RangeInclusive};
+use lightning_model::{build::{property, BanditChoice, CampaignChoice}, data::TREE};
 use strum::IntoEnumIterator;
 use crate::gui::{State, UiState};
 
 pub const HEIGHT: f32 = 40.0;
-
-fn save_build(build: &Build, dir: &Path) -> io::Result<()> {
-    let mut file_path = dir.join(&build.name);
-    file_path.set_extension("json");
-    serde_json::to_writer(&fs::File::create(file_path)?, build)?;
-    Ok(())
-}
 
 pub fn draw(ctx: &egui::Context, state: &mut State) {
     egui::TopBottomPanel::top("TopPanel")
@@ -23,11 +16,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 }
                 ui.add(egui::TextEdit::singleline(&mut state.build.name).desired_width(100.0));
                 if ui.add_enabled(state.can_save, egui::Button::new("Save")).clicked() {
-                    if let Err(err) = save_build(&state.build, &state.config.builds_dir) {
-                        eprintln!("Failed to save build: {err}");
-                    } else {
-                        state.can_save = false;
-                    }
+                    state.save_build();
                 }
                 ui.label("Level");
                 if ui.add(egui::DragValue::new(&mut state.level).range(RangeInclusive::new(1, 100))).changed() {

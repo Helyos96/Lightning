@@ -234,6 +234,14 @@ impl State {
         }
         self.request_recalc = false;
     }
+
+    pub fn save_build(&mut self) {
+        if let Err(err) = self.build.save(&self.config.builds_dir) {
+            eprintln!("Failed to save build: {err}");
+        } else {
+            self.can_save = false;
+        }
+    }
 }
 
 pub fn select_mastery_effect(ctx: &egui::Context, current_masteries: &FxHashMap<u16, u16>, mastery: &Node) -> Option<u16> {

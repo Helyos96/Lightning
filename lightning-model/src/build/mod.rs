@@ -1,6 +1,9 @@
 pub mod property;
 pub mod stat;
 
+use std::{fs, io};
+use std::path::Path;
+
 use crate::data::base_item::ItemClass;
 use crate::data::gem::GemTag;
 use crate::data::{MONSTER_STATS, TREE};
@@ -659,6 +662,13 @@ impl Build {
         }
 
         Stats { stats }
+    }
+
+    pub fn save(&self, dir: &Path) -> io::Result<()> {
+        let mut file_path = dir.join(&self.name);
+        file_path.set_extension("json");
+        serde_json::to_writer(&fs::File::create(file_path)?, &self)?;
+        Ok(())
     }
 }
 
