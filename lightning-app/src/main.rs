@@ -15,8 +15,6 @@ mod gui;
 mod tree_gl;
 
 use crate::tree_gl::TreeGl;
-#[cfg(target_os = "linux")]
-use egui_glow::egui_winit::winit::platform::x11::EventLoopBuilderExtX11;
 use glow::HasContext;
 use glutin::surface::SwapInterval;
 use gui::{MainState, State, UiState};
@@ -308,16 +306,13 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                             }
                         }
                         WindowEvent::Resized(physical_size) => {
-                            unsafe {
-                                state.dimensions = (physical_size.width, physical_size.height);
-                                gl.viewport(
-                                    0,
-                                    0,
-                                    physical_size.width as i32,
-                                    physical_size.height as i32,
-                                );
-                                window.request_redraw();
-                            };
+                            state.dimensions = (physical_size.width, physical_size.height);
+                            surface.resize(
+                                context,
+                                physical_size.width.try_into().unwrap(),
+                                physical_size.height.try_into().unwrap(),
+                            );
+                            window.request_redraw();
                         }
                         WindowEvent::MouseInput {
                             state: button_state,
@@ -431,9 +426,6 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
 }
 
 fn main() {
-    #[cfg(target_os = "linux")]
-    let event_loop = EventLoop::builder().with_x11().build().unwrap();
-    #[cfg(not(target_os = "linux"))]
     let event_loop = EventLoop::new().unwrap();
     let mut app = GlowApp::new();
     event_loop.run_app(&mut app).expect("failed to run app");
