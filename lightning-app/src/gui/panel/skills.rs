@@ -40,14 +40,14 @@ fn draw_skill_dropdown(ui: &mut egui::Ui, panel_skills: &mut SkillsPanelState, s
     let r = edit_output.response;
     let popup_id = egui::Id::new(format!("popup {}", i));
     if r.gained_focus() {
-        ui.memory_mut(|m| m.open_popup(popup_id));
+        egui::Popup::open_id(ui.ctx(), popup_id);
         panel_skills.selected_gem = Some(i);
         name.clear();
         if panel_skills.computed_gems.is_none() {
             *request_recalc = true;
         }
     }
-    if ui.memory(|m| m.is_popup_open(popup_id)) {
+    if egui::Popup::is_id_open(ui.ctx(), popup_id) {
         if let Some(computed_gems) = panel_skills.computed_gems.as_ref() {
             egui::popup_below_widget(
                 ui,
