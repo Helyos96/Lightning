@@ -386,7 +386,7 @@ impl TreeGl {
             gl.uniform_matrix_4_f32_slice(
                 self.uniform_zoom.as_ref(),
                 false,
-                &(scale * ortho * translate).to_cols_array(),
+                &(ortho * scale * translate).to_cols_array(),
             );
 
             for to_draw in DRAW_ORDER.iter().filter(|d| self.draw_data.contains_key(d.0)) {

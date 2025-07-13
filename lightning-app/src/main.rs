@@ -132,6 +132,24 @@ impl GlowApp {
     }
 }
 
+fn to_tree_coords((x, y): (f32, f32), dimensions: (u32, u32), translation: (f32, f32), zoom: f32) -> (f32, f32) {
+    let aspect_ratio = dimensions.0 as f32 / dimensions.1 as f32;
+
+    // Mouse position in NDC [-1, 1]
+    let ndc_x = (x / dimensions.0 as f32) * 2.0 - 1.0;
+    let ndc_y = 1.0 - (y / dimensions.1 as f32) * 2.0;
+
+    // World size per zoom level
+    let half_width = 12500.0 / zoom;
+    let half_height = 12500.0 / zoom;
+
+    // NDC to world
+    let world_x = ndc_x * half_width * aspect_ratio - translation.0;
+    let world_y = ndc_y * half_height - translation.1;
+
+    (world_x, world_y)
+}
+
 impl winit::application::ApplicationHandler<()> for GlowApp {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         let (window, surface, context) = create_window(event_loop);
@@ -348,14 +366,18 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                             }
                         }
                         WindowEvent::KeyboardInput { event, .. } => {
-                            if event.logical_key == Key::Character("z".into()) && event.state.is_pressed() && state.modifiers.state().control_key() {
-                                state.undo();
-                            }
-                            if event.logical_key == Key::Character("y".into()) && event.state.is_pressed() && state.modifiers.state().control_key() {
-                                state.redo();
-                            }
-                            if event.logical_key == Key::Character("s".into()) && event.state.is_pressed() && state.modifiers.state().control_key() {
-                                state.save_build();
+                            if event.state.is_pressed() {
+                                if state.modifiers.state().control_key() {
+                                    if event.logical_key == Key::Character("z".into()) {
+                                        state.undo();
+                                    }
+                                    if event.logical_key == Key::Character("y".into()) {
+                                        state.redo();
+                                    }
+                                    if event.logical_key == Key::Character("s".into()) {
+                                        state.save_build();
+                                    }
+                                }
                             }
                         }
                         WindowEvent::ModifiersChanged(modifiers) => {
@@ -376,17 +398,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                     state.hovered_node = None;
                                     window.request_redraw();
                                 } else if gui::is_over_tree(&state.mouse_pos) {
-                                    // There's gotta be simpler computations for this
-                                    x -= state.dimensions.0 as f32 / 2.0;
-                                    y -= state.dimensions.1 as f32 / 2.0;
-                                    y = y.neg();
-                                    x /= state.dimensions.0 as f32 / 2.0;
-                                    y /= state.dimensions.1 as f32 / 2.0;
-                                    x -= state.tree_translate.0 * (state.zoom / aspect_ratio) / 12500.0;
-                                    y -= state.tree_translate.1 * state.zoom / 12500.0;
-                                    x *= aspect_ratio;
-                                    x *= 12500.0 / state.zoom;
-                                    y *= 12500.0 / state.zoom;
+                                    let (x, y) = to_tree_coords((x, y), state.dimensions, state.tree_translate, state.zoom);
 
                                     let hovered_node = tree_gl::hover::get_hovered_node(x, y);
                                     if hovered_node != state.hovered_node {
