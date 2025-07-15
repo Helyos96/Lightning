@@ -50,10 +50,10 @@ layout(location = 1) in vec2 vertexUV;
 
 out vec2 UV;
 
-uniform mat4 ZOOM;
+uniform mat4 MVP;
 
 void main() {
-    gl_Position = ZOOM * vec4(vertexPosition_modelspace, 0, 1);
+    gl_Position = MVP * vec4(vertexPosition_modelspace, 0, 1);
     UV = vertexUV;
 }
 "#;
@@ -165,7 +165,7 @@ impl GlDrawData {
 pub struct TreeGl {
     textures: FxHashMap<String, Texture>,
     program: Option<glow::Program>,
-    uniform_zoom: Option<glow::UniformLocation>,
+    uniform_mvp: Option<glow::UniformLocation>,
     uniform_tint: Option<glow::UniformLocation>,
     draw_data: FxHashMap<String, GlDrawData>,
 }
@@ -196,10 +196,10 @@ impl TreeGl {
                 panic!("{}", gl.get_program_info_log(program));
             }
 
-            let uniform_zoom = gl.get_uniform_location(program, "ZOOM").unwrap();
+            let uniform_mvp = gl.get_uniform_location(program, "MVP").unwrap();
             let uniform_tint = gl.get_uniform_location(program, "tint").unwrap();
             self.program = Some(program);
-            self.uniform_zoom = Some(uniform_zoom);
+            self.uniform_mvp = Some(uniform_mvp);
             self.uniform_tint = Some(uniform_tint);
 
             for &(_, _, shader) in &shaders {
@@ -384,7 +384,7 @@ impl TreeGl {
 
             gl.use_program(self.program);
             gl.uniform_matrix_4_f32_slice(
-                self.uniform_zoom.as_ref(),
+                self.uniform_mvp.as_ref(),
                 false,
                 &(ortho * scale * translate).to_cols_array(),
             );

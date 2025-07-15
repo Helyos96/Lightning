@@ -23,7 +23,6 @@ use lightning_model::data::TREE;
 use lightning_model::{build, util};
 use std::error::Error;
 use std::fs;
-use std::ops::Neg;
 use std::sync::Arc;
 use std::{num::NonZeroU32, time::{Duration, Instant} };
 
@@ -384,7 +383,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                             state.modifiers = modifiers;
                         }
                         WindowEvent::CursorMoved { position, .. } => {
-                            let (mut x, mut y) = (position.x as f32, position.y as f32);
+                            let (x, y) = (position.x as f32, position.y as f32);
                             state.mouse_pos = (x, y);
                             if state.ui_state == UiState::Main(MainState::Tree) && gui::is_over_tree(&state.mouse_pos) {
                                 let aspect_ratio = state.dimensions.0 as f32 / state.dimensions.1 as f32;
