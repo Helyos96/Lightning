@@ -74,6 +74,8 @@ pub struct DefenceCalc {
 
 impl Item {
     pub fn data(&self) -> &'static BaseItem {
+        /*println!("{}", self.base_item);
+        println!("{:?}", self);*/
         &ITEMS[&self.base_item]
     }
 
@@ -164,7 +166,7 @@ impl Item {
     }
 
     fn calc_mods(&self, local: bool) -> Vec<Mod> {
-        let mut mods = vec![];
+        let mut mods = Vec::with_capacity(12);
         let mut match_table: &[LocalModMatch] = &[];
         let tags = &self.data().tags;
 

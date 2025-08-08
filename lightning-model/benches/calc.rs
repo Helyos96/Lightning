@@ -2,7 +2,8 @@
 extern crate bencher;
 
 use bencher::Bencher;
-use lightning_model::build::Build;
+use enumflags2::BitFlags;
+use lightning_model::{build::Build, modifier::CACHE};
 use std::fs;
 
 use lightning_model::import;
@@ -21,7 +22,7 @@ fn fetch() -> Result<Build, Box<dyn std::error::Error>> {
     Ok(player)
 }
 
-fn calc_mods(bench: &mut Bencher) {
+fn calc_mods_cached(bench: &mut Bencher) {
     let player = match fetch() {
         Ok(b) => b,
         Err(err) => {
@@ -29,10 +30,26 @@ fn calc_mods(bench: &mut Bencher) {
             return;
         }
     };
+
     player.calc_mods(true);
 
     bench.iter(|| {
         player.calc_mods(true);
+    })
+}
+
+fn calc_mods_uncached(bench: &mut Bencher) {
+    let player = match fetch() {
+        Ok(b) => b,
+        Err(err) => {
+            println!("{err}");
+            return;
+        }
+    };
+
+    bench.iter(|| {
+        player.calc_mods(true);
+        CACHE.lock().unwrap().clear();
     })
 }
 
@@ -47,9 +64,9 @@ fn calc_stats(bench: &mut Bencher) {
     let mods = player.calc_mods(true);
 
     bench.iter(|| {
-        player.calc_stats(&mods, &Default::default());
+        player.calc_stats(&mods, BitFlags::empty());
     })
 }
 
-benchmark_group!(benches, calc_mods, calc_stats);
+benchmark_group!(benches, calc_mods_cached, calc_mods_uncached, calc_stats);
 benchmark_main!(benches);

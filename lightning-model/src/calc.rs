@@ -6,6 +6,7 @@ use crate::data::{DamageGroup, DamageType, DAMAGE_GROUPS};
 use crate::gem::Gem;
 use crate::item::Item;
 use crate::modifier::{Mod, Source, Type};
+use enumflags2::BitFlags;
 use rustc_hash::FxHashMap;
 
 enum DamageSource {
@@ -118,7 +119,8 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
     assert!(!active_gem.data().is_support);
     let mut ret = FxHashMap::default();
 
-    let tags = &active_gem.data().tags;
+    // convert HashSet<GemTag> into BitFlags
+    let tags = active_gem.data().tags.iter().copied().map(BitFlags::from).fold(BitFlags::empty(), |acc, flag| acc | flag);
     let mut damage = vec![];
 
     let mut mods = build.calc_mods(true);
@@ -131,13 +133,13 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
 
     let monster_build = Build::new_player();
     let monster_mods = monster_build.calc_mods_monster(build.property_int(property::Int::Level).min(83));
-    let monster_stats = monster_build.calc_stats(&monster_mods, &hset![]);
+    let monster_stats = monster_build.calc_stats(&monster_mods, BitFlags::empty());
 
     let crit_multi = stats.val(StatId::CriticalStrikeMultiplier);
 
     let mut damage_instances = vec![];
 
-    if tags.contains(&GemTag::Attack) {
+    if tags.contains(GemTag::Attack) {
         for slot in [Slot::Weapon, Slot::Offhand] {
             if let Some(weapon) = build.get_equipped(slot) {
                 let weapon_restrictions = &active_gem.data().active_skill.as_ref().unwrap().weapon_restrictions;
@@ -175,7 +177,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
                 }
             }
         }
-    } else if tags.contains(&GemTag::Spell) {
+    } else if tags.contains(GemTag::Spell) {
         let crit_chance = calc_crit_chance(&stats, active_gem.crit_chance());
         if crit_chance > 0 {
             ret.insert("Crit Chance", crit_chance);
@@ -203,13 +205,13 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
     }
 
     let time = {
-        if tags.contains(&GemTag::Spell) {
+        if tags.contains(GemTag::Spell) {
             if let Some(time) = active_gem.data().cast_time {
                 stats.stat(StatId::CastSpeed).val_custom_inv(time)
             } else {
                 0
             }
-        } else if tags.contains(&GemTag::Attack) {
+        } else if tags.contains(GemTag::Attack) {
             let mut div = 0;
             let mut time = 0;
             for slot in [Slot::Weapon, Slot::Offhand] {
@@ -247,7 +249,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
 pub fn calc_defence(build: &Build) -> FxHashMap<&'static str, i64> {
     let mut ret = FxHashMap::default();
     let mods = build.calc_mods(true);
-    let stats = build.calc_stats(&mods, &hset![]);
+    let stats = build.calc_stats(&mods, BitFlags::empty());
 
     ret.insert("Maximum Life", stats.stat(StatId::MaximumLife).val_rounded_up());
     ret.insert("Fire Resistance", stats.val(StatId::FireResistance));

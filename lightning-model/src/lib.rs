@@ -12,6 +12,7 @@ pub mod item;
 pub mod modifier;
 pub mod tree;
 pub mod util;
+pub mod stackvec;
 
 #[cfg(feature="import")]
 pub mod import;

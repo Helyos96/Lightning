@@ -3,9 +3,9 @@
 /// Import build data from pathofexile.com
 
 use crate::build::{self, Build, GemLink, Slot};
-use crate::data::base_item::Rarity;
+use crate::data::base_item::{self, Rarity};
 use crate::data::tree::{Ascendancy, Class};
-use crate::data::GEMS;
+use crate::data::{GEMS, ITEMS};
 use crate::gem;
 use crate::item;
 use serde::Deserialize;
@@ -87,12 +87,16 @@ fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
     let mut jewels = vec![];
 
     for gem in gems {
-        if let Some(gem_id) = GEMS.iter().find_map(|(key, val)| {
-            if val.base_item.display_name == gem.baseType {
-                return Some(key);
-            }
-            None
-        }) {
+        println!("{:?}", gem);
+        if let Some(gem_id) =
+            GEMS.iter().find_map(|(key, val)| {
+
+                if val.base_item.display_name == gem.baseType {
+                    return Some(key);
+                }
+                None
+            })
+        {
             // Parsing stuff is just beautiful
             let level = u32::from_str(
                 gem.properties.iter().find(|p| p.name == "Level").unwrap().values[0].0.split(' ').collect::<Vec<&str>>()[0],
@@ -110,18 +114,23 @@ fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
             };
             gemlink.gems.push(new_gem);
         } else {
-            jewels.push(conv_item(gem));
+            if let Some(jewel) = conv_item(gem) {
+                jewels.push(jewel);
+            }
         }
     }
 
     (gemlink, jewels)
 }
 
-fn conv_item(item: &Item) -> item::Item {
+fn conv_item(item: &Item) -> Option<item::Item> {
+    if !ITEMS.contains_key(&item.baseType) {
+        return None;
+    }
     let mut mods_expl = item.explicitMods.clone();
     mods_expl.extend(item.craftedMods.clone());
     mods_expl.extend(item.fracturedMods.clone());
-    item::Item {
+    Some(item::Item {
         base_item: item.baseType.clone(),
         name: item.name.clone(),
         rarity: item.rarity,
@@ -129,7 +138,7 @@ fn conv_item(item: &Item) -> item::Item {
         mods_expl,
         mods_enchant: item.enchantMods.clone(),
         quality: item.quality(),
-    }
+    })
 }
 
 #[derive(Debug, Clone)]
@@ -183,9 +192,11 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
             build.inventory.extend(jewels);
         }
         if let Some(inventory_id) = &item.inventoryId {
-            build.inventory.push(conv_item(item));
-            if let Ok(slot) = Slot::try_from((inventory_id.as_str(), item.x.unwrap_or(0))) {
-                build.equipment.insert(slot, build.inventory.len() - 1);
+            if let Some(item_inv) = conv_item(item) {
+                build.inventory.push(item_inv);
+                if let Ok(slot) = Slot::try_from((inventory_id.as_str(), item.x.unwrap_or(0))) {
+                    build.equipment.insert(slot, build.inventory.len() - 1);
+                }
             }
         }
     }

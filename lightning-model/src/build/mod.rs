@@ -10,7 +10,9 @@ use crate::data::{MONSTER_STATS, TREE};
 use crate::gem::Gem;
 use crate::item::Item;
 use crate::modifier::{Condition, Mod, Mutation, Source, Type};
+use crate::stackvec;
 use crate::tree::PassiveTree;
+use enumflags2::BitFlags;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
@@ -248,12 +250,13 @@ impl Build {
     /// every time.
     pub fn calc_mods(&self, _include_global: bool) -> Vec<Mod> {
         let class_data = &TREE.classes[&self.tree.class];
-        let mut mods = vec![
+        let mut mods = Vec::with_capacity(600);
+        mods.extend_from_slice(&[
             Mod {
                 stat: StatId::MaximumLife,
                 typ: Type::Base,
                 amount: 12,
-                mutations: vec![Mutation::MultiplierProperty((1, property::Int::Level))],
+                mutations: stackvec![Mutation::MultiplierProperty((1, property::Int::Level))],
                 ..Default::default()
             },
             Mod {
@@ -266,7 +269,7 @@ impl Build {
                 stat: StatId::MaximumLife,
                 typ: Type::Base,
                 amount: 1,
-                mutations: vec![Mutation::MultiplierStat((2, StatId::Strength))],
+                mutations: stackvec![Mutation::MultiplierStat((2, StatId::Strength))],
                 ..Default::default()
             },
             Mod {
@@ -315,17 +318,17 @@ impl Build {
                 stat: StatId::Damage,
                 typ: Type::More,
                 amount: 1,
-                mutations: vec![
+                mutations: stackvec![
                     Mutation::MultiplierProperty((1, property::Int::Rage)),
                 ],
-                tags: hset![GemTag::Attack],
+                tags: GemTag::Attack.into(),
                 ..Default::default()
             },
             Mod {
                 stat: StatId::PassiveSkillPoints,
                 typ: Type::Base,
                 amount: 1,
-                mutations: vec![
+                mutations: stackvec![
                     Mutation::MultiplierProperty((1, property::Int::Level)),
                 ],
                 ..Default::default()
@@ -340,15 +343,15 @@ impl Build {
                 stat: StatId::PhysicalDamage,
                 typ: Type::Inc,
                 amount: 1,
-                mutations: vec![Mutation::MultiplierStat((5, StatId::Strength))],
-                tags: hset![GemTag::Melee],
+                mutations: stackvec![Mutation::MultiplierStat((5, StatId::Strength))],
+                tags: GemTag::Melee.into(),
                 ..Default::default()
             },
             Mod {
                 stat: StatId::Damage,
                 typ: Type::More,
                 amount: 4,
-                mutations: vec![
+                mutations: stackvec![
                     Mutation::MultiplierProperty((1, property::Int::FrenzyCharges)),
                 ],
                 ..Default::default()
@@ -357,7 +360,7 @@ impl Build {
                 stat: StatId::AttackSpeed,
                 typ: Type::Inc,
                 amount: 4,
-                mutations: vec![
+                mutations: stackvec![
                     Mutation::MultiplierProperty((1, property::Int::FrenzyCharges)),
                 ],
                 ..Default::default()
@@ -366,7 +369,7 @@ impl Build {
                 stat: StatId::CastSpeed,
                 typ: Type::Inc,
                 amount: 4,
-                mutations: vec![
+                mutations: stackvec![
                     Mutation::MultiplierProperty((1, property::Int::FrenzyCharges)),
                 ],
                 ..Default::default()
@@ -375,7 +378,7 @@ impl Build {
                 stat: StatId::CriticalStrikeChance,
                 typ: Type::Inc,
                 amount: 50,
-                mutations: vec![
+                mutations: stackvec![
                     Mutation::MultiplierProperty((1, property::Int::PowerCharges)),
                 ],
                 ..Default::default()
@@ -408,7 +411,7 @@ impl Build {
                 stat: StatId::AccuracyRating,
                 typ: Type::Base,
                 amount: 2,
-                mutations: vec![Mutation::MultiplierStat((1, StatId::Dexterity))],
+                mutations: stackvec![Mutation::MultiplierStat((1, StatId::Dexterity))],
                 ..Default::default()
             },
             Mod {
@@ -417,18 +420,18 @@ impl Build {
                 amount: 150,
                 ..Default::default()
             },
-        ];
-        mods.extend(BANDIT_STATS.get(&self.bandit_choice).unwrap().clone());
-        mods.extend(CAMPAIGN_STATS.get(&self.campaign_choice).unwrap().clone());
-        mods.extend(self.tree.calc_mods());
+        ]);
+        mods.append(&mut BANDIT_STATS.get(&self.bandit_choice).unwrap().clone());
+        mods.append(&mut CAMPAIGN_STATS.get(&self.campaign_choice).unwrap().clone());
+        mods.append(&mut self.tree.calc_mods());
         for (slot, idx) in &self.equipment {
             let item = &self.inventory[*idx];
             if let Slot::TreeJewel(node_id) = slot {
                 if self.tree.nodes.contains(node_id) {
-                    mods.extend(item.calc_nonlocal_mods(*slot));
+                    mods.append(&mut item.calc_nonlocal_mods(*slot));
                 }
             } else {
-                mods.extend(item.calc_nonlocal_mods(*slot));
+                mods.append(&mut item.calc_nonlocal_mods(*slot));
                 let defence = item.calc_defence();
                 if defence.armour.val() != 0 {
                     mods.push(Mod { stat: StatId::Armour, typ: Type::Base, amount: defence.armour.val(), source: Source::Item(*slot), ..Default::default() });
@@ -559,8 +562,8 @@ impl Build {
         self.properties_bool.insert(p, val);
     }
 
-    pub fn is_holding(&self, item_classes: &FxHashSet<ItemClass>) -> bool {
-        self.equipment.iter().find(|(_, idx)| item_classes.contains(&self.inventory[**idx].data().item_class)).is_some()
+    pub fn is_holding(&self, item_classes: &BitFlags<ItemClass>) -> bool {
+        self.equipment.iter().find(|(_, idx)| item_classes.contains(self.inventory[**idx].data().item_class)).is_some()
     }
 
     fn check_conditions(&self, stats: &FxHashMap<StatId, Stat>, m: &Mod) -> bool {
@@ -625,13 +628,13 @@ impl Build {
         amount
     }
 
-    pub fn calc_stats(&self, mods: &[Mod], tags: &FxHashSet<GemTag>) -> Stats {
+    pub fn calc_stats(&self, mods: &[Mod], tags: BitFlags<GemTag>) -> Stats {
         let mut stats: FxHashMap<StatId, Stat> = Default::default();
         let mut mods_sec_pass = vec![];
         let mut mods_third_pass = vec![];
 
         for m in mods {
-            if !tags.is_superset(&m.tags) {
+            if !tags.contains(m.tags) {
                 continue;
             }
             if !m.weapons.is_empty() && !self.is_holding(&m.weapons) {
@@ -675,7 +678,7 @@ impl Build {
 #[test]
 fn test_build() {
     let player = Build::new_player();
-    let stats = player.calc_stats(&player.calc_mods(true), &hset![]);
+    let stats = player.calc_stats(&player.calc_mods(true), BitFlags::empty());
 
     assert_eq!(stats.stat(StatId::MaximumLife).val(), 60);
 }

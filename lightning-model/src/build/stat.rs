@@ -216,7 +216,7 @@ impl Stat {
         let mut stat = Stat::default();
 
         for m in &self.mods {
-            if m.weapons.is_empty() || (weapon.is_some() && m.weapons.contains(&weapon.unwrap())) {
+            if m.weapons.is_empty() || (weapon.is_some() && m.weapons.contains(weapon.unwrap())) {
                 stat.adjust(m.typ, m.amount, m);
             }
         }

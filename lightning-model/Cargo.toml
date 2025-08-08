@@ -17,6 +17,7 @@ pathfinding = "4.14.*"
 rust_decimal = "1.36.*"
 strum = "0.26.*"
 strum_macros = "0.26.*"
+enumflags2 = "0.7.*"
 
 [dev-dependencies]
 bencher = "0.1"

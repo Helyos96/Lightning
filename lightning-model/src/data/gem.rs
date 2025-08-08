@@ -1,5 +1,6 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
+use enumflags2::bitflags;
 use super::{base_item::ItemClass, ActiveSkillTypes};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -104,6 +105,8 @@ impl Static {
     }
 }
 
+#[bitflags]
+#[repr(u64)]
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq)]
 #[serde(rename_all = "lowercase")]
 #[allow(non_camel_case_types)]

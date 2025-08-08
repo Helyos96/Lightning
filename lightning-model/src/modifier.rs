@@ -5,9 +5,11 @@ use crate::data::gem::GemTag;
 use crate::gem::Gem;
 use crate::data::ActiveSkillTypes;
 use crate::item::{self, Item};
+use crate::stackvec::StackVec;
+use enumflags2::BitFlags;
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::ops::Neg;
@@ -77,27 +79,27 @@ lazy_static! {
         ("while leeching", Condition::PropertyBool((true, property::Bool::Leeching))),
         ("when on full life", Condition::PropertyBool((true, property::Bool::OnFullLife))),
         ("while on low life", Condition::PropertyBool((true, property::Bool::OnLowLife))),
-        ("while holding a shield", Condition::WhileWielding(hset![ItemClass::Shield])),
-        ("while wielding a staff", Condition::WhileWielding(hset![ItemClass::Staff, ItemClass::Warstaff])),
-        ("while wielding a sword", Condition::WhileWielding(hset![ItemClass::OneHandSword, ItemClass::TwoHandSword, ItemClass::ThrustingOneHandSword])),
-        ("while wielding a dagger", Condition::WhileWielding(hset![ItemClass::Dagger, ItemClass::RuneDagger])),
-        ("while wielding a mace or sceptre", Condition::WhileWielding(hset![ItemClass::OneHandMace, ItemClass::TwoHandMace, ItemClass::Sceptre])),
-        ("while wielding a claw or dagger", Condition::WhileWielding(hset![ItemClass::Dagger, ItemClass::RuneDagger, ItemClass::Claw])),
+        ("while holding a shield", Condition::WhileWielding(ItemClass::Shield.into())),
+        ("while wielding a staff", Condition::WhileWielding(ItemClass::Staff | ItemClass::Warstaff)),
+        ("while wielding a sword", Condition::WhileWielding(ItemClass::OneHandSword | ItemClass::TwoHandSword | ItemClass::ThrustingOneHandSword)),
+        ("while wielding a dagger", Condition::WhileWielding(ItemClass::Dagger | ItemClass::RuneDagger)),
+        ("while wielding a mace or sceptre", Condition::WhileWielding(ItemClass::OneHandMace | ItemClass::TwoHandMace | ItemClass::Sceptre)),
+        ("while wielding a claw or dagger", Condition::WhileWielding(ItemClass::Dagger | ItemClass::RuneDagger | ItemClass::Claw)),
     ];
 
-    static ref ENDINGS_WEAPON_RESTRICTIONS: [(&'static str, FxHashSet<ItemClass>); 12] = [
-        ("with axes", hset![ItemClass::OneHandAxe, ItemClass::TwoHandAxe]),
-        ("with swords", hset![ItemClass::OneHandSword, ItemClass::TwoHandSword, ItemClass::ThrustingOneHandSword]),
-        ("with maces", hset![ItemClass::OneHandMace, ItemClass::TwoHandMace]),
-        ("with two handed melee weapons", hset![ItemClass::TwoHandSword, ItemClass::TwoHandMace, ItemClass::TwoHandAxe, ItemClass::Warstaff, ItemClass::Staff]),
-        ("with one handed melee weapons", hset![ItemClass::OneHandSword, ItemClass::OneHandMace, ItemClass::OneHandAxe, ItemClass::ThrustingOneHandSword]),
-        ("with one handed weapons", hset![ItemClass::OneHandSword, ItemClass::OneHandMace, ItemClass::OneHandAxe, ItemClass::ThrustingOneHandSword]),
-        ("with staves", hset![ItemClass::Staff, ItemClass::Warstaff]),
-        ("with bows", hset![ItemClass::Bow]),
-        ("with claws", hset![ItemClass::Claw]),
-        ("with wands", hset![ItemClass::Wand]),
-        ("with daggers", hset![ItemClass::Dagger, ItemClass::RuneDagger]),
-        ("with maces or sceptres", hset![ItemClass::OneHandMace, ItemClass::TwoHandMace, ItemClass::Sceptre]),
+    static ref ENDINGS_WEAPON_RESTRICTIONS: [(&'static str, BitFlags<ItemClass>); 12] = [
+        ("with axes", ItemClass::OneHandAxe | ItemClass::TwoHandAxe),
+        ("with swords", ItemClass::OneHandSword | ItemClass::TwoHandSword | ItemClass::ThrustingOneHandSword),
+        ("with maces", ItemClass::OneHandMace | ItemClass::TwoHandMace),
+        ("with two handed melee weapons", ItemClass::TwoHandSword | ItemClass::TwoHandMace | ItemClass::TwoHandAxe | ItemClass::Warstaff | ItemClass::Staff),
+        ("with one handed melee weapons", ItemClass::OneHandSword | ItemClass::OneHandMace | ItemClass::OneHandAxe | ItemClass::ThrustingOneHandSword),
+        ("with one handed weapons", ItemClass::OneHandSword | ItemClass::OneHandMace | ItemClass::OneHandAxe | ItemClass::ThrustingOneHandSword),
+        ("with staves", ItemClass::Staff | ItemClass::Warstaff),
+        ("with bows", ItemClass::Bow.into()),
+        ("with claws", ItemClass::Claw.into()),
+        ("with wands", ItemClass::Wand.into()),
+        ("with daggers", ItemClass::Dagger | ItemClass::RuneDagger),
+        ("with maces or sceptres", ItemClass::OneHandMace | ItemClass::TwoHandMace | ItemClass::Sceptre),
     ];
 
     static ref BEGINNINGS: Vec<(Regex, Box<dyn Fn(&Captures) -> Option<Vec<Mod>> + Send + Sync>)> = vec![
@@ -359,96 +361,96 @@ lazy_static! {
 
     // Order is important for overlapping stats
     // like "area of effect" and "effect"
-    static ref STATS: Vec<(&'static str, StatId, FxHashSet<GemTag>)> = vec![
-        ("strength", StatId::Strength, hset!()),
-        ("dexterity", StatId::Dexterity, hset!()),
-        ("intelligence", StatId::Intelligence, hset!()),
-        ("attributes", StatId::Attributes, hset!()),
-        ("attack speed", StatId::AttackSpeed, hset!()),
-        ("cast speed", StatId::CastSpeed, hset!()),
-        ("warcry speed", StatId::WarcrySpeed, hset!()),
-        ("cooldown recovery speed", StatId::CooldownRecoverySpeed, hset!()),
-        ("projectile speed", StatId::ProjectileSpeed, hset!()),
-        ("trap throwing speed", StatId::TrapThrowingSpeed, hset!()),
-        ("chance to block attack damage", StatId::ChanceToBlockAttackDamage, hset!()),
-        ("chance to block spell damage", StatId::ChanceToBlockSpellDamage, hset!()),
-        ("chance to suppress spell damage", StatId::ChanceToSuppressSpellDamage, hset!()),
-        ("fire damage over time multiplier", StatId::FireDamageOverTimeMultiplier, hset!()),
-        ("cold damage over time multiplier", StatId::ColdDamageOverTimeMultiplier, hset!()),
-        ("chaos damage over time multiplier", StatId::ChaosDamageOverTimeMultiplier, hset!()),
-        ("physical damage over time multiplier", StatId::PhysicalDamageOverTimeMultiplier, hset!()),
-        ("damage over time multiplier", StatId::DamageOverTimeMultiplier, hset!()),
-        ("fire damage penetration", StatId::FireDamagePen, hset!()),
-        ("lightning damage penetration", StatId::LightningDamagePen, hset!()),
-        ("cold damage penetration", StatId::ColdDamagePen, hset!()),
-        ("chaos damage penetration", StatId::ChaosDamagePen, hset!()),
-        ("fire damage over time", StatId::FireDamageOverTime, hset!()),
-        ("cold damage over time", StatId::ColdDamageOverTime, hset!()),
-        ("chaos damage over time", StatId::ChaosDamageOverTime, hset!()),
-        ("physical damage over time", StatId::PhysicalDamageOverTime, hset!()),
-        ("damage over time", StatId::DamageOverTime, hset!()),
-        ("fire damage", StatId::FireDamage, hset!()),
-        ("cold damage", StatId::ColdDamage, hset!()),
-        ("lightning damage", StatId::LightningDamage, hset!()),
-        ("chaos damage", StatId::ChaosDamage, hset!()),
-        ("minimum physical attack damage", StatId::MinPhysicalDamage, hset!(GemTag::Attack)),
-        ("maximum physical attack damage", StatId::MaxPhysicalDamage, hset!(GemTag::Attack)),
-        ("added minimum physical damage", StatId::AddedMinPhysicalDamage, hset!()),
-        ("added maximum physical damage", StatId::AddedMaxPhysicalDamage, hset!()),
-        ("physical attack damage", StatId::PhysicalDamage, hset!(GemTag::Attack)),
-        ("physical damage", StatId::PhysicalDamage, hset!()),
-        ("damage", StatId::Damage, hset!()),
-        ("area of effect", StatId::AreaOfEffect, hset!()),
-        ("accuracy rating", StatId::AccuracyRating, hset!()),
-        ("movement speed", StatId::MovementSpeed, hset!()),
-        ("skill effect duration", StatId::SkillEffectDuration, hset!()),
-        ("duration", StatId::Duration, hset!()),
-        ("impale effect", StatId::ImpaleEffect, hset!()),
-        ("minimum frenzy charges", StatId::MinimumFrenzyCharges, hset!()),
-        ("minimum power charges", StatId::MinimumPowerCharges, hset!()),
-        ("minimum endurance charges", StatId::MinimumEnduranceCharges, hset!()),
-        ("maximum frenzy charges", StatId::MaximumFrenzyCharges, hset!()),
-        ("maximum power charges", StatId::MaximumPowerCharges, hset!()),
-        ("maximum endurance charges", StatId::MaximumEnduranceCharges, hset!()),
-        ("maximum life", StatId::MaximumLife, hset!()),
-        ("maximum mana", StatId::MaximumMana, hset!()),
-        ("minimum rage", StatId::MinimumRage, hset!()),
-        ("maximum rage", StatId::MaximumRage, hset!()),
-        ("maximum energy shield", StatId::MaximumEnergyShield, hset!()),
-        ("energy shield recharge rate", StatId::EnergyShieldRechargeRate, hset!()),
-        ("energy shield", StatId::EnergyShield, hset!()),
-        ("life regeneration rate", StatId::LifeRegenerationRate, hset!()),
-        ("mana regeneration rate", StatId::ManaRegenerationRate, hset!()),
-        ("mana reservation efficiency", StatId::ManaReservationEfficiency, hset!()),
-        ("critical strike chance", StatId::CriticalStrikeChance, hset!()),
-        ("critical strike multiplier", StatId::CriticalStrikeMultiplier, hset!()),
-        ("armour", StatId::Armour, hset!()),
-        ("evasion rating", StatId::EvasionRating, hset!()),
-        ("stun threshold", StatId::StunThreshold, hset!()),
-        ("chance to avoid being stunned", StatId::ChanceToAvoidBeingStunned, hset!()),
-        ("maximum fire resistance", StatId::MaximumFireResistance, hset!()),
-        ("maximum cold resistance", StatId::MaximumColdResistance, hset!()),
-        ("maximum lightning resistance", StatId::MaximumLightningResistance, hset!()),
-        ("maximum chaos resistance", StatId::MaximumChaosResistance, hset!()),
-        ("fire resistance", StatId::FireResistance, hset!()),
-        ("cold resistance", StatId::ColdResistance, hset!()),
-        ("lightning resistance", StatId::LightningResistance, hset!()),
-        ("chaos resistance", StatId::ChaosResistance, hset!()),
-        ("flask charges gained", StatId::FlaskChargesGained, hset!()),
-        ("flask effect duration", StatId::FlaskEffectDuration, hset!()),
-        ("flask recovery rate", StatId::FlaskRecoveryRate, hset!()),
-        ("flask charges used", StatId::FlaskChargesUsed, hset!()),
-        ("mana cost", StatId::ManaCost, hset!()),
-        ("life cost", StatId::LifeCost, hset!()),
-        ("cost", StatId::Cost, hset!()),
-        ("passive skill points", StatId::PassiveSkillPoints, hset!()),
-        ("passive skill point", StatId::PassiveSkillPoints, hset!()),
+    static ref STATS: Vec<(&'static str, StatId, BitFlags<GemTag>)> = vec![
+        ("strength", StatId::Strength, BitFlags::empty()),
+        ("dexterity", StatId::Dexterity, BitFlags::empty()),
+        ("intelligence", StatId::Intelligence, BitFlags::empty()),
+        ("attributes", StatId::Attributes, BitFlags::empty()),
+        ("attack speed", StatId::AttackSpeed, BitFlags::empty()),
+        ("cast speed", StatId::CastSpeed, BitFlags::empty()),
+        ("warcry speed", StatId::WarcrySpeed, BitFlags::empty()),
+        ("cooldown recovery speed", StatId::CooldownRecoverySpeed, BitFlags::empty()),
+        ("projectile speed", StatId::ProjectileSpeed, BitFlags::empty()),
+        ("trap throwing speed", StatId::TrapThrowingSpeed, BitFlags::empty()),
+        ("chance to block attack damage", StatId::ChanceToBlockAttackDamage, BitFlags::empty()),
+        ("chance to block spell damage", StatId::ChanceToBlockSpellDamage, BitFlags::empty()),
+        ("chance to suppress spell damage", StatId::ChanceToSuppressSpellDamage, BitFlags::empty()),
+        ("fire damage over time multiplier", StatId::FireDamageOverTimeMultiplier, BitFlags::empty()),
+        ("cold damage over time multiplier", StatId::ColdDamageOverTimeMultiplier, BitFlags::empty()),
+        ("chaos damage over time multiplier", StatId::ChaosDamageOverTimeMultiplier, BitFlags::empty()),
+        ("physical damage over time multiplier", StatId::PhysicalDamageOverTimeMultiplier, BitFlags::empty()),
+        ("damage over time multiplier", StatId::DamageOverTimeMultiplier, BitFlags::empty()),
+        ("fire damage penetration", StatId::FireDamagePen, BitFlags::empty()),
+        ("lightning damage penetration", StatId::LightningDamagePen, BitFlags::empty()),
+        ("cold damage penetration", StatId::ColdDamagePen, BitFlags::empty()),
+        ("chaos damage penetration", StatId::ChaosDamagePen, BitFlags::empty()),
+        ("fire damage over time", StatId::FireDamageOverTime, BitFlags::empty()),
+        ("cold damage over time", StatId::ColdDamageOverTime, BitFlags::empty()),
+        ("chaos damage over time", StatId::ChaosDamageOverTime, BitFlags::empty()),
+        ("physical damage over time", StatId::PhysicalDamageOverTime, BitFlags::empty()),
+        ("damage over time", StatId::DamageOverTime, BitFlags::empty()),
+        ("fire damage", StatId::FireDamage, BitFlags::empty()),
+        ("cold damage", StatId::ColdDamage, BitFlags::empty()),
+        ("lightning damage", StatId::LightningDamage, BitFlags::empty()),
+        ("chaos damage", StatId::ChaosDamage, BitFlags::empty()),
+        ("minimum physical attack damage", StatId::MinPhysicalDamage, GemTag::Attack.into()),
+        ("maximum physical attack damage", StatId::MaxPhysicalDamage, GemTag::Attack.into()),
+        ("added minimum physical damage", StatId::AddedMinPhysicalDamage, BitFlags::empty()),
+        ("added maximum physical damage", StatId::AddedMaxPhysicalDamage, BitFlags::empty()),
+        ("physical attack damage", StatId::PhysicalDamage, GemTag::Attack.into()),
+        ("physical damage", StatId::PhysicalDamage, BitFlags::empty()),
+        ("damage", StatId::Damage, BitFlags::empty()),
+        ("area of effect", StatId::AreaOfEffect, BitFlags::empty()),
+        ("accuracy rating", StatId::AccuracyRating, BitFlags::empty()),
+        ("movement speed", StatId::MovementSpeed, BitFlags::empty()),
+        ("skill effect duration", StatId::SkillEffectDuration, BitFlags::empty()),
+        ("duration", StatId::Duration, BitFlags::empty()),
+        ("impale effect", StatId::ImpaleEffect, BitFlags::empty()),
+        ("minimum frenzy charges", StatId::MinimumFrenzyCharges, BitFlags::empty()),
+        ("minimum power charges", StatId::MinimumPowerCharges, BitFlags::empty()),
+        ("minimum endurance charges", StatId::MinimumEnduranceCharges, BitFlags::empty()),
+        ("maximum frenzy charges", StatId::MaximumFrenzyCharges, BitFlags::empty()),
+        ("maximum power charges", StatId::MaximumPowerCharges, BitFlags::empty()),
+        ("maximum endurance charges", StatId::MaximumEnduranceCharges, BitFlags::empty()),
+        ("maximum life", StatId::MaximumLife, BitFlags::empty()),
+        ("maximum mana", StatId::MaximumMana, BitFlags::empty()),
+        ("minimum rage", StatId::MinimumRage, BitFlags::empty()),
+        ("maximum rage", StatId::MaximumRage, BitFlags::empty()),
+        ("maximum energy shield", StatId::MaximumEnergyShield, BitFlags::empty()),
+        ("energy shield recharge rate", StatId::EnergyShieldRechargeRate, BitFlags::empty()),
+        ("energy shield", StatId::EnergyShield, BitFlags::empty()),
+        ("life regeneration rate", StatId::LifeRegenerationRate, BitFlags::empty()),
+        ("mana regeneration rate", StatId::ManaRegenerationRate, BitFlags::empty()),
+        ("mana reservation efficiency", StatId::ManaReservationEfficiency, BitFlags::empty()),
+        ("critical strike chance", StatId::CriticalStrikeChance, BitFlags::empty()),
+        ("critical strike multiplier", StatId::CriticalStrikeMultiplier, BitFlags::empty()),
+        ("armour", StatId::Armour, BitFlags::empty()),
+        ("evasion rating", StatId::EvasionRating, BitFlags::empty()),
+        ("stun threshold", StatId::StunThreshold, BitFlags::empty()),
+        ("chance to avoid being stunned", StatId::ChanceToAvoidBeingStunned, BitFlags::empty()),
+        ("maximum fire resistance", StatId::MaximumFireResistance, BitFlags::empty()),
+        ("maximum cold resistance", StatId::MaximumColdResistance, BitFlags::empty()),
+        ("maximum lightning resistance", StatId::MaximumLightningResistance, BitFlags::empty()),
+        ("maximum chaos resistance", StatId::MaximumChaosResistance, BitFlags::empty()),
+        ("fire resistance", StatId::FireResistance, BitFlags::empty()),
+        ("cold resistance", StatId::ColdResistance, BitFlags::empty()),
+        ("lightning resistance", StatId::LightningResistance, BitFlags::empty()),
+        ("chaos resistance", StatId::ChaosResistance, BitFlags::empty()),
+        ("flask charges gained", StatId::FlaskChargesGained, BitFlags::empty()),
+        ("flask effect duration", StatId::FlaskEffectDuration, BitFlags::empty()),
+        ("flask recovery rate", StatId::FlaskRecoveryRate, BitFlags::empty()),
+        ("flask charges used", StatId::FlaskChargesUsed, BitFlags::empty()),
+        ("mana cost", StatId::ManaCost, BitFlags::empty()),
+        ("life cost", StatId::LifeCost, BitFlags::empty()),
+        ("cost", StatId::Cost, BitFlags::empty()),
+        ("passive skill points", StatId::PassiveSkillPoints, BitFlags::empty()),
+        ("passive skill point", StatId::PassiveSkillPoints, BitFlags::empty()),
     ];
 
-    static ref STATS_MAP: FxHashMap<&'static str, (StatId, FxHashSet<GemTag>)> = {
+    static ref STATS_MAP: FxHashMap<&'static str, (StatId, BitFlags<GemTag>)> = {
         let mut map = FxHashMap::default();
         for entry in STATS.iter() {
-            map.insert(entry.0, (entry.1, entry.2.clone()));
+            map.insert(entry.0, (entry.1, entry.2));
         }
         map
     };
@@ -466,24 +468,24 @@ pub enum Type {
 pub enum Ending {
     Mutation(Mutation),
     Tag(GemTag),
-    Weapon(FxHashSet<ItemClass>),
+    Weapon(BitFlags<ItemClass>),
     Condition(Condition),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Mutation {
     MultiplierStat((i64, StatId)),
     MultiplierProperty((i64, property::Int)),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Condition {
     GreaterEqualProperty((i64, property::Int)),
     GreaterEqualStat((i64, StatId)),
     LesserEqualProperty((i64, property::Int)),
     LesserEqualStat((i64, StatId)),
     PropertyBool((bool, property::Bool)),
-    WhileWielding(FxHashSet<ItemClass>),
+    WhileWielding(BitFlags<ItemClass>),
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -496,16 +498,16 @@ pub enum Source {
     Gem,
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct Mod {
     pub stat: StatId,
     pub typ: Type,
     pub amount: i64,
-    pub mutations: Vec<Mutation>,
-    pub conditions: Vec<Condition>,
-    pub tags: FxHashSet<GemTag>,
+    pub mutations: StackVec<Mutation, 5>,
+    pub conditions: StackVec<Condition, 5>,
+    pub tags: BitFlags<GemTag>,
     pub source: Source,
-    pub weapons: FxHashSet<ItemClass>,
+    pub weapons: BitFlags<ItemClass>,
     pub global: bool,
 }
 
@@ -540,8 +542,8 @@ fn parse_ending(m: &str) -> Option<(usize, Ending)> {
     None
 }
 
-fn parse_stat_nomulti(input: &str) -> Option<(StatId, FxHashSet<GemTag>, bool)> {
-    let mut tags = hset![];
+fn parse_stat_nomulti(input: &str) -> Option<(StatId, BitFlags<GemTag>, bool)> {
+    let mut tags = BitFlags::empty();
     let mut global = false;
 
     let stat = STATS.iter().find(|s| {
@@ -567,9 +569,9 @@ fn parse_stat_nomulti(input: &str) -> Option<(StatId, FxHashSet<GemTag>, bool)> 
 }
 
 /// Attempts to parse a chunk like "melee physical damage"
-fn parse_stat(input: &str) -> Option<Vec<(StatId, FxHashSet<GemTag>, bool)>> {
+fn parse_stat(input: &str) -> Option<Vec<(StatId, BitFlags<GemTag>, bool)>> {
     if let Some(stats) = MULTISTATS.get(input) {
-        return Some(stats.iter().map(|id| (*id, hset![], false)).collect());
+        return Some(stats.iter().map(|id| (*id, BitFlags::empty(), false)).collect());
     }
 
     if let Some(stat) = parse_stat_nomulti(input) {
@@ -580,7 +582,7 @@ fn parse_stat(input: &str) -> Option<Vec<(StatId, FxHashSet<GemTag>, bool)>> {
 }
 
 lazy_static! {
-    static ref CACHE: Mutex<FxHashMap<String, Option<Vec<Mod>>>> = Mutex::new(FxHashMap::default());
+    pub static ref CACHE: Mutex<FxHashMap<String, Option<Vec<Mod>>>> = Mutex::new(FxHashMap::default());
 }
 
 /// Attempts to parse a modifier like "30℅ increased poison damage while focussed"
@@ -596,22 +598,22 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
     }
 
     let mut m = &input[0..];
-    let mut flags = vec![];
-    let mut tags = hset![];
-    let mut weapons = hset![];
-    let mut conditions = vec![];
+    let mut mutations: StackVec<Mutation, 5> = Default::default();
+    let mut tags = BitFlags::empty();
+    let mut weapons = BitFlags::empty();
+    let mut conditions: StackVec<Condition, 5> = Default::default();
 
     while let Some(ending) = parse_ending(&m.to_lowercase()) {
         m = &m[0..m.len() - ending.0 - 1];
         match ending.1 {
-            Ending::Mutation(flag) => {
-                flags.push(flag);
+            Ending::Mutation(mutation) => {
+                mutations.push(mutation);
             }
             Ending::Tag(tag) => {
                 tags.insert(tag);
             }
             Ending::Weapon(weapon) => {
-                weapons.extend(weapon);
+                weapons.insert(weapon);
             },
             Ending::Condition(condition) => {
                 conditions.push(condition);
@@ -623,10 +625,10 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
         if let Some(cap) = begin.0.captures(&m.to_lowercase()) {
             if let Some(mut mods) = begin.1(&cap) {
                 for modifier in &mut mods {
-                    modifier.tags.extend(tags.clone());
-                    modifier.mutations.extend(flags.clone());
-                    modifier.weapons.extend(weapons.clone());
-                    modifier.conditions.extend(conditions.clone());
+                    modifier.tags.insert(tags);
+                    modifier.mutations.extend_from_slice(&mutations);
+                    modifier.weapons.insert(weapons);
+                    modifier.conditions.extend_from_slice(&conditions);
                     modifier.source = source;
                 }
                 cache.insert(input.to_string(), Some(mods.clone()));

@@ -216,7 +216,7 @@ impl PassiveTree {
     }
 
     pub fn calc_mods(&self) -> Vec<Mod> {
-        let mut mods = vec![];
+        let mut mods = Vec::with_capacity(300);
 
         for node_id in &self.nodes {
             for mod_lines in &Self::data().nodes[node_id].stats {

@@ -10,13 +10,14 @@ use lightning_model::build::Build;
 use lightning_model::data::tree::Node;
 use lightning_model::data::GEMS;
 use lightning_model::gem::Gem;
-use lightning_model::{calc, hset};
+use lightning_model::calc;
 use panel::items::ItemsPanelState;
 use panel::skills::SkillsPanelState;
 use rustc_hash::FxHashMap;
 use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::time::Instant;
+use enumflags2::BitFlags;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum MainState {
@@ -193,7 +194,7 @@ impl State {
     pub fn recalc(&mut self) {
         self.can_save = true;
         let mods = self.build.calc_mods(true);
-        let stats = self.build.calc_stats(&mods, &hset![]);
+        let stats = self.build.calc_stats(&mods, BitFlags::empty());
         self.passives_count = self.build.tree.passives_count();
         self.passives_max = stats.val(lightning_model::build::stat::StatId::PassiveSkillPoints);
         self.defence_calc = calc::calc_defence(&self.build);

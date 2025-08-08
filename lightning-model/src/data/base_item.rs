@@ -1,8 +1,11 @@
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
+use enumflags2::bitflags;
 
 use crate::build::Slot;
 
+#[bitflags]
+#[repr(u64)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ItemClass {
     Unarmed,
