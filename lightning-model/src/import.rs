@@ -87,7 +87,6 @@ fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
     let mut jewels = vec![];
 
     for gem in gems {
-        println!("{:?}", gem);
         if let Some(gem_id) =
             GEMS.iter().find_map(|(key, val)| {
 

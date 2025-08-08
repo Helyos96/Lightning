@@ -74,8 +74,6 @@ pub struct DefenceCalc {
 
 impl Item {
     pub fn data(&self) -> &'static BaseItem {
-        /*println!("{}", self.base_item);
-        println!("{:?}", self);*/
         &ITEMS[&self.base_item]
     }
 
