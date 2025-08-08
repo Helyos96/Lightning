@@ -37,7 +37,6 @@ use egui_glow::egui_winit::winit;
 use raw_window_handle::HasWindowHandle;
 
 use winit::{
-    dpi::LogicalSize,
     event_loop::EventLoop,
     event::{self, ElementState, MouseButton, StartCause},
     window::{Window, WindowAttributes},
@@ -324,12 +323,11 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                         }
                         WindowEvent::Resized(physical_size) => {
                             state.dimensions = (physical_size.width, physical_size.height);
-                            surface.resize(
-                                context,
-                                physical_size.width.try_into().unwrap(),
-                                physical_size.height.try_into().unwrap(),
-                            );
-                            window.request_redraw();
+                            let (width, height) = (physical_size.width.try_into(), physical_size.height.try_into());
+                            if !width.is_err() && !height.is_err() {
+                                surface.resize(context, width.unwrap(), height.unwrap());
+                                window.request_redraw();
+                            }
                         }
                         WindowEvent::MouseInput {
                             state: button_state,
@@ -448,9 +446,7 @@ fn main() {
 fn create_window(event_loop: &winit::event_loop::ActiveEventLoop) -> (Window, Surface<WindowSurface>, PossiblyCurrentContext) {
     let window_builder = WindowAttributes::default()
         .with_title(TITLE)
-        .with_inner_size(LogicalSize::new(1024, 768))
-        .with_visible(false)
-        .with_maximized(true);
+        .with_visible(false);
     let (window, cfg) = glutin_winit::DisplayBuilder::new()
         .with_window_attributes(Some(window_builder.clone()))
         .build(event_loop, ConfigTemplateBuilder::new(), |mut configs| {
