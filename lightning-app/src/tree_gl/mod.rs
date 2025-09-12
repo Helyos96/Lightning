@@ -264,7 +264,7 @@ impl TreeGl {
     }
 
     pub fn regen_active(&mut self, gl: &glow::Context, build: &Build, path_hovered: &Option<Vec<u16>>, path_red: &Option<Vec<u16>>, hovered_node: Option<&Node>) {
-        const REDRAW: [&str; 15] = [
+        const REDRAW: &[&str] = &[
             "nodes_active",
             "frames_active",
             "masteries_active",
@@ -282,7 +282,7 @@ impl TreeGl {
             "ascendancy_active_background"
         ];
 
-        for &s in &REDRAW {
+        for &s in REDRAW {
             if let Some(dd) = self.draw_data.get_mut(s) {
                 dd.destroy(gl);
             }
@@ -344,7 +344,7 @@ impl TreeGl {
         translate: (f32, f32),
     ) {
         // draw_data name ; texture file ; color tint factor
-        const DRAW_ORDER: [(&str, &str, [f32; 4]); 20] = [
+        const DRAW_ORDER: &[(&str, &str, [f32; 4])] = &[
             ("background", "background-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("group_background", "group-background-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("ascendancy_inactive_background", "ascendancy-background-3.png", [0.25, 0.25, 0.25, 1.0]),
