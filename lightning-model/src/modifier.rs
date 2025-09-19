@@ -6,7 +6,7 @@ use crate::gem::Gem;
 use crate::data::ActiveSkillTypes;
 use crate::item::{self, Item};
 use crate::stackvec::StackVec;
-use enumflags2::BitFlags;
+use enumflags2::{make_bitflags, BitFlags};
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use rustc_hash::FxHashMap;
@@ -72,6 +72,21 @@ fn parse_val100(val: &str) -> Option<i64> {
     }
 }
 
+const ENDINGS_WEAPON_RESTRICTIONS: [(&'static str, BitFlags<ItemClass>); 12] = [
+    ("with axes", make_bitflags!(ItemClass::{OneHandAxe | TwoHandAxe})),
+    ("with swords", make_bitflags!(ItemClass::{OneHandSword | TwoHandSword | ThrustingOneHandSword})),
+    ("with maces", make_bitflags!(ItemClass::{OneHandMace | TwoHandMace})),
+    ("with two handed melee weapons", make_bitflags!(ItemClass::{TwoHandSword | TwoHandMace | TwoHandAxe | Warstaff | Staff})),
+    ("with one handed melee weapons", make_bitflags!(ItemClass::{OneHandSword | OneHandMace | OneHandAxe | ThrustingOneHandSword})),
+    ("with one handed weapons", make_bitflags!(ItemClass::{OneHandSword | OneHandMace | OneHandAxe | ThrustingOneHandSword})),
+    ("with staves", make_bitflags!(ItemClass::{Staff | Warstaff})),
+    ("with bows", make_bitflags!(ItemClass::Bow)),
+    ("with claws", make_bitflags!(ItemClass::Claw)),
+    ("with wands", make_bitflags!(ItemClass::Wand)),
+    ("with daggers", make_bitflags!(ItemClass::{Dagger | RuneDagger})),
+    ("with maces or sceptres", make_bitflags!(ItemClass::{OneHandMace | TwoHandMace | Sceptre})),
+];
+
 lazy_static! {
     static ref ENDINGS_CONDITIONS: [(&'static str, Condition); 11] = [
         ("while fortified", Condition::PropertyBool((true, property::Bool::Fortified))),
@@ -85,21 +100,6 @@ lazy_static! {
         ("while wielding a dagger", Condition::WhileWielding(ItemClass::Dagger | ItemClass::RuneDagger)),
         ("while wielding a mace or sceptre", Condition::WhileWielding(ItemClass::OneHandMace | ItemClass::TwoHandMace | ItemClass::Sceptre)),
         ("while wielding a claw or dagger", Condition::WhileWielding(ItemClass::Dagger | ItemClass::RuneDagger | ItemClass::Claw)),
-    ];
-
-    static ref ENDINGS_WEAPON_RESTRICTIONS: [(&'static str, BitFlags<ItemClass>); 12] = [
-        ("with axes", ItemClass::OneHandAxe | ItemClass::TwoHandAxe),
-        ("with swords", ItemClass::OneHandSword | ItemClass::TwoHandSword | ItemClass::ThrustingOneHandSword),
-        ("with maces", ItemClass::OneHandMace | ItemClass::TwoHandMace),
-        ("with two handed melee weapons", ItemClass::TwoHandSword | ItemClass::TwoHandMace | ItemClass::TwoHandAxe | ItemClass::Warstaff | ItemClass::Staff),
-        ("with one handed melee weapons", ItemClass::OneHandSword | ItemClass::OneHandMace | ItemClass::OneHandAxe | ItemClass::ThrustingOneHandSword),
-        ("with one handed weapons", ItemClass::OneHandSword | ItemClass::OneHandMace | ItemClass::OneHandAxe | ItemClass::ThrustingOneHandSword),
-        ("with staves", ItemClass::Staff | ItemClass::Warstaff),
-        ("with bows", ItemClass::Bow.into()),
-        ("with claws", ItemClass::Claw.into()),
-        ("with wands", ItemClass::Wand.into()),
-        ("with daggers", ItemClass::Dagger | ItemClass::RuneDagger),
-        ("with maces or sceptres", ItemClass::OneHandMace | ItemClass::TwoHandMace | ItemClass::Sceptre),
     ];
 
     static ref BEGINNINGS: Vec<(Regex, Box<dyn Fn(&Captures) -> Option<Vec<Mod>> + Send + Sync>)> = vec![
