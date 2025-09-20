@@ -6,7 +6,7 @@ use crate::gem::Gem;
 use crate::data::ActiveSkillTypes;
 use crate::item::{self, Item};
 use crate::stackvec::StackVec;
-use enumflags2::{make_bitflags, BitFlags};
+use enumflags2::{make_bitflags as flags, BitFlags};
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use rustc_hash::FxHashMap;
@@ -72,36 +72,36 @@ fn parse_val100(val: &str) -> Option<i64> {
     }
 }
 
-const ENDINGS_WEAPON_RESTRICTIONS: [(&'static str, BitFlags<ItemClass>); 12] = [
-    ("with axes", make_bitflags!(ItemClass::{OneHandAxe | TwoHandAxe})),
-    ("with swords", make_bitflags!(ItemClass::{OneHandSword | TwoHandSword | ThrustingOneHandSword})),
-    ("with maces", make_bitflags!(ItemClass::{OneHandMace | TwoHandMace})),
-    ("with two handed melee weapons", make_bitflags!(ItemClass::{TwoHandSword | TwoHandMace | TwoHandAxe | Warstaff | Staff})),
-    ("with one handed melee weapons", make_bitflags!(ItemClass::{OneHandSword | OneHandMace | OneHandAxe | ThrustingOneHandSword})),
-    ("with one handed weapons", make_bitflags!(ItemClass::{OneHandSword | OneHandMace | OneHandAxe | ThrustingOneHandSword})),
-    ("with staves", make_bitflags!(ItemClass::{Staff | Warstaff})),
-    ("with bows", make_bitflags!(ItemClass::Bow)),
-    ("with claws", make_bitflags!(ItemClass::Claw)),
-    ("with wands", make_bitflags!(ItemClass::Wand)),
-    ("with daggers", make_bitflags!(ItemClass::{Dagger | RuneDagger})),
-    ("with maces or sceptres", make_bitflags!(ItemClass::{OneHandMace | TwoHandMace | Sceptre})),
+const ENDINGS_WEAPON_RESTRICTIONS: &[(&'static str, BitFlags<ItemClass>)] = &[
+    ("with axes", flags!(ItemClass::{OneHandAxe | TwoHandAxe})),
+    ("with swords", flags!(ItemClass::{OneHandSword | TwoHandSword | ThrustingOneHandSword})),
+    ("with maces", flags!(ItemClass::{OneHandMace | TwoHandMace})),
+    ("with two handed melee weapons", flags!(ItemClass::{TwoHandSword | TwoHandMace | TwoHandAxe | Warstaff | Staff})),
+    ("with one handed melee weapons", flags!(ItemClass::{OneHandSword | OneHandMace | OneHandAxe | ThrustingOneHandSword})),
+    ("with one handed weapons", flags!(ItemClass::{OneHandSword | OneHandMace | OneHandAxe | ThrustingOneHandSword})),
+    ("with staves", flags!(ItemClass::{Staff | Warstaff})),
+    ("with bows", flags!(ItemClass::Bow)),
+    ("with claws", flags!(ItemClass::Claw)),
+    ("with wands", flags!(ItemClass::Wand)),
+    ("with daggers", flags!(ItemClass::{Dagger | RuneDagger})),
+    ("with maces or sceptres", flags!(ItemClass::{OneHandMace | TwoHandMace | Sceptre})),
+];
+
+const ENDINGS_CONDITIONS: &[(&'static str, Condition)] = &[
+    ("while fortified", Condition::PropertyBool((true, property::Bool::Fortified))),
+    ("if you've dealt a critical strike recently", Condition::PropertyBool((true, property::Bool::DealtCritRecently))),
+    ("while leeching", Condition::PropertyBool((true, property::Bool::Leeching))),
+    ("when on full life", Condition::PropertyBool((true, property::Bool::OnFullLife))),
+    ("while on low life", Condition::PropertyBool((true, property::Bool::OnLowLife))),
+    ("while holding a shield", Condition::WhileWielding(flags!(ItemClass::Shield))),
+    ("while wielding a staff", Condition::WhileWielding(flags!(ItemClass::{Staff | Warstaff}))),
+    ("while wielding a sword", Condition::WhileWielding(flags!(ItemClass::{OneHandSword | TwoHandSword | ThrustingOneHandSword}))),
+    ("while wielding a dagger", Condition::WhileWielding(flags!(ItemClass::{Dagger | RuneDagger}))),
+    ("while wielding a mace or sceptre", Condition::WhileWielding(flags!(ItemClass::{OneHandMace | TwoHandMace | Sceptre}))),
+    ("while wielding a claw or dagger", Condition::WhileWielding(flags!(ItemClass::{Dagger | RuneDagger | Claw}))),
 ];
 
 lazy_static! {
-    static ref ENDINGS_CONDITIONS: [(&'static str, Condition); 11] = [
-        ("while fortified", Condition::PropertyBool((true, property::Bool::Fortified))),
-        ("if you've dealt a critical strike recently", Condition::PropertyBool((true, property::Bool::DealtCritRecently))),
-        ("while leeching", Condition::PropertyBool((true, property::Bool::Leeching))),
-        ("when on full life", Condition::PropertyBool((true, property::Bool::OnFullLife))),
-        ("while on low life", Condition::PropertyBool((true, property::Bool::OnLowLife))),
-        ("while holding a shield", Condition::WhileWielding(ItemClass::Shield.into())),
-        ("while wielding a staff", Condition::WhileWielding(ItemClass::Staff | ItemClass::Warstaff)),
-        ("while wielding a sword", Condition::WhileWielding(ItemClass::OneHandSword | ItemClass::TwoHandSword | ItemClass::ThrustingOneHandSword)),
-        ("while wielding a dagger", Condition::WhileWielding(ItemClass::Dagger | ItemClass::RuneDagger)),
-        ("while wielding a mace or sceptre", Condition::WhileWielding(ItemClass::OneHandMace | ItemClass::TwoHandMace | ItemClass::Sceptre)),
-        ("while wielding a claw or dagger", Condition::WhileWielding(ItemClass::Dagger | ItemClass::RuneDagger | ItemClass::Claw)),
-    ];
-
     static ref BEGINNINGS: Vec<(Regex, Box<dyn Fn(&Captures) -> Option<Vec<Mod>> + Send + Sync>)> = vec![
         (
             regex!(r"^(minions (?:have|deal) )?([0-9]+)% (increased|reduced) ([a-z ]+)$"),
