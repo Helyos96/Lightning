@@ -104,7 +104,7 @@ fn get_foreign_val(dats: &FxHashMap<String, Vec<FxHashMap<String, Val>>>, foreig
 }
 
 fn extract_tree_ui_art(poe_dir: &str, dat_schema: &DatSchema, extract_dds: bool) -> Option<tree::Sprite> {
-    if let Ok(ui_art) = dump(poe_dir, &dat_schema, "PassiveSkillTreeUIArt", false) {
+    if let Ok(ui_art) = dump(poe_dir, dat_schema, "PassiveSkillTreeUIArt", false) {
         if let Some(row) = ui_art.iter().find(|row| row["Id"].string() == "Character") {
             let mut dds_files = FxHashSet::default();
             for (field, val) in row {
@@ -119,7 +119,7 @@ fn extract_tree_ui_art(poe_dir: &str, dat_schema: &DatSchema, extract_dds: bool)
 }
 
 fn extract_jewel_ui_art(poe_dir: &str, dat_schema: &DatSchema, extract_dds: bool) -> Option<tree::Sprite> {
-    if let Ok(ui_art) = dump(poe_dir, &dat_schema, "PassiveJewelArt", false) {
+    if let Ok(ui_art) = dump(poe_dir, dat_schema, "PassiveJewelArt", false) {
         let mut dds_files = FxHashSet::default();
         for row in ui_art {
             dds_files.insert(format!("{}.dds", row["SocketedImage"].string().replace("Art/2DArt", "Art/Textures/Interface/2D/2DArt")));
@@ -140,7 +140,7 @@ fn desaturate_image(path: &str, save_path: &str) {
 }
 
 fn extract_tree(poe_dir: &str, dat_schema: &DatSchema, datc64_dumps: &FxHashMap<String, Vec<FxHashMap<String, Val>>>, args: &Args) {
-    if let Ok(passive_skills) = dump(poe_dir, &dat_schema, "PassiveSkills", false) {
+    if let Ok(passive_skills) = dump(poe_dir, dat_schema, "PassiveSkills", false) {
         if let Ok(graph) = parse_psg(&format!("{poe_dir}/out/metadata/passiveskillgraph.psg")) {
             let mut translations = parse_csd(format!("{poe_dir}/out/metadata/statdescriptions/passive_skill_stat_descriptions.csd").as_str()).unwrap();
             translations.0.extend(parse_csd(format!("{poe_dir}/out/metadata/statdescriptions/stat_descriptions.csd").as_str()).unwrap().0);
@@ -163,7 +163,7 @@ fn extract_tree(poe_dir: &str, dat_schema: &DatSchema, datc64_dumps: &FxHashMap<
                         if let Some(Val::Array(stats_dat)) = node_dat.get("Stats") {
                             let mut stat_val_idx = 1;
                             for stat in stats_dat {
-                                if let Some(stat_id) = get_foreign_val(&datc64_dumps, stat.foreign_row(), Some("Id")) {
+                                if let Some(stat_id) = get_foreign_val(datc64_dumps, stat.foreign_row(), Some("Id")) {
                                     if let Some(nb_args) = translations.nb_args(stat_id.string()) {
                                         // TODO: doing something wrong when nb_args >= 2
                                         let mut stat_vals = vec![];
@@ -184,7 +184,7 @@ fn extract_tree(poe_dir: &str, dat_schema: &DatSchema, datc64_dumps: &FxHashMap<
                         }
                         let mut ascendancy = None;
                         if let Some(val) = node_dat.get("AscendancyKey") {
-                            if let Some(ascendancy_name) = get_foreign_val(&datc64_dumps, val.foreign_row(), Some("Name")) {
+                            if let Some(ascendancy_name) = get_foreign_val(datc64_dumps, val.foreign_row(), Some("Name")) {
                                 if let Ok(ascendancy_parsed) = tree::Ascendancy::from_str(ascendancy_name.string()) {
                                     ascendancy = Some(ascendancy_parsed);
                                 }

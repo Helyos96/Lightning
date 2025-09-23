@@ -257,7 +257,7 @@ pub fn select_mastery_effect(ctx: &egui::Context, current_masteries: &FxHashMap<
             ui.label(egui::RichText::new(&mastery.name).color(egui::Color32::WHITE).size(20.0));
             egui::Frame::default().inner_margin(4.0).fill(egui::Color32::DARK_GRAY).show(ui, |ui| {
                 // Show mastery choices that haven't been selected yet in other parts of the tree
-                for effect in mastery.mastery_effects.iter().filter(|e| current_masteries.iter().find(|(_, cur_effect)| **cur_effect == e.effect).is_none()) {
+                for effect in mastery.mastery_effects.iter().filter(|e| !current_masteries.iter().any(|(_, cur_effect)| *cur_effect == e.effect)) {
                     let mut string = String::new();
                     for (i, stat) in effect.stats.iter().enumerate() {
                         string.push_str(stat);

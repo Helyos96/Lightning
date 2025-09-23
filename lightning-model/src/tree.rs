@@ -37,7 +37,7 @@ impl Default for PassiveTree {
 fn get_class_node(class: Class) -> u16 {
     TREE.nodes
         .values()
-        .find(|n| n.class_start_index.is_some() && n.class_start_index.unwrap() == class as i32)
+        .find(|n| n.class_start_index == Some(class as i32))
         .unwrap()
         .skill
 }

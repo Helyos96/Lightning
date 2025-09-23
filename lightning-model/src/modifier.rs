@@ -72,7 +72,7 @@ fn parse_val100(val: &str) -> Option<i64> {
     }
 }
 
-const ENDINGS_WEAPON_RESTRICTIONS: &[(&'static str, BitFlags<ItemClass>)] = &[
+const ENDINGS_WEAPON_RESTRICTIONS: &[(&str, BitFlags<ItemClass>)] = &[
     ("with axes", flags!(ItemClass::{OneHandAxe | TwoHandAxe})),
     ("with swords", flags!(ItemClass::{OneHandSword | TwoHandSword | ThrustingOneHandSword})),
     ("with maces", flags!(ItemClass::{OneHandMace | TwoHandMace})),
@@ -87,7 +87,7 @@ const ENDINGS_WEAPON_RESTRICTIONS: &[(&'static str, BitFlags<ItemClass>)] = &[
     ("with maces or sceptres", flags!(ItemClass::{OneHandMace | TwoHandMace | Sceptre})),
 ];
 
-const ENDINGS_CONDITIONS: &[(&'static str, Condition)] = &[
+const ENDINGS_CONDITIONS: &[(&str, Condition)] = &[
     ("while fortified", Condition::PropertyBool((true, property::Bool::Fortified))),
     ("if you've dealt a critical strike recently", Condition::PropertyBool((true, property::Bool::DealtCritRecently))),
     ("while leeching", Condition::PropertyBool((true, property::Bool::Leeching))),
@@ -119,7 +119,28 @@ lazy_static! {
                         stat: s.0,
                         typ: Type::Inc,
                         amount,
-                        tags: s.1.clone(),
+                        tags: s.1,
+                        global: s.2,
+                        ..Default::default()
+                    };
+                    if insert_minion_tag {
+                        ret.tags.insert(GemTag::Minion);
+                    }
+                    ret
+                }).collect())
+            })
+        ), (
+            regex!(r"^(minions have )?([+-]?[0-9]+)%? (?:to )?(?:all )?([a-z ]+)$"),
+            Box::new(|c| {
+                let stat_tags = parse_stat(&c[3])?;
+                let insert_minion_tag = c.get(1).is_some();
+                let amount = i64::from_str(&c[2]).unwrap();
+                Some(stat_tags.iter().map(|s| {
+                    let mut ret = Mod {
+                        stat: s.0,
+                        typ: Type::Base,
+                        amount,
+                        tags: s.1,
                         global: s.2,
                         ..Default::default()
                     };
@@ -146,7 +167,7 @@ lazy_static! {
                         stat: s.0,
                         typ: Type::Inc,
                         amount,
-                        tags: s.1.clone(),
+                        tags: s.1,
                         global: s.2,
                         ..Default::default()
                     };
@@ -160,7 +181,7 @@ lazy_static! {
                         stat: s.0,
                         typ: Type::Inc,
                         amount,
-                        tags: s.1.clone(),
+                        tags: s.1,
                         global: s.2,
                         ..Default::default()
                     };
@@ -172,27 +193,6 @@ lazy_static! {
                 Some(ret)
             })
         ), (
-            regex!(r"^(minions have )?([+-]?[0-9]+)%? (?:to )?(?:all )?([a-z ]+)$"),
-            Box::new(|c| {
-                let stat_tags = parse_stat(&c[3])?;
-                let insert_minion_tag = c.get(1).is_some();
-                let amount = i64::from_str(&c[2]).unwrap();
-                Some(stat_tags.iter().map(|s| {
-                    let mut ret = Mod {
-                        stat: s.0,
-                        typ: Type::Base,
-                        amount,
-                        tags: s.1.clone(),
-                        global: s.2,
-                        ..Default::default()
-                    };
-                    if insert_minion_tag {
-                        ret.tags.insert(GemTag::Minion);
-                    }
-                    ret
-                }).collect())
-            })
-        ), (
             regex!(r"^([0-9]+)% more ([a-z ]+)$"),
             Box::new(|c| {
                 let stat_tags = parse_stat(&c[2])?;
@@ -201,7 +201,7 @@ lazy_static! {
                         stat: s.0,
                         typ: Type::More,
                         amount: i64::from_str(&c[1]).unwrap(),
-                        tags: s.1.clone(),
+                        tags: s.1,
                         global: s.2,
                         ..Default::default()
                     }
@@ -216,7 +216,7 @@ lazy_static! {
                         stat: s.0,
                         typ: Type::More,
                         amount: i64::from_str(&c[1]).unwrap().neg(),
-                        tags: s.1.clone(),
+                        tags: s.1,
                         global: s.2,
                         ..Default::default()
                     }
@@ -520,7 +520,7 @@ impl Mod {
 fn parse_ending(m: &str) -> Option<(usize, Ending)> {
     for ending in ENDINGS.iter() {
         if m.ends_with(ending.0) {
-            return Some((ending.0.len(), Ending::Mutation(ending.1.clone())));
+            return Some((ending.0.len(), Ending::Mutation(ending.1)));
         }
     }
     for ending in ENDINGS_GEMTAGS.iter() {
@@ -530,12 +530,12 @@ fn parse_ending(m: &str) -> Option<(usize, Ending)> {
     }
     for ending in ENDINGS_WEAPON_RESTRICTIONS.iter() {
         if m.ends_with(ending.0) {
-            return Some((ending.0.len(), Ending::Weapon(ending.1.clone())));
+            return Some((ending.0.len(), Ending::Weapon(ending.1)));
         }
     }
     for ending in ENDINGS_CONDITIONS.iter() {
         if m.ends_with(ending.0) {
-            return Some((ending.0.len(), Ending::Condition(ending.1.clone())));
+            return Some((ending.0.len(), Ending::Condition(ending.1)));
         }
     }
 

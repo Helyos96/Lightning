@@ -28,3 +28,6 @@ enumflags2 = "0.7.*"
 [features]
 default = ["import"]
 import = ["lightning-model/import"]
+
+[lints]
+workspace = true

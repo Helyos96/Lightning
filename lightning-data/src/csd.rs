@@ -271,12 +271,12 @@ pub fn parse_description<R: BufRead>(reader: &mut R) -> io::Result<Vec<Translati
             TradCount => {
                 if let Ok(count) = line.trim().parse::<usize>() {
                     if count == 0 {
-                        return Err(io::Error::new(ErrorKind::Other, "Count is 0"));
+                        return Err(io::Error::other("Count is 0"));
                     }
                     trad_count = count;
                     state = Trad(0);
                 } else {
-                    return Err(io::Error::new(ErrorKind::Other, "Couldn't parse count"));
+                    return Err(io::Error::other("Couldn't parse count"));
                 }
             },
             Trad(i) => {
@@ -291,7 +291,7 @@ pub fn parse_description<R: BufRead>(reader: &mut R) -> io::Result<Vec<Translati
                         trads.push(Translation { args, text: cap[2].to_string(), mutations });
                     }
                 } else {
-                    return Err(io::Error::new(ErrorKind::Other, "Couldn't parse trad"));
+                    return Err(io::Error::other("Couldn't parse trad"));
                 }
                 if i == trad_count - 1 {
                     return Ok(trads);
@@ -332,7 +332,7 @@ pub fn parse_csd(name: &str) -> io::Result<Translations> {
                     }
                 }
             } else {
-                return Err(io::Error::new(ErrorKind::Other, "Couldn't parse description"));
+                return Err(io::Error::other("Couldn't parse description"));
             }
         }
     }

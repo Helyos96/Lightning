@@ -81,7 +81,7 @@ fn get_val(column: &Column, cursor: &mut Cursor<&Vec<u8>>, strict: bool) -> io::
         Type::bool => {
             let b = cursor.read_u8()?;
             if strict && b > 1 {
-                return Err(io::Error::new(io::ErrorKind::Other, format!("Bad bool: {b}")));
+                return Err(io::Error::other(format!("Bad bool: {b}")));
             }
             Some(Val::Bool(b != 0))
         },
@@ -200,10 +200,10 @@ pub fn dump(poe_dir: &str, dat_schema: &DatSchema, name: &str, strict: bool) -> 
             }
             return Ok(ret);
         } else {
-            return Err(io::Error::new(io::ErrorKind::Other, "couldn't find var pattern"));
+            return Err(io::Error::other("couldn't find var pattern"));
         }
     } else {
-        return Err(io::Error::new(io::ErrorKind::Other, format!("No dat schema for {name}")));
+        return Err(io::Error::other(format!("No dat schema for {name}")));
     }
 }
 

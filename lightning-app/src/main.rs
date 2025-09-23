@@ -324,8 +324,8 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                         WindowEvent::Resized(physical_size) => {
                             state.dimensions = (physical_size.width, physical_size.height);
                             let (width, height) = (physical_size.width.try_into(), physical_size.height.try_into());
-                            if !width.is_err() && !height.is_err() {
-                                surface.resize(context, width.unwrap(), height.unwrap());
+                            if let (Ok(width), Ok(height)) = (width, height) {
+                                surface.resize(context, width, height);
                                 window.request_redraw();
                             }
                         }

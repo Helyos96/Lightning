@@ -27,3 +27,7 @@ opt-level = 3
 opt-level = 3
 [profile.dev.package.egui_extras]
 opt-level = 3
+
+[workspace.lints.clippy]
+collapsible_if = "allow"
+needless_return = "allow"

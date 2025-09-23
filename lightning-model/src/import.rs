@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-/// Import build data from pathofexile.com
+//! Import build data from pathofexile.com
 
 use crate::build::{self, Build, GemLink, Slot};
 use crate::data::base_item::{self, Rarity};
@@ -112,10 +112,8 @@ fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
                 alt_qual: 0,
             };
             gemlink.gems.push(new_gem);
-        } else {
-            if let Some(jewel) = conv_item(gem) {
-                jewels.push(jewel);
-            }
+        } else if let Some(jewel) = conv_item(gem) {
+            jewels.push(jewel);
         }
     }
 

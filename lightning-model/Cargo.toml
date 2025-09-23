@@ -29,3 +29,6 @@ import = ["reqwest"]
 [[bench]]
 name = "calc"
 harness = false
+
+[lints]
+workspace = true
