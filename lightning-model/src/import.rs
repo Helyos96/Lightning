@@ -177,7 +177,7 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
         if let Ok(mastery) = u32::from_str(mastery) {
             build.tree.masteries.insert(mastery as u16, *selected as u16);
         } else {
-            eprintln!("Couldn't parse mastery effect id: {}", mastery);
+            eprintln!("Couldn't parse mastery effect id: {mastery}");
         }
     }
 
