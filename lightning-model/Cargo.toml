@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 serde = { version = "1.0.*", features = ["derive"] }
 serde_json = "1.0.*"
 serde_with = { version = "3.11.*", features = ["json"] }
-regex = "1.11.*"
+regex = { version = "1.12.*", default-features = false, features = ["std", "perf"] }
 lazy_static = "1.5.*"
 reqwest = { version = "0.12.*", features = ["blocking", "json"], optional = true }
 rustc-hash = "2.0.*"
