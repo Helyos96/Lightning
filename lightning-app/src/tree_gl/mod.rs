@@ -279,7 +279,8 @@ impl TreeGl {
             "ascendancy_frames_active_red",
             "jewels",
             "ascendancy_inactive_background",
-            "ascendancy_active_background"
+            "ascendancy_active_background",
+            "bloodlines_inactive_background",
         ];
 
         for &s in REDRAW {
@@ -329,12 +330,15 @@ impl TreeGl {
         let data = jewels_gl(build);
         self.draw_data
                 .insert("jewels".to_string(), GlDrawData::new(gl, &data));
-        let data = ascendancies_inactive_gl(build.tree.ascendancy);
+        let data = ascendancies_background_inactive_gl(build.tree.ascendancy);
         self.draw_data
             .insert("ascendancy_inactive_background".to_string(), GlDrawData::new(gl, &data));
-        let data = ascendancies_active_gl(build.tree.ascendancy);
+        let data = ascendancies_background_active_gl(build.tree.ascendancy);
         self.draw_data
             .insert("ascendancy_active_background".to_string(), GlDrawData::new(gl, &data));
+        let data = bloodlines_background_inactive_gl(build.tree.ascendancy);
+        self.draw_data
+            .insert("bloodlines_inactive_background".to_string(), GlDrawData::new(gl, &data));
     }
 
     pub fn draw(
@@ -347,8 +351,9 @@ impl TreeGl {
         const DRAW_ORDER: &[(&str, &str, [f32; 4])] = &[
             ("background", "background-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("group_background", "group-background-3.png", [1.0, 1.0, 1.0, 1.0]),
-            ("ascendancy_inactive_background", "ascendancy-background-3.png", [0.25, 0.25, 0.25, 1.0]),
-            ("ascendancy_active_background", "ascendancy-background-3.png", [1.0, 1.0, 1.0, 1.0]),
+            ("ascendancy_inactive_background", "ascendancy-3.webp", [0.25, 0.25, 0.25, 1.0]),
+            ("ascendancy_active_background", "ascendancy-3.webp", [1.0, 1.0, 1.0, 1.0]),
+            ("bloodlines_inactive_background", "bloodline-3.webp", [0.40, 0.40, 0.40, 1.0]),
             ("connectors", "line-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("connectors_active", "line-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("connectors_hovered", "line-3.png", [1.0, 1.0, 1.0, 1.0]),
@@ -360,8 +365,8 @@ impl TreeGl {
             ("frames_active_red", "frame-3.png", [1.0, 0.0, 0.0, 1.0]),
             ("jewels", "jewel-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("class_start", "group-background-3.png", [1.0, 1.0, 1.0, 1.0]),
-            ("ascendancy_frames", "ascendancy-3.png", [1.0, 1.0, 1.0, 1.0]),
-            ("ascendancy_frames_active", "ascendancy-3.png", [1.0, 1.0, 1.0, 1.0]),
+            ("ascendancy_frames", "ascendancy-3.webp", [1.0, 1.0, 1.0, 1.0]),
+            ("ascendancy_frames_active", "ascendancy-3.webp", [1.0, 1.0, 1.0, 1.0]),
             ("masteries", "mastery-disabled-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("masteries_active", "mastery-connected-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("masteries_active_selected", "mastery-active-selected-3.png", [1.0, 1.0, 1.0, 1.0]),

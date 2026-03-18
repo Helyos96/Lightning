@@ -208,7 +208,9 @@ impl PassiveTree {
             self.flip_node(get_ascendancy_node(old_ascendancy));
         }
         if let Some(ascendancy) = ascendancy {
-            self.set_class(ascendancy.class());
+            if let Some(class) = ascendancy.class() {
+                self.set_class(class);
+            }
             self.nodes.push(get_ascendancy_node(ascendancy));
         }
 

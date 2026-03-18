@@ -6,7 +6,7 @@ import sys
 if len(sys.argv) != 2:
     exit("Usage: {} <base_items.json path>".format(sys.argv[0]))
 
-f = open(sys.argv[1])
+f = open(sys.argv[1], encoding='utf-8')
 base_items = json.load(f)
 out = {}
 

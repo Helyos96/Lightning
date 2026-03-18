@@ -32,26 +32,25 @@ impl LocalModMatch {
     }
 }
 
-lazy_static! {
-    static ref LOCAL_MODS_WEAPON: Vec<LocalModMatch> = vec![
-        LocalModMatch { stat: StatId::AddedMinPhysicalDamage, typ: modifier::Type::Base },
-        LocalModMatch { stat: StatId::AddedMaxPhysicalDamage, typ: modifier::Type::Base },
-        LocalModMatch { stat: StatId::PhysicalDamage, typ: modifier::Type::Inc },
-        LocalModMatch { stat: StatId::AttackSpeed, typ: modifier::Type::Inc },
-        LocalModMatch { stat: StatId::AccuracyRating, typ: modifier::Type::Base },
-        LocalModMatch { stat: StatId::AccuracyRating, typ: modifier::Type::Override },
-        LocalModMatch { stat: StatId::CriticalStrikeChance, typ: modifier::Type::Inc },
-    ];
-    static ref LOCAL_MODS_ARMOUR: Vec<LocalModMatch> = vec![
-        LocalModMatch { stat: StatId::EvasionRating, typ: modifier::Type::Base },
-        LocalModMatch { stat: StatId::EvasionRating, typ: modifier::Type::Inc },
-        LocalModMatch { stat: StatId::Armour, typ: modifier::Type::Base },
-        LocalModMatch { stat: StatId::Armour, typ: modifier::Type::Inc },
-        LocalModMatch { stat: StatId::EnergyShield, typ: modifier::Type::Base },
-        // TODO: corrupted implicits max ES are global
-        LocalModMatch { stat: StatId::EnergyShield, typ: modifier::Type::Inc },
-    ];
-}
+const LOCAL_MODS_WEAPON: [LocalModMatch; 7] = [
+    LocalModMatch { stat: StatId::AddedMinPhysicalDamage, typ: modifier::Type::Base },
+    LocalModMatch { stat: StatId::AddedMaxPhysicalDamage, typ: modifier::Type::Base },
+    LocalModMatch { stat: StatId::PhysicalDamage, typ: modifier::Type::Inc },
+    LocalModMatch { stat: StatId::AttackSpeed, typ: modifier::Type::Inc },
+    LocalModMatch { stat: StatId::AccuracyRating, typ: modifier::Type::Base },
+    LocalModMatch { stat: StatId::AccuracyRating, typ: modifier::Type::Override },
+    LocalModMatch { stat: StatId::CriticalStrikeChance, typ: modifier::Type::Inc },
+];
+
+const LOCAL_MODS_ARMOUR: [LocalModMatch; 6] = [
+    LocalModMatch { stat: StatId::EvasionRating, typ: modifier::Type::Base },
+    LocalModMatch { stat: StatId::EvasionRating, typ: modifier::Type::Inc },
+    LocalModMatch { stat: StatId::Armour, typ: modifier::Type::Base },
+    LocalModMatch { stat: StatId::Armour, typ: modifier::Type::Inc },
+    LocalModMatch { stat: StatId::EnergyShield, typ: modifier::Type::Base },
+    // TODO: corrupted implicits max ES are global
+    LocalModMatch { stat: StatId::EnergyShield, typ: modifier::Type::Inc },
+];
 
 fn match_local(m: &Mod, match_table: &[LocalModMatch]) -> bool {
     if !m.conditions.is_empty() || !m.mutations.is_empty() || m.global {

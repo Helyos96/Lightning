@@ -10,7 +10,6 @@ f = open(sys.argv[1])
 tree = json.load(f)
 cull = []
 
-del tree['extraImages']
 del tree['points']
 del tree['nodes']['root']
 
