@@ -141,10 +141,13 @@ fn test_stackvec() {
     v.push(20);
     v.push(30);
 
-    for x in &v {
-        println!("{}", x);
-    }
-
     let v2 = v;
     v.extend_from_slice(&v2);
+
+    assert_eq!(v[0], 10);
+    assert_eq!(v[1], 20);
+    assert_eq!(v[2], 30);
+    assert_eq!(v[3], 10);
+    assert_eq!(v[4], 20);
+    assert_eq!(v[5], 30);
 }
