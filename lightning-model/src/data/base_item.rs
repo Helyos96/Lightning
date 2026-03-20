@@ -52,21 +52,21 @@ pub enum ItemClass {
 }
 
 impl ItemClass {
-    pub fn allowed_slots(&self) -> Vec<Slot> {
+    pub fn allowed_slots(&self) -> &'static [Slot] {
         use ItemClass::*;
         match self {
-            TwoHandSword|TwoHandAxe|TwoHandMace|Warstaff|Staff|Bow => vec![Slot::Weapon],
-            OneHandAxe|OneHandMace|OneHandSword|RuneDagger|Sceptre|ThrustingOneHandSword => vec![Slot::Weapon, Slot::Offhand],
-            Quiver|Shield => vec![Slot::Offhand],
-            Helmet => vec![Slot::Helm],
-            Amulet => vec![Slot::Amulet],
-            BodyArmour => vec![Slot::BodyArmour],
-            Belt => vec![Slot::Belt],
-            Gloves => vec![Slot::Gloves],
-            Boots => vec![Slot::Boots],
-            Ring => vec![Slot::Ring, Slot::Ring2],
-            Jewel => vec![Slot::TreeJewel(0)],
-            _ => vec![],
+            TwoHandSword|TwoHandAxe|TwoHandMace|Warstaff|Staff|Bow => &[Slot::Weapon],
+            OneHandAxe|OneHandMace|OneHandSword|RuneDagger|Sceptre|ThrustingOneHandSword => &[Slot::Weapon, Slot::Offhand],
+            Quiver|Shield => &[Slot::Offhand],
+            Helmet => &[Slot::Helm],
+            Amulet => &[Slot::Amulet],
+            BodyArmour => &[Slot::BodyArmour],
+            Belt => &[Slot::Belt],
+            Gloves => &[Slot::Gloves],
+            Boots => &[Slot::Boots],
+            Ring => &[Slot::Ring, Slot::Ring2],
+            Jewel => &[Slot::TreeJewel(0)],
+            _ => &[],
         }
     }
 }

@@ -218,7 +218,6 @@ lazy_static! {
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct Build {
     pub name: String,
-    pub ascendancy: i32,
     pub gem_links: Vec<GemLink>,
     #[serde_as(as = "FxHashMap<serde_with::json::JsonString, _>")]
     // usize is index into inventory
@@ -231,13 +230,13 @@ pub struct Build {
     pub campaign_choice: CampaignChoice,
     properties_int: FxHashMap<property::Int, i64>,
     properties_bool: FxHashMap<property::Bool, bool>,
+    pub import_account: Option<(String, String)>,
 }
 
 impl Build {
     pub fn new_player() -> Build {
         let mut ret = Build {
             name: "Untitled Build".to_string(),
-            ascendancy: 0,
             ..Default::default()
         };
         ret.set_property_int(property::Int::Level, 1);

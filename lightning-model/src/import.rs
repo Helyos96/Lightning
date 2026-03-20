@@ -5,7 +5,7 @@
 use crate::build::{self, Build, GemLink, Slot};
 use crate::data::base_item::{self, Rarity};
 use crate::data::tree::{Ascendancy, Class};
-use crate::data::{GEMS, ITEMS};
+use crate::data::{GEMS, ITEMS, TREE};
 use crate::gem;
 use crate::item;
 use serde::Deserialize;
@@ -63,6 +63,7 @@ struct PassiveTree {
     items: Vec<Item>,
     #[serde(default)]
     mastery_effects: FxHashMap<String, u32>,
+    alternate_ascendancy: Option<i32>,
 }
 
 impl Item {
@@ -152,12 +153,10 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
 
     // Passive Tree
     let url = format!("https://pathofexile.com/character-window/get-passive-skills?realm=pc&accountName={account}&character={character}").replace('#', "%23");
-    println!("{url}");
     let tree = client.get(url).send()?.json::<PassiveTree>()?;
 
     // Items, Skills, CharData
     let url = format!("https://pathofexile.com/character-window/get-items?realm=pc&accountName={account}&character={character}").replace('#', "%23");
-    println!("{url}");
     let items = client.get(url).send()?.json::<ItemsSkillsChar>()?;
 
     let mut build = Build::new_player();
@@ -171,6 +170,19 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
         build.tree.set_ascendancy(Some(ascendancy));
     } else {
         return Err(Box::new(ParseError));
+    }
+
+    if let Some(alternate_ascendancy) = tree.alternate_ascendancy {
+        if let Some(aa) = TREE.alternate_ascendancies.get((alternate_ascendancy - 1) as usize) {
+            let bloodline_str = &aa.id;
+            if let Ok(bloodline) = Ascendancy::from_str(bloodline_str) {
+                build.tree.set_bloodline(Some(bloodline));
+            } else {
+                eprintln!("Failed to match alternate ascendancy {}", bloodline_str);
+            }
+        } else {
+            eprintln!("Failed to find alternate ascendancy index {}", alternate_ascendancy - 1);
+        }
     }
 
     for (mastery, selected) in &tree.mastery_effects {
@@ -198,5 +210,6 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
         }
     }
 
+    build.import_account = Some((account.to_string(), character.to_string()));
     Ok(build)
 }

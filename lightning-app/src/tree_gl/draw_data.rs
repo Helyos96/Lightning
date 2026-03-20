@@ -467,6 +467,21 @@ pub fn bloodlines_background_inactive_gl(bloodline: Option<Ascendancy>) -> DrawD
     dd
 }
 
+pub fn bloodlines_background_active_gl(bloodline: Option<Ascendancy>) -> DrawData {
+    let mut dd = DrawData::default();
+    for node in TREE.nodes.values().filter(|n| n.is_ascendancy_start && n.is_bloodline && n.ascendancy == bloodline) {
+        let key = &("Classes".to_string() + node.ascendancy.unwrap().into());
+        // Find the sprite/coords by just iterating over all the sprites until we find a coords with the desired key.
+        if let Some((sprite, rect)) = TREE.sprites.values().find_map(|sprite| {
+            sprite.coords.get(key).map(|rect| (sprite, rect))
+        }) {
+            let (x, y) = node_pos(node);
+            dd.append(x, y, rect, sprite, false, 2.5);
+        }
+    }
+    dd
+}
+
 pub fn ascendancies_background_inactive_gl(ascendancy: Option<Ascendancy>) -> DrawData {
     let mut dd = DrawData::default();
     for node in TREE.nodes.values().filter(|n| n.is_ascendancy_start && n.ascendancy != ascendancy) {

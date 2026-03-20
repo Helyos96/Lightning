@@ -169,7 +169,6 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
         self.tree_gl.regen_active(&gl, &self.state.build, &None, &None, None);
         window.set_visible(true);
         window.set_decorations(true);
-        window.set_transparent(false);
 
         self.window = Some(window);
         self.gl_context = Some(context);
@@ -449,7 +448,6 @@ fn create_window(event_loop: &winit::event_loop::ActiveEventLoop) -> (Window, Su
     let window_builder = WindowAttributes::default()
         .with_title(TITLE)
         .with_visible(false)
-        .with_transparent(true)
         .with_decorations(false);
     let (window, cfg) = glutin_winit::DisplayBuilder::new()
         .with_window_attributes(Some(window_builder.clone()))

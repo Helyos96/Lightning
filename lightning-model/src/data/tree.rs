@@ -241,6 +241,11 @@ pub struct Constants {
     pub orbit_radii: Vec<u16>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AlternateAscendancy {
+    pub id: String,
+}
+
 /// Root struct for tree.json
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TreeData {
@@ -255,4 +260,5 @@ pub struct TreeData {
     pub min_y: i32,
     pub max_x: i32,
     pub max_y: i32,
+    pub alternate_ascendancies: Vec<AlternateAscendancy>,
 }

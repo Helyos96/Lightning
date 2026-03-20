@@ -281,6 +281,7 @@ impl TreeGl {
             "ascendancy_inactive_background",
             "ascendancy_active_background",
             "bloodlines_inactive_background",
+            "bloodlines_active_background",
         ];
 
         for &s in REDRAW {
@@ -336,9 +337,12 @@ impl TreeGl {
         let data = ascendancies_background_active_gl(build.tree.ascendancy);
         self.draw_data
             .insert("ascendancy_active_background".to_string(), GlDrawData::new(gl, &data));
-        let data = bloodlines_background_inactive_gl(build.tree.ascendancy);
+        let data = bloodlines_background_inactive_gl(build.tree.bloodline);
         self.draw_data
             .insert("bloodlines_inactive_background".to_string(), GlDrawData::new(gl, &data));
+        let data = bloodlines_background_active_gl(build.tree.bloodline);
+        self.draw_data
+            .insert("bloodlines_active_background".to_string(), GlDrawData::new(gl, &data));
     }
 
     pub fn draw(
@@ -354,6 +358,7 @@ impl TreeGl {
             ("ascendancy_inactive_background", "ascendancy-3.webp", [0.25, 0.25, 0.25, 1.0]),
             ("ascendancy_active_background", "ascendancy-3.webp", [1.0, 1.0, 1.0, 1.0]),
             ("bloodlines_inactive_background", "bloodline-3.webp", [0.40, 0.40, 0.40, 1.0]),
+            ("bloodlines_active_background", "bloodline-3.webp", [1.0, 1.0, 1.0, 1.0]),
             ("connectors", "line-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("connectors_active", "line-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("connectors_hovered", "line-3.png", [1.0, 1.0, 1.0, 1.0]),

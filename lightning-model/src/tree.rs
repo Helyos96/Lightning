@@ -15,6 +15,7 @@ use std::convert::AsRef;
 pub struct PassiveTree {
     pub class: Class,
     pub ascendancy: Option<Ascendancy>,
+    pub bloodline: Option<Ascendancy>,
     pub nodes: Vec<u16>,
     pub nodes_ex: Vec<u16>,
     pub masteries: FxHashMap<u16, u16>,
@@ -25,6 +26,7 @@ impl Default for PassiveTree {
         let mut pt = Self {
             class: Default::default(),
             ascendancy: None,
+            bloodline: None,
             nodes: Default::default(),
             nodes_ex: Default::default(),
             masteries: Default::default(),
@@ -46,6 +48,14 @@ fn get_ascendancy_node(ascendancy: Ascendancy) -> u16 {
     TREE.nodes
         .values()
         .find(|n| n.is_ascendancy_start && n.ascendancy == Some(ascendancy))
+        .unwrap()
+        .skill
+}
+
+fn get_bloodline_node(bloodline: Ascendancy) -> u16 {
+    TREE.nodes
+        .values()
+        .find(|n| n.is_ascendancy_start && n.is_bloodline && n.ascendancy == Some(bloodline))
         .unwrap()
         .skill
 }
@@ -204,6 +214,7 @@ impl PassiveTree {
         if ascendancy == self.ascendancy {
             return;
         }
+
         if let Some(old_ascendancy) = self.ascendancy {
             self.flip_node(get_ascendancy_node(old_ascendancy));
         }
@@ -215,6 +226,21 @@ impl PassiveTree {
         }
 
         self.ascendancy = ascendancy;
+    }
+
+    pub fn set_bloodline(&mut self, bloodline: Option<Ascendancy>) {
+        if bloodline == self.bloodline {
+            return;
+        }
+
+        if let Some(old_bloodline) = self.bloodline {
+            self.flip_node(get_bloodline_node(old_bloodline));
+        }
+        if let Some(bloodline) = bloodline {
+            self.nodes.push(get_bloodline_node(bloodline));
+        }
+
+        self.bloodline = bloodline;
     }
 
     pub fn calc_mods(&self) -> Vec<Mod> {
