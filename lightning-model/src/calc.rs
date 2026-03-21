@@ -252,6 +252,7 @@ pub fn calc_defence(build: &Build) -> FxHashMap<&'static str, i64> {
     let stats = build.calc_stats(&mods, BitFlags::empty());
 
     ret.insert("Maximum Life", stats.stat(StatId::MaximumLife).val_rounded_up());
+    ret.insert("Maximum Mana", stats.stat(StatId::MaximumMana).val_rounded_up());
     ret.insert("Fire Resistance", stats.val(StatId::FireResistance));
     ret.insert("Maximum Fire Resistance", stats.val(StatId::MaximumFireResistance));
     ret.insert("Cold Resistance", stats.val(StatId::ColdResistance));

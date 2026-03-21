@@ -272,6 +272,26 @@ impl Build {
                 ..Default::default()
             },
             Mod {
+                stat: StatId::MaximumMana,
+                typ: Type::Base,
+                amount: 6,
+                mutations: stackvec![Mutation::MultiplierProperty((1, property::Int::Level))],
+                ..Default::default()
+            },
+            Mod {
+                stat: StatId::MaximumMana,
+                typ: Type::Base,
+                amount: 40,
+                ..Default::default()
+            },
+            Mod {
+                stat: StatId::MaximumMana,
+                typ: Type::Base,
+                amount: 1,
+                mutations: stackvec![Mutation::MultiplierStat((2, StatId::Intelligence))],
+                ..Default::default()
+            },
+            Mod {
                 stat: StatId::MaximumFrenzyCharges,
                 typ: Type::Base,
                 amount: 3,

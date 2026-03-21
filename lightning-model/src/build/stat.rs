@@ -9,6 +9,7 @@ pub enum StatId {
     Dexterity,
     Intelligence,
     Attributes,
+    ActionSpeed,
     AttackSpeed,
     CastSpeed,
     WarcrySpeed,

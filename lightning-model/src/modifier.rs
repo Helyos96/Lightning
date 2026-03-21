@@ -36,7 +36,8 @@ lazy_static! {
     };
 }
 
-const ENDINGS: [(&str, Mutation); 4] = [
+const ENDINGS: &[(&str, Mutation)] = &[
+    ("per 100 maximum mana", Mutation::MultiplierStat((100, StatId::MaximumMana))),
     ("per level", Mutation::MultiplierProperty((1, property::Int::Level))),
     ("per frenzy charge", Mutation::MultiplierProperty((1, property::Int::FrenzyCharges))),
     ("per power charge", Mutation::MultiplierProperty((1, property::Int::PowerCharges))),
@@ -366,6 +367,7 @@ lazy_static! {
         ("dexterity", StatId::Dexterity, BitFlags::empty()),
         ("intelligence", StatId::Intelligence, BitFlags::empty()),
         ("attributes", StatId::Attributes, BitFlags::empty()),
+        ("action speed", StatId::ActionSpeed, BitFlags::empty()),
         ("attack speed", StatId::AttackSpeed, BitFlags::empty()),
         ("cast speed", StatId::CastSpeed, BitFlags::empty()),
         ("warcry speed", StatId::WarcrySpeed, BitFlags::empty()),

@@ -30,6 +30,7 @@ fn selected_text_active(state: &State) -> &str {
 fn calc_result_color(label: &str) -> egui::Color32 {
     match label {
         "Maximum Life" => egui::Color32::LIGHT_RED,
+        "Maximum Mana" => egui::Color32::BLUE,
         "Life Regeneration" => egui::Color32::LIGHT_RED,
         "Strength" => egui::Color32::LIGHT_RED,
 
@@ -157,6 +158,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
             ui.separator();
             egui::Grid::new("grid_defence_calc_life").show(ui, |ui| {
                 draw_calc_result_row(ui, "Maximum Life", state.defence_calc.get("Maximum Life"), Format::Flat);
+                draw_calc_result_row(ui, "Maximum Mana", state.defence_calc.get("Maximum Mana"), Format::Flat);
                 draw_calc_result_row(ui, "Life Regeneration", state.defence_calc.get("Life Regeneration"), Format::Flat);
             });
             ui.separator();
