@@ -423,6 +423,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                     }
                                 } else if state.hovered_node.is_some() {
                                     state.hovered_node = None;
+                                    state.path_red = None;
                                     state.path_hovered = None;
                                     state.build_compare = None;
                                     state.request_regen = true;
