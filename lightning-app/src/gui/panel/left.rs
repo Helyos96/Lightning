@@ -173,6 +173,8 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 draw_calc_result_row(ui, "Armour", state.defence_calc.get("Armour"), Format::Flat);
                 draw_calc_result_row(ui, "Evasion", state.defence_calc.get("Evasion"), Format::Flat);
                 draw_calc_result_row(ui, "Energy Shield", state.defence_calc.get("Energy Shield"), Format::Flat);
+                draw_calc_result_row(ui, "Block", state.defence_calc.get("Block"), Format::Percent);
+                draw_calc_result_row(ui, "Spell Block", state.defence_calc.get("Spell Block"), Format::Percent);
             });
             ui.separator();
             egui::Grid::new("grid_defence_calc_stats").show(ui, |ui| {

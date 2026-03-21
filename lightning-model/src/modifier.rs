@@ -118,6 +118,7 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>)] = &[
     ("trap throwing speed", StatId::TrapThrowingSpeed, BitFlags::EMPTY),
     ("chance to block attack damage", StatId::ChanceToBlockAttackDamage, BitFlags::EMPTY),
     ("chance to block spell damage", StatId::ChanceToBlockSpellDamage, BitFlags::EMPTY),
+    ("chance to block", StatId::ChanceToBlockAttackDamage, BitFlags::EMPTY), // local on shields
     ("chance to suppress spell damage", StatId::ChanceToSuppressSpellDamage, BitFlags::EMPTY),
     ("fire damage over time multiplier", StatId::FireDamageOverTimeMultiplier, BitFlags::EMPTY),
     ("cold damage over time multiplier", StatId::ColdDamageOverTimeMultiplier, BitFlags::EMPTY),

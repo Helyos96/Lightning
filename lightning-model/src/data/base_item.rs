@@ -86,6 +86,7 @@ pub struct Properties {
     pub evasion: Option<PropertyMinMax>,
     pub energy_shield: Option<PropertyMinMax>,
     pub critical_strike_chance: Option<i64>,
+    pub block: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

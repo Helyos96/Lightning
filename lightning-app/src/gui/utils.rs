@@ -59,6 +59,7 @@ pub fn draw_item(ui: &mut egui::Ui, item: &Item, source: Source, show_debug: boo
         let armour = defences.armour.val();
         let evasion = defences.evasion.val();
         let energy_shield = defences.energy_shield.val();
+        let block_chance = defences.block_chance.val();
         if item.quality > 0 {
             ui.label(format!("Quality: {}%", item.quality));
         }
@@ -78,6 +79,9 @@ pub fn draw_item(ui: &mut egui::Ui, item: &Item, source: Source, show_debug: boo
         }
         if energy_shield > 0 {
             ui.label(format!("Energy Shield: {energy_shield}"));
+        }
+        if block_chance > 0 {
+            ui.label(format!("Block Chance: {block_chance}%"));
         }
         ui.separator();
         //ui.spacing_mut().item_spacing = item_spacing;

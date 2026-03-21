@@ -32,7 +32,7 @@ impl LocalModMatch {
     }
 }
 
-const LOCAL_MODS_WEAPON: [LocalModMatch; 7] = [
+const LOCAL_MODS_WEAPON: &[LocalModMatch] = &[
     LocalModMatch { stat: StatId::AddedMinPhysicalDamage, typ: modifier::Type::Base },
     LocalModMatch { stat: StatId::AddedMaxPhysicalDamage, typ: modifier::Type::Base },
     LocalModMatch { stat: StatId::PhysicalDamage, typ: modifier::Type::Inc },
@@ -42,7 +42,7 @@ const LOCAL_MODS_WEAPON: [LocalModMatch; 7] = [
     LocalModMatch { stat: StatId::CriticalStrikeChance, typ: modifier::Type::Inc },
 ];
 
-const LOCAL_MODS_ARMOUR: [LocalModMatch; 6] = [
+const LOCAL_MODS_ARMOUR: &[LocalModMatch] = &[
     LocalModMatch { stat: StatId::EvasionRating, typ: modifier::Type::Base },
     LocalModMatch { stat: StatId::EvasionRating, typ: modifier::Type::Inc },
     LocalModMatch { stat: StatId::Armour, typ: modifier::Type::Base },
@@ -50,6 +50,7 @@ const LOCAL_MODS_ARMOUR: [LocalModMatch; 6] = [
     LocalModMatch { stat: StatId::EnergyShield, typ: modifier::Type::Base },
     // TODO: corrupted implicits max ES are global
     LocalModMatch { stat: StatId::EnergyShield, typ: modifier::Type::Inc },
+    LocalModMatch { stat: StatId::ChanceToBlockAttackDamage, typ: modifier::Type::Inc },
 ];
 
 fn match_local(m: &Mod, match_table: &[LocalModMatch]) -> bool {
@@ -69,6 +70,7 @@ pub struct DefenceCalc {
     pub armour: Stat,
     pub evasion: Stat,
     pub energy_shield: Stat,
+    pub block_chance: Stat,
 }
 
 impl Item {
@@ -134,6 +136,7 @@ impl Item {
         ret.armour.adjust_mod(&Mod { typ: Type::More, amount: self.quality, ..Default::default()});
         ret.energy_shield.adjust_mod(&Mod { typ: Type::More, amount: self.quality, ..Default::default()});
         ret.evasion.adjust_mod(&Mod { typ: Type::More, amount: self.quality, ..Default::default()});
+        ret.block_chance.adjust_mod(&Mod { typ: Type::Base, amount: self.block_chance().unwrap_or(0), ..Default::default()});
 
         return ret;
     }
@@ -158,6 +161,16 @@ impl Item {
             let mut stat_crit_chance = calc_stat(StatId::CriticalStrikeChance, &mods);
             stat_crit_chance.adjust_mod(&Mod { typ: Type::Base, amount: crit_chance, ..Default::default() });
             return Some(stat_crit_chance.val());
+        }
+        None
+    }
+
+    pub fn block_chance(&self) -> Option<i64> {
+        if let Some(block_chance) = self.data().properties.block {
+            let mods = self.calc_local_mods();
+            let mut stat_block_chance = calc_stat(StatId::ChanceToBlockAttackDamage, &mods);
+            stat_block_chance.adjust_mod(&Mod { typ: Type::Base, amount: block_chance, ..Default::default() });
+            return Some(stat_block_chance.val());
         }
         None
     }

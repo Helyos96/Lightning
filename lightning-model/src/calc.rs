@@ -1,5 +1,6 @@
 use crate::build::stat::{Stat, StatId, Stats};
 use crate::build::{self, property, Build, Slot};
+use crate::data::base_item::ItemClass;
 use crate::data::default_monster_stats::MonsterStats;
 use crate::data::gem::GemTag;
 use crate::data::{DamageGroup, DamageType, DAMAGE_GROUPS};
@@ -267,6 +268,16 @@ pub fn calc_defence(build: &Build) -> FxHashMap<&'static str, i64> {
     ret.insert("Armour", stats.val(StatId::Armour));
     ret.insert("Evasion", stats.val(StatId::EvasionRating));
     ret.insert("Energy Shield", stats.val(StatId::MaximumEnergyShield));
+
+    if let Some(offhand) = build.get_equipped(Slot::Offhand) {
+        if offhand.data().item_class == ItemClass::Shield {
+            let mut block_attack_stat = stats.stat(StatId::ChanceToBlockAttackDamage).to_owned();
+            let base_block_attack = offhand.block_chance().unwrap_or(0);
+            block_attack_stat.adjust_mod(&Mod { typ: Type::Base, amount: base_block_attack, ..Default::default() });
+            ret.insert("Block", block_attack_stat.val());
+            ret.insert("Spell Block", stats.val(StatId::ChanceToBlockSpellDamage));
+        }
+    }
 
     let mut life_regen = stats.stat(StatId::LifeRegeneration).to_owned();
     let life_regen_pct = stats.stat(StatId::LifeRegenerationPct);
