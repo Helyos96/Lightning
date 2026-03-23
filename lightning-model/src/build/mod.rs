@@ -461,6 +461,9 @@ impl Build {
                 if defence.evasion.val() != 0 {
                     mods.push(Mod { stat: StatId::EvasionRating, typ: Type::Base, amount: defence.evasion.val(), source: Source::Item(*slot), ..Default::default() });
                 }
+                if defence.block_chance.val() != 0 {
+                    mods.push(Mod { stat: StatId::ChanceToBlockAttackDamage, typ: Type::Base, amount: defence.block_chance.val(), source: Source::Item(*slot), ..Default::default() });
+                }
             }
         }
         // TODO auras

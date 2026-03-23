@@ -271,10 +271,7 @@ pub fn calc_defence(build: &Build) -> FxHashMap<&'static str, i64> {
 
     if let Some(offhand) = build.get_equipped(Slot::Offhand) {
         if offhand.data().item_class == ItemClass::Shield {
-            let mut block_attack_stat = stats.stat(StatId::ChanceToBlockAttackDamage).to_owned();
-            let base_block_attack = offhand.block_chance().unwrap_or(0);
-            block_attack_stat.adjust_mod(&Mod { typ: Type::Base, amount: base_block_attack, ..Default::default() });
-            ret.insert("Block", block_attack_stat.val());
+            ret.insert("Block", stats.val(StatId::ChanceToBlockAttackDamage));
             ret.insert("Spell Block", stats.val(StatId::ChanceToBlockSpellDamage));
         }
     }
