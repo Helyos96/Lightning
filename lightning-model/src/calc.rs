@@ -67,7 +67,7 @@ fn calc_average_dmg(stats: &Stats, active_gem: &Gem, mut base_min: i64, mut base
     (stat_min_dt.val() + stat_max_dt.val()) / 2
 }
 
-fn calc_weapon_average_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, slot: Slot, dg: &DamageGroup) -> i64 {
+fn calc_weapon_average_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, _slot: Slot, dg: &DamageGroup) -> i64 {
     if let Some((min_item, max_item)) = weapon.calc_dmg(dg.damage_type) {
         let item_class = Some(weapon.data().item_class);
         let added_min_stat = stats.stat(dg.added_min_id).with_weapon(item_class);
@@ -76,7 +76,7 @@ fn calc_weapon_average_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, slot:
         let dmg_stat_dt = stats.stat(dg.stat_id).with_weapon(item_class);
         let mut dmg_stat = stats.stat(StatId::Damage).with_weapon(item_class);
         dmg_stat.assimilate(&dmg_stat_dt);
-        dmg_stat.adjust(Type::Base, average, &Mod { amount: average, typ: Type::Base, source: Source::Item(slot), ..Default::default() });
+        dmg_stat.adjust(Type::Base, average);
         return dmg_stat.val();
     }
     0
@@ -93,7 +93,7 @@ fn calc_spell_average_dmg(stats: &Stats, active_gem: &Gem, dg: &DamageGroup) -> 
     let dmg_stat_dt = stats.stat(dg.stat_id).with_weapon(None);
     let mut dmg_stat = stats.stat(StatId::Damage).with_weapon(None);
     dmg_stat.assimilate(&dmg_stat_dt);
-    dmg_stat.adjust(Type::Base, average, &Mod { amount: average, typ: Type::Base, ..Default::default() });
+    dmg_stat.adjust(Type::Base, average);
     return dmg_stat.val();
 }
 
@@ -252,8 +252,10 @@ pub fn calc_defence(build: &Build) -> FxHashMap<&'static str, i64> {
     let mods = build.calc_mods(true);
     let stats = build.calc_stats(&mods, BitFlags::empty());
 
-    ret.insert("Maximum Life", stats.stat(StatId::MaximumLife).val_rounded_up());
-    ret.insert("Maximum Mana", stats.stat(StatId::MaximumMana).val_rounded_up());
+    let max_life = stats.stat(StatId::MaximumLife).val_rounded_up();
+    let max_mana = stats.stat(StatId::MaximumMana).val_rounded_up();
+    ret.insert("Maximum Life", max_life);
+    ret.insert("Maximum Mana", max_mana);
     ret.insert("Fire Resistance", stats.val(StatId::FireResistance));
     ret.insert("Maximum Fire Resistance", stats.val(StatId::MaximumFireResistance));
     ret.insert("Cold Resistance", stats.val(StatId::ColdResistance));
@@ -277,16 +279,14 @@ pub fn calc_defence(build: &Build) -> FxHashMap<&'static str, i64> {
     }
 
     let mut life_regen = stats.stat(StatId::LifeRegeneration).to_owned();
-    let life_regen_pct = stats.stat(StatId::LifeRegenerationPct);
-    let adjust_life_regen = Mod {
-        stat: StatId::LifeRegeneration,
-        typ: Type::Base,
-        amount: (life_regen_pct.val() * stats.stat(StatId::MaximumLife).val_rounded_up()) / 10000,
-        ..Default::default()
-    };
-    life_regen.adjust(Type::Base, adjust_life_regen.amount(), &adjust_life_regen);
-    life_regen.assimilate(stats.stat(StatId::LifeRegenerationRate));
-    ret.insert("Life Regeneration", life_regen.val(),);
+    life_regen.adjust(Type::Base, (stats.stat(StatId::LifeRegenerationPct).val() * max_life) / 10000);
+    life_regen.adjust(Type::More, stats.stat(StatId::LifeRegenerationRate).val());
+    ret.insert("Life Regeneration", life_regen.val());
+
+    let mut mana_regen = stats.stat(StatId::ManaRegeneration).to_owned();
+    mana_regen.adjust(Type::Base, (stats.stat(StatId::ManaRegenerationPct).val() * max_mana) / 10000);
+    mana_regen.adjust(Type::More, (stats.stat(StatId::ManaRegenerationRate).val() * max_mana) / 10000);
+    ret.insert("Mana Regeneration", mana_regen.val());
 
     ret
 }

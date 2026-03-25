@@ -95,9 +95,9 @@ impl Item {
                         let mut min_stat = calc_stat(StatId::AddedMinPhysicalDamage, &mods);
                         let mut max_stat = calc_stat(StatId::AddedMaxPhysicalDamage, &mods);
                         let mut dmg = calc_stat(StatId::PhysicalDamage, &mods);
-                        min_stat.adjust(Type::Base, min, &Mod { ..Default::default() });
-                        max_stat.adjust(Type::Base, max, &Mod { ..Default::default() });
-                        dmg.adjust(Type::More, self.quality, &Mod { ..Default::default() });
+                        min_stat.adjust(Type::Base, min);
+                        max_stat.adjust(Type::Base, max);
+                        dmg.adjust(Type::More, self.quality);
                         min_stat.assimilate(&dmg);
                         max_stat.assimilate(&dmg);
                         return Some((min_stat.val(), max_stat.val()));

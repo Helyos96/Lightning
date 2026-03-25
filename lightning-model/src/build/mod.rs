@@ -292,6 +292,12 @@ impl Build {
                 ..Default::default()
             },
             Mod {
+                stat: StatId::ManaRegenerationPct,
+                typ: Type::Base,
+                amount: 180,
+                ..Default::default()
+            },
+            Mod {
                 stat: StatId::MaximumFrenzyCharges,
                 typ: Type::Base,
                 amount: 3,
@@ -632,7 +638,7 @@ impl Build {
         true
     }
 
-    fn apply_mutations(&self, stats: &FxHashMap<StatId, Stat>, m: &Mod) -> i64 {
+    fn apply_mutations(&self, stats: &FxHashMap<StatId, Stat>, m: &mut Mod) {
         let mut amount = m.amount;
         for f in &m.mutations {
             match f {
@@ -647,7 +653,7 @@ impl Build {
                 },
             }
         }
-        amount
+        m.revised_amount = Some(amount);
     }
 
     pub fn calc_stats(&self, mods: &[Mod], tags: BitFlags<GemTag>) -> Stats {
@@ -670,20 +676,22 @@ impl Build {
                 mods_sec_pass.push(m);
                 continue;
             }
-            stats.entry(m.stat).or_default().adjust(m.typ, m.amount, m);
+            stats.entry(m.stat).or_default().adjust_mod(m);
         }
 
         for m in mods_sec_pass {
-            let amount = self.apply_mutations(&stats, m);
-            stats.entry(m.stat).or_default().adjust(m.typ, amount, m);
+            let mut m = m.to_owned();
+            self.apply_mutations(&stats, &mut m);
+            stats.entry(m.stat).or_default().adjust_mod(&m);
         }
 
         for m in mods_third_pass {
-            let amount = self.apply_mutations(&stats, m);
-            if !self.check_conditions(&stats, m) {
+            let mut m = m.to_owned();
+            if !self.check_conditions(&stats, &m) {
                 continue;
             }
-            stats.entry(m.stat).or_default().adjust(m.typ, amount, m);
+            self.apply_mutations(&stats, &mut m);
+            stats.entry(m.stat).or_default().adjust_mod(&m);
         }
 
         Stats { stats }

@@ -84,7 +84,11 @@ pub enum StatId {
     MaximumEnergyShield,
     EnergyShield,
     EnergyShieldRechargeRate,
+    LifeRegeneration,
+    LifeRegenerationPct,
     LifeRegenerationRate,
+    ManaRegeneration,
+    ManaRegenerationPct,
     ManaRegenerationRate,
     ManaReservationEfficiency,
     CriticalStrikeChance,
@@ -108,8 +112,6 @@ pub enum StatId {
     ManaCost,
     LifeCost,
     Cost,
-    LifeRegeneration,
-    LifeRegenerationPct,
     PassiveSkillPoints,
     FireDamagePen,
     LightningDamagePen,
@@ -117,6 +119,7 @@ pub enum StatId {
     ColdDamagePen,
     ChanceToHit,
     ChanceToEvade,
+    ChanceToDealDoubleDamage,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -157,7 +160,7 @@ pub fn calc_stat(stat_id: StatId, mods: &[Mod]) -> Stat {
     let mut stat = Stat::default();
 
     for m in mods.iter().filter(|m| m.stat == stat_id) {
-        stat.adjust(m.typ, m.amount, m);
+        stat.adjust_mod(m);
     }
 
     stat
@@ -177,10 +180,11 @@ impl Default for Stat {
 
 impl Stat {
     pub fn adjust_mod(&mut self, m: &Mod) {
-        self.adjust(m.typ, m.amount, m);
+        self.adjust(m.typ, m.final_amount());
+        self.mods.push(m.to_owned());
     }
 
-    pub fn adjust(&mut self, t: Type, amount: i64, m: &Mod) {
+    pub fn adjust(&mut self, t: Type, amount: i64) {
         match t {
             Type::Base => self.base += amount,
             Type::Inc => self.inc += amount,
@@ -196,9 +200,6 @@ impl Stat {
                 }
             }
         }
-        let mut modifier = m.to_owned();
-        modifier.amount = amount;
-        self.mods.push(modifier);
     }
 
     fn mult(&self) -> i64 {
@@ -218,7 +219,7 @@ impl Stat {
 
         for m in &self.mods {
             if m.weapons.is_empty() || (weapon.is_some() && m.weapons.contains(weapon.unwrap())) {
-                stat.adjust(m.typ, m.amount, m);
+                stat.adjust_mod(m);
             }
         }
 

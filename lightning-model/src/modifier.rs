@@ -44,7 +44,7 @@ const ENDINGS: &[(&str, Mutation)] = &[
     ("per endurance charge", Mutation::MultiplierProperty((1, property::Int::EnduranceCharges))),
 ];
 
-const ENDINGS_GEMTAGS: [(&str, GemTag); 15] = [
+const ENDINGS_GEMTAGS: &[(&str, GemTag)] = &[
     ("of aura skills", GemTag::Aura),
     ("of curse skills", GemTag::Curse),
     ("of hex skills", GemTag::Hex),
@@ -60,6 +60,7 @@ const ENDINGS_GEMTAGS: [(&str, GemTag); 15] = [
     ("with cold skills", GemTag::Cold),
     ("with fire skills", GemTag::Fire),
     ("with lightning skills", GemTag::Lightning),
+    ("with brand skills", GemTag::Brand),
 ];
 
 // Parses a string like '1.75' into i64 '175'
@@ -95,6 +96,7 @@ const ENDINGS_CONDITIONS: &[(&str, Condition)] = &[
     ("when on full life", Condition::PropertyBool((true, property::Bool::OnFullLife))),
     ("while on low life", Condition::PropertyBool((true, property::Bool::OnLowLife))),
     ("while holding a shield", Condition::WhileWielding(flags!(ItemClass::Shield))),
+    ("while wielding a wand", Condition::WhileWielding(flags!(ItemClass::Wand))),
     ("while wielding a staff", Condition::WhileWielding(flags!(ItemClass::{Staff | Warstaff}))),
     ("while wielding a sword", Condition::WhileWielding(flags!(ItemClass::{OneHandSword | TwoHandSword | ThrustingOneHandSword}))),
     ("while wielding a dagger", Condition::WhileWielding(flags!(ItemClass::{Dagger | RuneDagger}))),
@@ -104,92 +106,94 @@ const ENDINGS_CONDITIONS: &[(&str, Condition)] = &[
 
 // Order is important for overlapping stats
 // like "area of effect" and "effect"
-const STATS: &[(&'static str, StatId, BitFlags<GemTag>)] = &[
-    ("strength", StatId::Strength, BitFlags::EMPTY),
-    ("dexterity", StatId::Dexterity, BitFlags::EMPTY),
-    ("intelligence", StatId::Intelligence, BitFlags::EMPTY),
-    ("attributes", StatId::Attributes, BitFlags::EMPTY),
-    ("action speed", StatId::ActionSpeed, BitFlags::EMPTY),
-    ("attack speed", StatId::AttackSpeed, BitFlags::EMPTY),
-    ("cast speed", StatId::CastSpeed, BitFlags::EMPTY),
-    ("warcry speed", StatId::WarcrySpeed, BitFlags::EMPTY),
-    ("cooldown recovery speed", StatId::CooldownRecoverySpeed, BitFlags::EMPTY),
-    ("projectile speed", StatId::ProjectileSpeed, BitFlags::EMPTY),
-    ("trap throwing speed", StatId::TrapThrowingSpeed, BitFlags::EMPTY),
-    ("chance to block attack damage", StatId::ChanceToBlockAttackDamage, BitFlags::EMPTY),
-    ("chance to block spell damage", StatId::ChanceToBlockSpellDamage, BitFlags::EMPTY),
-    ("chance to block", StatId::ChanceToBlockAttackDamage, BitFlags::EMPTY), // local on shields
-    ("chance to suppress spell damage", StatId::ChanceToSuppressSpellDamage, BitFlags::EMPTY),
-    ("fire damage over time multiplier", StatId::FireDamageOverTimeMultiplier, BitFlags::EMPTY),
-    ("cold damage over time multiplier", StatId::ColdDamageOverTimeMultiplier, BitFlags::EMPTY),
-    ("chaos damage over time multiplier", StatId::ChaosDamageOverTimeMultiplier, BitFlags::EMPTY),
-    ("physical damage over time multiplier", StatId::PhysicalDamageOverTimeMultiplier, BitFlags::EMPTY),
-    ("damage over time multiplier", StatId::DamageOverTimeMultiplier, BitFlags::EMPTY),
-    ("fire damage penetration", StatId::FireDamagePen, BitFlags::EMPTY),
-    ("lightning damage penetration", StatId::LightningDamagePen, BitFlags::EMPTY),
-    ("cold damage penetration", StatId::ColdDamagePen, BitFlags::EMPTY),
-    ("chaos damage penetration", StatId::ChaosDamagePen, BitFlags::EMPTY),
-    ("fire damage over time", StatId::FireDamageOverTime, BitFlags::EMPTY),
-    ("cold damage over time", StatId::ColdDamageOverTime, BitFlags::EMPTY),
-    ("chaos damage over time", StatId::ChaosDamageOverTime, BitFlags::EMPTY),
-    ("physical damage over time", StatId::PhysicalDamageOverTime, BitFlags::EMPTY),
-    ("damage over time", StatId::DamageOverTime, BitFlags::EMPTY),
-    ("fire damage", StatId::FireDamage, BitFlags::EMPTY),
-    ("cold damage", StatId::ColdDamage, BitFlags::EMPTY),
-    ("lightning damage", StatId::LightningDamage, BitFlags::EMPTY),
-    ("chaos damage", StatId::ChaosDamage, BitFlags::EMPTY),
-    ("minimum physical attack damage", StatId::MinPhysicalDamage, flags!(GemTag::Attack)),
-    ("maximum physical attack damage", StatId::MaxPhysicalDamage, flags!(GemTag::Attack)),
-    ("added minimum physical damage", StatId::AddedMinPhysicalDamage, BitFlags::EMPTY),
-    ("added maximum physical damage", StatId::AddedMaxPhysicalDamage, BitFlags::EMPTY),
-    ("physical attack damage", StatId::PhysicalDamage, flags!(GemTag::Attack)),
-    ("physical damage", StatId::PhysicalDamage, BitFlags::EMPTY),
-    ("damage", StatId::Damage, BitFlags::EMPTY),
-    ("area of effect", StatId::AreaOfEffect, BitFlags::EMPTY),
-    ("accuracy rating", StatId::AccuracyRating, BitFlags::EMPTY),
-    ("movement speed", StatId::MovementSpeed, BitFlags::EMPTY),
-    ("skill effect duration", StatId::SkillEffectDuration, BitFlags::EMPTY),
-    ("duration", StatId::Duration, BitFlags::EMPTY),
-    ("impale effect", StatId::ImpaleEffect, BitFlags::EMPTY),
-    ("minimum frenzy charges", StatId::MinimumFrenzyCharges, BitFlags::EMPTY),
-    ("minimum power charges", StatId::MinimumPowerCharges, BitFlags::EMPTY),
-    ("minimum endurance charges", StatId::MinimumEnduranceCharges, BitFlags::EMPTY),
-    ("maximum frenzy charges", StatId::MaximumFrenzyCharges, BitFlags::EMPTY),
-    ("maximum power charges", StatId::MaximumPowerCharges, BitFlags::EMPTY),
-    ("maximum endurance charges", StatId::MaximumEnduranceCharges, BitFlags::EMPTY),
-    ("maximum life", StatId::MaximumLife, BitFlags::EMPTY),
-    ("maximum mana", StatId::MaximumMana, BitFlags::EMPTY),
-    ("minimum rage", StatId::MinimumRage, BitFlags::EMPTY),
-    ("maximum rage", StatId::MaximumRage, BitFlags::EMPTY),
-    ("maximum energy shield", StatId::MaximumEnergyShield, BitFlags::EMPTY),
-    ("energy shield recharge rate", StatId::EnergyShieldRechargeRate, BitFlags::EMPTY),
-    ("energy shield", StatId::EnergyShield, BitFlags::EMPTY),
-    ("life regeneration rate", StatId::LifeRegenerationRate, BitFlags::EMPTY),
-    ("mana regeneration rate", StatId::ManaRegenerationRate, BitFlags::EMPTY),
-    ("mana reservation efficiency", StatId::ManaReservationEfficiency, BitFlags::EMPTY),
-    ("critical strike chance", StatId::CriticalStrikeChance, BitFlags::EMPTY),
-    ("critical strike multiplier", StatId::CriticalStrikeMultiplier, BitFlags::EMPTY),
-    ("armour", StatId::Armour, BitFlags::EMPTY),
-    ("evasion rating", StatId::EvasionRating, BitFlags::EMPTY),
-    ("stun threshold", StatId::StunThreshold, BitFlags::EMPTY),
-    ("chance to avoid being stunned", StatId::ChanceToAvoidBeingStunned, BitFlags::EMPTY),
-    ("maximum fire resistance", StatId::MaximumFireResistance, BitFlags::EMPTY),
-    ("maximum cold resistance", StatId::MaximumColdResistance, BitFlags::EMPTY),
-    ("maximum lightning resistance", StatId::MaximumLightningResistance, BitFlags::EMPTY),
-    ("maximum chaos resistance", StatId::MaximumChaosResistance, BitFlags::EMPTY),
-    ("fire resistance", StatId::FireResistance, BitFlags::EMPTY),
-    ("cold resistance", StatId::ColdResistance, BitFlags::EMPTY),
-    ("lightning resistance", StatId::LightningResistance, BitFlags::EMPTY),
-    ("chaos resistance", StatId::ChaosResistance, BitFlags::EMPTY),
-    ("flask charges gained", StatId::FlaskChargesGained, BitFlags::EMPTY),
-    ("flask effect duration", StatId::FlaskEffectDuration, BitFlags::EMPTY),
-    ("flask recovery rate", StatId::FlaskRecoveryRate, BitFlags::EMPTY),
-    ("flask charges used", StatId::FlaskChargesUsed, BitFlags::EMPTY),
-    ("mana cost", StatId::ManaCost, BitFlags::EMPTY),
-    ("life cost", StatId::LifeCost, BitFlags::EMPTY),
-    ("cost", StatId::Cost, BitFlags::EMPTY),
-    ("passive skill points", StatId::PassiveSkillPoints, BitFlags::EMPTY),
-    ("passive skill point", StatId::PassiveSkillPoints, BitFlags::EMPTY),
+const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>)] = &[
+    ("strength", StatId::Strength, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("dexterity", StatId::Dexterity, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("intelligence", StatId::Intelligence, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("attributes", StatId::Attributes, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("action speed", StatId::ActionSpeed, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("attack speed", StatId::AttackSpeed, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("cast speed", StatId::CastSpeed, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("warcry speed", StatId::WarcrySpeed, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("cooldown recovery speed", StatId::CooldownRecoverySpeed, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("projectile speed", StatId::ProjectileSpeed, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("trap throwing speed", StatId::TrapThrowingSpeed, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("chance to block attack damage", StatId::ChanceToBlockAttackDamage, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("chance to block spell damage", StatId::ChanceToBlockSpellDamage, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("chance to block", StatId::ChanceToBlockAttackDamage, BitFlags::EMPTY, BitFlags::EMPTY), // local on shields
+    ("chance to suppress spell damage", StatId::ChanceToSuppressSpellDamage, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("chance to deal double damage", StatId::ChanceToDealDoubleDamage, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("fire damage over time multiplier", StatId::FireDamageOverTimeMultiplier, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("cold damage over time multiplier", StatId::ColdDamageOverTimeMultiplier, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("chaos damage over time multiplier", StatId::ChaosDamageOverTimeMultiplier, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("physical damage over time multiplier", StatId::PhysicalDamageOverTimeMultiplier, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("damage over time multiplier", StatId::DamageOverTimeMultiplier, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("fire damage penetration", StatId::FireDamagePen, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("lightning damage penetration", StatId::LightningDamagePen, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("cold damage penetration", StatId::ColdDamagePen, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("chaos damage penetration", StatId::ChaosDamagePen, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("fire damage over time", StatId::FireDamageOverTime, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("cold damage over time", StatId::ColdDamageOverTime, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("chaos damage over time", StatId::ChaosDamageOverTime, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("physical damage over time", StatId::PhysicalDamageOverTime, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("damage over time", StatId::DamageOverTime, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("fire damage", StatId::FireDamage, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("cold damage", StatId::ColdDamage, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("lightning damage", StatId::LightningDamage, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("chaos damage", StatId::ChaosDamage, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("minimum physical attack damage", StatId::MinPhysicalDamage, flags!(GemTag::Attack), BitFlags::EMPTY),
+    ("maximum physical attack damage", StatId::MaxPhysicalDamage, flags!(GemTag::Attack), BitFlags::EMPTY),
+    ("added minimum physical damage", StatId::AddedMinPhysicalDamage, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("added maximum physical damage", StatId::AddedMaxPhysicalDamage, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("physical attack damage", StatId::PhysicalDamage, flags!(GemTag::Attack), BitFlags::EMPTY),
+    ("physical damage", StatId::PhysicalDamage, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("wand damage", StatId::Damage, BitFlags::EMPTY, flags!(ItemClass::Wand)),
+    ("damage", StatId::Damage, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("area of effect", StatId::AreaOfEffect, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("accuracy rating", StatId::AccuracyRating, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("movement speed", StatId::MovementSpeed, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("skill effect duration", StatId::SkillEffectDuration, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("duration", StatId::Duration, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("impale effect", StatId::ImpaleEffect, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("minimum frenzy charges", StatId::MinimumFrenzyCharges, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("minimum power charges", StatId::MinimumPowerCharges, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("minimum endurance charges", StatId::MinimumEnduranceCharges, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("maximum frenzy charges", StatId::MaximumFrenzyCharges, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("maximum power charges", StatId::MaximumPowerCharges, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("maximum endurance charges", StatId::MaximumEnduranceCharges, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("maximum life", StatId::MaximumLife, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("maximum mana", StatId::MaximumMana, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("minimum rage", StatId::MinimumRage, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("maximum rage", StatId::MaximumRage, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("maximum energy shield", StatId::MaximumEnergyShield, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("energy shield recharge rate", StatId::EnergyShieldRechargeRate, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("energy shield", StatId::EnergyShield, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("life regeneration rate", StatId::LifeRegenerationRate, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("mana regeneration rate", StatId::ManaRegenerationRate, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("mana reservation efficiency", StatId::ManaReservationEfficiency, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("critical strike chance", StatId::CriticalStrikeChance, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("critical strike multiplier", StatId::CriticalStrikeMultiplier, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("armour", StatId::Armour, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("evasion rating", StatId::EvasionRating, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("stun threshold", StatId::StunThreshold, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("chance to avoid being stunned", StatId::ChanceToAvoidBeingStunned, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("maximum fire resistance", StatId::MaximumFireResistance, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("maximum cold resistance", StatId::MaximumColdResistance, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("maximum lightning resistance", StatId::MaximumLightningResistance, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("maximum chaos resistance", StatId::MaximumChaosResistance, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("fire resistance", StatId::FireResistance, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("cold resistance", StatId::ColdResistance, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("lightning resistance", StatId::LightningResistance, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("chaos resistance", StatId::ChaosResistance, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("flask charges gained", StatId::FlaskChargesGained, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("flask effect duration", StatId::FlaskEffectDuration, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("flask recovery rate", StatId::FlaskRecoveryRate, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("flask charges used", StatId::FlaskChargesUsed, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("mana cost", StatId::ManaCost, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("life cost", StatId::LifeCost, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("cost", StatId::Cost, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("passive skill points", StatId::PassiveSkillPoints, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("passive skill point", StatId::PassiveSkillPoints, BitFlags::EMPTY, BitFlags::EMPTY),
 ];
 
 lazy_static! {
@@ -211,7 +215,8 @@ lazy_static! {
                         typ: Type::Inc,
                         amount,
                         tags: s.1,
-                        global: s.2,
+                        weapons: s.2,
+                        global: s.3,
                         ..Default::default()
                     };
                     if insert_minion_tag {
@@ -232,7 +237,8 @@ lazy_static! {
                         typ: Type::Base,
                         amount,
                         tags: s.1,
-                        global: s.2,
+                        weapons: s.2,
+                        global: s.3,
                         ..Default::default()
                     };
                     if insert_minion_tag {
@@ -259,7 +265,8 @@ lazy_static! {
                         typ: Type::Inc,
                         amount,
                         tags: s.1,
-                        global: s.2,
+                        weapons: s.2,
+                        global: s.3,
                         ..Default::default()
                     };
                     if insert_minion_tag {
@@ -273,7 +280,8 @@ lazy_static! {
                         typ: Type::Inc,
                         amount,
                         tags: s.1,
-                        global: s.2,
+                        weapons: s.2,
+                        global: s.3,
                         ..Default::default()
                     };
                     if insert_minion_tag {
@@ -293,7 +301,8 @@ lazy_static! {
                         typ: Type::More,
                         amount: i64::from_str(&c[1]).unwrap(),
                         tags: s.1,
-                        global: s.2,
+                        weapons: s.2,
+                        global: s.3,
                         ..Default::default()
                     }
                 }).collect())
@@ -308,7 +317,8 @@ lazy_static! {
                         typ: Type::More,
                         amount: i64::from_str(&c[1]).unwrap().neg(),
                         tags: s.1,
-                        global: s.2,
+                        weapons: s.2,
+                        global: s.3,
                         ..Default::default()
                     }
                 }).collect())
@@ -323,14 +333,16 @@ lazy_static! {
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
                     tags: stat_tags_1.1,
-                    global: stat_tags_1.2,
+                    weapons: stat_tags_1.2,
+                    global: stat_tags_1.3,
                     ..Default::default()
                 }, Mod {
                     stat: stat_tags_2.0,
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
                     tags: stat_tags_2.1,
-                    global: stat_tags_2.2,
+                    weapons: stat_tags_2.2,
+                    global: stat_tags_2.3,
                     ..Default::default()
                 }])
             })
@@ -363,20 +375,27 @@ lazy_static! {
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
                     tags: stat_tags_1.1,
+                    weapons: stat_tags_1.2,
                     ..Default::default()
                 }, Mod {
                     stat: stat_tags_2.0,
                     typ: Type::Base,
                     amount: i64::from_str(&c[2]).unwrap(),
                     tags: stat_tags_2.1,
+                    weapons: stat_tags_2.2,
                     ..Default::default()
                 }])
             })
         ), (
-            regex!(r"^regenerate ([0-9]+) life per second$"),
+            regex!(r"^regenerate ([0-9]+) (life|mana) per second$"),
             Box::new(|c| {
+                let stat = if &c[2] == "life" {
+                    StatId::LifeRegeneration
+                } else {
+                    StatId::ManaRegeneration
+                };
                 Some(vec![Mod {
-                    stat: StatId::LifeRegeneration,
+                    stat,
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
                     ..Default::default()
@@ -412,7 +431,7 @@ lazy_static! {
                     stat: stat_tags_1.0,
                     typ: Type::Base,
                     amount: i64::from_str(&c[1]).unwrap(),
-                    global: stat_tags_1.2,
+                    global: stat_tags_1.3,
                     ..Default::default()
                 }])
             })
@@ -439,6 +458,16 @@ lazy_static! {
         ),
     ];
 
+    static ref ONESHOTS: FxHashMap<&'static str, Vec<Mod>> = {
+        let mut map = FxHashMap::default();
+        map.insert("maximum life becomes 1, immune to chaos damage", vec![
+            Mod { stat: StatId::MaximumLife, typ: Type::Override, amount: 1, ..Default::default()},
+            Mod { stat: StatId::ChaosResistance, typ: Type::Override, amount: 100, ..Default::default()},
+            Mod { stat: StatId::MaximumChaosResistance, typ: Type::Override, amount: 100, ..Default::default()},
+        ]);
+        map
+    };
+
     static ref MULTISTATS: FxHashMap<&'static str, Vec<StatId>> = {
         let mut map = FxHashMap::default();
         map.insert("attributes", vec![StatId::Strength, StatId::Dexterity, StatId::Intelligence]);
@@ -450,10 +479,11 @@ lazy_static! {
         map
     };
 
-    static ref STATS_MAP: FxHashMap<&'static str, (StatId, BitFlags<GemTag>)> = {
+    // Assimilate the STATS array into a hashmap with the stat name as key
+    static ref STATS_MAP: FxHashMap<&'static str, (StatId, BitFlags<GemTag>, BitFlags<ItemClass>)> = {
         let mut map = FxHashMap::default();
         for entry in STATS.iter() {
-            map.insert(entry.0, (entry.1, entry.2));
+            map.insert(entry.0, (entry.1, entry.2, entry.3));
         }
         map
     };
@@ -506,6 +536,8 @@ pub struct Mod {
     pub stat: StatId,
     pub typ: Type,
     pub amount: i64,
+    // After mutations or other amount-modifying functions
+    pub revised_amount: Option<i64>,
     pub mutations: StackVec<Mutation, 5>,
     pub conditions: StackVec<Condition, 5>,
     pub tags: BitFlags<GemTag>,
@@ -515,8 +547,12 @@ pub struct Mod {
 }
 
 impl Mod {
-    pub fn amount(&self) -> i64 {
-        self.amount
+    pub fn final_amount(&self) -> i64 {
+        if let Some(revised_amount) = self.revised_amount {
+            revised_amount
+        } else {
+            self.amount
+        }
     }
 }
 
@@ -545,15 +581,17 @@ fn parse_ending(m: &str) -> Option<(usize, Ending)> {
     None
 }
 
-fn parse_stat_nomulti(input: &str) -> Option<(StatId, BitFlags<GemTag>, bool)> {
+/// Attempts to parse a chunk like "melee physical damage", non-multi stat
+fn parse_stat_nomulti(input: &str) -> Option<(StatId, BitFlags<GemTag>, BitFlags<ItemClass>, bool)> {
     let mut tags = BitFlags::empty();
     let mut global = false;
 
     let stat = STATS.iter().find(|s| {
         if input.ends_with(s.0) {
-            return true;
+            true
+        } else {
+            false
         }
-        false
     })?;
 
     let remainder = &input[0..input.len() - stat.0.len()];
@@ -568,13 +606,13 @@ fn parse_stat_nomulti(input: &str) -> Option<(StatId, BitFlags<GemTag>, bool)> {
         }
     }
 
-    Some((stat.1, tags, global))
+    Some((stat.1, tags | stat.2, stat.3, global))
 }
 
-/// Attempts to parse a chunk like "melee physical damage"
-fn parse_stat(input: &str) -> Option<Vec<(StatId, BitFlags<GemTag>, bool)>> {
+/// Attempts to parse a chunk like "melee physical damage" or a multistat
+fn parse_stat(input: &str) -> Option<Vec<(StatId, BitFlags<GemTag>, BitFlags<ItemClass>, bool)>> {
     if let Some(stats) = MULTISTATS.get(input) {
-        return Some(stats.iter().map(|id| (*id, BitFlags::empty(), false)).collect());
+        return Some(stats.iter().map(|id| (*id, BitFlags::EMPTY, BitFlags::EMPTY, false)).collect());
     }
 
     if let Some(stat) = parse_stat_nomulti(input) {
@@ -589,8 +627,8 @@ lazy_static! {
 }
 
 /// Attempts to parse a modifier like "30℅ increased poison damage while focussed"
-/// 1. todo: try to match the entire string against SPECIALS
-/// 2. if not special, parse right to left:
+/// 1. ONESHOTS array for static string mods
+/// 2. if not oneshot, parse right to left:
 ///    2.1. any amount of ENDINGS
 ///    2.2. a BEGINNING
 pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
@@ -600,13 +638,19 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
         return mods_opt.to_owned();
     }
 
-    let mut m = &input[0..];
+    let lowercase = input.to_lowercase();
+
+    if let Some(oneshot) = ONESHOTS.get(lowercase.as_str()) {
+        return Some(oneshot.to_owned());
+    }
+
+    let mut m = &lowercase[0..];
     let mut mutations: StackVec<Mutation, 5> = Default::default();
     let mut tags = BitFlags::empty();
     let mut weapons = BitFlags::empty();
     let mut conditions: StackVec<Condition, 5> = Default::default();
 
-    while let Some(ending) = parse_ending(&m.to_lowercase()) {
+    while let Some(ending) = parse_ending(&m) {
         m = &m[0..m.len() - ending.0 - 1];
         match ending.1 {
             Ending::Mutation(mutation) => {
@@ -625,7 +669,7 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
     }
 
     for begin in BEGINNINGS.iter() {
-        if let Some(cap) = begin.0.captures(&m.to_lowercase()) {
+        if let Some(cap) = begin.0.captures(&m) {
             if let Some(mut mods) = begin.1(&cap) {
                 for modifier in &mut mods {
                     modifier.tags.insert(tags);

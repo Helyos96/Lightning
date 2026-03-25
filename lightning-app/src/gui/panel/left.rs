@@ -30,8 +30,9 @@ fn selected_text_active(state: &State) -> &str {
 fn calc_result_color(label: &str) -> egui::Color32 {
     match label {
         "Maximum Life" => egui::Color32::LIGHT_RED,
-        "Maximum Mana" => egui::Color32::BLUE,
+        "Maximum Mana" => egui::Color32::LIGHT_BLUE,
         "Life Regeneration" => egui::Color32::LIGHT_RED,
+        "Mana Regeneration" => egui::Color32::LIGHT_BLUE,
         "Strength" => egui::Color32::LIGHT_RED,
 
         "Fire Resistance" => egui::Color32::RED,
@@ -160,6 +161,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 draw_calc_result_row(ui, "Maximum Life", state.defence_calc.get("Maximum Life"), Format::Flat);
                 draw_calc_result_row(ui, "Maximum Mana", state.defence_calc.get("Maximum Mana"), Format::Flat);
                 draw_calc_result_row(ui, "Life Regeneration", state.defence_calc.get("Life Regeneration"), Format::Flat);
+                draw_calc_result_row(ui, "Mana Regeneration", state.defence_calc.get("Mana Regeneration"), Format::Flat);
             });
             ui.separator();
             egui::Grid::new("grid_defence_calc_res").show(ui, |ui| {
@@ -173,7 +175,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 draw_calc_result_row(ui, "Armour", state.defence_calc.get("Armour"), Format::Flat);
                 draw_calc_result_row(ui, "Evasion", state.defence_calc.get("Evasion"), Format::Flat);
                 draw_calc_result_row(ui, "Energy Shield", state.defence_calc.get("Energy Shield"), Format::Flat);
-                draw_calc_result_row(ui, "Block", state.defence_calc.get("Block"), Format::Percent);
+                draw_calc_result_row(ui, "Attack Block", state.defence_calc.get("Block"), Format::Percent);
                 draw_calc_result_row(ui, "Spell Block", state.defence_calc.get("Spell Block"), Format::Percent);
             });
             ui.separator();
