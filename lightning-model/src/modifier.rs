@@ -435,26 +435,6 @@ lazy_static! {
                     ..Default::default()
                 }])
             })
-        ), (
-            regex!(r"^your hits can't be evaded$"),
-            Box::new(|_| {
-                Some(vec![Mod {
-                    stat: StatId::ChanceToHit,
-                    typ: Type::Override,
-                    amount: 100,
-                    ..Default::default()
-                }])
-            })
-        ), (
-            regex!(r"^never deal critical strikes$"),
-            Box::new(|_| {
-                Some(vec![Mod {
-                    stat: StatId::CriticalStrikeChance,
-                    typ: Type::Override,
-                    amount: 0,
-                    ..Default::default()
-                }])
-            })
         ),
     ];
 
@@ -464,6 +444,12 @@ lazy_static! {
             Mod { stat: StatId::MaximumLife, typ: Type::Override, amount: 1, ..Default::default()},
             Mod { stat: StatId::ChaosResistance, typ: Type::Override, amount: 100, ..Default::default()},
             Mod { stat: StatId::MaximumChaosResistance, typ: Type::Override, amount: 100, ..Default::default()},
+        ]);
+        map.insert("never deal critical strikes", vec![
+            Mod { stat: StatId::CriticalStrikeChance, typ: Type::Override, amount: 0, ..Default::default()},
+        ]);
+        map.insert("your hits can't be evaded", vec![
+            Mod { stat: StatId::ChanceToHit, typ: Type::Override, amount: 100, ..Default::default()},
         ]);
         map
     };
@@ -476,6 +462,7 @@ lazy_static! {
         map.insert("maximum resistances", vec![StatId::MaximumFireResistance, StatId::MaximumColdResistance, StatId::MaximumLightningResistance, StatId::MaximumChaosResistance]);
         map.insert("resistances", vec![StatId::FireResistance, StatId::ColdResistance, StatId::LightningResistance, StatId::ChaosResistance]);
         map.insert("elemental damage", vec![StatId::FireDamage, StatId::ColdDamage, StatId::LightningDamage]);
+        map.insert("attack and cast speed", vec![StatId::AttackSpeed, StatId::CastSpeed]);
         map
     };
 

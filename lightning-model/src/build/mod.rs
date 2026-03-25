@@ -638,6 +638,7 @@ impl Build {
         true
     }
 
+    // Modify a Mod's revised_amount by taking into account mod mutations (multipliers etc.)
     fn apply_mutations(&self, stats: &FxHashMap<StatId, Stat>, m: &mut Mod) {
         let mut amount = m.amount;
         for f in &m.mutations {
