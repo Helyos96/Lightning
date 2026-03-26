@@ -272,6 +272,13 @@ impl Build {
                 ..Default::default()
             },
             Mod {
+                stat: StatId::MaximumEnergyShield,
+                typ: Type::Inc,
+                amount: 1,
+                mutations: stackvec![Mutation::MultiplierStat((10, StatId::Intelligence))],
+                ..Default::default()
+            },
+            Mod {
                 stat: StatId::MaximumMana,
                 typ: Type::Base,
                 amount: 6,
@@ -649,7 +656,22 @@ impl Build {
                 Mutation::MultiplierStat(mutation) => {
                     amount = match stats.get(&mutation.1) {
                         Some(stat) => (amount * stat.val()) / mutation.0,
-                        None => amount,
+                        None => 0,
+                    }
+                },
+                Mutation::MultiplierStatLowest(mutation) => {
+                    let mut lowest = None;
+                    for stat_id in mutation.1 {
+                        if let Some(stat) = stats.get(stat_id) {
+                            let val = stat.val();
+                            if lowest.is_none() || val < lowest.unwrap() {
+                                lowest = Some(val);
+                            }
+                        }
+                    }
+                    amount = match lowest {
+                        Some(lowest) => (amount * lowest) / mutation.0,
+                        None => 0,
                     }
                 },
             }

@@ -120,6 +120,7 @@ pub enum StatId {
     ChanceToHit,
     ChanceToEvade,
     ChanceToDealDoubleDamage,
+    PhysicalDamageReduction,
 }
 
 #[derive(Debug, Clone, Default)]

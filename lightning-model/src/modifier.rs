@@ -3,7 +3,7 @@ use crate::build::{property, Slot};
 use crate::data::base_item::ItemClass;
 use crate::data::gem::GemTag;
 use crate::gem::Gem;
-use crate::data::ActiveSkillTypes;
+use crate::data::{ActiveSkillTypes, TREE};
 use crate::item::{self, Item};
 use crate::stackvec::StackVec;
 use enumflags2::{make_bitflags as flags, BitFlags};
@@ -38,6 +38,8 @@ lazy_static! {
 
 const ENDINGS: &[(&str, Mutation)] = &[
     ("per 100 maximum mana", Mutation::MultiplierStat((100, StatId::MaximumMana))),
+    ("per 5 of your lowest attribute", Mutation::MultiplierStatLowest((5, &[StatId::Strength, StatId::Dexterity, StatId::Intelligence]))),
+    ("per 2 strength", Mutation::MultiplierStat((2, StatId::Strength))),
     ("per level", Mutation::MultiplierProperty((1, property::Int::Level))),
     ("per frenzy charge", Mutation::MultiplierProperty((1, property::Int::FrenzyCharges))),
     ("per power charge", Mutation::MultiplierProperty((1, property::Int::PowerCharges))),
@@ -94,6 +96,7 @@ const ENDINGS_CONDITIONS: &[(&str, Condition)] = &[
     ("if you've dealt a critical strike recently", Condition::PropertyBool((true, property::Bool::DealtCritRecently))),
     ("while leeching", Condition::PropertyBool((true, property::Bool::Leeching))),
     ("when on full life", Condition::PropertyBool((true, property::Bool::OnFullLife))),
+    ("while on full life", Condition::PropertyBool((true, property::Bool::OnFullLife))),
     ("while on low life", Condition::PropertyBool((true, property::Bool::OnLowLife))),
     ("while holding a shield", Condition::WhileWielding(flags!(ItemClass::Shield))),
     ("while wielding a wand", Condition::WhileWielding(flags!(ItemClass::Wand))),
@@ -137,6 +140,7 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>)] = 
     ("chaos damage over time", StatId::ChaosDamageOverTime, BitFlags::EMPTY, BitFlags::EMPTY),
     ("physical damage over time", StatId::PhysicalDamageOverTime, BitFlags::EMPTY, BitFlags::EMPTY),
     ("damage over time", StatId::DamageOverTime, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("physical damage reduction", StatId::PhysicalDamageReduction, BitFlags::EMPTY, BitFlags::EMPTY),
     ("fire damage", StatId::FireDamage, BitFlags::EMPTY, BitFlags::EMPTY),
     ("cold damage", StatId::ColdDamage, BitFlags::EMPTY, BitFlags::EMPTY),
     ("lightning damage", StatId::LightningDamage, BitFlags::EMPTY, BitFlags::EMPTY),
@@ -226,7 +230,7 @@ lazy_static! {
                 }).collect())
             })
         ), (
-            regex!(r"^(minions have )?([+-]?[0-9]+)%? (?:to )?(?:all )?([a-z ]+)$"),
+            regex!(r"^(minions have )?([+-]?[0-9]+)%? (?:additional )?(?:to )?(?:all )?([a-z ]+)$"),
             Box::new(|c| {
                 let stat_tags = parse_stat(&c[3])?;
                 let insert_minion_tag = c.get(1).is_some();
@@ -435,6 +439,17 @@ lazy_static! {
                     ..Default::default()
                 }])
             })
+        ), (
+            regex!(r"^allocates ([a-z ]+)$"),
+            Box::new(|c| {
+                let (node, _) = TREE.nodes.iter().find(|(_, v)| {
+                    v.name.to_lowercase() == &c[1]
+                })?;
+                Some(vec![Mod {
+                    allocates: Some(*node),
+                    ..Default::default()
+                }])
+            })
         ),
     ];
 
@@ -451,6 +466,9 @@ lazy_static! {
         map.insert("your hits can't be evaded", vec![
             Mod { stat: StatId::ChanceToHit, typ: Type::Override, amount: 100, ..Default::default()},
         ]);
+        map.insert("removes all mana", vec![
+            Mod { stat: StatId::MaximumMana, typ: Type::Override, amount: 0, ..Default::default()},
+        ]);
         map
     };
 
@@ -463,6 +481,7 @@ lazy_static! {
         map.insert("resistances", vec![StatId::FireResistance, StatId::ColdResistance, StatId::LightningResistance, StatId::ChaosResistance]);
         map.insert("elemental damage", vec![StatId::FireDamage, StatId::ColdDamage, StatId::LightningDamage]);
         map.insert("attack and cast speed", vec![StatId::AttackSpeed, StatId::CastSpeed]);
+        map.insert("armour and evasion", vec![StatId::Armour, StatId::EvasionRating]);
         map
     };
 
@@ -495,6 +514,7 @@ pub enum Ending {
 #[derive(Debug, Clone, Copy)]
 pub enum Mutation {
     MultiplierStat((i64, StatId)),
+    MultiplierStatLowest((i64, &'static [StatId])),
     MultiplierProperty((i64, property::Int)),
 }
 
@@ -531,6 +551,7 @@ pub struct Mod {
     pub source: Source,
     pub weapons: BitFlags<ItemClass>,
     pub global: bool,
+    pub allocates: Option<u16>,
 }
 
 impl Mod {
