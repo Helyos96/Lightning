@@ -125,7 +125,7 @@ impl GlDrawData {
             gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, idx);
             gl.buffer_data_u8_slice(
                 glow::ELEMENT_ARRAY_BUFFER,
-                std::slice::from_raw_parts(dd.indices.as_ptr() as *const u8, dd.indices.len() * 2),
+                std::slice::from_raw_parts(dd.indices.as_ptr() as *const u8, dd.indices.len() * 4),
                 glow::STATIC_DRAW,
             );
 
@@ -403,7 +403,7 @@ impl TreeGl {
                 gl.uniform_4_f32(self.uniform_tint.as_ref(), to_draw.2[0], to_draw.2[1], to_draw.2[2], to_draw.2[3]);
                 gl.bind_vertex_array(self.draw_data[to_draw.0].vao);
                 gl.bind_texture(glow::TEXTURE_2D, Some(self.textures[to_draw.1].gl_texture));
-                gl.draw_elements(glow::TRIANGLES, self.draw_data[to_draw.0].len, glow::UNSIGNED_SHORT, 0);
+                gl.draw_elements(glow::TRIANGLES, self.draw_data[to_draw.0].len, glow::UNSIGNED_INT, 0);
             }
         }
     }

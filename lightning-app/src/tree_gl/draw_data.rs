@@ -71,7 +71,7 @@ pub fn get_rect(node: &Node, active: bool) -> Option<(&'static Rect, &'static Sp
 pub struct DrawData {
     pub vertices: Vec<(f32, f32)>,
     pub tex_coords: Vec<(f32, f32)>,
-    pub indices: Vec<u16>,
+    pub indices: Vec<u32>,
 }
 
 impl DrawData {
@@ -103,7 +103,7 @@ impl DrawData {
             ]);
         }
 
-        let start = self.vertices.len() as u16 - 4;
+        let start = self.vertices.len() as u32 - 4;
         self.indices
             .extend([start, start + 1, start + 2, start + 3, start, start + 2]);
     }
@@ -127,14 +127,60 @@ pub fn background_gl() -> DrawData {
         ((25000.0 / sprite.w as f32), 0.0), // top right
     ]);
 
-    let start = dd.vertices.len() as u16 - 4;
+    let start = dd.vertices.len() as u32 - 4;
     dd.indices
         .extend([start, start + 1, start + 2, start + 3, start, start + 2]);
 
     dd
 }
 
-/// Very simple straight connectors. todo: arcs
+/// Bendy (arc) connector
+fn arc_connector_gl(
+    cx: f32, cy: f32,
+    r: f32,
+    a1: f32, a2: f32,
+    w: f32,
+    rect: &Rect, sprite: &Sprite, dd: &mut DrawData,
+) {
+    let mut diff = a2 - a1;
+    while diff > std::f32::consts::PI { diff -= 2.0 * std::f32::consts::PI; }
+    while diff < -std::f32::consts::PI { diff += 2.0 * std::f32::consts::PI; }
+
+    let arc_length = diff.abs() * r;
+    let segments = (arc_length / 5.0).ceil().max(3.0) as usize;
+
+    let x_left = rect.x as f32 + 0.5;
+    let x_right = rect.x as f32 + rect.w as f32 - 0.5;
+    let y_top = rect.y as f32 + 0.5;
+    let y_bottom = rect.y as f32 + rect.h as f32 - 0.5;
+
+    let start_vertex = dd.vertices.len() as u32;
+
+    for i in 0..=segments {
+        let t = i as f32 / segments as f32;
+        let angle = a1 + diff * t;
+
+        let sin_a = angle.sin();
+        let cos_a = angle.cos();
+
+        dd.vertices.push(norm(cx + (r - w) * sin_a, cy + (r - w) * cos_a));
+        dd.vertices.push(norm(cx + (r + w) * sin_a, cy + (r + w) * cos_a));
+
+        let u = x_left + (x_right - x_left) * t;
+        dd.tex_coords.push(norm_tex(u, y_bottom, sprite.w, sprite.h));
+        dd.tex_coords.push(norm_tex(u, y_top, sprite.w, sprite.h));
+    }
+
+    for i in 0..segments as u32 {
+        let base = start_vertex + i * 2;
+        dd.indices.extend([
+            base, base + 1, base + 2,
+            base + 1, base + 3, base + 2
+        ]);
+    }
+}
+
+/// Very simple straight connector.
 fn connector_gl(x1: f32, y1: f32, x2: f32, y2: f32, w: f32, rect: &Rect, sprite: &Sprite, dd: &mut DrawData) {
     let (vx, vy) = (x2 - x1, y2 - y1);
     let (px, py) = (vy, -vx);
@@ -158,9 +204,40 @@ fn connector_gl(x1: f32, y1: f32, x2: f32, y2: f32, w: f32, rect: &Rect, sprite:
         norm_tex(x_right, y_top, sprite.w, sprite.h), // top right
     ]);
 
-    let start = dd.vertices.len() as u16 - 4;
+    let start = dd.vertices.len() as u32 - 4;
     dd.indices
         .extend([start, start + 1, start + 2, start + 3, start, start + 2]);
+}
+
+pub fn build_connection(
+    node1: &Node,
+    node2: &Node,
+    w: f32,
+    rect: &Rect,
+    sprite: &Sprite,
+    dd: &mut DrawData
+) {
+    let group1 = node1.group.unwrap();
+    let group2 = node2.group.unwrap();
+
+    let orbit1 = node1.orbit.unwrap() as usize;
+    let orbit2 = node2.orbit.unwrap() as usize;
+
+    if group1 == group2 && orbit1 == orbit2 {
+        let orbit_radius = TREE.constants.orbit_radii[orbit1] as f32;
+        let cx = TREE.groups[&group1].x;
+        let cy = TREE.groups[&group1].y.neg(); // Match your negative Y logic
+
+        let a1 = ORBIT_ANGLES[orbit1][node1.orbit_index.unwrap() as usize];
+        let a2 = ORBIT_ANGLES[orbit2][node2.orbit_index.unwrap() as usize];
+
+        arc_connector_gl(cx, cy, orbit_radius, a1, a2, w, rect, sprite, dd);
+    } else {
+        let (x1, y1) = node_pos(node1);
+        let (x2, y2) = node_pos(node2);
+
+        connector_gl(x1, y1, x2, y2, w, rect, sprite, dd);
+    }
 }
 
 pub fn connectors_gl_inactive() -> DrawData {
@@ -177,7 +254,6 @@ pub fn connectors_gl_inactive() -> DrawData {
             && (n.name != "Medium Jewel Socket")
             && (n.name != "Small Jewel Socket")
     }) {
-        let (x1, y1) = node_pos(node);
         for out in node
             .out
             .iter()
@@ -185,8 +261,7 @@ pub fn connectors_gl_inactive() -> DrawData {
             .map(|id| &TREE.nodes[id])
             .filter(|n| !n.is_ascendancy_start && !n.is_mastery && !n.is_proxy && n.class_start_index.is_none())
         {
-            let (x2, y2) = node_pos(out);
-            connector_gl(x1, y1, x2, y2, 16.0, rect, sprite, &mut dd);
+            build_connection(node, out, 16.0, rect, sprite, &mut dd);
         }
     }
     dd
@@ -202,7 +277,6 @@ pub fn connectors_gl(nodes: &[u16], rect: &Rect, w: f32) -> DrawData {
             && n.class_start_index.is_none()
             && !n.is_mastery
     }) {
-        let (x1, y1) = node_pos(node);
         for out in node
             .out
             .iter()
@@ -211,8 +285,7 @@ pub fn connectors_gl(nodes: &[u16], rect: &Rect, w: f32) -> DrawData {
             .map(|id| &TREE.nodes[id])
             .filter(|n| !n.is_ascendancy_start && !n.is_mastery && n.class_start_index.is_none())
         {
-            let (x2, y2) = node_pos(out);
-            connector_gl(x1, y1, x2, y2, w, rect, sprite, &mut dd);
+            build_connection(node, out, w, rect, sprite, &mut dd);
         }
     }
     dd
