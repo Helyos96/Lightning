@@ -1,6 +1,6 @@
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use strum_macros::{AsRefStr, EnumString, IntoStaticStr};
+use strum_macros::{AsRefStr, EnumString, IntoStaticStr, EnumIter};
 
 #[derive(Default, Clone, Copy, Hash, Eq, PartialEq, Debug, Serialize, Deserialize, EnumString, AsRefStr)]
 pub enum Class {
@@ -19,7 +19,7 @@ impl Class {
         use Class::*;
         use Ascendancy::*;
         match self {
-            Scion => vec![Ascendant],
+            Scion => vec![Ascendant, Reliquarian],
             Marauder => vec![Berserker, Chieftain, Juggernaut],
             Ranger => vec![Deadeye, Raider, Pathfinder],
             Witch => vec![Necromancer, Occultist, Elementalist],
@@ -30,7 +30,7 @@ impl Class {
     }
 }
 
-#[derive(Clone, Copy, Hash, Eq, PartialEq, Debug, Serialize, Deserialize, EnumString, IntoStaticStr)]
+#[derive(Clone, Copy, Hash, Eq, PartialEq, Debug, Serialize, Deserialize, EnumString, IntoStaticStr, EnumIter)]
 pub enum Ascendancy {
     Inquisitor,
     Hierophant,
@@ -51,6 +51,7 @@ pub enum Ascendancy {
     Raider,
     Pathfinder,
     Ascendant,
+    Reliquarian,
     Aul,
     Farrul,
     Catarina,
@@ -64,11 +65,30 @@ pub enum Ascendancy {
     Breachlord,
     Warlock,
     Primalist,
-    Reliquarian,
     Warden,
 }
 
 impl Ascendancy {
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Ascendancy::Aul => "Aul Bloodline",
+            Ascendancy::Farrul => "Farrul Bloodline",
+            Ascendancy::Catarina => "Catarina Bloodline",
+            Ascendancy::Oshabi => "Oshabi Bloodline",
+            Ascendancy::KingInTheMists => "Nameless Bloodline",
+            Ascendancy::Olroth => "Olroth Bloodline",
+            Ascendancy::Delirious => "Delirious Bloodline",
+            Ascendancy::Lycia => "Lycia Bloodline",
+            Ascendancy::Trialmaster => "Chaos Bloodline",
+            Ascendancy::Breachlord => "Breachlord Bloodline",
+            Ascendancy::Necromantic => "Necromantic Bloodline",
+            Ascendancy::Warlock => "Warlock of the Mists",
+            Ascendancy::Primalist => "Wildwood Primalist",
+            Ascendancy::Warden => "Warden of the Maji",
+            _ => (*self).into(), // Fallback
+        }
+    }
+
     pub fn class(&self) -> Option<Class> {
         use Class::*;
         use Ascendancy::*;
@@ -92,6 +112,7 @@ impl Ascendancy {
             Raider => Some(Ranger),
             Pathfinder => Some(Ranger),
             Ascendant => Some(Scion),
+            Reliquarian => Some(Scion),
             Aul => None,
             Farrul => None,
             Catarina => None,
@@ -105,7 +126,6 @@ impl Ascendancy {
             Breachlord => None,
             Warlock => None,
             Primalist => None,
-            Reliquarian => None,
             Warden => None,
         }
     }

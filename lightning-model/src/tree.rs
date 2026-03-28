@@ -72,13 +72,15 @@ lazy_static! {
 struct FindDisconnectedNodes {
     pub nodes_search_remove: Vec<u16>,
     class: Class,
+    bloodline: Option<Ascendancy>,
 }
 
 impl FindDisconnectedNodes {
-    fn new(nodes_search_remove: Vec<u16>, class: Class) -> Self {
+    fn new(nodes_search_remove: Vec<u16>, class: Class, bloodline: Option<Ascendancy>) -> Self {
         Self {
             nodes_search_remove,
             class,
+            bloodline,
         }
     }
 
@@ -107,11 +109,20 @@ impl FindDisconnectedNodes {
 
     /// Find a group of nodes to remove when a single node gets deallocated
     pub fn find_nodes_remove(&self) -> Vec<u16> {
-        let groups = strongly_connected_components::strongly_connected_components_from(&get_class_node(self.class), |p| self.successors_allocated(*p));
         let mut col = vec![];
-        for group in groups {
-            col.extend(group);
+
+        let mut start_nodes = vec![get_class_node(self.class)];
+        if let Some(bloodline) = self.bloodline {
+            start_nodes.push(get_bloodline_node(bloodline));
         }
+
+        for start_node in start_nodes {
+            let groups = strongly_connected_components::strongly_connected_components_from(&start_node, |p| self.successors_allocated(*p));
+            for group in groups {
+                col.extend(group);
+            }
+        }
+
         let ret: Vec<u16> = self.nodes_search_remove.iter().filter(|id| !col.contains(id)).copied().collect();
         ret
     }
@@ -169,7 +180,7 @@ impl PassiveTree {
     pub fn find_path_remove(&self, node: u16) -> Vec<u16> {
         let mut nodes = self.nodes.clone();
         nodes.retain(|&x| x != node);
-        let fdn: FindDisconnectedNodes = FindDisconnectedNodes::new(nodes, self.class);
+        let fdn: FindDisconnectedNodes = FindDisconnectedNodes::new(nodes, self.class, self.bloodline);
         let mut to_remove = fdn.find_nodes_remove();
         to_remove.push(node);
         to_remove
@@ -233,14 +244,15 @@ impl PassiveTree {
             return;
         }
 
-        if let Some(old_bloodline) = self.bloodline {
-            self.flip_node(get_bloodline_node(old_bloodline));
-        }
+        let old_bloodline = self.bloodline;
+        self.bloodline = bloodline;
+
         if let Some(bloodline) = bloodline {
             self.nodes.push(get_bloodline_node(bloodline));
         }
-
-        self.bloodline = bloodline;
+        if let Some(old_bloodline) = old_bloodline {
+            self.flip_node(get_bloodline_node(old_bloodline));
+        }
     }
 
     pub fn calc_mods(&self) -> Vec<Mod> {

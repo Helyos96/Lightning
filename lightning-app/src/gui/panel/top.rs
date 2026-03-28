@@ -1,5 +1,5 @@
 use std::{ops::RangeInclusive};
-use lightning_model::{build::{property, BanditChoice, CampaignChoice}, data::TREE};
+use lightning_model::{build::{property, BanditChoice, CampaignChoice}, data::TREE, data::tree::Ascendancy};
 use strum::IntoEnumIterator;
 use crate::gui::{State, UiState};
 
@@ -47,6 +47,36 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                         for ascendancy in state.build.tree.class.ascendancies() {
                             if ui.selectable_label(Some(ascendancy) == state.build.tree.ascendancy, Into::<&str>::into(ascendancy)).clicked() {
                                 state.build.tree.set_ascendancy(Some(ascendancy));
+                                state.request_regen = true;
+                                state.request_recalc = true;
+                            }
+                        }
+                    }
+                );
+
+                let bloodlines: Vec<Ascendancy> = Ascendancy::iter()
+                    .skip_while(|&asc| asc != Ascendancy::Aul)
+                    .collect();
+
+                let bloodline_selected_text = match state.build.tree.bloodline {
+                    Some(bloodline) => bloodline.display_name(),
+                    None => "None",
+                };
+
+                egui::ComboBox::from_id_salt("combo_bloodline")
+                    .selected_text(bloodline_selected_text)
+                    .show_ui(ui, |ui| {
+                        ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
+
+                        if ui.selectable_label(state.build.tree.bloodline.is_none(), "None").clicked() {
+                            state.build.tree.set_bloodline(None);
+                            state.request_regen = true;
+                            state.request_recalc = true;
+                        }
+
+                        for asc in &bloodlines {
+                            if ui.selectable_label(Some(*asc) == state.build.tree.bloodline, asc.display_name()).clicked() {
+                                state.build.tree.set_bloodline(Some(*asc));
                                 state.request_regen = true;
                                 state.request_recalc = true;
                             }
