@@ -6,8 +6,9 @@ use crate::modifier::{self, parse_mod, Mod, Source, Type};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use lazy_static::lazy_static;
+use std::str::FromStr;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Item {
     pub base_item: String,
     pub name: String,
@@ -16,6 +17,10 @@ pub struct Item {
     pub mods_expl: Vec<String>,
     pub mods_enchant: Vec<String>,
     pub quality: i64,
+    #[serde(default)]
+    pub corrupted: bool,
+    #[serde(default)]
+    pub item_level: i64,
 }
 
 struct LocalModMatch {
@@ -76,6 +81,14 @@ pub struct DefenceCalc {
 impl Item {
     pub fn data(&self) -> &'static BaseItem {
         &ITEMS[&self.base_item]
+    }
+
+    pub fn name(&self) -> &str {
+        if !self.name.is_empty() {
+            &self.name
+        } else {
+            &self.data().name
+        }
     }
 
     /// Compute the damage range for a specific damage type dt
@@ -205,5 +218,117 @@ impl Item {
             m.source = Source::Item(slot);
         }
         mods
+    }
+
+    // Parse an item from CTRL+C text
+    pub fn from_str(text: &str) -> Option<Item> {
+        let mut item = Item::default();
+        let mut found_name = false;
+        let mut found_class = false;
+        let lines: Vec<&str> = text.lines().map(str::trim).filter(|l| !l.is_empty() && l != &"--------").collect();
+
+        for line in lines {
+            if let Some(rarity) = line.strip_prefix("Rarity: ") {
+                item.rarity = Rarity::from_str(rarity).unwrap_or_default();
+                continue;
+            }
+            if !found_class {
+                let potentiel_base_item = line.strip_prefix("Synthesised ").unwrap_or(line);
+                if ITEMS.contains_key(potentiel_base_item) {
+                    item.base_item = potentiel_base_item.to_owned();
+                    found_class = true;
+                    continue;
+                }
+            }
+            if line == "Corrupted" {
+                item.corrupted = true;
+                continue;
+            }
+            if let Some(item_level_str) = line.strip_prefix("Item Level: ") {
+                item.item_level = i64::from_str(item_level_str).unwrap_or_default();
+                continue;
+            }
+            if line == "Requirements:" || line.starts_with("Level:") || line.starts_with("Str:") ||
+               line.starts_with("Dex:") || line.starts_with("Int:") || line.starts_with("Sockets:") ||
+               line.starts_with("Note:") || line.starts_with("Item Class:") || line.starts_with("Armour:") ||
+               line.starts_with("Energy Shield:") || line.starts_with("Evasion Rating:") {
+                continue;
+            }
+            if let Some(enchant) = line.strip_suffix(" (enchant)") {
+                item.mods_enchant.push(enchant.to_owned());
+                continue;
+            }
+            if let Some(implicit) = line.strip_suffix(" (implicit)") {
+                item.mods_impl.push(implicit.to_owned());
+                continue;
+            }
+            if !found_class && !found_name {
+                item.name = line.to_owned();
+                found_name = true;
+                continue;
+            }
+            item.mods_expl.push(line.to_owned());
+        }
+
+        match found_class {
+            true => Some(item),
+            false => None,
+        }
+    }
+
+    pub fn to_str(&self) -> String {
+        let mut output: String = Default::default();
+
+        output += format!("Rarity: {:?}\n", self.rarity).as_str();
+        if !self.name.is_empty() {
+            output += format!("{}\n", self.name).as_str();
+        }
+        output += format!("{}\n", self.data().name).as_str();
+        output += "--------\n";
+        output += format!("Item Level: {}\n", self.item_level).as_str();
+        output += "--------\n";
+
+        if let Some(reqs) = &self.data().requirements {
+            if reqs.level > 0 || reqs.strength > 0 || reqs.dexterity > 0 || reqs.intelligence > 0 {
+                output += "Requirements:\n";
+                if reqs.level > 0 {
+                output += format!("Level: {}\n", reqs.level).as_str();
+                }
+                if reqs.strength > 0 {
+                    output += format!("Str: {}\n", reqs.strength).as_str();
+                }
+                if reqs.dexterity > 0 {
+                    output += format!("Dex: {}\n", reqs.dexterity).as_str();
+                }
+                if reqs.intelligence > 0 {
+                    output += format!("Int: {}\n", reqs.intelligence).as_str();
+                }
+            }
+            output += "--------\n";
+        }
+
+        for m in &self.mods_enchant {
+            output += format!("{} (enchant)\n", m).as_str();
+        }
+        if !self.mods_enchant.is_empty() {
+            output += "--------\n";
+        }
+        for m in &self.mods_impl {
+            output += format!("{} (implicit)\n", m).as_str();
+        }
+        if !self.mods_impl.is_empty() {
+            output += "--------\n";
+        }
+        for m in &self.mods_expl {
+            output += format!("{}\n", m).as_str();
+        }
+        if !self.mods_expl.is_empty() {
+            output += "--------\n";
+        }
+        if self.corrupted {
+            output += "Corrupted\n";
+        }
+
+        output
     }
 }

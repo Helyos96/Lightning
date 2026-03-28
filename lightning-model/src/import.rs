@@ -46,7 +46,10 @@ struct Item {
     socketedItems: Option<Vec<Item>>,
     inventoryId: Option<String>,
     #[serde(default)]
+    corrupted: bool,
+    #[serde(default)]
     properties: Vec<Property>,
+    ilvl: Option<i64>,
     x: Option<u16>,
 }
 
@@ -136,6 +139,8 @@ fn conv_item(item: &Item) -> Option<item::Item> {
         mods_expl,
         mods_enchant: item.enchantMods.clone(),
         quality: item.quality(),
+        corrupted: item.corrupted,
+        item_level: item.ilvl.unwrap_or(0),
     })
 }
 

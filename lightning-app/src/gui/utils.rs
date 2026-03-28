@@ -51,7 +51,9 @@ pub fn mod_to_richtext(mod_str: &str, source: Source, show_debug: bool) -> egui:
 
 pub fn draw_item(ui: &mut egui::Ui, item: &Item, source: Source, show_debug: bool) {
     ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-        ui.label(egui::RichText::new(&item.name).color(rarity_to_color(item.rarity)).size(20.0));
+        if !item.name.is_empty() {
+            ui.label(egui::RichText::new(&item.name).color(rarity_to_color(item.rarity)).size(20.0));
+        }
         ui.label(egui::RichText::new(&item.base_item).color(rarity_to_color(item.rarity)).size(20.0));
         ui.separator();
 
@@ -60,30 +62,32 @@ pub fn draw_item(ui: &mut egui::Ui, item: &Item, source: Source, show_debug: boo
         let evasion = defences.evasion.val();
         let energy_shield = defences.energy_shield.val();
         let block_chance = defences.block_chance.val();
-        if item.quality > 0 {
-            ui.label(format!("Quality: {}%", item.quality));
-        }
-        if let Some(attack_speed) = item.attack_speed() {
-            for dg in DAMAGE_GROUPS {
-                if let Some((min, max)) = item.calc_dmg(dg.damage_type) {
-                    ui.label(format!("{} Damage: {}-{}", Into::<&str>::into(dg.damage_type), min, max));
-                }
+        if armour > 0 || evasion > 0 || energy_shield > 0 || block_chance > 0 || item.quality > 0 || item.attack_speed().is_some() {
+            if item.quality > 0 {
+                ui.label(format!("Quality: {}%", item.quality));
             }
-            ui.label(format!("Attack Speed: {:.2}", 1000.0 / attack_speed as f32));
+            if let Some(attack_speed) = item.attack_speed() {
+                for dg in DAMAGE_GROUPS {
+                    if let Some((min, max)) = item.calc_dmg(dg.damage_type) {
+                        ui.label(format!("{} Damage: {}-{}", Into::<&str>::into(dg.damage_type), min, max));
+                    }
+                }
+                ui.label(format!("Attack Speed: {:.2}", 1000.0 / attack_speed as f32));
+            }
+            if armour > 0 {
+                ui.label(format!("Armour: {armour}"));
+            }
+            if evasion > 0 {
+                ui.label(format!("Evasion: {evasion}"));
+            }
+            if energy_shield > 0 {
+                ui.label(format!("Energy Shield: {energy_shield}"));
+            }
+            if block_chance > 0 {
+                ui.label(format!("Block Chance: {block_chance}%"));
+            }
+            ui.separator();
         }
-        if armour > 0 {
-            ui.label(format!("Armour: {armour}"));
-        }
-        if evasion > 0 {
-            ui.label(format!("Evasion: {evasion}"));
-        }
-        if energy_shield > 0 {
-            ui.label(format!("Energy Shield: {energy_shield}"));
-        }
-        if block_chance > 0 {
-            ui.label(format!("Block Chance: {block_chance}%"));
-        }
-        ui.separator();
         //ui.spacing_mut().item_spacing = item_spacing;
         if !item.mods_enchant.is_empty() {
             for stat in &item.mods_enchant {

@@ -1,5 +1,5 @@
-use lightning_model::{build::Slot, item::Item};
-use crate::gui::{utils::{draw_item_window, rarity_to_color}, State};
+use lightning_model::{build::Slot, item::Item, modifier::Source};
+use crate::gui::{State, utils::{draw_item, draw_item_window, rarity_to_color}};
 
 const SLOTS: [Slot; 10] = [
     Slot::Weapon,
@@ -16,15 +16,23 @@ const SLOTS: [Slot; 10] = [
 
 #[derive(Default)]
 pub struct ItemsPanelState {
-    pub selected_item: Option<usize>,
+    pub custom_text: String,
+    pub editing_item_idx: Option<usize>,
+    pub editing_item: Option<Item>,
+    pub can_save: bool,
 }
 
 fn item_to_richtext(item: &Item) -> egui::RichText {
-    egui::RichText::new(&item.name).color(rarity_to_color(item.rarity))
+    let text = if !item.name.is_empty() {
+        format!("{}, {}", item.name, item.data().name)
+    } else {
+        item.data().name.to_owned()
+    };
+    egui::RichText::new(text).color(rarity_to_color(item.rarity))
 }
 
 // TODO: DPI Aware
-const COMBO_WIDTH: f32 = 200.0;
+const COMBO_WIDTH: f32 = 300.0;
 
 fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<Option<usize>> {
     let mut ret = None;
@@ -76,7 +84,7 @@ fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<O
 pub fn draw(ctx: &egui::Context, state: &mut State) {
     egui::CentralPanel::default()
         .show(ctx, |ui| {
-           ui.columns(2, |uis| {
+           ui.columns(3, |uis| {
                 egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(&mut uis[0] /*ui*/, |ui| {
                     for slot in SLOTS {
                         draw_item_combo(ui, state, slot);
@@ -87,12 +95,60 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 });
                 egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(&mut uis[1] /*ui*/, |ui| {
                     egui::ScrollArea::vertical().show(ui, |ui| {
-                        for item in &state.build.inventory {
-                            if ui.selectable_label(false, item_to_richtext(item)).hovered() {
+                        for (i, item) in state.build.inventory.iter().enumerate() {
+                            let response = ui.selectable_label(state.panel_items.editing_item_idx == Some(i), item_to_richtext(item));
+                            if response.hovered() {
                                 draw_item_window(ui, item, [state.mouse_pos.0 + 15.0, state.mouse_pos.1 + 15.0], state.config.show_debug);
+                            }
+                            if response.clicked() {
+                                state.panel_items.editing_item_idx = Some(i);
+                                state.panel_items.custom_text = item.to_str();
+                                state.panel_items.editing_item = Some(item.clone());
                             }
                         }
                     });
+                });
+                egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(&mut uis[2] /*ui*/, |ui| {
+                    ui.horizontal(|ui| {
+                        if ui.button("Clear").clicked() {
+                            state.panel_items.editing_item_idx = None;
+                            state.panel_items.editing_item = None;
+                            state.panel_items.can_save = false;
+                            state.panel_items.custom_text.clear();
+                        }
+                        if ui.add_enabled(state.panel_items.can_save, egui::Button::new("Save")).clicked() {
+                            state.panel_items.can_save = false;
+                            state.request_recalc = true;
+                            state.build.inventory[state.panel_items.editing_item_idx.unwrap()] = state.panel_items.editing_item.as_ref().unwrap().to_owned();
+                        }
+                        if ui.add_enabled(state.panel_items.editing_item_idx.is_some(), egui::Button::new("Delete")).clicked() {
+                            state.build.remove_inventory(state.panel_items.editing_item_idx.unwrap());
+                            state.panel_items.can_save = false;
+                            state.panel_items.custom_text.clear();
+                            state.panel_items.editing_item_idx = None;
+                            state.panel_items.editing_item = None;
+                            state.request_recalc = true;
+                        }
+                        if ui.add_enabled(state.panel_items.editing_item.is_some() && state.panel_items.editing_item_idx.is_none(), egui::Button::new("Add to Build")).clicked() {
+                            state.build.inventory.push(state.panel_items.editing_item.as_ref().unwrap().to_owned());
+                            state.panel_items.editing_item_idx = Some(state.build.inventory.len() - 1);
+                        }
+                    });
+                    egui::ScrollArea::vertical().id_salt("custom_item").max_height(400.0).show(ui, |ui| {
+                        let response = egui::TextEdit::multiline(&mut state.panel_items.custom_text).desired_width(f32::INFINITY).show(ui).response;
+                        if response.changed() {
+                            state.panel_items.editing_item = Item::from_str(&state.panel_items.custom_text);
+                            if state.panel_items.editing_item.is_some() && state.panel_items.editing_item_idx.is_some() {
+                                state.panel_items.can_save = true;
+                            } else {
+                                state.panel_items.can_save = false;
+                            }
+                        }
+                    });
+                    if let Some(item) = state.panel_items.editing_item.as_ref() {
+                        ui.separator();
+                        draw_item(ui, item, Source::Innate, state.config.show_debug);
+                    }
                 });
             });
         });

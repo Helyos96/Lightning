@@ -56,7 +56,7 @@ impl ItemClass {
         use ItemClass::*;
         match self {
             TwoHandSword|TwoHandAxe|TwoHandMace|Warstaff|Staff|Bow => &[Slot::Weapon],
-            OneHandAxe|OneHandMace|OneHandSword|RuneDagger|Sceptre|ThrustingOneHandSword => &[Slot::Weapon, Slot::Offhand],
+            OneHandAxe|OneHandMace|OneHandSword|RuneDagger|Sceptre|ThrustingOneHandSword|Wand => &[Slot::Weapon, Slot::Offhand],
             Quiver|Shield => &[Slot::Offhand],
             Helmet => &[Slot::Helm],
             Amulet => &[Slot::Amulet],
@@ -90,12 +90,21 @@ pub struct Properties {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Requirements {
+    pub level: u32,
+    pub strength: u32,
+    pub dexterity: u32,
+    pub intelligence: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BaseItem {
-    name: String,
+    pub name: String,
     pub tags: FxHashSet<String>,
     implicits: Vec<String>,
     pub item_class: ItemClass,
     pub properties: Properties,
+    pub requirements: Option<Requirements>,
 }
 
 #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
@@ -105,4 +114,17 @@ pub enum Rarity {
     Magic,
     Rare,
     Unique,
+}
+
+impl Rarity {
+    pub fn from_str(s: &str) -> Option<Rarity> {
+        use Rarity::*;
+        match s.to_lowercase().as_str() {
+            "normal" => Some(Normal),
+            "magic" => Some(Magic),
+            "rare" => Some(Rare),
+            "unique" => Some(Unique),
+            _ => None
+        }
+    }
 }

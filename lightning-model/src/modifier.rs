@@ -36,16 +36,6 @@ lazy_static! {
     };
 }
 
-const ENDINGS: &[(&str, Mutation)] = &[
-    ("per 100 maximum mana", Mutation::MultiplierStat((100, StatId::MaximumMana))),
-    ("per 5 of your lowest attribute", Mutation::MultiplierStatLowest((5, &[StatId::Strength, StatId::Dexterity, StatId::Intelligence]))),
-    ("per 2 strength", Mutation::MultiplierStat((2, StatId::Strength))),
-    ("per level", Mutation::MultiplierProperty((1, property::Int::Level))),
-    ("per frenzy charge", Mutation::MultiplierProperty((1, property::Int::FrenzyCharges))),
-    ("per power charge", Mutation::MultiplierProperty((1, property::Int::PowerCharges))),
-    ("per endurance charge", Mutation::MultiplierProperty((1, property::Int::EnduranceCharges))),
-];
-
 const ENDINGS_GEMTAGS: &[(&str, GemTag)] = &[
     ("of aura skills", GemTag::Aura),
     ("of curse skills", GemTag::Curse),
@@ -453,6 +443,17 @@ lazy_static! {
         ),
     ];
 
+    // amounts can be modified by parsing code
+    static ref ENDINGS: Vec<(Regex, Mutation)> = vec![
+        (regex!("per ([0-9]+) of your lowest attribute$"), Mutation::MultiplierStatLowest((1, &[StatId::Strength, StatId::Dexterity, StatId::Intelligence]))),
+        (regex!("per level$"), Mutation::MultiplierProperty((1, property::Int::Level))),
+        (regex!("per frenzy charge$"), Mutation::MultiplierProperty((1, property::Int::FrenzyCharges))),
+        (regex!("per power charge$"), Mutation::MultiplierProperty((1, property::Int::PowerCharges))),
+        (regex!("per endurance charge$"), Mutation::MultiplierProperty((1, property::Int::EnduranceCharges))),
+    ];
+
+    static ref ENDING_PER_GENERIC: Regex = regex!("per ([0-9]+)?%? ([a-z ]+)$");
+
     static ref ONESHOTS: FxHashMap<&'static str, Vec<Mod>> = {
         let mut map = FxHashMap::default();
         map.insert("maximum life becomes 1, immune to chaos damage", vec![
@@ -518,6 +519,16 @@ pub enum Mutation {
     MultiplierProperty((i64, property::Int)),
 }
 
+impl Mutation {
+    pub fn set_amount(&mut self, amount: i64) {
+        match self {
+            Mutation::MultiplierStat(mutation) => mutation.0 = amount,
+            Mutation::MultiplierProperty(mutation) => mutation.0 = amount,
+            Mutation::MultiplierStatLowest(mutation) => mutation.0 = amount,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum Condition {
     GreaterEqualProperty((i64, property::Int)),
@@ -566,8 +577,21 @@ impl Mod {
 
 fn parse_ending(m: &str) -> Option<(usize, Ending)> {
     for ending in ENDINGS.iter() {
-        if m.ends_with(ending.0) {
-            return Some((ending.0.len(), Ending::Mutation(ending.1)));
+        if let Some(cap) = ending.0.captures(&m) {
+            let mut mutation = ending.1;
+            if let Some(amount) = cap.get(1) {
+                mutation.set_amount(i64::from_str(amount.as_str()).unwrap());
+            }
+            return Some((cap.get_match().len(), Ending::Mutation(mutation)));
+        }
+    }
+    if let Some(cap) = ENDING_PER_GENERIC.captures(&m) {
+        if let Some(stat) = parse_stat_nomulti(cap.get(2).unwrap().as_str()) {
+            let amount = match cap.get(1) {
+                Some(amount_str) => i64::from_str(amount_str.as_str()).unwrap(),
+                None => 1,
+            };
+            return Some((cap.get_match().len(), Ending::Mutation(Mutation::MultiplierStat((amount, stat.0)))));
         }
     }
     for ending in ENDINGS_GEMTAGS.iter() {

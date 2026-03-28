@@ -29,6 +29,10 @@ opt-level = 3
 opt-level = 3
 [profile.dev.package.egui_extras]
 opt-level = 3
+[profile.dev.package.regex]
+opt-level = 3
+[profile.dev.package.bincode]
+opt-level = 3
 
 [workspace.lints.clippy]
 collapsible_if = "allow"
