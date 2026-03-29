@@ -3,7 +3,7 @@ use crate::build::{property, Slot};
 use crate::data::base_item::ItemClass;
 use crate::data::gem::GemTag;
 use crate::gem::Gem;
-use crate::data::{ActiveSkillTypes, TREE};
+use crate::data::TREE;
 use crate::item::{self, Item};
 use crate::stackvec::StackVec;
 use enumflags2::{make_bitflags as flags, BitFlags};
@@ -396,10 +396,15 @@ lazy_static! {
                 }])
             })
         ), (
-            regex!(r"^regenerate ([0-9.]+)% of life per second$"),
+            regex!(r"^regenerate ([0-9.]+)% of (life|mana) per second$"),
             Box::new(|c| {
+                let stat = if &c[2] == "life" {
+                    StatId::LifeRegenerationPct
+                } else {
+                    StatId::ManaRegenerationPct
+                };
                 Some(vec![Mod {
-                    stat: StatId::LifeRegenerationPct,
+                    stat,
                     typ: Type::Base,
                     amount: parse_val100(&c[1])?,
                     ..Default::default()

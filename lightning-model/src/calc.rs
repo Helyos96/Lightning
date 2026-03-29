@@ -127,7 +127,9 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
     let mut mods = build.calc_mods(true);
     mods.extend(active_gem.calc_mods());
     for support_gem in support_gems {
-        mods.extend(support_gem.calc_mods());
+        if support_gem.can_support(active_gem) {
+            mods.extend(support_gem.calc_mods());
+        }
     }
 
     let stats = build.calc_stats(&mods, tags);

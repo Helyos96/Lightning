@@ -1,7 +1,7 @@
 use crate::build::stat::StatId;
 use crate::data::gem::GemData;
 use crate::data::{DamageType, GEMS};
-use crate::gemstats::GEMSTATS;
+use crate::gemstats;
 use crate::modifier::{Mod, Source, Type};
 use crate::{item, util};
 use crate::data;
@@ -22,16 +22,33 @@ impl Gem {
         &GEMS[&self.id]
     }
 
+    pub fn can_support(&self, active_gem: &Gem) -> bool {
+        if let Some(active_skill) = active_gem.data().active_skill.as_ref() &&
+           let Some(support_gem) = self.data().support_gem.as_ref() &&
+           let Some(excluded_types) = support_gem.excluded_types.as_ref() &&
+           let Some(allowed_types) = support_gem.allowed_types.as_ref() {
+            if !excluded_types.is_disjoint(&active_skill.types) {
+                return false;
+            }
+            if !allowed_types.is_empty() &&
+                allowed_types.is_disjoint(&active_skill.types) {
+                return false;
+            }
+        }
+        true
+    }
+
     pub fn calc_mods(&self) -> Vec<Mod> {
         let mut mods = vec![];
 
         if let Some(stats) = &self.data().r#static.stats {
             for gem_stat in stats.iter().flatten() {
                 if let Some(id) = &gem_stat.id {
-                    if let Some(stat_mods) = GEMSTATS.get(id.as_str()) {
-                        for m in stat_mods {
-                            let mut modifier = m.to_owned();
-                            modifier.amount = self.stat_value(id).unwrap_or(0);
+                    if let Some(modifiers) = gemstats::match_gemstat(id) {
+                        for mut modifier in modifiers {
+                            if modifier.amount == 0 {
+                                modifier.amount = self.stat_value(id).unwrap_or(0);
+                            }
                             modifier.source = Source::Gem;
                             mods.push(modifier);
                         }
@@ -44,10 +61,11 @@ impl Gem {
 
         for quality_stat in &self.data().r#static.quality_stats {
             for (stat_name, val) in &quality_stat.stats {
-                if let Some(stat_mods) = GEMSTATS.get(stat_name.as_str()) {
-                    for m in stat_mods {
-                        let mut modifier = m.to_owned();
-                        modifier.amount = (*val as i64 * self.qual as i64) / 1000;
+                if let Some(modifiers) = gemstats::match_gemstat(stat_name) {
+                    for mut modifier in modifiers {
+                        if modifier.amount == 0 {
+                            modifier.amount = (*val as i64 * self.qual as i64) / 1000;
+                        }
                         modifier.source = Source::Gem;
                         mods.push(modifier);
                     }
@@ -79,9 +97,8 @@ impl Gem {
     /// otherwise static value, otherwise None
     /// todo: add quality value if present.
     pub fn stat_value(&self, id: &str) -> Option<i64> {
-        let value_level = self.stat_value_level(id);
-        if value_level.is_some() {
-            return value_level;
+        if let Some(value_level) = self.stat_value_level(id) {
+            return Some(value_level);
         }
 
         if let Some(stats) = &self.data().r#static.stats {

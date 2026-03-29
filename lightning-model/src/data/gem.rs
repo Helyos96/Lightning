@@ -1,7 +1,7 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
-use enumflags2::bitflags;
-use super::{base_item::ItemClass, ActiveSkillTypes};
+use enumflags2::{BitFlags, bitflags};
+use super::base_item::ItemClass;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ActiveSkill {
@@ -10,7 +10,8 @@ pub struct ActiveSkill {
     id: String,
     stat_conversions: Option<FxHashMap<String, String>>,
     pub weapon_restrictions: FxHashSet<ItemClass>,
-    types: Option<Vec<String>>,
+    #[serde(default)]
+    pub types: FxHashSet<ActiveSkillType>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -105,6 +106,135 @@ impl Static {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq)]
+pub enum ActiveSkillType {
+    AND,
+    AppliesCurse,
+    AppliesMaim,
+    Arcane,
+    Area,
+    AreaSpell,
+    Attack,
+    AttackInPlaceIsDefault,
+    Aura,
+    AuraAffectsEnemies,
+    AuraDuration,
+    AuraNotOnCaster,
+    Banner,
+    Blessing,
+    Blink,
+    Brand,
+    Buff,
+    CanHaveBlessing,
+    CanRapidFire,
+    Cascadable,
+    CausesBurning,
+    Chains,
+    Channel,
+    Chaos,
+    ChillingArea,
+    Cold,
+    Cooldown,
+    CreatesMinion,
+    CreatesSentinelMinion,
+    Damage,
+    DamageOverTime,
+    DegenOnlySpellDamage,
+    DestroysCorpse,
+    DisallowTriggerSupports,
+    DualWieldOnly,
+    DualWieldRequiresDifferentTypes,
+    Duration,
+    DynamicCooldown,
+    ElementalStatus,
+    Fire,
+    FixedCastTime,
+    FixedSpeedProjectile,
+    GainsIntensity,
+    Golem,
+    Guard,
+    HasReservation,
+    Herald,
+    Hex,
+    InbuiltTrigger,
+    InnateTrauma,
+    Instant,
+    InstantNoRepeatWhenHeld,
+    InstantShiftAttackForLeftMouse,
+    KillNoDamageModifiers,
+    LateConsumeCooldown,
+    Lightning,
+    Link,
+    Mark,
+    Melee,
+    MeleeSingleTarget,
+    Mineable,
+    Minion,
+    MinionsAreUndamagable,
+    MinionsCanExplode,
+    MinionsPersistWhenSkillRemoved,
+    MirageArcherCanUse,
+    Movement,
+    Multicastable,
+    Multistrikeable,
+    NOT,
+    NeverExertable,
+    NoRuthless,
+    NoVolley,
+    NonHitChill,
+    NonRepeatable,
+    Nova,
+    OR,
+    Offering,
+    Orb,
+    OtherThingUsesSkill,
+    Physical,
+    PreventHexTransfer,
+    Projectile,
+    ProjectileCannotReturn,
+    ProjectileNumber,
+    ProjectileSpeed,
+    ProjectileSpiral,
+    ProjectilesFromUser,
+    ProjectilesNotFromUser,
+    ProjectilesNumberModifiersNotApplied,
+    Rain,
+    RandomElement,
+    RangedAttack,
+    RemoteMined,
+    RequiresOffHandNotWeapon,
+    RequiresShield,
+    ReservationBecomesCost,
+    Retaliation,
+    SingleMainProjectile,
+    SkillGrantedBySupport,
+    Slam,
+    Spell,
+    Stance,
+    Steel,
+    SummonsTotem,
+    SupportedByBane,
+    ThresholdJewelArea,
+    ThresholdJewelChaining,
+    ThresholdJewelDuration,
+    ThresholdJewelProjectile,
+    ThresholdJewelRangedAttack,
+    ThresholdJewelSpellDamage,
+    TotemCastsAlone,
+    TotemCastsWhenNotDetached,
+    Totemable,
+    TotemsAreBallistae,
+    Trappable,
+    Trapped,
+    Travel,
+    Triggerable,
+    Triggered,
+    Vaal,
+    WandAttack,
+    Warcry,
+    ZeroReservation,
+}
+
 #[bitflags]
 #[repr(u64)]
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq)]
@@ -167,6 +297,14 @@ pub enum GemTag {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct SupportGemData {
+    #[serde(default)]
+    pub allowed_types: Option<FxHashSet<ActiveSkillType>>,
+    #[serde(default)]
+    pub excluded_types: Option<FxHashSet<ActiveSkillType>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GemData {
     pub active_skill: Option<ActiveSkill>,
     pub base_item: BaseItem,
@@ -179,7 +317,7 @@ pub struct GemData {
     #[serde(default)]
     pub weapon_restrictions: FxHashSet<ItemClass>,
     #[serde(default)]
-    pub types: FxHashSet<ActiveSkillTypes>,
+    pub support_gem: Option<SupportGemData>,
 }
 
 impl GemData {

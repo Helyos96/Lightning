@@ -76,7 +76,9 @@ fn draw_skill_dropdown(ui: &mut egui::Ui, panel_skills: &mut SkillsPanelState, s
                                 ui.label(gem_name);
                             });
                             row.col(|ui| {
-                                if dps != 0 {
+                                if dps > 0 {
+                                    ui.label(format!("DPS: +{}", dps.separate_with_commas()));
+                                } else if dps < 0 {
                                     ui.label(format!("DPS: {}", dps.separate_with_commas()));
                                 }
                             });

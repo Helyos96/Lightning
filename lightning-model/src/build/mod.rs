@@ -288,7 +288,7 @@ impl Build {
             Mod {
                 stat: StatId::MaximumMana,
                 typ: Type::Base,
-                amount: 40,
+                amount: 34,
                 ..Default::default()
             },
             Mod {
