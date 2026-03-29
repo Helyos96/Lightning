@@ -91,13 +91,44 @@ fn draw_hover_window(ctx: &egui::Context, state: &mut State) {
                     }
                 }
             }
-            if !state.delta_compare.is_empty() {
+            if !state.delta_compare.is_empty() || !state.delta_compare_single.is_empty() {
                 ui.separator();
                 item_spacing.y -= 5.0;
                 ui.spacing_mut().item_spacing = item_spacing;
-                for (k, v) in &state.delta_compare {
-                    ui.label(format!("{}: {:+}", k, v));
-                }
+
+                egui::Grid::new("delta_grid")
+                    .num_columns(3)
+                    .spacing([20.0, 4.0])
+                    .show(ui, |ui| {
+                        ui.label(egui::RichText::new("Stat").strong());
+                        ui.label(egui::RichText::new("This node").strong());
+                        ui.label(egui::RichText::new("All nodes").strong());
+                        ui.end_row();
+
+                        let mut keys: Vec<&'static str> = state.delta_compare.keys().chain(state.delta_compare_single.keys()).copied().collect();
+                        keys.sort_unstable();
+                        keys.dedup();
+
+                        for k in keys {
+                            ui.label(k);
+
+                            let single = state.delta_compare_single.get(k).unwrap_or(&0);
+                            if *single != 0 {
+                                ui.label(format!("{single:+}"));
+                            } else {
+                                ui.label("-");
+                            }
+
+                            let all = state.delta_compare.get(k).unwrap_or(&0);
+                            if *all != 0 {
+                                ui.label(format!("{all:+}"));
+                            } else {
+                                ui.label("-");
+                            }
+
+                            ui.end_row();
+                        }
+                    });
             }
         });
 }

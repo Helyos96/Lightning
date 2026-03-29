@@ -415,6 +415,16 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                             let mut build_compare = state.build.clone();
                                             build_compare.tree.flip_node(node.skill);
                                             state.delta_compare = state.compare(&build_compare);
+
+                                            let mut build_compare_single = state.build.clone();
+                                            if build_compare_single.tree.nodes.contains(&node.skill) {
+                                                build_compare_single.tree.nodes.retain(|&x| x != node.skill);
+                                                build_compare_single.tree.masteries.remove(&node.skill);
+                                            } else {
+                                                build_compare_single.tree.nodes.push(node.skill);
+                                            }
+                                            state.delta_compare_single = state.compare(&build_compare_single);
+
                                             if !state.build.tree.nodes.contains(&node.skill) {
                                                 state.path_hovered = state.build.tree.find_path(node.skill);
                                                 state.path_red = None;
@@ -426,6 +436,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                             state.path_red = None;
                                             state.path_hovered = None;
                                             state.delta_compare.clear();
+                                            state.delta_compare_single.clear();
                                             state.build_compare = None;
                                         }
                                         state.request_regen = true;
