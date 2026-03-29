@@ -317,8 +317,18 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                             ..
                         } => {
                             if state.ui_state == UiState::Main(MainState::Tree) && gui::is_over_tree(&state.mouse_pos) {
+                                let old_zoom = state.zoom;
                                 state.zoom_tmp = (state.zoom_tmp + v).clamp(1.0, 10.0);
                                 state.zoom = state.zoom_tmp.round();
+
+                                let aspect_ratio = state.dimensions.0 as f32 / state.dimensions.1 as f32;
+                                let ndc_x = (state.mouse_pos.0 / state.dimensions.0 as f32) * 2.0 - 1.0;
+                                let ndc_y = 1.0 - (state.mouse_pos.1 / state.dimensions.1 as f32) * 2.0;
+                                let s_x = ndc_x * 12500.0 * aspect_ratio;
+                                let s_y = ndc_y * 12500.0;
+                                state.tree_translate.0 += s_x * (1.0 / state.zoom - 1.0 / old_zoom);
+                                state.tree_translate.1 += s_y * (1.0 / state.zoom - 1.0 / old_zoom);
+
                                 window.request_redraw();
                             }
                         }
@@ -395,7 +405,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                     state.mouse_tree_drag = Some(state.mouse_pos);
                                     state.hovered_node = None;
                                     window.request_redraw();
-                                } else if gui::is_over_tree(&state.mouse_pos) {
+                                } else if !egui_glow.egui_ctx.is_pointer_over_area() && gui::is_over_tree(&state.mouse_pos) {
                                     let (x, y) = to_tree_coords((x, y), state.dimensions, state.tree_translate, state.zoom);
 
                                     let hovered_node = tree_gl::hover::get_hovered_node(x, y);

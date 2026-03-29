@@ -308,7 +308,7 @@ impl TreeGl {
         self.draw_data
             .insert("class_start".to_string(), GlDrawData::new(gl, &class_start_gl(build.tree.class)));
         if let Some(path) = path_hovered {
-            let data = connectors_gl(path, &TREE.sprites["line"].coords["LineConnectorActive"], 8.0);
+            let data = connectors_gl(path, &TREE.sprites["line"].coords["LineConnectorActive"], 10.0);
             self.draw_data
                 .insert("connectors_hovered".to_string(), GlDrawData::new(gl, &data));
         }

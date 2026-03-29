@@ -4,16 +4,51 @@ use lightning_model::data::tree::NodeType;
 use lightning_model::modifier::Source;
 use lightning_model::build::Slot;
 
+fn is_mouse_left_area(state: &State) -> bool {
+    let tree_three_quarters = ((state.dimensions.0 as f32 - super::panel::left::WIDTH) * 0.75) + super::panel::left::WIDTH;
+    if state.mouse_pos.0 <= tree_three_quarters {
+        return true;
+    }
+    false
+}
+
+fn is_mouse_top_area(state: &State) -> bool {
+    let tree_center = (state.dimensions.1 as f32 / 2.0) + (super::panel::top::HEIGHT / 2.0);
+    if state.mouse_pos.1 <= tree_center {
+        return true;
+    }
+    false
+}
+
+// Used to adjust where the hover window will pop depending on where the mouse is
+fn get_align(state: &State) -> (egui::Align2, (f32, f32)) {
+    let (h_align, h_margin) = if is_mouse_left_area(state) {
+        (egui::Align::Min, 15.0)
+    } else {
+        (egui::Align::Max, -15.0)
+    };
+
+    let (v_align, v_margin) = if is_mouse_top_area(state) {
+        (egui::Align::Min, 15.0)
+    } else {
+        (egui::Align::Max, -15.0)
+    };
+
+    (egui::Align2([h_align, v_align]), (h_margin, v_margin))
+}
+
 fn draw_hover_window(ctx: &egui::Context, state: &mut State) {
     let node = state.hovered_node.unwrap();
     let c = ctx.style().visuals.window_fill;
     let background_color = egui::Color32::from_rgba_premultiplied(c.r(), c.g(), c.b(), 210);
+    let (align, margin) = get_align(state);
     egui::Window::new("Hover")
         .collapsible(false)
         .movable(false)
         .title_bar(false)
         .resizable(false)
-        .fixed_pos([state.mouse_pos.0 + 15.0, state.mouse_pos.1 + 15.0])
+        .pivot(align)
+        .fixed_pos([state.mouse_pos.0 + margin.0, state.mouse_pos.1 + margin.1])
         .frame(egui::Frame::window(&ctx.style()).fill(background_color))
         .show(ctx, |ui| {
             let mut item_spacing = ui.spacing().item_spacing;

@@ -261,7 +261,7 @@ pub fn connectors_gl_inactive() -> DrawData {
             .map(|id| &TREE.nodes[id])
             .filter(|n| !n.is_ascendancy_start && !n.is_mastery && !n.is_proxy && n.class_start_index.is_none())
         {
-            build_connection(node, out, 16.0, rect, sprite, &mut dd);
+            build_connection(node, out, 18.0, rect, sprite, &mut dd);
         }
     }
     dd
