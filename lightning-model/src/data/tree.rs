@@ -1,6 +1,7 @@
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumString, IntoStaticStr, EnumIter};
+use serde_with::{serde_as, DisplayFromStr};
 
 #[derive(Default, Clone, Copy, Hash, Eq, PartialEq, Debug, Serialize, Deserialize, EnumString, AsRefStr)]
 pub enum Class {
@@ -171,6 +172,19 @@ pub enum NodeType {
     JewelSocket,
 }
 
+#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExpansionJewel {
+    size: u32,
+    index: u32,
+    #[serde_as(as = "DisplayFromStr")]
+    #[serde(default)]
+    proxy: u32,
+    #[serde_as(as = "DisplayFromStr")]
+    #[serde(default)]
+    parent: u32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Node {
@@ -204,6 +218,7 @@ pub struct Node {
     pub orbit_index: Option<u16>,
     pub out: Option<Vec<u16>>,
     pub r#in: Option<Vec<u16>>,
+    pub expansion_jewel: Option<ExpansionJewel>
 }
 
 impl PartialEq for Node {

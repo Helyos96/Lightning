@@ -147,6 +147,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 }
             );
             egui::Grid::new("grid_active_skill_calc").show(ui, |ui| {
+                draw_calc_result_row(ui, "Average Damage", state.active_skill_calc.get("Average Damage"), Format::Flat);
                 draw_calc_result_row(ui, "DPS", state.active_skill_calc.get("DPS"), Format::Flat);
                 draw_calc_result_row(ui, "Speed", state.active_skill_calc.get("Speed"), Format::Flat);
                 draw_calc_result_row(ui, "Chance to Hit (MH)", state.active_skill_calc.get("Chance to Hit (MH)"), Format::Percent);

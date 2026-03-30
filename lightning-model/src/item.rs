@@ -1,7 +1,7 @@
 use crate::build::stat::{calc_stat, Stat, StatId};
 use crate::build::Slot;
 use crate::data::base_item::{BaseItem, Rarity};
-use crate::data::{DamageType, ITEMS};
+use crate::data::{DAMAGE_GROUPS, DamageType, ITEMS};
 use crate::modifier::{self, parse_mod, Mod, Source, Type};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -100,28 +100,24 @@ impl Item {
         }
 
         let mods = self.calc_local_mods();
-
-        match dt {
-            DamageType::Physical => {
-                if let Some(min) = base_item.properties.physical_damage_min {
-                    if let Some(max) = base_item.properties.physical_damage_max {
-                        let mut min_stat = calc_stat(StatId::AddedMinPhysicalDamage, &mods);
-                        let mut max_stat = calc_stat(StatId::AddedMaxPhysicalDamage, &mods);
-                        let mut dmg = calc_stat(StatId::PhysicalDamage, &mods);
-                        min_stat.adjust(Type::Base, min);
-                        max_stat.adjust(Type::Base, max);
-                        dmg.adjust(Type::More, self.quality);
-                        min_stat.assimilate(&dmg);
-                        max_stat.assimilate(&dmg);
-                        return Some((min_stat.val(), max_stat.val()));
-                    }
-                }
-            },
-            _ => {
-                return None;
-            }
+        let group = DAMAGE_GROUPS.iter().find(|dg| dg.damage_type == dt).unwrap();
+        let mut min_stat = calc_stat(group.added_min_id, &mods);
+        let mut max_stat = calc_stat(group.added_max_id, &mods);
+        let mut dmg = calc_stat(group.stat_id, &mods);
+        if dt == DamageType::Physical &&
+           let Some(min) = base_item.properties.physical_damage_min &&
+           let Some(max) = base_item.properties.physical_damage_max {
+            min_stat.adjust(Type::Base, min);
+            max_stat.adjust(Type::Base, max);
+            dmg.adjust(Type::More, self.quality);
         }
+        min_stat.assimilate(&dmg);
+        max_stat.assimilate(&dmg);
+        let ret = (min_stat.val(), max_stat.val());
 
+        if ret != (0, 0) {
+            return Some(ret);
+        }
         None
     }
 
@@ -228,6 +224,7 @@ impl Item {
         let lines: Vec<&str> = text.lines().map(str::trim).filter(|l| !l.is_empty() && l != &"--------").collect();
 
         for line in lines {
+            let line = line.strip_suffix(" (augmented)").unwrap_or(line);
             if let Some(rarity) = line.strip_prefix("Rarity: ") {
                 item.rarity = Rarity::from_str(rarity).unwrap_or_default();
                 continue;
@@ -248,10 +245,18 @@ impl Item {
                 item.item_level = i64::from_str(item_level_str).unwrap_or_default();
                 continue;
             }
+            if let Some(quality_str) = line.strip_prefix("Quality: +") {
+                if let Some(quality_str) = quality_str.strip_suffix("%") {
+                    item.quality = i64::from_str(quality_str).unwrap_or_default();
+                }
+                continue;
+            }
             if line == "Requirements:" || line.starts_with("Level:") || line.starts_with("Str:") ||
                line.starts_with("Dex:") || line.starts_with("Int:") || line.starts_with("Sockets:") ||
                line.starts_with("Note:") || line.starts_with("Item Class:") || line.starts_with("Armour:") ||
-               line.starts_with("Energy Shield:") || line.starts_with("Evasion Rating:") {
+               line.starts_with("Energy Shield:") || line.starts_with("Evasion Rating:") || line.starts_with("Physical Damage:") ||
+               line.starts_with("Elemental Damage:") || line.starts_with("Attacks per Second:")  ||
+               line.starts_with("Critical Strike Chance:") || line.starts_with("Weapon Range:") {
                 continue;
             }
             if let Some(enchant) = line.strip_suffix(" (enchant)") {
@@ -267,6 +272,7 @@ impl Item {
                 found_name = true;
                 continue;
             }
+            let line = line.strip_suffix(" (crafted)").unwrap_or(line);
             item.mods_expl.push(line.to_owned());
         }
 

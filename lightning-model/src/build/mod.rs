@@ -37,6 +37,16 @@ pub enum Slot {
     TreeJewel(u16), // u16 -> Tree node holding the jewel
 }
 
+impl Slot {
+    pub fn compatible(&self, other: Slot) -> bool {
+        match (self, other) {
+            (Slot::Flask(_), Slot::Flask(_)) => true,
+            (Slot::TreeJewel(_), Slot::TreeJewel(_)) => true,
+            _ => self == &other,
+        }
+    }
+}
+
 impl TryFrom<(&str, u16)> for Slot {
     type Error = ();
 

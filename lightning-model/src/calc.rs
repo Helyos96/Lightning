@@ -230,6 +230,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
             }
             if div > 0 {
                 time /= div;
+                time += stats.stat(StatId::AddedAttackTime).val();
                 stats.stat(StatId::AttackSpeed).val_custom_inv(time)
             } else {
                 0
@@ -239,10 +240,11 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
         }
     };
 
-    let total_damage: i64 = damage.iter().sum();
+    let average_damage: i64 = damage.iter().sum();
+    ret.insert("Average Damage", average_damage);
 
     if time != 0 {
-        let dps = (total_damage * 1000) / time;
+        let dps = (average_damage * 1000) / time;
         ret.insert("DPS", dps);
         ret.insert("Speed", time);
     }
@@ -254,8 +256,8 @@ pub fn calc_defence(build: &Build) -> FxHashMap<&'static str, i64> {
     let mods = build.calc_mods(true);
     let stats = build.calc_stats(&mods, BitFlags::empty());
 
-    let max_life = stats.stat(StatId::MaximumLife).val_rounded_up();
-    let max_mana = stats.stat(StatId::MaximumMana).val_rounded_up();
+    let max_life = stats.stat(StatId::MaximumLife).val_ceil();
+    let max_mana = stats.stat(StatId::MaximumMana).val_ceil();
     ret.insert("Maximum Life", max_life);
     ret.insert("Maximum Mana", max_mana);
     ret.insert("Fire Resistance", stats.val(StatId::FireResistance));

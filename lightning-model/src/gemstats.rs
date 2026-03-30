@@ -103,6 +103,9 @@ lazy_static! {
         ("shock_as_though_damage", vec![
             Mod { stat: StatId::ShockAsThoughDamage, ..Default::default() },
         ]),
+        ("additional_weapon_base_attack_time_ms", vec![
+            Mod { stat: StatId::AddedAttackTime, ..Default::default() },
+        ]),
         ("damage", vec![
             Mod { stat: StatId::Damage, ..Default::default() },
         ]),

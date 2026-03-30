@@ -1,7 +1,7 @@
 use lightning_model::{build::Slot, item::Item, modifier::Source};
 use crate::gui::{State, utils::{draw_item, draw_item_window, rarity_to_color}};
 
-const SLOTS: [Slot; 10] = [
+const SLOTS: [Slot; 15] = [
     Slot::Weapon,
     Slot::Offhand,
     Slot::Helm,
@@ -12,6 +12,11 @@ const SLOTS: [Slot; 10] = [
     Slot::Belt,
     Slot::Ring,
     Slot::Ring2,
+    Slot::Flask(0),
+    Slot::Flask(1),
+    Slot::Flask(2),
+    Slot::Flask(3),
+    Slot::Flask(4),
 ];
 
 #[derive(Default)]
@@ -20,6 +25,7 @@ pub struct ItemsPanelState {
     pub editing_item_idx: Option<usize>,
     pub editing_item: Option<Item>,
     pub can_save: bool,
+    pub flask_enabled: [bool; 5],
 }
 
 fn item_to_richtext(item: &Item) -> egui::RichText {
@@ -31,7 +37,6 @@ fn item_to_richtext(item: &Item) -> egui::RichText {
     egui::RichText::new(text).color(rarity_to_color(item.rarity))
 }
 
-// TODO: DPI Aware
 const COMBO_WIDTH: f32 = 300.0;
 
 fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<Option<usize>> {
@@ -42,6 +47,29 @@ fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<O
         None => egui::RichText::new("<No Item>"),
     };
     let mut item_hover = None;
+
+    let label_text = match slot {
+        Slot::Weapon => "Weapon".to_string(),
+        Slot::Offhand => "Offhand".to_string(),
+        Slot::Helm => "Helmet".to_string(),
+        Slot::Amulet => "Amulet".to_string(),
+        Slot::BodyArmour => "Body Armour".to_string(),
+        Slot::Gloves => "Gloves".to_string(),
+        Slot::Boots => "Boots".to_string(),
+        Slot::Belt => "Belt".to_string(),
+        Slot::Ring => "Ring 1".to_string(),
+        Slot::Ring2 => "Ring 2".to_string(),
+        Slot::Flask(i) => format!("Flask {}", i + 1),
+        Slot::TreeJewel(i) => format!("Jewel {}", i),
+    };
+
+    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+        if let Slot::Flask(flask_idx) = slot {
+            ui.checkbox(&mut state.panel_items.flask_enabled[flask_idx as usize], "");
+        }
+        ui.label(egui::RichText::new(label_text).strong());
+    });
+
     let response = egui::ComboBox::from_id_salt(format!("item_choice_{:?}", slot))
         .width(COMBO_WIDTH)
         .selected_text(selected_text)
@@ -50,7 +78,7 @@ fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<O
             if ui.selectable_label(false, "<No Item>").clicked() && idx.is_some() {
                 ret = Some(None);
             }
-            for (i, item) in state.build.inventory.iter().enumerate().filter(|(_, it)| it.data().item_class.allowed_slots().contains(&slot)) {
+            for (i, item) in state.build.inventory.iter().enumerate().filter(|(_, it)| it.data().item_class.allowed_slots().iter().any(|&s| s.compatible(slot))) {
                 let response = ui.selectable_label(idx.is_some() && *idx.unwrap() == i, item_to_richtext(item));
                 if response.clicked() {
                     ret = Some(Some(i));
@@ -78,6 +106,8 @@ fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<O
         None => {},
     }
 
+    ui.end_row();
+
     None
 }
 
@@ -86,12 +116,18 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
         .show(ctx, |ui| {
            ui.columns(3, |uis| {
                 egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(&mut uis[0] /*ui*/, |ui| {
-                    for slot in SLOTS {
-                        draw_item_combo(ui, state, slot);
-                    }
-                    for jewel_node in state.build.tree.jewel_slots() {
-                        draw_item_combo(ui, state, Slot::TreeJewel(jewel_node));
-                    }
+                    egui::Grid::new("slots_grid")
+                        .num_columns(2)
+                        .spacing([10.0, 4.0])
+                        .show(ui, |ui| {
+                            for slot in SLOTS {
+                                draw_item_combo(ui, state, slot);
+                            }
+                            let jewel_slots = state.build.tree.jewel_slots();
+                            for jewel_node in jewel_slots {
+                                draw_item_combo(ui, state, Slot::TreeJewel(jewel_node));
+                            }
+                        });
                 });
                 egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(&mut uis[1] /*ui*/, |ui| {
                     egui::ScrollArea::vertical().show(ui, |ui| {

@@ -122,6 +122,7 @@ pub enum StatId {
     ChanceToDealDoubleDamage,
     PhysicalDamageReduction,
     ShockAsThoughDamage,
+    AddedAttackTime,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -232,8 +233,14 @@ impl Stat {
         self.val100() / 100
     }
 
-    pub fn val_rounded_up(&self) -> i64 {
-        (self.val100() as f64 / 100.0).ceil() as i64
+    /// Rounds the value up (ceiling)
+    pub fn val_ceil(&self) -> i64 {
+        (self.val100() + 99) / 100
+    }
+
+    /// Rounds the value up or down depending on remainder (0.50)
+    pub fn val_rounded(&self) -> i64 {
+        (self.val100() + 50) / 100
     }
 
     pub fn assimilate(&mut self, stat: &Stat) {
