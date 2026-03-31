@@ -69,49 +69,6 @@ struct GroupImport {
     orbits: Vec<u16>
 }
 
-/*#[serde_as]
-#[derive(Deserialize)]
-pub struct ExpansionJewel {
-    size: u32,
-    index: u32,
-    #[serde_as(as = "DisplayFromStr")]
-    #[serde(default)]
-    proxy: u16,
-    #[serde_as(as = "DisplayFromStr")]
-    #[serde(default)]
-    parent: u16,
-}*/
-
-// Can't really reuse tree::Node because the group field is sometimes not an integer
-// and most u16s are stringified (though this one can be fixed with serde_as)
-#[serde_as]
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct NodeImport {
-    #[serde_as(as = "DisplayFromStr")]
-    skill: u16,
-    expansion_jewel: Option<ExpansionJewel>,
-    group: String,
-    orbit: u16,
-    orbit_index: u16,
-    #[serde_as(as = "Vec<DisplayFromStr>")]
-    out: Vec<u16>,
-    #[serde_as(as = "Vec<DisplayFromStr>")]
-    r#in: Vec<u16>,
-}
-
-#[derive(Deserialize)]
-struct Subgraph {
-    groups: FxHashMap<String, GroupImport>,
-    nodes: FxHashMap<String, NodeImport>,
-}
-
-#[derive(Deserialize)]
-struct JewelData {
-    r#type: String,
-    subgraph: Option<Subgraph>,
-}
-
 #[derive(Deserialize)]
 struct PassiveTree {
     hashes: Vec<u16>,
@@ -120,7 +77,6 @@ struct PassiveTree {
     #[serde(default)]
     mastery_effects: FxHashMap<String, u32>,
     alternate_ascendancy: Option<i32>,
-    jewel_data: Option<FxHashMap<String, JewelData>>,
 }
 
 impl Item {
