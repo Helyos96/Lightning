@@ -445,6 +445,16 @@ lazy_static! {
                     ..Default::default()
                 }])
             })
+        ), (
+            regex!(r"^adds ([0-9]+) passive skills$"),
+            Box::new(|c| {
+                Some(vec![Mod {
+                    stat: StatId::AllocatesPassiveSkills,
+                    typ: Type::Base,
+                    amount: i64::from_str(&c[1]).unwrap(),
+                    ..Default::default()
+                }])
+            })
         ),
     ];
 

@@ -195,6 +195,7 @@ impl State {
 
     pub fn recalc(&mut self) {
         self.can_save = true;
+        self.build.update_item_allocations();
         let mods = self.build.calc_mods(true);
         let stats = self.build.calc_stats(&mods, BitFlags::empty());
         self.passives_count = self.build.tree.passives_count();

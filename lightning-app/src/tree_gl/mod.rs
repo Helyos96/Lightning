@@ -292,7 +292,7 @@ impl TreeGl {
         }
 
         let last_node = path_hovered.as_ref().map(|path| path.first().unwrap());
-        let data = nodes_gl_active(&build.tree.nodes, last_node);
+        let data = nodes_gl_active(&build.tree.nodes.iter().chain(&build.tree.nodes_additional).copied().collect::<Vec<_>>(), last_node);
         self.draw_data
             .insert("nodes_active".to_string(), GlDrawData::new(gl, &data[0]));
         self.draw_data

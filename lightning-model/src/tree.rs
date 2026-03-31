@@ -17,7 +17,9 @@ pub struct PassiveTree {
     pub ascendancy: Option<Ascendancy>,
     pub bloodline: Option<Ascendancy>,
     pub nodes: Vec<u16>,
-    pub nodes_ex: Vec<u16>,
+    // Additional nodes come mostly from "Allocates <xxx>" mods
+    #[serde(skip)]
+    pub nodes_additional: Vec<u16>,
     pub masteries: FxHashMap<u16, u16>,
 }
 
@@ -28,7 +30,7 @@ impl Default for PassiveTree {
             ascendancy: None,
             bloodline: None,
             nodes: Default::default(),
-            nodes_ex: Default::default(),
+            nodes_additional: Default::default(),
             masteries: Default::default(),
         };
         pt.nodes.push(get_class_node(pt.class));
@@ -258,7 +260,8 @@ impl PassiveTree {
     pub fn calc_mods(&self) -> Vec<Mod> {
         let mut mods = Vec::with_capacity(300);
 
-        for node_id in &self.nodes {
+        let extra_nodes = self.nodes_additional.iter().filter(|n| !self.nodes.contains(n));
+        for node_id in self.nodes.iter().chain(extra_nodes) {
             for mod_lines in &Self::data().nodes[node_id].stats {
                 for mod_str in mod_lines.split('\n') {
                     if let Some(modifiers) = parse_mod(mod_str, Source::Node(*node_id)) {

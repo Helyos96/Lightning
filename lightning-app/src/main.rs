@@ -209,12 +209,12 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                 unsafe { gl.clear_color(0.0, 0.0, 0.05, 1.0) };
                 unsafe { gl.clear(glow::COLOR_BUFFER_BIT); };
 
+                if state.request_recalc {
+                    state.recalc();
+                }
                 if state.request_regen {
                     tree_gl.regen_active(gl, &state.build, &state.path_hovered, &state.path_red, state.hovered_node);
                     state.request_regen = false;
-                }
-                if state.request_recalc {
-                    state.recalc();
                 }
 
                 match state.ui_state.clone() {

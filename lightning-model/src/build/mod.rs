@@ -253,6 +253,21 @@ impl Build {
         ret
     }
 
+    pub fn update_item_allocations(&mut self) {
+        self.tree.nodes_additional.clear();
+        for (slot, idx) in &self.equipment {
+            let item_mods = self.inventory[*idx].calc_nonlocal_mods(*slot);
+
+            for m in item_mods {
+                if let Some(n) = m.allocates {
+                    if !self.tree.nodes_additional.contains(&n) {
+                        self.tree.nodes_additional.push(n);
+                    }
+                }
+            }
+        }
+    }
+
     /// Returns mods from the following sources:
     /// Innate, Passive Tree, Items, Global Skills (Auras..)
     /// todo: add some caching to not parse & collect all mods

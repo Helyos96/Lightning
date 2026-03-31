@@ -123,6 +123,7 @@ pub enum StatId {
     PhysicalDamageReduction,
     ShockAsThoughDamage,
     AddedAttackTime,
+    AllocatesPassiveSkills,
 }
 
 #[derive(Debug, Clone, Default)]
