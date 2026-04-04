@@ -71,8 +71,8 @@ struct GroupImport {
 
 #[derive(Deserialize)]
 struct PassiveTree {
-    hashes: Vec<u16>,
-    hashes_ex: Vec<u16>,
+    hashes: Vec<u32>,
+    hashes_ex: Vec<u32>,
     items: Vec<Item>,
     #[serde(default)]
     mastery_effects: FxHashMap<String, u32>,
@@ -201,7 +201,7 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
 
     for (mastery, selected) in &tree.mastery_effects {
         if let Ok(mastery) = u32::from_str(mastery) {
-            build.tree.masteries.insert(mastery as u16, *selected as u16);
+            build.tree.masteries.insert(mastery as u32, *selected as u32);
         } else {
             eprintln!("Couldn't parse mastery effect id: {mastery}");
         }

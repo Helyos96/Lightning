@@ -5,7 +5,6 @@ use draw_data::*;
 use glow::HasContext;
 use image::{ImageReader, RgbaImage};
 use lightning_model::build::Build;
-use lightning_model::data::tree::Node;
 use lightning_model::data::TREE;
 use rustc_hash::FxHashMap;
 
@@ -229,15 +228,6 @@ impl TreeGl {
 
         self.textures = textures;
 
-        let data = nodes_gl();
-        self.draw_data
-            .insert("nodes".to_string(), GlDrawData::new(gl, &data[0]));
-        self.draw_data
-            .insert("frames".to_string(), GlDrawData::new(gl, &data[1]));
-        self.draw_data
-            .insert("masteries".to_string(), GlDrawData::new(gl, &data[2]));
-        self.draw_data
-            .insert("ascendancy_frames".to_string(), GlDrawData::new(gl, &data[3]));
         let data = group_background_gl();
         self.draw_data
             .insert("group_background".to_string(), GlDrawData::new(gl, &data));
@@ -263,7 +253,33 @@ impl TreeGl {
         self.draw_data.clear();
     }
 
-    pub fn regen_active(&mut self, gl: &glow::Context, build: &Build, path_hovered: &Option<Vec<u16>>, path_red: &Option<Vec<u16>>, hovered_node: Option<&Node>) {
+    pub fn regen_nodes(&mut self, gl: &glow::Context, build: &Build) {
+        const REDRAW: &[&str] = &[
+            "nodes",
+            "frames",
+            "masteries",
+            "ascendancy_frames"
+        ];
+
+        for &s in REDRAW {
+            if let Some(dd) = self.draw_data.get_mut(s) {
+                dd.destroy(gl);
+            }
+            self.draw_data.remove(s);
+        }
+
+        let data = nodes_gl(&build.tree.nodes_data);
+        self.draw_data
+            .insert("nodes".to_string(), GlDrawData::new(gl, &data[0]));
+        self.draw_data
+            .insert("frames".to_string(), GlDrawData::new(gl, &data[1]));
+        self.draw_data
+            .insert("masteries".to_string(), GlDrawData::new(gl, &data[2]));
+        self.draw_data
+            .insert("ascendancy_frames".to_string(), GlDrawData::new(gl, &data[3]));
+    }
+
+    pub fn regen_active(&mut self, gl: &glow::Context, build: &Build, path_hovered: &Option<Vec<u32>>, path_red: &Option<Vec<u32>>, hovered_node_id: Option<u32>) {
         const REDRAW: &[&str] = &[
             "nodes_active",
             "frames_active",
@@ -315,7 +331,7 @@ impl TreeGl {
         if let Some(path_red) = path_red {
             self.draw_data
                 .insert("connectors_red".to_string(), GlDrawData::new(gl, &connectors_gl(path_red, &TREE.sprites["line"].coords["LineConnectorActive"], 20.0)));
-            let index = path_red.iter().position(|x| *x == hovered_node.unwrap().skill).unwrap();
+            let index = path_red.iter().position(|x| *x == hovered_node_id.unwrap()).unwrap();
             let mut path_red = path_red.clone();
             path_red.remove(index);
             if !path_red.is_empty() {

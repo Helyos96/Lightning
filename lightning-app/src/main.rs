@@ -55,6 +55,7 @@ fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
             state.level = state.build.property_int(property::Int::Level);
             state.request_recalc = true;
             state.request_regen = true;
+            state.request_regen_nodes = true;
             state.reset_history();
             println!("Loaded build from {}", &path.display());
             UiState::Main(MainState::Tree)
@@ -65,6 +66,7 @@ fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
             state.level = state.build.property_int(property::Int::Level);
             state.request_recalc = true;
             state.request_regen = true;
+            state.request_regen_nodes = true;
             state.reset_history();
             println!("Fetched build: {} {}", &state.import_account, &state.import_character);
             UiState::Main(MainState::Tree)
@@ -74,6 +76,7 @@ fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
             state.level = state.build.property_int(property::Int::Level);
             state.request_recalc = true;
             state.request_regen = true;
+            state.request_regen_nodes = true;
             state.reset_history();
             UiState::Main(MainState::Tree)
         }
@@ -213,8 +216,13 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                     state.recalc();
                 }
                 if state.request_regen {
-                    tree_gl.regen_active(gl, &state.build, &state.path_hovered, &state.path_red, state.hovered_node);
+                    tree_gl.regen_active(gl, &state.build, &state.path_hovered, &state.path_red, state.hovered_node_id);
                     state.request_regen = false;
+                }
+                if state.request_regen_nodes {
+                    tree_gl.regen_nodes(gl, &state.build);
+                    state.regen_quadtree_hover();
+                    state.request_regen_nodes = false;
                 }
 
                 match state.ui_state.clone() {
@@ -352,16 +360,16 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                         window.request_redraw();
                                     }
                                 } else if button_state == ElementState::Released {
-                                    if let Some(node) = state.hovered_node {
+                                    if let Some(node_id) = state.hovered_node_id {
                                         state.build_compare = Some(state.build.clone());
-                                        state.build.tree.flip_node(node.skill);
+                                        state.build.tree.flip_node(node_id);
                                         state.snapshot();
-                                        if !state.build.tree.nodes.contains(&node.skill) {
+                                        if !state.build.tree.nodes.contains(&node_id) {
                                             state.path_red = None;
-                                            state.path_hovered = state.build.tree.find_path(node.skill);
+                                            state.path_hovered = state.build.tree.find_path(node_id);
                                         } else {
-                                            if node.is_mastery {
-                                                state.ui_state = UiState::Main(MainState::ChooseMastery(node.skill));
+                                            if state.build.tree.nodes_data.get(&node_id).unwrap().is_mastery {
+                                                state.ui_state = UiState::Main(MainState::ChooseMastery(node_id));
                                             }
                                             state.path_hovered = None;
                                         }
@@ -403,15 +411,15 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                     state.tree_translate.1 -=
                                         dy * 12500.0 / (state.dimensions.1 as f32 / 2.0) / state.zoom;
                                     state.mouse_tree_drag = Some(state.mouse_pos);
-                                    state.hovered_node = None;
+                                    state.hovered_node_id = None;
                                     window.request_redraw();
                                 } else if !egui_glow.egui_ctx.is_pointer_over_area() && gui::is_over_tree(&state.mouse_pos) {
                                     let (x, y) = to_tree_coords((x, y), state.dimensions, state.tree_translate, state.zoom);
-
-                                    let hovered_node = tree_gl::hover::get_hovered_node(x, y);
-                                    if hovered_node != state.hovered_node {
-                                        state.hovered_node = hovered_node;
-                                        if let Some(node) = hovered_node {
+                                    let hovered_node_id = state.quadtree_hover.get_hovered_node(x, y);
+                                    if hovered_node_id != state.hovered_node_id {
+                                        state.hovered_node_id = hovered_node_id;
+                                        if let Some(node_id) = state.hovered_node_id {
+                                            let node = state.build.tree.nodes_data.get(&node_id).unwrap();
                                             let mut build_compare = state.build.clone();
                                             build_compare.tree.flip_node(node.skill);
                                             state.delta_compare = state.compare(&build_compare);
@@ -442,8 +450,8 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                         state.request_regen = true;
                                         window.request_redraw();
                                     }
-                                } else if state.hovered_node.is_some() {
-                                    state.hovered_node = None;
+                                } else if state.hovered_node_id.is_some() {
+                                    state.hovered_node_id = None;
                                     state.path_red = None;
                                     state.path_hovered = None;
                                     state.build_compare = None;

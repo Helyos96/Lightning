@@ -455,6 +455,26 @@ lazy_static! {
                     ..Default::default()
                 }])
             })
+        ), (
+            regex!(r"^added small passive skills grant: (.*)$"),
+            Box::new(|c| {
+                let node_id = TREE.nodes.values().find_map(|n| {
+                    if n.group.is_some() {
+                        return None;
+                    }
+                    if n.stats.get(0)?.to_lowercase() == c[1] {
+                        Some(n.skill)
+                    } else {
+                        None
+                    }
+                })?;
+                Some(vec![Mod {
+                    stat: StatId::AddedPassiveSkillsGrantNode,
+                    typ: Type::Base,
+                    amount: node_id as i64,
+                    ..Default::default()
+                }])
+            })
         ),
     ];
 
@@ -511,6 +531,10 @@ lazy_static! {
     };
 }
 
+pub fn lol() {
+
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 pub enum Type {
     #[default]
@@ -558,8 +582,8 @@ pub enum Condition {
 pub enum Source {
     #[default]
     Innate,
-    Node(u16),
-    Mastery((u16, u16)),
+    Node(u32),
+    Mastery((u32, u32)),
     Item(Slot),
     Gem,
 }
@@ -577,7 +601,7 @@ pub struct Mod {
     pub source: Source,
     pub weapons: BitFlags<ItemClass>,
     pub global: bool,
-    pub allocates: Option<u16>,
+    pub allocates: Option<u32>,
 }
 
 impl Mod {

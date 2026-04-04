@@ -68,5 +68,19 @@ fn calc_stats(bench: &mut Bencher) {
     })
 }
 
-benchmark_group!(benches, calc_mods_cached, calc_mods_uncached, calc_stats);
+fn calc_clone_build(bench: &mut Bencher) {
+    let player = match fetch() {
+        Ok(b) => b,
+        Err(err) => {
+            println!("{err}");
+            return;
+        }
+    };
+
+    bench.iter(|| {
+        let _ = player.clone();
+    })
+}
+
+benchmark_group!(benches, calc_mods_cached, calc_mods_uncached, calc_stats, calc_clone_build);
 benchmark_main!(benches);

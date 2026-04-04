@@ -157,7 +157,7 @@ pub struct ClassData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MasteryEffect {
-    pub effect: u16,
+    pub effect: u32,
     pub stats: Vec<String>,
 }
 
@@ -188,7 +188,7 @@ pub struct ExpansionJewel {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Node {
-    pub skill: u16,
+    pub skill: u32,
     pub stats: Vec<String>,
     pub icon: String,
     pub name: String,
@@ -216,8 +216,8 @@ pub struct Node {
     pub group: Option<u16>,
     pub orbit: Option<u16>,
     pub orbit_index: Option<u16>,
-    pub out: Option<Vec<u16>>,
-    pub r#in: Option<Vec<u16>>,
+    pub out: Option<Vec<u32>>,
+    pub r#in: Option<Vec<u32>>,
     pub expansion_jewel: Option<ExpansionJewel>
 }
 
@@ -285,15 +285,56 @@ pub struct AlternateAscendancy {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TreeData {
     pub classes: FxHashMap<Class, ClassData>,
-    pub nodes: FxHashMap<u16, Node>,
+    pub nodes: im::HashMap<u32, Node>,
     pub sprites: FxHashMap<String, Sprite>,
     pub groups: FxHashMap<u16, Group>,
     pub constants: Constants,
     #[serde(rename = "jewelSlots")]
-    pub jewel_slots: Vec<u16>,
+    pub jewel_slots: Vec<u32>,
     pub min_x: i32,
     pub min_y: i32,
     pub max_x: i32,
     pub max_y: i32,
     pub alternate_ascendancies: Vec<AlternateAscendancy>,
+}
+
+impl TreeData {
+    pub fn get_proxy_group(&self, cluster_jewel_node_id: u32) -> Option<u16> {
+        let proxy_node = self.nodes.get(&cluster_jewel_node_id)?.expansion_jewel.as_ref()?.proxy;
+        self.nodes.get(&proxy_node)?.group
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct ClusterOrbitData {
+    pub passives:   &'static [u16],
+    pub notable: &'static [u16],
+    pub socket:  &'static [u16],
+}
+
+const ORBIT_DATA_SMALL: ClusterOrbitData = ClusterOrbitData{
+    passives: &[0, 4, 2],
+    notable: &[4],
+    socket: &[4],
+};
+
+const ORBIT_DATA_MEDIUM: ClusterOrbitData = ClusterOrbitData{
+    passives: &[0, 6, 8, 4, 10, 2],
+    notable: &[6, 10, 2, 0],
+    socket: &[6],
+};
+
+const ORBIT_DATA_LARGE: ClusterOrbitData = ClusterOrbitData{
+    passives: &[9, 3, 0, 13, 5, 11],
+    notable: &[1, 7, 12],
+    socket: &[4, 8, 6],
+};
+
+pub fn get_cluster_orbit_data(base_type: &str) -> Option<&ClusterOrbitData> {
+    match base_type {
+        "Small Cluster Jewel" => Some(&ORBIT_DATA_SMALL),
+        "Medium Cluster Jewel" => Some(&ORBIT_DATA_MEDIUM),
+        "Large Cluster Jewel" => Some(&ORBIT_DATA_LARGE),
+        _ => None
+    }
 }

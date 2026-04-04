@@ -267,7 +267,7 @@ pub fn connectors_gl_inactive() -> DrawData {
     dd
 }
 
-pub fn connectors_gl(nodes: &[u16], rect: &Rect, w: f32) -> DrawData {
+pub fn connectors_gl(nodes: &[u32], rect: &Rect, w: f32) -> DrawData {
     let mut dd = DrawData::default();
     let sprite = &TREE.sprites["line"];
 
@@ -381,14 +381,13 @@ fn node_gl(
 }
 
 /// Unallocated Nodes, Frames and Masteries (the entire tree pretty much)
-pub fn nodes_gl() -> [DrawData; 4] {
+pub fn nodes_gl(nodes: &im::HashMap<u32, Node>) -> [DrawData; 4] {
     let mut dd_nodes = DrawData::default();
     let mut dd_frames = DrawData::default();
     let mut dd_masteries = DrawData::default();
     let mut dd_asc_frames = DrawData::default();
 
-    for node in TREE
-        .nodes
+    for node in nodes
         .values()
         .filter(|n| n.group.is_some() && n.class_start_index.is_none() && !n.is_proxy && (n.name != "Medium Jewel Socket") && (n.name != "Small Jewel Socket"))
     {
@@ -406,7 +405,7 @@ pub fn nodes_gl() -> [DrawData; 4] {
 }
 
 /// Allocated & hovered Nodes, Frames and Masteries
-pub fn nodes_gl_active(nodes: &[u16], hovered: Option<&u16>) -> [DrawData; 5] {
+pub fn nodes_gl_active(nodes: &[u32], hovered: Option<&u32>) -> [DrawData; 5] {
     let mut dd_nodes = DrawData::default();
     let mut dd_frames = DrawData::default();
     let mut dd_masteries = DrawData::default();

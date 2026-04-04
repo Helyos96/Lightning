@@ -5,6 +5,7 @@ pub mod panel;
 pub mod utils;
 
 use crate::config::Config;
+use crate::tree_gl::hover::QuadTreeHover;
 use egui_glow::egui_winit::winit::event::Modifiers;
 use lightning_model::build::Build;
 use lightning_model::data::tree::Node;
@@ -25,7 +26,7 @@ pub enum MainState {
     Config,
     Skills,
     Items,
-    ChooseMastery(u16),
+    ChooseMastery(u32),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -49,6 +50,7 @@ pub struct State {
     pub import_account: String,
     pub import_character: String,
     pub request_recalc: bool,
+    pub request_regen_nodes: bool,
     pub last_instant: Instant,
     pub show_settings: bool,
     pub modifiers: Modifiers,
@@ -59,9 +61,9 @@ pub struct State {
     pub delta_compare_single: FxHashMap<&'static str, i64>,
     pub passives_count: usize,
     pub passives_max: i64,
-    pub hovered_node: Option<&'static Node>,
-    pub path_hovered: Option<Vec<u16>>,
-    pub path_red: Option<Vec<u16>>,
+    pub hovered_node_id: Option<u32>,
+    pub path_hovered: Option<Vec<u32>>,
+    pub path_red: Option<Vec<u32>>,
     pub mouse_tree_drag: Option<(f32, f32)>,
 
     // Panels (TODO: separate other panels stuff into structs)
@@ -83,6 +85,7 @@ pub struct State {
     pub zoom: f32,
     pub zoom_tmp: f32,
     pub request_regen: bool,
+    pub quadtree_hover: QuadTreeHover,
 
     // Controls
     pub mouse_pos: (f32, f32),
@@ -93,9 +96,11 @@ pub struct State {
 
 impl State {
     pub fn new(config: Config) -> Self {
+        let build = Build::new_player();
         Self {
             ui_state: UiState::ChooseBuild,
-            build: Build::new_player(),
+            quadtree_hover: QuadTreeHover::build(&build.tree.nodes_data),
+            build: build,
             build_compare: None,
             history: Default::default(),
             history_idx: 0,
@@ -103,6 +108,7 @@ impl State {
             import_account: String::new(),
             import_character: String::new(),
             request_recalc: false,
+            request_regen_nodes: false,
             last_instant: Instant::now(),
             show_settings: false,
             modifiers: Default::default(),
@@ -113,7 +119,7 @@ impl State {
             delta_compare_single: FxHashMap::default(),
             passives_count: 0,
             passives_max: 0,
-            hovered_node: None,
+            hovered_node_id: None,
             path_hovered: None,
             path_red: None,
             mouse_tree_drag: None,
@@ -160,8 +166,8 @@ impl State {
     }
 
     pub fn undo(&mut self) {
-        if let Some(build) = self.history.get(self.history_idx + 1) {
-            self.build = build.clone();
+        if let Some(prev_build) = self.history.get(self.history_idx + 1) {
+            self.build = prev_build.clone();
             self.history_idx += 1;
             self.request_recalc = true;
             self.request_regen = true;
@@ -239,6 +245,10 @@ impl State {
         self.request_recalc = false;
     }
 
+    pub fn regen_quadtree_hover(&mut self) {
+        self.quadtree_hover = QuadTreeHover::build(&self.build.tree.nodes_data);
+    }
+
     pub fn save_build(&mut self) {
         if let Err(err) = self.build.save(&self.config.builds_dir) {
             eprintln!("Failed to save build: {err}");
@@ -248,7 +258,7 @@ impl State {
     }
 }
 
-pub fn select_mastery_effect(ctx: &egui::Context, current_masteries: &FxHashMap<u16, u16>, mastery: &Node) -> Option<u16> {
+pub fn select_mastery_effect(ctx: &egui::Context, current_masteries: &FxHashMap<u32, u32>, mastery: &Node) -> Option<u32> {
     let mut found = None;
     egui::Window::new("ChooseMastery")
         .collapsible(false)

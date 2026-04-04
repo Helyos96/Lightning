@@ -1,4 +1,4 @@
-use crate::data::tree::{Ascendancy, Class, NodeType, TreeData};
+use crate::data::tree::{Ascendancy, Class, NodeType, TreeData, Node};
 use crate::data::TREE;
 use crate::modifier::{parse_mod, Mod, Source};
 use lazy_static::lazy_static;
@@ -16,11 +16,17 @@ pub struct PassiveTree {
     pub class: Class,
     pub ascendancy: Option<Ascendancy>,
     pub bloodline: Option<Ascendancy>,
-    pub nodes: Vec<u16>,
+    pub nodes: Vec<u32>,
     // Additional nodes come mostly from "Allocates <xxx>" mods
     #[serde(skip)]
-    pub nodes_additional: Vec<u16>,
-    pub masteries: FxHashMap<u16, u16>,
+    pub nodes_additional: Vec<u32>,
+    #[serde(skip, default = "init_data")]
+    pub nodes_data: im::HashMap<u32, Node>,
+    pub masteries: FxHashMap<u32, u32>,
+}
+
+fn init_data() -> im::HashMap<u32, Node> {
+    TREE.nodes.clone()
 }
 
 impl Default for PassiveTree {
@@ -32,13 +38,14 @@ impl Default for PassiveTree {
             nodes: Default::default(),
             nodes_additional: Default::default(),
             masteries: Default::default(),
+            nodes_data: TREE.nodes.clone(),
         };
         pt.nodes.push(get_class_node(pt.class));
         pt
     }
 }
 
-fn get_class_node(class: Class) -> u16 {
+fn get_class_node(class: Class) -> u32 {
     TREE.nodes
         .values()
         .find(|n| n.class_start_index == Some(class as i32))
@@ -46,7 +53,7 @@ fn get_class_node(class: Class) -> u16 {
         .skill
 }
 
-fn get_ascendancy_node(ascendancy: Ascendancy) -> u16 {
+fn get_ascendancy_node(ascendancy: Ascendancy) -> u32 {
     TREE.nodes
         .values()
         .find(|n| n.is_ascendancy_start && n.ascendancy == Some(ascendancy))
@@ -54,7 +61,7 @@ fn get_ascendancy_node(ascendancy: Ascendancy) -> u16 {
         .skill
 }
 
-fn get_bloodline_node(bloodline: Ascendancy) -> u16 {
+fn get_bloodline_node(bloodline: Ascendancy) -> u32 {
     TREE.nodes
         .values()
         .find(|n| n.is_ascendancy_start && n.is_bloodline && n.ascendancy == Some(bloodline))
@@ -63,7 +70,7 @@ fn get_bloodline_node(bloodline: Ascendancy) -> u16 {
 }
 
 lazy_static! {
-    static ref PATH_OF_THE: Vec<u16> = TREE
+    static ref PATH_OF_THE: Vec<u32> = TREE
         .nodes
         .values()
         .filter(|n| n.name.starts_with("Path of the") && n.ascendancy.is_some())
@@ -72,13 +79,13 @@ lazy_static! {
 }
 
 struct FindDisconnectedNodes {
-    pub nodes_search_remove: Vec<u16>,
+    pub nodes_search_remove: Vec<u32>,
     class: Class,
     bloodline: Option<Ascendancy>,
 }
 
 impl FindDisconnectedNodes {
-    fn new(nodes_search_remove: Vec<u16>, class: Class, bloodline: Option<Ascendancy>) -> Self {
+    fn new(nodes_search_remove: Vec<u32>, class: Class, bloodline: Option<Ascendancy>) -> Self {
         Self {
             nodes_search_remove,
             class,
@@ -86,8 +93,8 @@ impl FindDisconnectedNodes {
         }
     }
 
-    fn successors_allocated(&self, node: u16) -> Vec<u16> {
-        let mut v: Vec<u16> = TREE.nodes[&node]
+    fn successors_allocated(&self, node: u32) -> Vec<u32> {
+        let mut v: Vec<u32> = TREE.nodes[&node]
             .out
             .as_ref()
             .unwrap()
@@ -96,7 +103,7 @@ impl FindDisconnectedNodes {
             .copied()
             .collect();
         if !TREE.nodes[&node].is_mastery {
-            let nodes_in: Vec<u16> = TREE.nodes[&node]
+            let nodes_in: Vec<u32> = TREE.nodes[&node]
                 .r#in
                 .as_ref()
                 .unwrap()
@@ -110,7 +117,7 @@ impl FindDisconnectedNodes {
     }
 
     /// Find a group of nodes to remove when a single node gets deallocated
-    pub fn find_nodes_remove(&self) -> Vec<u16> {
+    pub fn find_nodes_remove(&self) -> Vec<u32> {
         let mut col = vec![];
 
         let mut start_nodes = vec![get_class_node(self.class)];
@@ -125,7 +132,7 @@ impl FindDisconnectedNodes {
             }
         }
 
-        let ret: Vec<u16> = self.nodes_search_remove.iter().filter(|id| !col.contains(id)).copied().collect();
+        let ret: Vec<u32> = self.nodes_search_remove.iter().filter(|id| !col.contains(id)).copied().collect();
         ret
     }
 }
@@ -135,11 +142,11 @@ impl PassiveTree {
         &TREE
     }
 
-    fn successors(&self, node: u16) -> Vec<u16> {
+    fn successors(&self, node: u32) -> Vec<u32> {
         if TREE.nodes[&node].class_start_index.is_some() {
             return vec![node];
         }
-        let mut v: Vec<u16> = TREE.nodes[&node].r#in
+        let mut v: Vec<u32> = TREE.nodes[&node].r#in
             .as_ref()
             .unwrap()
             .iter()
@@ -147,7 +154,7 @@ impl PassiveTree {
             .collect();
 
         if PATH_OF_THE.contains(&node) {
-            let nodes_out: Vec<u16> = TREE.nodes[&node]
+            let nodes_out: Vec<u32> = TREE.nodes[&node]
                 .out
                 .as_ref()
                 .unwrap()
@@ -156,7 +163,7 @@ impl PassiveTree {
                 .collect();
             v.extend(nodes_out);
         } else {
-            let nodes_out: Vec<u16> = TREE.nodes[&node]
+            let nodes_out: Vec<u32> = TREE.nodes[&node]
                 .out
                 .as_ref()
                 .unwrap()
@@ -174,12 +181,12 @@ impl PassiveTree {
 
     /// Find the shortest path to link a node to
     /// the rest of the tree. Using Breadth-First-Search.
-    pub fn find_path(&self, node: u16) -> Option<Vec<u16>> {
+    pub fn find_path(&self, node: u32) -> Option<Vec<u32>> {
         bfs(&node, |p| self.successors(*p), |p| self.nodes.contains(p))
     }
 
     /// Find a group of nodes to remove when a single node gets deallocated
-    pub fn find_path_remove(&self, node: u16) -> Vec<u16> {
+    pub fn find_path_remove(&self, node: u32) -> Vec<u32> {
         let mut nodes = self.nodes.clone();
         nodes.retain(|&x| x != node);
         let fdn: FindDisconnectedNodes = FindDisconnectedNodes::new(nodes, self.class, self.bloodline);
@@ -189,7 +196,7 @@ impl PassiveTree {
     }
 
     /// Flip a node status (allocated <-> non-allocated)
-    pub fn flip_node(&mut self, node: u16) {
+    pub fn flip_node(&mut self, node: u32) {
         if self.nodes.contains(&node) {
             let to_remove = self.find_path_remove(node);
             for node_remove in &to_remove {
@@ -207,7 +214,7 @@ impl PassiveTree {
         }
     }
 
-    pub fn jewel_slots(&self) -> Vec<u16> {
+    pub fn jewel_slots(&self) -> Vec<u32> {
         self.nodes.iter().filter(|n| TREE.nodes[n].node_type() == NodeType::JewelSocket).copied().collect()
     }
 
@@ -262,7 +269,7 @@ impl PassiveTree {
 
         let extra_nodes = self.nodes_additional.iter().filter(|n| !self.nodes.contains(n));
         for node_id in self.nodes.iter().chain(extra_nodes) {
-            for mod_lines in &Self::data().nodes[node_id].stats {
+            for mod_lines in &self.nodes_data[node_id].stats {
                 for mod_str in mod_lines.split('\n') {
                     if let Some(modifiers) = parse_mod(mod_str, Source::Node(*node_id)) {
                         mods.extend(modifiers);
@@ -272,7 +279,7 @@ impl PassiveTree {
         }
 
         for (node_id, effect_id) in &self.masteries {
-            if let Some(effect) = Self::data().nodes[node_id]
+            if let Some(effect) = self.nodes_data[node_id]
                 .mastery_effects
                 .iter()
                 .find(|m| m.effect == *effect_id)

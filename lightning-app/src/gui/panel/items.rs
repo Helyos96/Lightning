@@ -1,5 +1,5 @@
 use lightning_model::{build::Slot, item::Item, modifier::Source};
-use crate::gui::{State, utils::{draw_item, draw_item_window, rarity_to_color}};
+use crate::gui::{State, utils::{draw_item, draw_item_window, draw_item_deltas, rarity_to_color}};
 
 const SLOTS: [Slot; 15] = [
     Slot::Weapon,
@@ -28,6 +28,8 @@ pub struct ItemsPanelState {
     pub flask_enabled: [bool; 5],
     pub hovered_item_idx: Option<usize>,
     pub hovered_item_deltas: Vec<(String, rustc_hash::FxHashMap<&'static str, i64>)>,
+    pub editing_item_last_str: String,
+    pub editing_item_deltas: Vec<(String, rustc_hash::FxHashMap<&'static str, i64>)>,
 }
 
 fn format_slot(slot: Slot) -> String {
@@ -105,8 +107,12 @@ fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<u
 
     match ret {
         Some(Some(i)) => {
-            state.build.equipment.insert(slot, i);
+            let old_nodes_nb = state.build.tree.nodes_data.len();
+            state.build.equip(slot, i);
             state.request_recalc = true;
+            if old_nodes_nb != state.build.tree.nodes_data.len() {
+                state.request_regen_nodes = true;
+            }
         },
         Some(None) => {
             state.build.equipment.remove(&slot);
@@ -200,6 +206,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                     if let Some(item) = state.panel_items.editing_item.as_ref() {
                         ui.separator();
                         draw_item(ui, item, Source::Innate, state.config.show_debug);
+                        draw_item_deltas(ui, &state.panel_items.editing_item_deltas);
                     }
                 });
             });
@@ -252,6 +259,71 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                             let name = format!("{} {}", action, format_slot(slot));
                             state.panel_items.hovered_item_deltas.push((name, delta));
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    let editing_str = state.panel_items.editing_item.as_ref().map(|i| i.to_str()).unwrap_or_default();
+    if state.panel_items.editing_item_last_str != editing_str || state.request_recalc {
+        state.panel_items.editing_item_last_str = editing_str;
+        state.panel_items.editing_item_deltas.clear();
+
+        if let Some(item) = state.panel_items.editing_item.clone() {
+            let idx_opt = state.panel_items.editing_item_idx;
+
+            if let Some(idx) = idx_opt {
+                // 1. Calculate removal deltas
+                let equipped_in: Vec<Slot> = state.build.equipment.iter()
+                    .filter_map(|(s, i)| if *i == idx { Some(*s) } else { None })
+                    .collect();
+
+                for slot in equipped_in {
+                    let mut build_compare = state.build.clone();
+                    build_compare.equipment.remove(&slot);
+                    let delta = state.compare(&build_compare);
+                    if !delta.is_empty() {
+                        let name = format!("Remove from {}", format_slot(slot));
+                        state.panel_items.editing_item_deltas.push((name, delta));
+                    }
+                }
+            }
+
+            // 2. Calculate equip deltas
+            let mut potential_slots = vec![];
+            potential_slots.extend_from_slice(&SLOTS);
+            for jewel_node in state.build.tree.jewel_slots() {
+                potential_slots.push(Slot::TreeJewel(jewel_node));
+            }
+
+            for slot in potential_slots {
+                if item.data().item_class.allowed_slots().iter().any(|&s| s.compatible(slot)) {
+                    if let Some(idx) = idx_opt {
+                        if state.build.equipment.get(&slot) == Some(&idx) {
+                            continue;
+                        }
+                    }
+
+                    let mut build_compare = state.build.clone();
+
+                    let test_idx = if let Some(idx) = idx_opt {
+                        idx
+                    } else {
+                        build_compare.inventory.push(item.clone());
+                        build_compare.inventory.len() - 1
+                    };
+
+                    build_compare.equipment.insert(slot, test_idx);
+                    let delta = state.compare(&build_compare);
+                    if !delta.is_empty() {
+                        let action = if state.build.equipment.contains_key(&slot) {
+                            "Replace"
+                        } else {
+                            "Equip in"
+                        };
+                        let name = format!("{} {}", action, format_slot(slot));
+                        state.panel_items.editing_item_deltas.push((name, delta));
                     }
                 }
             }

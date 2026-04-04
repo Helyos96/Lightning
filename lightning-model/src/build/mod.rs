@@ -6,6 +6,7 @@ use std::path::Path;
 
 use crate::data::base_item::ItemClass;
 use crate::data::gem::GemTag;
+use crate::data::tree::get_cluster_orbit_data;
 use crate::data::{MONSTER_STATS, TREE};
 use crate::gem::Gem;
 use crate::item::Item;
@@ -34,7 +35,7 @@ pub enum Slot {
     Ring,
     Ring2,
     Flask(u16), // u16 -> Flask slot
-    TreeJewel(u16), // u16 -> Tree node holding the jewel
+    TreeJewel(u32), // u32 -> Tree node holding the jewel
 }
 
 impl Slot {
@@ -557,6 +558,46 @@ impl Build {
             }
         }
         self.inventory.remove(idx_remove);
+    }
+
+    pub fn equip(&mut self, slot: Slot, item_idx: usize) -> Option<usize> {
+        assert!(item_idx < self.inventory.len());
+        let old_item = self.equipment.remove(&slot);
+        self.equipment.insert(slot, item_idx);
+        let item = &self.inventory[item_idx];
+
+        if let Slot::TreeJewel(jewel_node_id) = slot &&
+           let Some(orbit_data) = get_cluster_orbit_data(&item.base_item) &&
+           let Some(cluster_data) = self.inventory[item_idx].get_cluster() &&
+           let Some(group_id) = TREE.get_proxy_group(jewel_node_id)
+        {
+            let (amount, small_node_id, notables) = cluster_data;
+            let mut id_counter = u16::MAX as u32 + 1;
+            println!("{id_counter}");
+
+            if let Some(small_node) = TREE.nodes.get(&small_node_id) {
+                for i in 0..amount {
+                    let mut node = small_node.clone();
+                    node.skill = id_counter;
+                    node.group = Some(group_id);
+                    node.orbit = Some(3);
+                    node.orbit_index = Some(orbit_data.passives[i as usize]);
+                    self.tree.nodes_data.insert(id_counter, node);
+                    id_counter += 1;
+                }
+            }
+
+            for (i, notable) in notables.into_iter().enumerate() {
+                let mut node = notable.clone();
+                node.skill = id_counter;
+                node.group = Some(group_id);
+                node.orbit = Some(3);
+                node.orbit_index = Some(orbit_data.notable[i as usize]);
+                self.tree.nodes_data.insert(id_counter, node);
+                id_counter += 1;
+            }
+        }
+        old_item
     }
 
     pub fn get_equipped(&self, slot: Slot) -> Option<&Item> {

@@ -1,8 +1,10 @@
 use crate::build::stat::{calc_stat, Stat, StatId};
 use crate::build::Slot;
 use crate::data::base_item::{BaseItem, Rarity};
-use crate::data::{DAMAGE_GROUPS, DamageType, ITEMS};
+use crate::data::tree::Node;
+use crate::data::{DAMAGE_GROUPS, DamageType, ITEMS, TREE};
 use crate::modifier::{self, parse_mod, Mod, Source, Type};
+use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use lazy_static::lazy_static;
@@ -81,6 +83,29 @@ pub struct DefenceCalc {
 impl Item {
     pub fn data(&self) -> &'static BaseItem {
         &ITEMS[&self.base_item]
+    }
+
+    // Attempt to parse a cluster jewel
+    pub fn get_cluster(&self) -> Option<(i64, u32, Vec<&Node>)> {
+        if !self.data().name.ends_with("Cluster Jewel") {
+            return None;
+        }
+
+        let passive_skills_amount = calc_stat(StatId::AllocatesPassiveSkills, &self.calc_nonlocal_mods(Slot::Helm)).val();
+        if passive_skills_amount == 0 {
+            return None;
+        }
+        let small_passive_node = calc_stat(StatId::AddedPassiveSkillsGrantNode, &self.calc_nonlocal_mods(Slot::Helm)).val();
+        if small_passive_node == 0 {
+            return None;
+        }
+
+        let notables: Vec<&Node> = self.mods_expl.iter().filter_map(|m| {
+            let m = m.strip_prefix("1 Added Passive Skill is ")?;
+            TREE.nodes.values().find(|n| &n.name == m)
+        }).collect();
+
+        Some((passive_skills_amount - notables.len() as i64 - 2, small_passive_node as u32, notables))
     }
 
     pub fn name(&self) -> &str {

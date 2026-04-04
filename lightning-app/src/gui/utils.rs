@@ -124,40 +124,53 @@ pub fn draw_item_window(ui: &mut egui::Ui, item: &Item, pos: impl Into<egui::Pos
         .show(ui.ctx(), |ui| {
             draw_item(ui, item, Source::Innate, show_debug);
             if let Some(deltas) = deltas {
-                if !deltas.is_empty() {
-                    ui.separator();
-                    let mut item_spacing = ui.spacing().item_spacing;
-                    item_spacing.y -= 5.0;
-                    ui.spacing_mut().item_spacing = item_spacing;
-
-                    egui::Grid::new("delta_grid")
-                        .num_columns(deltas.len() + 1)
-                        .spacing([20.0, 4.0])
-                        .show(ui, |ui| {
-                            ui.label(egui::RichText::new("Stat").strong());
-                            for (name, _) in deltas {
-                                ui.label(egui::RichText::new(name).strong());
-                            }
-                            ui.end_row();
-
-                            let mut keys: Vec<&'static str> = deltas.iter().flat_map(|(_, m)| m.keys()).copied().collect();
-                            keys.sort_unstable();
-                            keys.dedup();
-
-                            for k in keys {
-                                ui.label(k);
-                                for (_, delta_map) in deltas {
-                                    let val = delta_map.get(k).unwrap_or(&0);
-                                    if *val != 0 {
-                                        ui.label(format!("{val:+}"));
-                                    } else {
-                                        ui.label("-");
-                                    }
-                                }
-                                ui.end_row();
-                            }
-                        });
-                }
+                draw_item_deltas(ui, deltas);
             }
         });
+}
+
+pub fn draw_item_deltas(ui: &mut egui::Ui, deltas: &[(String, rustc_hash::FxHashMap<&'static str, i64>)]) {
+    if !deltas.is_empty() {
+        ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+            ui.separator();
+            let mut item_spacing = ui.spacing().item_spacing;
+            item_spacing.y -= 5.0;
+            ui.spacing_mut().item_spacing = item_spacing;
+
+            let col_count = deltas.len() + 1;
+            let total_spacing = 20.0 * (col_count - 1) as f32;
+            let col_width = ((ui.available_width() - total_spacing) / col_count as f32).max(50.0);
+
+            egui::Grid::new("delta_grid")
+                .num_columns(col_count)
+                .min_col_width(col_width)
+                .spacing([20.0, 4.0])
+                .show(ui, |ui| {
+                    ui.vertical_centered(|ui| { ui.label(egui::RichText::new("Stat").strong()); });
+                    for (name, _) in deltas {
+                        ui.vertical_centered(|ui| { ui.label(egui::RichText::new(name).strong()); });
+                    }
+                    ui.end_row();
+
+                    let mut keys: Vec<&'static str> = deltas.iter().flat_map(|(_, m)| m.keys()).copied().collect();
+                    keys.sort_unstable();
+                    keys.dedup();
+
+                    for k in keys {
+                        ui.vertical_centered(|ui| { ui.label(k); });
+                        for (_, delta_map) in deltas {
+                            let val = delta_map.get(k).unwrap_or(&0);
+                            ui.vertical_centered(|ui| {
+                                if *val != 0 {
+                                    ui.label(format!("{val:+}"));
+                                } else {
+                                    ui.label("-");
+                                }
+                            });
+                        }
+                        ui.end_row();
+                    }
+                });
+        });
+    }
 }
