@@ -125,6 +125,7 @@ pub enum StatId {
     AddedAttackTime,
     AllocatesPassiveSkills,
     AddedPassiveSkillsGrantNode,
+    AddedPassivesAreJewelSockets,
 }
 
 #[derive(Debug, Clone, Default)]

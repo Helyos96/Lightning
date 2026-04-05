@@ -86,26 +86,28 @@ impl Item {
     }
 
     // Attempt to parse a cluster jewel
-    pub fn get_cluster(&self) -> Option<(i64, u32, Vec<&Node>)> {
+    pub fn get_cluster(&self) -> Option<(u32, u32, u32, Vec<&Node>)> {
         if !self.data().name.ends_with("Cluster Jewel") {
             return None;
         }
 
-        let passive_skills_amount = calc_stat(StatId::AllocatesPassiveSkills, &self.calc_nonlocal_mods(Slot::Helm)).val();
+        let mods = self.calc_nonlocal_mods(Slot::Helm);
+        let passive_skills_amount = calc_stat(StatId::AllocatesPassiveSkills, &mods).val() as u32;
         if passive_skills_amount == 0 {
             return None;
         }
-        let small_passive_node = calc_stat(StatId::AddedPassiveSkillsGrantNode, &self.calc_nonlocal_mods(Slot::Helm)).val();
+        let small_passive_node = calc_stat(StatId::AddedPassiveSkillsGrantNode, &mods).val() as u32;
         if small_passive_node == 0 {
             return None;
         }
+        let added_sockets_amount = calc_stat(StatId::AddedPassivesAreJewelSockets, &mods).val() as u32;
 
         let notables: Vec<&Node> = self.mods_expl.iter().filter_map(|m| {
             let m = m.strip_prefix("1 Added Passive Skill is ")?;
             TREE.nodes.values().find(|n| &n.name == m)
         }).collect();
 
-        Some((passive_skills_amount - notables.len() as i64 - 2, small_passive_node as u32, notables))
+        Some((passive_skills_amount, small_passive_node, added_sockets_amount, notables))
     }
 
     pub fn name(&self) -> &str {

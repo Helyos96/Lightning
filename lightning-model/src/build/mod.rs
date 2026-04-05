@@ -569,20 +569,39 @@ impl Build {
         if let Slot::TreeJewel(jewel_node_id) = slot &&
            let Some(orbit_data) = get_cluster_orbit_data(&item.base_item) &&
            let Some(cluster_data) = self.inventory[item_idx].get_cluster() &&
-           let Some(group_id) = TREE.get_proxy_group(jewel_node_id)
+           let Some(group_id) = self.tree.get_proxy_group(jewel_node_id)
         {
-            let (amount, small_node_id, notables) = cluster_data;
-            let mut id_counter = u16::MAX as u32 + 1;
-            println!("{id_counter}");
+            let (total_amount, small_node_id, socket_amount, notables) = cluster_data;
+            let mut id_counter = u16::MAX as u32 + 1 + self.tree.cluster_nodes.len() as u32;
+            let mut new_nodes = vec![];
 
             if let Some(small_node) = TREE.nodes.get(&small_node_id) {
-                for i in 0..amount {
+                for i in 0..(total_amount - socket_amount - notables.len() as u32) {
                     let mut node = small_node.clone();
                     node.skill = id_counter;
                     node.group = Some(group_id);
-                    node.orbit = Some(3);
+                    node.orbit = Some(orbit_data.orbit);
                     node.orbit_index = Some(orbit_data.passives[i as usize]);
-                    self.tree.nodes_data.insert(id_counter, node);
+                    if i == 0 {
+                        node.r#in = Some(vec![jewel_node_id]);
+                    } else {
+                        node.r#in = Some(vec![]);
+                    }
+                    node.out = Some(vec![]);
+                    new_nodes.push(node);
+                    id_counter += 1;
+                }
+            }
+
+            for i in 0..socket_amount {
+                let orbit_index = orbit_data.socket[i as usize];
+                let node = self.tree.nodes_data.values().find(|n| n.orbit_index == Some(orbit_index) && n.group == Some(group_id) && n.name == "Medium Jewel Socket").cloned();
+                if let Some(mut node) = node {
+                    node.skill = id_counter;
+                    node.group = Some(group_id);
+                    node.r#in = Some(vec![]);
+                    node.out = Some(vec![]);
+                    new_nodes.push(node);
                     id_counter += 1;
                 }
             }
@@ -591,10 +610,43 @@ impl Build {
                 let mut node = notable.clone();
                 node.skill = id_counter;
                 node.group = Some(group_id);
-                node.orbit = Some(3);
+                node.orbit = Some(orbit_data.orbit);
                 node.orbit_index = Some(orbit_data.notable[i as usize]);
-                self.tree.nodes_data.insert(id_counter, node);
+                node.r#in = Some(vec![]);
+                node.out = Some(vec![]);
+                new_nodes.push(node);
                 id_counter += 1;
+            }
+
+            let mut jewel_node = self.tree.nodes_data[&jewel_node_id].clone();
+            jewel_node.out.as_mut().unwrap().push(new_nodes[0].skill);
+            self.tree.nodes_data.insert(jewel_node.skill, jewel_node);
+            self.tree.cluster_nodes.extend_from_slice(&new_nodes);
+
+            // Sort new_nodes by orbit_index so consecutive nodes in orbit order are adjacent.
+            new_nodes.sort_by_key(|n| n.orbit_index.unwrap_or(0));
+            // Connect nodes with closest orbit index
+            for i in 0..new_nodes.len().saturating_sub(1) {
+                let (left, right) = new_nodes.split_at_mut(i + 1);
+                let a = &mut left[i];
+                let b_skill = right[0].skill;
+                a.out.get_or_insert_with(Vec::new).push(b_skill);
+
+                let (left2, right2) = new_nodes.split_at_mut(i + 1);
+                let a_skill = left2[i].skill;
+                let b = &mut right2[0];
+                b.r#in.get_or_insert_with(Vec::new).push(a_skill);
+            }
+            // Connect first and last node
+            if new_nodes.len() >= 2 {
+                let first_skill = new_nodes[0].skill;
+                let last_skill = new_nodes[new_nodes.len() - 1].skill;
+                new_nodes.last_mut().unwrap().out.get_or_insert_with(Vec::new).push(first_skill);
+                new_nodes[0].r#in.get_or_insert_with(Vec::new).push(last_skill);
+            }
+
+            for node in new_nodes {
+                self.tree.nodes_data.insert(node.skill, node);
             }
         }
         old_item

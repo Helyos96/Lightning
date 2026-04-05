@@ -175,14 +175,14 @@ pub enum NodeType {
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExpansionJewel {
-    size: u32,
-    index: u32,
+    pub size: u32,
+    pub index: u32,
     #[serde_as(as = "DisplayFromStr")]
     #[serde(default)]
-    proxy: u32,
+    pub proxy: u32,
     #[serde_as(as = "DisplayFromStr")]
     #[serde(default)]
-    parent: u32,
+    pub parent: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -285,7 +285,7 @@ pub struct AlternateAscendancy {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TreeData {
     pub classes: FxHashMap<Class, ClassData>,
-    pub nodes: im::HashMap<u32, Node>,
+    pub nodes: imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>,
     pub sprites: FxHashMap<String, Sprite>,
     pub groups: FxHashMap<u16, Group>,
     pub constants: Constants,
@@ -298,36 +298,33 @@ pub struct TreeData {
     pub alternate_ascendancies: Vec<AlternateAscendancy>,
 }
 
-impl TreeData {
-    pub fn get_proxy_group(&self, cluster_jewel_node_id: u32) -> Option<u16> {
-        let proxy_node = self.nodes.get(&cluster_jewel_node_id)?.expansion_jewel.as_ref()?.proxy;
-        self.nodes.get(&proxy_node)?.group
-    }
-}
-
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct ClusterOrbitData {
-    pub passives:   &'static [u16],
+    pub passives: &'static [u16],
     pub notable: &'static [u16],
-    pub socket:  &'static [u16],
+    pub socket: &'static [u16],
+    pub orbit: u16,
 }
 
 const ORBIT_DATA_SMALL: ClusterOrbitData = ClusterOrbitData{
     passives: &[0, 4, 2],
     notable: &[4],
-    socket: &[4],
+    socket: &[],
+    orbit: 2,
 };
 
 const ORBIT_DATA_MEDIUM: ClusterOrbitData = ClusterOrbitData{
     passives: &[0, 6, 8, 4, 10, 2],
     notable: &[6, 10, 2, 0],
     socket: &[6],
+    orbit: 2,
 };
 
 const ORBIT_DATA_LARGE: ClusterOrbitData = ClusterOrbitData{
     passives: &[9, 3, 0, 13, 5, 11],
     notable: &[1, 7, 12],
-    socket: &[4, 8, 6],
+    socket: &[4, 15, 6],
+    orbit: 3,
 };
 
 pub fn get_cluster_orbit_data(base_type: &str) -> Option<&ClusterOrbitData> {

@@ -21,11 +21,13 @@ pub struct PassiveTree {
     #[serde(skip)]
     pub nodes_additional: Vec<u32>,
     #[serde(skip, default = "init_data")]
-    pub nodes_data: im::HashMap<u32, Node>,
+    pub nodes_data: imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>,
     pub masteries: FxHashMap<u32, u32>,
+    #[serde(default)]
+    pub cluster_nodes: Vec<Node>,
 }
 
-fn init_data() -> im::HashMap<u32, Node> {
+fn init_data() -> imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK> {
     TREE.nodes.clone()
 }
 
@@ -39,6 +41,7 @@ impl Default for PassiveTree {
             nodes_additional: Default::default(),
             masteries: Default::default(),
             nodes_data: TREE.nodes.clone(),
+            cluster_nodes: vec![],
         };
         pt.nodes.push(get_class_node(pt.class));
         pt
@@ -78,23 +81,30 @@ lazy_static! {
         .collect();
 }
 
-struct FindDisconnectedNodes {
+struct FindDisconnectedNodes<'a> {
     pub nodes_search_remove: Vec<u32>,
     class: Class,
     bloodline: Option<Ascendancy>,
+    nodes_data: &'a imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>,
 }
 
-impl FindDisconnectedNodes {
-    fn new(nodes_search_remove: Vec<u32>, class: Class, bloodline: Option<Ascendancy>) -> Self {
+impl<'a> FindDisconnectedNodes<'a> {
+    fn new(
+        nodes_search_remove: Vec<u32>,
+        class: Class,
+        bloodline: Option<Ascendancy>,
+        nodes_data: &'a imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>,
+    ) -> Self {
         Self {
             nodes_search_remove,
             class,
             bloodline,
+            nodes_data,
         }
     }
 
     fn successors_allocated(&self, node: u32) -> Vec<u32> {
-        let mut v: Vec<u32> = TREE.nodes[&node]
+        let mut v: Vec<u32> = self.nodes_data[&node]
             .out
             .as_ref()
             .unwrap()
@@ -102,8 +112,8 @@ impl FindDisconnectedNodes {
             .filter(|id| self.nodes_search_remove.contains(id))
             .copied()
             .collect();
-        if !TREE.nodes[&node].is_mastery {
-            let nodes_in: Vec<u32> = TREE.nodes[&node]
+        if !self.nodes_data[&node].is_mastery {
+            let nodes_in: Vec<u32> = self.nodes_data[&node]
                 .r#in
                 .as_ref()
                 .unwrap()
@@ -138,37 +148,34 @@ impl FindDisconnectedNodes {
 }
 
 impl PassiveTree {
-    pub fn data() -> &'static TreeData {
-        &TREE
-    }
-
-    fn successors(&self, node: u32) -> Vec<u32> {
-        if TREE.nodes[&node].class_start_index.is_some() {
-            return vec![node];
+    fn successors(&self, node_id: u32) -> Vec<u32> {
+        let node = self.nodes_data.get(&node_id).unwrap();
+        if node.class_start_index.is_some() {
+            return vec![node_id];
         }
-        let mut v: Vec<u32> = TREE.nodes[&node].r#in
+        let mut v: Vec<u32> = node.r#in
             .as_ref()
             .unwrap()
             .iter()
-            .filter(|id| (!PATH_OF_THE.contains(*id) && (!TREE.nodes[id].is_ascendancy_start || TREE.nodes[id].ascendancy == self.ascendancy)) || self.nodes.contains(id)).copied()
+            .filter(|id| (!PATH_OF_THE.contains(*id) && (!self.nodes_data[id].is_ascendancy_start || self.nodes_data[id].ascendancy == self.ascendancy)) || self.nodes.contains(id)).copied()
             .collect();
 
-        if PATH_OF_THE.contains(&node) {
-            let nodes_out: Vec<u32> = TREE.nodes[&node]
+        if PATH_OF_THE.contains(&node_id) {
+            let nodes_out: Vec<u32> = node
                 .out
                 .as_ref()
                 .unwrap()
                 .iter()
-                .filter(|id| TREE.nodes[id].ascendancy.is_some() && !self.nodes.contains(id)).copied()
+                .filter(|id| self.nodes_data[id].ascendancy.is_some() && !self.nodes.contains(id)).copied()
                 .collect();
             v.extend(nodes_out);
         } else {
-            let nodes_out: Vec<u32> = TREE.nodes[&node]
+            let nodes_out: Vec<u32> = node
                 .out
                 .as_ref()
                 .unwrap()
                 .iter()
-                .filter(|id| !TREE.nodes[id].is_mastery).copied()
+                .filter(|id| !self.nodes_data[id].is_mastery).copied()
                 .collect();
             v.extend(nodes_out);
         }
@@ -176,7 +183,7 @@ impl PassiveTree {
     }
 
     pub fn passives_count(&self) -> usize {
-        self.nodes.iter().filter(|n| TREE.nodes[n].ascendancy.is_none() && TREE.nodes[n].class_start_index.is_none()).count()
+        self.nodes.iter().filter(|n| self.nodes_data[n].ascendancy.is_none() && self.nodes_data[n].class_start_index.is_none()).count()
     }
 
     /// Find the shortest path to link a node to
@@ -189,7 +196,7 @@ impl PassiveTree {
     pub fn find_path_remove(&self, node: u32) -> Vec<u32> {
         let mut nodes = self.nodes.clone();
         nodes.retain(|&x| x != node);
-        let fdn: FindDisconnectedNodes = FindDisconnectedNodes::new(nodes, self.class, self.bloodline);
+        let fdn = FindDisconnectedNodes::new(nodes, self.class, self.bloodline, &self.nodes_data);
         let mut to_remove = fdn.find_nodes_remove();
         to_remove.push(node);
         to_remove
@@ -200,7 +207,7 @@ impl PassiveTree {
         if self.nodes.contains(&node) {
             let to_remove = self.find_path_remove(node);
             for node_remove in &to_remove {
-                if TREE.nodes[node_remove].is_mastery {
+                if self.nodes_data[node_remove].is_mastery {
                     self.masteries.remove(node_remove);
                 }
             }
@@ -215,7 +222,7 @@ impl PassiveTree {
     }
 
     pub fn jewel_slots(&self) -> Vec<u32> {
-        self.nodes.iter().filter(|n| TREE.nodes[n].node_type() == NodeType::JewelSocket).copied().collect()
+        self.nodes.iter().filter(|n| self.nodes_data[n].node_type() == NodeType::JewelSocket).copied().collect()
     }
 
     pub fn set_class(&mut self, class: Class) {
@@ -293,5 +300,10 @@ impl PassiveTree {
         }
 
         mods
+    }
+
+    pub fn get_proxy_group(&self, cluster_jewel_node_id: u32) -> Option<u16> {
+        let proxy_node = self.nodes_data.get(&cluster_jewel_node_id)?.expansion_jewel.as_ref()?.proxy;
+        self.nodes_data.get(&proxy_node)?.group
     }
 }

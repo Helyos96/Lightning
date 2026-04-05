@@ -231,9 +231,6 @@ impl TreeGl {
         let data = group_background_gl();
         self.draw_data
             .insert("group_background".to_string(), GlDrawData::new(gl, &data));
-        let data = connectors_gl_inactive();
-        self.draw_data
-            .insert("connectors".to_string(), GlDrawData::new(gl, &data));
         let data = background_gl();
         self.draw_data
             .insert("background".to_string(), GlDrawData::new(gl, &data));
@@ -255,6 +252,7 @@ impl TreeGl {
 
     pub fn regen_nodes(&mut self, gl: &glow::Context, build: &Build) {
         const REDRAW: &[&str] = &[
+            "connectors",
             "nodes",
             "frames",
             "masteries",
@@ -268,6 +266,9 @@ impl TreeGl {
             self.draw_data.remove(s);
         }
 
+        let data = connectors_gl_inactive(&build.tree.nodes_data);
+        self.draw_data
+            .insert("connectors".to_string(), GlDrawData::new(gl, &data));
         let data = nodes_gl(&build.tree.nodes_data);
         self.draw_data
             .insert("nodes".to_string(), GlDrawData::new(gl, &data[0]));
@@ -308,7 +309,7 @@ impl TreeGl {
         }
 
         let last_node = path_hovered.as_ref().map(|path| path.first().unwrap());
-        let data = nodes_gl_active(&build.tree.nodes.iter().chain(&build.tree.nodes_additional).copied().collect::<Vec<_>>(), last_node);
+        let data = nodes_gl_active(&build.tree.nodes.iter().chain(&build.tree.nodes_additional).copied().collect::<Vec<_>>(), &build.tree.nodes_data, last_node);
         self.draw_data
             .insert("nodes_active".to_string(), GlDrawData::new(gl, &data[0]));
         self.draw_data
@@ -320,22 +321,22 @@ impl TreeGl {
         self.draw_data
             .insert("ascendancy_frames_active".to_string(), GlDrawData::new(gl, &data[4]));
         self.draw_data
-            .insert("connectors_active".to_string(), GlDrawData::new(gl, &connectors_gl(&build.tree.nodes, &TREE.sprites["line"].coords["LineConnectorActive"], 20.0)));
+            .insert("connectors_active".to_string(), GlDrawData::new(gl, &connectors_gl(&build.tree.nodes, &build.tree.nodes_data, &TREE.sprites["line"].coords["LineConnectorActive"], 20.0)));
         self.draw_data
             .insert("class_start".to_string(), GlDrawData::new(gl, &class_start_gl(build.tree.class)));
         if let Some(path) = path_hovered {
-            let data = connectors_gl(path, &TREE.sprites["line"].coords["LineConnectorActive"], 10.0);
+            let data = connectors_gl(path, &build.tree.nodes_data, &TREE.sprites["line"].coords["LineConnectorActive"], 10.0);
             self.draw_data
                 .insert("connectors_hovered".to_string(), GlDrawData::new(gl, &data));
         }
         if let Some(path_red) = path_red {
             self.draw_data
-                .insert("connectors_red".to_string(), GlDrawData::new(gl, &connectors_gl(path_red, &TREE.sprites["line"].coords["LineConnectorActive"], 20.0)));
+                .insert("connectors_red".to_string(), GlDrawData::new(gl, &connectors_gl(path_red, &build.tree.nodes_data, &TREE.sprites["line"].coords["LineConnectorActive"], 20.0)));
             let index = path_red.iter().position(|x| *x == hovered_node_id.unwrap()).unwrap();
             let mut path_red = path_red.clone();
             path_red.remove(index);
             if !path_red.is_empty() {
-                let data = nodes_gl_active(&path_red, None);
+                let data = nodes_gl_active(&path_red, &build.tree.nodes_data, None);
                 self.draw_data
                     .insert("nodes_active_red".to_string(), GlDrawData::new(gl, &data[0]));
                 self.draw_data
@@ -344,7 +345,7 @@ impl TreeGl {
                     .insert("ascendancy_frames_active_red".to_string(), GlDrawData::new(gl, &data[4]));
             }
         }
-        let data = jewels_gl(build);
+        let data = jewels_gl(build, &build.tree.nodes_data);
         self.draw_data
                 .insert("jewels".to_string(), GlDrawData::new(gl, &data));
         let data = ascendancies_background_inactive_gl(build.tree.ascendancy);

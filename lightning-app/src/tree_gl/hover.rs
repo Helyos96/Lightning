@@ -5,16 +5,17 @@ use quadtree_f32::{Item, ItemId, QuadTree};
 pub struct QuadTreeHover(QuadTree);
 
 impl QuadTreeHover {
-    pub fn build(nodes: &im::HashMap<u32, Node>) -> QuadTreeHover {
+    pub fn build(nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>) -> QuadTreeHover {
         let items = nodes
         .values()
-        .filter(|n| n.group.is_some() && n.class_start_index.is_none() && !n.is_ascendancy_start && !n.is_proxy && (n.name != "Medium Jewel Socket") && (n.name != "Small Jewel Socket"))
+        .filter(|n| n.group.is_some() && n.class_start_index.is_none() && !n.is_ascendancy_start && !n.is_proxy && (n.skill >= u16::MAX as u32 || ((n.name != "Medium Jewel Socket") && (n.name != "Small Jewel Socket"))))
         .map(|n| {
             let (x,y) = node_pos(n);
             let (rect, _) = get_rect(n, true).unwrap();
             let scale = match n.node_type() {
                 NodeType::Mastery => 1.4,
                 NodeType::Notable => 2.6,
+                NodeType::JewelSocket => 3.4,
                 _ => 2.5,
             };
             (

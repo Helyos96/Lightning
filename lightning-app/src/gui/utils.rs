@@ -146,9 +146,9 @@ pub fn draw_item_deltas(ui: &mut egui::Ui, deltas: &[(String, rustc_hash::FxHash
                 .min_col_width(col_width)
                 .spacing([20.0, 4.0])
                 .show(ui, |ui| {
-                    ui.vertical_centered(|ui| { ui.label(egui::RichText::new("Stat").strong()); });
+                    ui.label(egui::RichText::new("Stat").strong());
                     for (name, _) in deltas {
-                        ui.vertical_centered(|ui| { ui.label(egui::RichText::new(name).strong()); });
+                        ui.label(egui::RichText::new(name).strong());
                     }
                     ui.end_row();
 
@@ -157,16 +157,14 @@ pub fn draw_item_deltas(ui: &mut egui::Ui, deltas: &[(String, rustc_hash::FxHash
                     keys.dedup();
 
                     for k in keys {
-                        ui.vertical_centered(|ui| { ui.label(k); });
+                        ui.label(k);
                         for (_, delta_map) in deltas {
                             let val = delta_map.get(k).unwrap_or(&0);
-                            ui.vertical_centered(|ui| {
-                                if *val != 0 {
-                                    ui.label(format!("{val:+}"));
-                                } else {
-                                    ui.label("-");
-                                }
-                            });
+                            if *val != 0 {
+                                ui.label(format!("{val:+}"));
+                            } else {
+                                ui.label("-");
+                            }
                         }
                         ui.end_row();
                     }

@@ -168,7 +168,7 @@ fn draw_hover_window(ctx: &egui::Context, state: &mut State) {
                 }
                 if state.config.show_debug {
                     ui.separator();
-                    ui.label(format!("node id: {}", node.skill));
+                    ui.label(format!("node id: {} / orbit_index: {}", node.skill, node.orbit_index.unwrap_or(0)));
                 }
             });
         });

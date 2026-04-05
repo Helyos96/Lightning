@@ -475,6 +475,16 @@ lazy_static! {
                     ..Default::default()
                 }])
             })
+        ), (
+            regex!(r"^([0-9]+) added passive skills? (are|is a) jewel sockets?$"),
+            Box::new(|c| {
+                Some(vec![Mod {
+                    stat: StatId::AddedPassivesAreJewelSockets,
+                    typ: Type::Base,
+                    amount: i64::from_str(&c[1]).unwrap(),
+                    ..Default::default()
+                }])
+            })
         ),
     ];
 

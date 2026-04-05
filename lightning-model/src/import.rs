@@ -103,8 +103,7 @@ fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
     for gem in gems {
         if let Some(gem_id) =
             GEMS.iter().find_map(|(key, val)| {
-
-                if val.base_item.display_name == gem.baseType {
+                if val.display_name() == gem.baseType {
                     return Some(key);
                 }
                 None
@@ -128,6 +127,8 @@ fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
             gemlink.gems.push(new_gem);
         } else if let Some(jewel) = conv_item(gem) {
             jewels.push(jewel);
+        } else {
+            eprintln!("Failed to import item {}", gem.baseType);
         }
     }
 

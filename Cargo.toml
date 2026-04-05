@@ -33,7 +33,7 @@ opt-level = 3
 opt-level = 3
 [profile.dev.package.bincode]
 opt-level = 3
-[profile.dev.package.im]
+[profile.dev.package.imbl]
 opt-level = 3
 
 [workspace.lints.clippy]

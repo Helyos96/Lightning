@@ -240,25 +240,24 @@ pub fn build_connection(
     }
 }
 
-pub fn connectors_gl_inactive() -> DrawData {
+pub fn connectors_gl_inactive(nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>) -> DrawData {
     let mut dd = DrawData::default();
     let sprite = &TREE.sprites["line"];
     let rect = &sprite.coords["LineConnectorNormal"];
 
-    for node in TREE.nodes.values().filter(|n| {
+    for node in nodes.values().filter(|n| {
         n.group.is_some()
             && (!n.name.starts_with("Path of the") || n.ascendancy.is_none())
             && n.class_start_index.is_none()
             && !n.is_mastery
             && !n.is_proxy
-            && (n.name != "Medium Jewel Socket")
-            && (n.name != "Small Jewel Socket")
+            && (n.skill >= u16::MAX as u32 || ((n.name != "Medium Jewel Socket") && (n.name != "Small Jewel Socket")))
     }) {
         for out in node
             .out
             .iter()
             .flatten()
-            .map(|id| &TREE.nodes[id])
+            .map(|id| &nodes[id])
             .filter(|n| !n.is_ascendancy_start && !n.is_mastery && !n.is_proxy && n.class_start_index.is_none())
         {
             build_connection(node, out, 18.0, rect, sprite, &mut dd);
@@ -267,11 +266,11 @@ pub fn connectors_gl_inactive() -> DrawData {
     dd
 }
 
-pub fn connectors_gl(nodes: &[u32], rect: &Rect, w: f32) -> DrawData {
+pub fn connectors_gl(nodes_id: &[u32], nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>, rect: &Rect, w: f32) -> DrawData {
     let mut dd = DrawData::default();
     let sprite = &TREE.sprites["line"];
 
-    for node in nodes.iter().map(|id| &TREE.nodes[id]).filter(|n| {
+    for node in nodes_id.iter().map(|id| &nodes[id]).filter(|n| {
         n.group.is_some()
             && (!n.name.starts_with("Path of the") || n.ascendancy.is_none())
             && n.class_start_index.is_none()
@@ -281,8 +280,8 @@ pub fn connectors_gl(nodes: &[u32], rect: &Rect, w: f32) -> DrawData {
             .out
             .iter()
             .flatten()
-            .filter(|id| nodes.contains(id))
-            .map(|id| &TREE.nodes[id])
+            .filter(|id| nodes_id.contains(id))
+            .map(|id| &nodes[id])
             .filter(|n| !n.is_ascendancy_start && !n.is_mastery && n.class_start_index.is_none())
         {
             build_connection(node, out, w, rect, sprite, &mut dd);
@@ -381,7 +380,7 @@ fn node_gl(
 }
 
 /// Unallocated Nodes, Frames and Masteries (the entire tree pretty much)
-pub fn nodes_gl(nodes: &im::HashMap<u32, Node>) -> [DrawData; 4] {
+pub fn nodes_gl(nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>) -> [DrawData; 4] {
     let mut dd_nodes = DrawData::default();
     let mut dd_frames = DrawData::default();
     let mut dd_masteries = DrawData::default();
@@ -389,7 +388,7 @@ pub fn nodes_gl(nodes: &im::HashMap<u32, Node>) -> [DrawData; 4] {
 
     for node in nodes
         .values()
-        .filter(|n| n.group.is_some() && n.class_start_index.is_none() && !n.is_proxy && (n.name != "Medium Jewel Socket") && (n.name != "Small Jewel Socket"))
+        .filter(|n| n.group.is_some() && n.class_start_index.is_none() && !n.is_proxy && (n.skill >= u16::MAX as u32 || ((n.name != "Medium Jewel Socket") && (n.name != "Small Jewel Socket"))))
     {
         node_gl(
             node,
@@ -405,16 +404,16 @@ pub fn nodes_gl(nodes: &im::HashMap<u32, Node>) -> [DrawData; 4] {
 }
 
 /// Allocated & hovered Nodes, Frames and Masteries
-pub fn nodes_gl_active(nodes: &[u32], hovered: Option<&u32>) -> [DrawData; 5] {
+pub fn nodes_gl_active(nodes_id: &[u32], nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>, hovered: Option<&u32>) -> [DrawData; 5] {
     let mut dd_nodes = DrawData::default();
     let mut dd_frames = DrawData::default();
     let mut dd_masteries = DrawData::default();
     let mut dd_masteries_active = DrawData::default();
     let mut dd_asc_frames = DrawData::default();
 
-    for node in nodes
+    for node in nodes_id
         .iter()
-        .map(|id| &TREE.nodes[id])
+        .map(|id| &nodes[id])
         .filter(|n| n.class_start_index.is_none())
     {
         node_gl(
@@ -430,12 +429,12 @@ pub fn nodes_gl_active(nodes: &[u32], hovered: Option<&u32>) -> [DrawData; 5] {
 
     if let Some(id) = hovered {
         node_gl(
-            &TREE.nodes[id],
+            &nodes[id],
             &mut dd_nodes,
             &mut dd_frames,
             &mut dd_masteries,
             &mut dd_asc_frames,
-            nodes.contains(id),
+            nodes_id.contains(id),
             true,
         );
     }
@@ -455,7 +454,7 @@ lazy_static! {
     ]);
 }
 
-pub fn jewels_gl(build: &Build) -> DrawData {
+pub fn jewels_gl(build: &Build, nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>) -> DrawData {
     let mut dd = DrawData::default();
     let sprite = &TREE.sprites["jewel"];
 
@@ -463,7 +462,7 @@ pub fn jewels_gl(build: &Build) -> DrawData {
         if let Slot::TreeJewel(node) = slot {
             if let Some(sprite_name) = JEWELS_BASE_SPRITE.get(build.get_equipped(*slot).unwrap().base_item.as_str()) {
                 let rect = &sprite.coords[*sprite_name];
-                let (x, y) = node_pos(&TREE.nodes[node]);
+                let (x, y) = node_pos(&nodes[node]);
                 dd.append(x, y, rect, sprite, false, 1.6);
             }
         }
