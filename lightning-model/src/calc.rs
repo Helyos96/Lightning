@@ -274,6 +274,7 @@ pub fn calc_defence(build: &Build) -> FxHashMap<&'static str, i64> {
     ret.insert("Armour", stats.val(StatId::Armour));
     ret.insert("Evasion", stats.val(StatId::EvasionRating));
     ret.insert("Energy Shield", stats.val(StatId::MaximumEnergyShield));
+    ret.insert("Spell Suppression", stats.val(StatId::ChanceToSuppressSpellDamage));
 
     if let Some(offhand) = build.get_equipped(Slot::Offhand) {
         if offhand.data().item_class == ItemClass::Shield {
