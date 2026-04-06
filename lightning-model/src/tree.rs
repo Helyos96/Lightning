@@ -1,5 +1,6 @@
-use crate::data::tree::{Ascendancy, Class, NodeType, TreeData, Node};
+use crate::data::tree::{Ascendancy, Class, ClusterOrbitData, Node, NodeType, TreeData};
 use crate::data::TREE;
+use crate::item::ClusterData;
 use crate::modifier::{parse_mod, Mod, Source};
 use lazy_static::lazy_static;
 use pathfinding::directed::strongly_connected_components;
@@ -22,9 +23,9 @@ pub struct PassiveTree {
     pub nodes_additional: Vec<u32>,
     #[serde(skip, default = "init_data")]
     pub nodes_data: imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>,
-    pub masteries: FxHashMap<u32, u32>,
     #[serde(default)]
-    pub cluster_nodes: Vec<Node>,
+    pub nodes_cluster: Vec<(u32, Node)>,
+    pub masteries: FxHashMap<u32, u32>,
 }
 
 fn init_data() -> imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK> {
@@ -41,7 +42,7 @@ impl Default for PassiveTree {
             nodes_additional: Default::default(),
             masteries: Default::default(),
             nodes_data: TREE.nodes.clone(),
-            cluster_nodes: vec![],
+            nodes_cluster: Default::default(),
         };
         pt.nodes.push(get_class_node(pt.class));
         pt
@@ -182,6 +183,13 @@ impl PassiveTree {
         v
     }
 
+    /// To be called after deserializing
+    pub fn init(&mut self) {
+        for (_, node) in &self.nodes_cluster {
+            self.nodes_data.insert(node.skill, node.clone());
+        }
+    }
+
     pub fn passives_count(&self) -> usize {
         self.nodes.iter().filter(|n| self.nodes_data[n].ascendancy.is_none() && self.nodes_data[n].class_start_index.is_none()).count()
     }
@@ -300,6 +308,135 @@ impl PassiveTree {
         }
 
         mods
+    }
+
+    fn _remove_jewel(&mut self, node_id: u32) {
+        let node_ids: Vec<u32> = self.nodes_cluster.iter().filter_map(|(jewel_node_id, node)| {
+            if *jewel_node_id == node_id {
+                Some(node.skill)
+            } else {
+                None
+            }
+        }).collect();
+
+        if node_ids.is_empty() {
+            return;
+        }
+
+        self.nodes_cluster.retain(|(jewel_node_id, _)| *jewel_node_id != node_id);
+
+        for id in node_ids {
+            self._remove_jewel(id);
+            self.nodes_data.remove(&id);
+        }
+
+        // Insert back jewel node if it's a cluster jewel
+        if node_id <= u16::MAX as u32 &&
+           let Some(node) = TREE.nodes.get(&node_id).to_owned() &&
+           node.expansion_jewel.is_some() {
+            self.nodes_data.insert(node_id, TREE.nodes[&node_id].clone());
+        }
+    }
+
+    pub fn remove_jewel(&mut self, node_id: u32) {
+        self._remove_jewel(node_id);
+        self.clean_unk_allocated_nodes();
+    }
+
+    // Typically after removing a cluster jewel
+    pub fn clean_unk_allocated_nodes(&mut self) {
+        self.nodes.retain(|node_id| self.nodes_data.contains_key(node_id));
+    }
+
+    pub fn add_cluster(&mut self, cluster_data: ClusterData, orbit_data: &ClusterOrbitData, jewel_node_id: u32, base_item: &str) {
+        if let Some(group_id) = self.get_proxy_group(jewel_node_id) {
+            //let (total_amount, small_node_id, socket_amount, notables, added_stats) = cluster_data;
+            let mut id_counter = u16::MAX as u32 + 1 + self.nodes_cluster.len() as u32;
+            let mut new_nodes = vec![];
+
+            if let Some(small_node) = TREE.nodes.get(&cluster_data.small_passives_node_id) {
+                for i in 0..(cluster_data.small_passives_amount - cluster_data.added_sockets_amount - cluster_data.notables.len() as u32) {
+                    let mut node = small_node.clone();
+                    node.skill = id_counter;
+                    node.group = Some(group_id);
+                    node.orbit = Some(orbit_data.orbit);
+                    node.orbit_index = Some(orbit_data.passives[i as usize]);
+                    if i == 0 {
+                        node.r#in = Some(vec![jewel_node_id]);
+                    } else {
+                        node.r#in = Some(vec![]);
+                    }
+                    node.out = Some(vec![]);
+                    node.stats.extend_from_slice(&cluster_data.added_stats);
+                    new_nodes.push(node);
+                    id_counter += 1;
+                }
+            }
+
+            let indices = if base_item == "Large Cluster Jewel" {
+                &[0, 2, 1]
+            } else {
+                &[0, 1, 2]
+            };
+            for i in 0..cluster_data.added_sockets_amount {
+                let node = self.nodes_data.values().find(|n| n.group == Some(group_id) && n.is_jewel_socket && n.expansion_jewel.as_ref().unwrap().index == indices[i as usize]).cloned();
+                if let Some(mut node) = node {
+                    node.skill = id_counter;
+                    node.group = Some(group_id);
+                    node.r#in = Some(vec![]);
+                    node.out = Some(vec![]);
+                    new_nodes.push(node);
+                    id_counter += 1;
+                }
+            }
+
+            for (i, notable) in cluster_data.notables.into_iter().enumerate() {
+                let mut node = notable.clone();
+                node.skill = id_counter;
+                node.group = Some(group_id);
+                node.orbit = Some(orbit_data.orbit);
+                node.orbit_index = Some(orbit_data.notable[i as usize]);
+                node.r#in = Some(vec![]);
+                node.out = Some(vec![]);
+                new_nodes.push(node);
+                id_counter += 1;
+            }
+
+            let mut jewel_node = self.nodes_data[&jewel_node_id].clone();
+            jewel_node.out.as_mut().unwrap().push(new_nodes[0].skill);
+            self.nodes_data.insert(jewel_node.skill, jewel_node.clone());
+
+            // Sort new_nodes by orbit_index so consecutive nodes in orbit order are adjacent.
+            new_nodes.sort_by_key(|n| n.orbit_index.unwrap_or(0));
+            // Connect nodes with closest orbit index
+            for i in 0..new_nodes.len().saturating_sub(1) {
+                let (left, right) = new_nodes.split_at_mut(i + 1);
+                let a = &mut left[i];
+                let b_skill = right[0].skill;
+                a.out.get_or_insert_with(Vec::new).push(b_skill);
+
+                let (left2, right2) = new_nodes.split_at_mut(i + 1);
+                let a_skill = left2[i].skill;
+                let b = &mut right2[0];
+                b.r#in.get_or_insert_with(Vec::new).push(a_skill);
+            }
+            // Connect first and last node
+            if new_nodes.len() >= 2 {
+                let first_skill = new_nodes[0].skill;
+                let last_skill = new_nodes[new_nodes.len() - 1].skill;
+                new_nodes.last_mut().unwrap().out.get_or_insert_with(Vec::new).push(first_skill);
+                new_nodes[0].r#in.get_or_insert_with(Vec::new).push(last_skill);
+            }
+
+            for node in &new_nodes {
+                self.nodes_cluster.push((jewel_node_id, node.to_owned()));
+            }
+            self.nodes_cluster.push((jewel_node_id, jewel_node));
+
+            for node in new_nodes {
+                self.nodes_data.insert(node.skill, node);
+            }
+        }
     }
 
     pub fn get_proxy_group(&self, cluster_jewel_node_id: u32) -> Option<u16> {

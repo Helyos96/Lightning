@@ -241,6 +241,8 @@ pub struct Build {
     pub campaign_choice: CampaignChoice,
     properties_int: FxHashMap<property::Int, i64>,
     properties_bool: FxHashMap<property::Bool, bool>,
+    #[serde(default)]
+    properties_always_max: FxHashSet<property::Int>,
     pub import_account: Option<(String, String)>,
 }
 
@@ -478,6 +480,12 @@ impl Build {
                 amount: 150,
                 ..Default::default()
             },
+            Mod {
+                stat: StatId::MaximumFortification,
+                typ: Type::Base,
+                amount: 20,
+                ..Default::default()
+            },
         ]);
         mods.append(&mut BANDIT_STATS.get(&self.bandit_choice).unwrap().clone());
         mods.append(&mut CAMPAIGN_STATS.get(&self.campaign_choice).unwrap().clone());
@@ -568,88 +576,25 @@ impl Build {
 
         if let Slot::TreeJewel(jewel_node_id) = slot &&
            let Some(orbit_data) = get_cluster_orbit_data(&item.base_item) &&
-           let Some(cluster_data) = self.inventory[item_idx].get_cluster() &&
-           let Some(group_id) = self.tree.get_proxy_group(jewel_node_id)
+           let Some(cluster_data) = self.inventory[item_idx].get_cluster()
         {
-            let (total_amount, small_node_id, socket_amount, notables) = cluster_data;
-            let mut id_counter = u16::MAX as u32 + 1 + self.tree.cluster_nodes.len() as u32;
-            let mut new_nodes = vec![];
-
-            if let Some(small_node) = TREE.nodes.get(&small_node_id) {
-                for i in 0..(total_amount - socket_amount - notables.len() as u32) {
-                    let mut node = small_node.clone();
-                    node.skill = id_counter;
-                    node.group = Some(group_id);
-                    node.orbit = Some(orbit_data.orbit);
-                    node.orbit_index = Some(orbit_data.passives[i as usize]);
-                    if i == 0 {
-                        node.r#in = Some(vec![jewel_node_id]);
-                    } else {
-                        node.r#in = Some(vec![]);
-                    }
-                    node.out = Some(vec![]);
-                    new_nodes.push(node);
-                    id_counter += 1;
-                }
-            }
-
-            for i in 0..socket_amount {
-                let orbit_index = orbit_data.socket[i as usize];
-                let node = self.tree.nodes_data.values().find(|n| n.orbit_index == Some(orbit_index) && n.group == Some(group_id) && n.name == "Medium Jewel Socket").cloned();
-                if let Some(mut node) = node {
-                    node.skill = id_counter;
-                    node.group = Some(group_id);
-                    node.r#in = Some(vec![]);
-                    node.out = Some(vec![]);
-                    new_nodes.push(node);
-                    id_counter += 1;
-                }
-            }
-
-            for (i, notable) in notables.into_iter().enumerate() {
-                let mut node = notable.clone();
-                node.skill = id_counter;
-                node.group = Some(group_id);
-                node.orbit = Some(orbit_data.orbit);
-                node.orbit_index = Some(orbit_data.notable[i as usize]);
-                node.r#in = Some(vec![]);
-                node.out = Some(vec![]);
-                new_nodes.push(node);
-                id_counter += 1;
-            }
-
-            let mut jewel_node = self.tree.nodes_data[&jewel_node_id].clone();
-            jewel_node.out.as_mut().unwrap().push(new_nodes[0].skill);
-            self.tree.nodes_data.insert(jewel_node.skill, jewel_node);
-            self.tree.cluster_nodes.extend_from_slice(&new_nodes);
-
-            // Sort new_nodes by orbit_index so consecutive nodes in orbit order are adjacent.
-            new_nodes.sort_by_key(|n| n.orbit_index.unwrap_or(0));
-            // Connect nodes with closest orbit index
-            for i in 0..new_nodes.len().saturating_sub(1) {
-                let (left, right) = new_nodes.split_at_mut(i + 1);
-                let a = &mut left[i];
-                let b_skill = right[0].skill;
-                a.out.get_or_insert_with(Vec::new).push(b_skill);
-
-                let (left2, right2) = new_nodes.split_at_mut(i + 1);
-                let a_skill = left2[i].skill;
-                let b = &mut right2[0];
-                b.r#in.get_or_insert_with(Vec::new).push(a_skill);
-            }
-            // Connect first and last node
-            if new_nodes.len() >= 2 {
-                let first_skill = new_nodes[0].skill;
-                let last_skill = new_nodes[new_nodes.len() - 1].skill;
-                new_nodes.last_mut().unwrap().out.get_or_insert_with(Vec::new).push(first_skill);
-                new_nodes[0].r#in.get_or_insert_with(Vec::new).push(last_skill);
-            }
-
-            for node in new_nodes {
-                self.tree.nodes_data.insert(node.skill, node);
-            }
+            self.tree.add_cluster(cluster_data, orbit_data, jewel_node_id, &item.base_item);
         }
         old_item
+    }
+
+    pub fn unequip(&mut self, slot: Slot) {
+        self.equipment.remove(&slot);
+        if let Slot::TreeJewel(node_id) = slot {
+            self.tree.remove_jewel(node_id);
+            self.equipment.retain(|k, _| {
+                if let Slot::TreeJewel(node_id) = k && !self.tree.nodes_data.contains_key(node_id) {
+                    false
+                } else {
+                    true
+                }
+            });
+        }
     }
 
     pub fn get_equipped(&self, slot: Slot) -> Option<&Item> {
@@ -684,7 +629,27 @@ impl Build {
                 }
             }
         };
+
+        if self.properties_always_max.contains(&p) {
+            return max;
+        }
         self.property_int(p).clamp(min, max)
+    }
+
+    pub fn set_property_int_maxed(&mut self, p: property::Int, maxed: bool) {
+        if maxed {
+            self.properties_always_max.insert(p);
+        } else {
+            self.properties_always_max.remove(&p);
+        }
+    }
+
+    pub fn is_property_int_maxed(&self, p: property::Int) -> bool {
+        if self.properties_always_max.contains(&p) {
+            true
+        } else {
+            false
+        }
     }
 
     pub fn property_int(&self, p: property::Int) -> i64 {
@@ -766,6 +731,7 @@ impl Build {
     // Modify a Mod's revised_amount by taking into account mod mutations (multipliers etc.)
     fn apply_mutations(&self, stats: &FxHashMap<StatId, Stat>, m: &mut Mod) {
         let mut amount = m.amount;
+        let mut up_to = i64::MAX;
         for f in &m.mutations {
             match f {
                 Mutation::MultiplierProperty(mutation) => {
@@ -792,9 +758,12 @@ impl Build {
                         None => 0,
                     }
                 },
+                Mutation::UpTo(mutation) => {
+                    up_to = *mutation;
+                },
             }
         }
-        m.revised_amount = Some(amount);
+        m.revised_amount = Some(amount.min(up_to));
     }
 
     pub fn calc_stats(&self, mods: &[Mod], tags: BitFlags<GemTag>) -> Stats {

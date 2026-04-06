@@ -302,28 +302,24 @@ pub struct TreeData {
 pub struct ClusterOrbitData {
     pub passives: &'static [u16],
     pub notable: &'static [u16],
-    pub socket: &'static [u16],
     pub orbit: u16,
 }
 
 const ORBIT_DATA_SMALL: ClusterOrbitData = ClusterOrbitData{
-    passives: &[0, 4, 2],
-    notable: &[4],
-    socket: &[],
-    orbit: 2,
+    passives: &[0, 3, 5],
+    notable: &[5],
+    orbit: 1,
 };
 
 const ORBIT_DATA_MEDIUM: ClusterOrbitData = ClusterOrbitData{
-    passives: &[0, 6, 8, 4, 10, 2],
-    notable: &[6, 10, 2, 0],
-    socket: &[6],
+    passives: &[7, 12, 1, 13, 9, 4],
+    notable: &[9, 4],
     orbit: 2,
 };
 
 const ORBIT_DATA_LARGE: ClusterOrbitData = ClusterOrbitData{
-    passives: &[9, 3, 0, 13, 5, 11],
+    passives: &[9, 3, 0, 13, 5, 11, 1, 7, 12],
     notable: &[1, 7, 12],
-    socket: &[4, 15, 6],
     orbit: 3,
 };
 

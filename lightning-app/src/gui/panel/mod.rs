@@ -3,6 +3,7 @@ pub mod top;
 pub mod config;
 pub mod skills;
 pub mod items;
+pub mod bottom;
 
 use lightning_model::build::GemLink;
 

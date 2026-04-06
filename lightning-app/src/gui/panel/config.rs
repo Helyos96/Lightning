@@ -8,6 +8,7 @@ lazy_static! {
         (property::Int::PowerCharges, "Power Charges"),
         (property::Int::EnduranceCharges, "Endurance Charges"),
         (property::Int::Rage, "Rage"),
+        (property::Int::Fortification, "Fortification"),
     ];
     static ref PROPERTIES_BOOL: Vec<(property::Bool, &'static str)> = vec![
         (property::Bool::Fortified, "Are you Fortified?"),
@@ -29,8 +30,13 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                         for pint in PROPERTIES_INT.iter() {
                             let mut property = state.build.property_int(pint.0);
                             ui.label(pint.1);
-                            if ui.add(egui::DragValue::new(&mut property)).changed() {
+                            if ui.add_enabled(!state.build.is_property_int_maxed(pint.0), egui::DragValue::new(&mut property)).changed() {
                                 state.build.set_property_int(pint.0, property);
+                                state.request_recalc = true;
+                            }
+                            let mut checked = state.build.is_property_int_maxed(pint.0);
+                            if ui.checkbox(&mut checked, "").changed() {
+                                state.build.set_property_int_maxed(pint.0, checked);
                                 state.request_recalc = true;
                             }
                             ui.end_row();

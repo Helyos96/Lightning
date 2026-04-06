@@ -1,12 +1,9 @@
 * build.rs for automating cleanups/json2bincode/putting every target file in the right place
 * Tree view
-	* Zooming should be linear not exponential
 	* Jewels
 		* ~~Basic jewels~~
 		* With radius shown
 		* Cluster jewels
-	* ~~Stats compare on node hover~~
-		* Nice formatting
 	* Search function
 	* Calc functions (highest dps unallocated etc.)
 * Abyss jewels

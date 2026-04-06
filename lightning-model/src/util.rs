@@ -7,7 +7,8 @@ use std::path::PathBuf;
 
 pub fn load_build(path: &PathBuf) -> Result<Build, Box<dyn std::error::Error>> {
     let data = fs::read_to_string(path)?;
-    let player: Build = serde_json::from_str(&data)?;
+    let mut player: Build = serde_json::from_str(&data)?;
+    player.tree.init();
     Ok(player)
 }
 

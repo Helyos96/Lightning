@@ -155,6 +155,7 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>)] = 
     ("maximum frenzy charges", StatId::MaximumFrenzyCharges, BitFlags::EMPTY, BitFlags::EMPTY),
     ("maximum power charges", StatId::MaximumPowerCharges, BitFlags::EMPTY, BitFlags::EMPTY),
     ("maximum endurance charges", StatId::MaximumEnduranceCharges, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("maximum fortification", StatId::MaximumFortification, BitFlags::EMPTY, BitFlags::EMPTY),
     ("maximum life", StatId::MaximumLife, BitFlags::EMPTY, BitFlags::EMPTY),
     ("maximum mana", StatId::MaximumMana, BitFlags::EMPTY, BitFlags::EMPTY),
     ("minimum rage", StatId::MinimumRage, BitFlags::EMPTY, BitFlags::EMPTY),
@@ -490,11 +491,13 @@ lazy_static! {
 
     // amounts can be modified by parsing code
     static ref ENDINGS: Vec<(Regex, Mutation)> = vec![
+        (regex!(",? ?up to a maximum of ([0-9]+)%?$"), Mutation::UpTo(1)),
         (regex!("per ([0-9]+) of your lowest attribute$"), Mutation::MultiplierStatLowest((1, &[StatId::Strength, StatId::Dexterity, StatId::Intelligence]))),
         (regex!("per level$"), Mutation::MultiplierProperty((1, property::Int::Level))),
         (regex!("per frenzy charge$"), Mutation::MultiplierProperty((1, property::Int::FrenzyCharges))),
         (regex!("per power charge$"), Mutation::MultiplierProperty((1, property::Int::PowerCharges))),
         (regex!("per endurance charge$"), Mutation::MultiplierProperty((1, property::Int::EnduranceCharges))),
+        (regex!("per fortification$"), Mutation::MultiplierProperty((1, property::Int::Fortification))),
     ];
 
     static ref ENDING_PER_GENERIC: Regex = regex!("per ([0-9]+)?%? ([a-z ]+)$");
@@ -566,6 +569,7 @@ pub enum Mutation {
     MultiplierStat((i64, StatId)),
     MultiplierStatLowest((i64, &'static [StatId])),
     MultiplierProperty((i64, property::Int)),
+    UpTo(i64),
 }
 
 impl Mutation {
@@ -574,6 +578,7 @@ impl Mutation {
             Mutation::MultiplierStat(mutation) => mutation.0 = amount,
             Mutation::MultiplierProperty(mutation) => mutation.0 = amount,
             Mutation::MultiplierStatLowest(mutation) => mutation.0 = amount,
+            Mutation::UpTo(mutation) => *mutation = amount,
         }
     }
 }
@@ -732,7 +737,10 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
     let mut conditions: StackVec<Condition, 5> = Default::default();
 
     while let Some(ending) = parse_ending(&m) {
-        m = &m[0..m.len() - ending.0 - 1];
+        m = &m[0..m.len() - ending.0];
+        if let Some(c) = m.chars().last() && c == ' ' {
+            m = &m[0..m.len() - 1];
+        }
         match ending.1 {
             Ending::Mutation(mutation) => {
                 mutations.push(mutation);

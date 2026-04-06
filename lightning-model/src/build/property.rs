@@ -9,6 +9,7 @@ pub enum Int {
     PowerCharges,
     FrenzyCharges,
     EnduranceCharges,
+    Fortification,
     Rage,
 }
 
@@ -42,5 +43,6 @@ pub fn int_data(p: Int) -> &'static IntData {
         Int::PowerCharges => &IntData {min: Val::Stat(StatId::MinimumPowerCharges), max: Val::Stat(StatId::MaximumPowerCharges)},
         Int::EnduranceCharges => &IntData {min: Val::Stat(StatId::MinimumEnduranceCharges), max: Val::Stat(StatId::MaximumEnduranceCharges)},
         Int::Rage => &IntData {min: Val::Stat(StatId::MinimumRage), max: Val::Stat(StatId::MaximumRage)},
+        Int::Fortification => &IntData {min: Val::Val(0), max: Val::Stat(StatId::MaximumFortification)},
     }
 }

@@ -134,6 +134,25 @@ pub fn background_gl() -> DrawData {
     dd
 }
 
+pub fn search_highlights_gl(matched_node_ids: &[u32], nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>) -> DrawData {
+    let mut dd = DrawData::default();
+    let sprite = &TREE.sprites["frame"];
+    let rect = &sprite.coords["NotableFrameAllocated"]; // Reuse frame sprite for search highlights
+
+    for node in matched_node_ids.iter().map(|id| &nodes[id]) {
+        let (x, y) = node_pos(node);
+        let scale = if node.is_keystone {
+            5.0
+        } else if node.is_notable {
+            4.2
+        } else {
+            3.5
+        };
+        dd.append(x, y, rect, sprite, false, scale);
+    }
+    dd
+}
+
 /// Bendy (arc) connector
 fn arc_connector_gl(
     cx: f32, cy: f32,

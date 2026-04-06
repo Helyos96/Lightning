@@ -14,6 +14,7 @@ use lightning_model::gem::Gem;
 use lightning_model::calc;
 use panel::items::ItemsPanelState;
 use panel::skills::SkillsPanelState;
+use panel::bottom::BottomPanelState;
 use rustc_hash::FxHashMap;
 use std::collections::VecDeque;
 use std::path::PathBuf;
@@ -69,6 +70,7 @@ pub struct State {
     // Panels (TODO: separate other panels stuff into structs)
     panel_skills: SkillsPanelState,
     panel_items: ItemsPanelState,
+    pub panel_bottom: BottomPanelState,
 
     // widget-specific values
     builds_list_cur: usize,
@@ -126,6 +128,7 @@ impl State {
 
             panel_skills: Default::default(),
             panel_items: Default::default(),
+            panel_bottom: Default::default(),
 
             builds_list_cur: 0,
             gemlink_cur: 0,

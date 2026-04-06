@@ -36,8 +36,7 @@ fn draw_skill_dropdown(ui: &mut egui::Ui, panel_skills: &mut SkillsPanelState, s
     if let Some(socketed_gem) = socketed_gem {
         edit = edit.hint_text(socketed_gem.data().display_name());
     }
-    let edit_output = edit.show(ui);
-    let r = edit_output.response;
+    let r = edit.show(ui).response;
     let popup_id = egui::Id::new(format!("popup {}", i));
     if r.gained_focus() {
         ui.memory_mut(|m| m.open_popup(popup_id));

@@ -280,7 +280,7 @@ impl TreeGl {
             .insert("ascendancy_frames".to_string(), GlDrawData::new(gl, &data[3]));
     }
 
-    pub fn regen_active(&mut self, gl: &glow::Context, build: &Build, path_hovered: &Option<Vec<u32>>, path_red: &Option<Vec<u32>>, hovered_node_id: Option<u32>) {
+    pub fn regen_active(&mut self, gl: &glow::Context, build: &Build, path_hovered: &Option<Vec<u32>>, path_red: &Option<Vec<u32>>, hovered_node_id: Option<u32>, search_highlights: &[u32]) {
         const REDRAW: &[&str] = &[
             "nodes_active",
             "frames_active",
@@ -294,6 +294,7 @@ impl TreeGl {
             "nodes_active_red",
             "frames_active_red",
             "ascendancy_frames_active_red",
+            "search_highlights",
             "jewels",
             "ascendancy_inactive_background",
             "ascendancy_active_background",
@@ -345,6 +346,9 @@ impl TreeGl {
                     .insert("ascendancy_frames_active_red".to_string(), GlDrawData::new(gl, &data[4]));
             }
         }
+        let data = search_highlights_gl(search_highlights, &build.tree.nodes_data);
+        self.draw_data
+                .insert("search_highlights".to_string(), GlDrawData::new(gl, &data));
         let data = jewels_gl(build, &build.tree.nodes_data);
         self.draw_data
                 .insert("jewels".to_string(), GlDrawData::new(gl, &data));
@@ -392,6 +396,7 @@ impl TreeGl {
             ("masteries", "mastery-disabled-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("masteries_active", "mastery-connected-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("masteries_active_selected", "mastery-active-selected-3.png", [1.0, 1.0, 1.0, 1.0]),
+            ("search_highlights", "frame-3.png", [1.0, 0.0, 0.0, 1.0]),
         ];
 
         unsafe {

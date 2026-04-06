@@ -169,7 +169,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
         }
 
         self.tree_gl.init(&gl);
-        self.tree_gl.regen_active(&gl, &self.state.build, &None, &None, None);
+        self.tree_gl.regen_active(&gl, &self.state.build, &None, &None, None, &[]);
         window.set_visible(true);
         window.set_decorations(true);
 
@@ -216,7 +216,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                     state.recalc();
                 }
                 if state.request_regen {
-                    tree_gl.regen_active(gl, &state.build, &state.path_hovered, &state.path_red, state.hovered_node_id);
+                    tree_gl.regen_active(gl, &state.build, &state.path_hovered, &state.path_red, state.hovered_node_id, &state.panel_bottom.search_nodes);
                     state.request_regen = false;
                 }
                 if state.request_regen_nodes {
@@ -253,6 +253,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                             gui::panel::top::draw(egui_ctx, state);
                             gui::panel::left::draw(egui_ctx, state);
                             if main_state == MainState::Tree {
+                                gui::panel::bottom::draw(egui_ctx, state);
                                 gui::tree_view::draw(egui_ctx, state);
                             } else if main_state == MainState::Config {
                                 gui::panel::config::draw(egui_ctx, state);

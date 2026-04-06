@@ -80,24 +80,32 @@ pub struct DefenceCalc {
     pub block_chance: Stat,
 }
 
+pub struct ClusterData<'a> {
+    pub small_passives_amount: u32,
+    pub small_passives_node_id: u32,
+    pub added_sockets_amount: u32,
+    pub notables: Vec<&'a Node>,
+    pub added_stats: Vec<String>,
+}
+
 impl Item {
     pub fn data(&self) -> &'static BaseItem {
         &ITEMS[&self.base_item]
     }
 
     // Attempt to parse a cluster jewel
-    pub fn get_cluster(&self) -> Option<(u32, u32, u32, Vec<&Node>)> {
+    pub fn get_cluster(&self) -> Option<ClusterData<'_>> {
         if !self.data().name.ends_with("Cluster Jewel") {
             return None;
         }
 
         let mods = self.calc_nonlocal_mods(Slot::Helm);
-        let passive_skills_amount = calc_stat(StatId::AllocatesPassiveSkills, &mods).val() as u32;
-        if passive_skills_amount == 0 {
+        let small_passives_amount = calc_stat(StatId::AllocatesPassiveSkills, &mods).val() as u32;
+        if small_passives_amount == 0 {
             return None;
         }
-        let small_passive_node = calc_stat(StatId::AddedPassiveSkillsGrantNode, &mods).val() as u32;
-        if small_passive_node == 0 {
+        let small_passives_node_id = calc_stat(StatId::AddedPassiveSkillsGrantNode, &mods).val() as u32;
+        if small_passives_node_id == 0 {
             return None;
         }
         let added_sockets_amount = calc_stat(StatId::AddedPassivesAreJewelSockets, &mods).val() as u32;
@@ -107,7 +115,17 @@ impl Item {
             TREE.nodes.values().find(|n| &n.name == m)
         }).collect();
 
-        Some((passive_skills_amount, small_passive_node, added_sockets_amount, notables))
+        let added_stats: Vec<String> = self.mods_expl.iter().filter_map(|m| {
+            Some(m.strip_prefix("Added Small Passive Skills also grant: ")?.to_string())
+        }).collect();
+
+        Some(ClusterData {
+            small_passives_amount,
+            small_passives_node_id,
+            added_sockets_amount,
+            notables,
+            added_stats,
+        })
     }
 
     pub fn name(&self) -> &str {
