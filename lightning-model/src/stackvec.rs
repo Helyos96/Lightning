@@ -28,7 +28,7 @@ impl<T: Copy, const N: usize> StackVec<T, N> {
     }
 
     pub fn push(&mut self, value: T) {
-        assert!(self.len < N);
+        debug_assert!(self.len < N);
         self.data[self.len] = MaybeUninit::new(value);
         self.len += 1;
     }
@@ -55,7 +55,7 @@ impl<T: Copy, const N: usize> StackVec<T, N> {
 
     pub fn extend_from_slice(&mut self, src: &[T]) {
         let available = N - self.len;
-        assert!(available >= src.len());
+        debug_assert!(available >= src.len());
 
         unsafe {
             let dst_ptr = self.data.as_mut_ptr().add(self.len) as *mut T;
@@ -80,14 +80,14 @@ impl<T: Copy, const N: usize> StackVec<T, N> {
 impl<T: Copy, const N: usize> std::ops::Index<usize> for StackVec<T, N> {
     type Output = T;
     fn index(&self, idx: usize) -> &Self::Output {
-        assert!(idx < self.len);
+        debug_assert!(idx < self.len);
         unsafe { &*self.data[idx].as_ptr() }
     }
 }
 
 impl<T: Copy, const N: usize> std::ops::IndexMut<usize> for StackVec<T, N> {
     fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
-        assert!(idx < self.len);
+        debug_assert!(idx < self.len);
         unsafe { &mut *self.data[idx].as_mut_ptr() }
     }
 }
