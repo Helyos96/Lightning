@@ -284,9 +284,9 @@ pub fn calc_defence(build: &Build) -> FxHashMap<&'static str, i64> {
     }
 
     let mut life_regen = stats.stat(StatId::LifeRegeneration).to_owned();
-    life_regen.adjust(Type::Base, (stats.stat(StatId::LifeRegenerationPct).val() * max_life) / 10000);
+    life_regen.adjust(Type::Base, (stats.stat(StatId::LifeRegenerationPct).val() * max_life) / 100);
     life_regen.adjust(Type::More, stats.stat(StatId::LifeRegenerationRate).val());
-    ret.insert("Life Regeneration", life_regen.val());
+    ret.insert("Life Regeneration", life_regen.val() / 100);
 
     let mut mana_regen = stats.stat(StatId::ManaRegeneration).to_owned();
     mana_regen.adjust(Type::Base, (stats.stat(StatId::ManaRegenerationPct).val() * max_mana) / 10000);

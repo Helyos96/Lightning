@@ -722,7 +722,29 @@ impl Build {
                     if !self.is_holding(weapons) {
                         return false;
                     }
-                }
+                },
+                Condition::SlotHasArmour(slot) => {
+                    // Using self.inventory[*item_idx] directly because it's always supposed to be valid
+                    if let Some(item_idx) = self.equipment.get(&slot) &&
+                       self.inventory[*item_idx].calc_defence().armour.val() > 0 {
+                        return true;
+                    } else {
+                        return false
+                    }
+                },
+                Condition::SlotLesserEqualStat((slot, amount, stat_id)) => {
+                    if let Some(item_idx) = self.equipment.get(slot) {
+                        // Using self.inventory[*item_idx] directly because it's always supposed to be valid
+                        let mods = self.inventory[*item_idx].calc_nonlocal_mods(*slot);
+                        let stat = stat::calc_stat(*stat_id, &mods);
+                        if stat.val() <= *amount {
+                            return true;
+                        }
+                        return false;
+                    } else {
+                        return false
+                    }
+                },
             }
         }
         true

@@ -4,7 +4,6 @@
 		* ~~Basic jewels~~
 		* With radius shown
 		* Cluster jewels
-	* Search function
 	* Calc functions (highest dps unallocated etc.)
 * Abyss jewels
 * Unique items
@@ -28,16 +27,14 @@
 * Ailments
 * Spectres
 * Trigger
+* Leech
 * Warcries / Exert
-* Auras / Global mods
+* Auras / Buffs
 * Defences
 	* ~~Armour~~
 		* PDR
-	* ~~Evasion~~
-	* ~~Energy Shield~~
 	* Ward
 	* Block
-	* Spell Suppression
 * ~~Accuracy~~
 	* Per-weapon + local weapon accuracy mods
 * All the mods and gems

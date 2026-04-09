@@ -81,20 +81,32 @@ const ENDINGS_WEAPON_RESTRICTIONS: &[(&str, BitFlags<ItemClass>)] = &[
     ("with maces or sceptres", flags!(ItemClass::{OneHandMace | TwoHandMace | Sceptre})),
 ];
 
-const ENDINGS_CONDITIONS: &[(&str, Condition)] = &[
-    ("while fortified", Condition::PropertyBool((true, property::Bool::Fortified))),
-    ("if you've dealt a critical strike recently", Condition::PropertyBool((true, property::Bool::DealtCritRecently))),
-    ("while leeching", Condition::PropertyBool((true, property::Bool::Leeching))),
-    ("when on full life", Condition::PropertyBool((true, property::Bool::OnFullLife))),
-    ("while on full life", Condition::PropertyBool((true, property::Bool::OnFullLife))),
-    ("while on low life", Condition::PropertyBool((true, property::Bool::OnLowLife))),
-    ("while holding a shield", Condition::WhileWielding(flags!(ItemClass::Shield))),
-    ("while wielding a wand", Condition::WhileWielding(flags!(ItemClass::Wand))),
-    ("while wielding a staff", Condition::WhileWielding(flags!(ItemClass::{Staff | Warstaff}))),
-    ("while wielding a sword", Condition::WhileWielding(flags!(ItemClass::{OneHandSword | TwoHandSword | ThrustingOneHandSword}))),
-    ("while wielding a dagger", Condition::WhileWielding(flags!(ItemClass::{Dagger | RuneDagger}))),
-    ("while wielding a mace or sceptre", Condition::WhileWielding(flags!(ItemClass::{OneHandMace | TwoHandMace | Sceptre}))),
-    ("while wielding a claw or dagger", Condition::WhileWielding(flags!(ItemClass::{Dagger | RuneDagger | Claw}))),
+const ENDINGS_CONDITIONS: &[(&str, &[Condition])] = &[
+    ("while fortified", &[Condition::PropertyBool((true, property::Bool::Fortified))]),
+    ("if you've dealt a critical strike recently", &[Condition::PropertyBool((true, property::Bool::DealtCritRecently))]),
+    ("while leeching", &[Condition::PropertyBool((true, property::Bool::Leeching))]),
+    ("when on full life", &[Condition::PropertyBool((true, property::Bool::OnFullLife))]),
+    ("while on full life", &[Condition::PropertyBool((true, property::Bool::OnFullLife))]),
+    ("while on low life", &[Condition::PropertyBool((true, property::Bool::OnLowLife))]),
+    ("while holding a shield", &[Condition::WhileWielding(flags!(ItemClass::Shield))]),
+    ("while wielding a wand", &[Condition::WhileWielding(flags!(ItemClass::Wand))]),
+    ("while wielding a staff", &[Condition::WhileWielding(flags!(ItemClass::{Staff | Warstaff}))]),
+    ("while wielding a sword", &[Condition::WhileWielding(flags!(ItemClass::{OneHandSword | TwoHandSword | ThrustingOneHandSword}))]),
+    ("while wielding a dagger", &[Condition::WhileWielding(flags!(ItemClass::{Dagger | RuneDagger}))]),
+    ("while wielding a mace or sceptre", &[Condition::WhileWielding(flags!(ItemClass::{OneHandMace | TwoHandMace | Sceptre}))]),
+    ("while wielding a claw or dagger", &[Condition::WhileWielding(flags!(ItemClass::{Dagger | RuneDagger | Claw}))]),
+    ("if equipped helmet, body armour, gloves, and boots all have armour", &[
+        Condition::SlotHasArmour(Slot::Helm),
+        Condition::SlotHasArmour(Slot::BodyArmour),
+        Condition::SlotHasArmour(Slot::Gloves),
+        Condition::SlotHasArmour(Slot::Boots),
+    ]),
+    ("if there are no life modifiers on equipped body armour", &[
+        Condition::SlotLesserEqualStat((Slot::BodyArmour, 0, StatId::MaximumLife)),
+        Condition::SlotLesserEqualStat((Slot::BodyArmour, 0, StatId::LifeRegeneration)),
+        Condition::SlotLesserEqualStat((Slot::BodyArmour, 0, StatId::LifeRegenerationPct)),
+        Condition::SlotLesserEqualStat((Slot::BodyArmour, 0, StatId::LifeRegenerationRate)),
+    ]),
 ];
 
 // Order is important for overlapping stats
@@ -382,7 +394,7 @@ lazy_static! {
                 }])
             })
         ), (
-            regex!(r"^regenerate ([0-9]+) (life|mana) per second$"),
+            regex!(r"^regenerate ([0-9.]+) (life|mana) per second$"),
             Box::new(|c| {
                 let stat = if &c[2] == "life" {
                     StatId::LifeRegeneration
@@ -392,7 +404,7 @@ lazy_static! {
                 Some(vec![Mod {
                     stat,
                     typ: Type::Base,
-                    amount: i64::from_str(&c[1]).unwrap(),
+                    amount: parse_val100(&c[1])?,
                     ..Default::default()
                 }])
             })
@@ -591,6 +603,8 @@ pub enum Condition {
     LesserEqualStat((i64, StatId)),
     PropertyBool((bool, property::Bool)),
     WhileWielding(BitFlags<ItemClass>),
+    SlotHasArmour(Slot),
+    SlotLesserEqualStat((Slot, i64, StatId)),
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -629,14 +643,14 @@ impl Mod {
     }
 }
 
-fn parse_ending(m: &str) -> Option<(usize, Ending)> {
+fn parse_ending(m: &str) -> Option<(usize, Vec<Ending>)> {
     for ending in ENDINGS.iter() {
         if let Some(cap) = ending.0.captures(&m) {
             let mut mutation = ending.1;
             if let Some(amount) = cap.get(1) {
                 mutation.set_amount(i64::from_str(amount.as_str()).unwrap());
             }
-            return Some((cap.get_match().len(), Ending::Mutation(mutation)));
+            return Some((cap.get_match().len(), vec![Ending::Mutation(mutation)]));
         }
     }
     if let Some(cap) = ENDING_PER_GENERIC.captures(&m) {
@@ -645,22 +659,26 @@ fn parse_ending(m: &str) -> Option<(usize, Ending)> {
                 Some(amount_str) => i64::from_str(amount_str.as_str()).unwrap(),
                 None => 1,
             };
-            return Some((cap.get_match().len(), Ending::Mutation(Mutation::MultiplierStat((amount, stat.0)))));
+            return Some((cap.get_match().len(), vec![Ending::Mutation(Mutation::MultiplierStat((amount, stat.0)))]));
         }
     }
     for ending in ENDINGS_GEMTAGS.iter() {
         if m.ends_with(ending.0) {
-            return Some((ending.0.len(), Ending::Tag(ending.1)));
+            return Some((ending.0.len(), vec![Ending::Tag(ending.1)]));
         }
     }
     for ending in ENDINGS_WEAPON_RESTRICTIONS.iter() {
         if m.ends_with(ending.0) {
-            return Some((ending.0.len(), Ending::Weapon(ending.1)));
+            return Some((ending.0.len(), vec![Ending::Weapon(ending.1)]));
         }
     }
     for ending in ENDINGS_CONDITIONS.iter() {
         if m.ends_with(ending.0) {
-            return Some((ending.0.len(), Ending::Condition(ending.1)));
+            let endings_vec = ending.1
+                .iter()
+                .map(|&condition| Ending::Condition(condition))
+                .collect();
+            return Some((ending.0.len(), endings_vec));
         }
     }
 
@@ -741,19 +759,21 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
         if let Some(c) = m.chars().last() && c == ' ' {
             m = &m[0..m.len() - 1];
         }
-        match ending.1 {
-            Ending::Mutation(mutation) => {
-                mutations.push(mutation);
+        for ending in ending.1 {
+            match ending {
+                Ending::Mutation(mutation) => {
+                    mutations.push(mutation);
+                }
+                Ending::Tag(tag) => {
+                    tags.insert(tag);
+                }
+                Ending::Weapon(weapon) => {
+                    weapons.insert(weapon);
+                },
+                Ending::Condition(condition) => {
+                    conditions.push(condition);
+                },
             }
-            Ending::Tag(tag) => {
-                tags.insert(tag);
-            }
-            Ending::Weapon(weapon) => {
-                weapons.insert(weapon);
-            },
-            Ending::Condition(condition) => {
-                conditions.push(condition);
-            },
         }
     }
 
