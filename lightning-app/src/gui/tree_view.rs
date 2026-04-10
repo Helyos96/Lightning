@@ -128,12 +128,21 @@ fn draw_hover_window(ctx: &egui::Context, state: &mut State) {
                     ui.separator();
                     item_spacing.y -= 5.0;
                     ui.spacing_mut().item_spacing = item_spacing;
+                    let nb_nodes = if let Some(path_hovered) = &state.path_hovered {
+                        path_hovered.len() - 1
+                    } else if let Some(path_red) = &state.path_red {
+                        path_red.len()
+                    } else {
+                        0
+                    };
 
                     egui::Grid::new("delta_grid")
                         .show(ui, |ui| {
                             ui.label(egui::RichText::new("Stat").strong());
                             ui.label(egui::RichText::new("This node").strong());
-                            ui.label(egui::RichText::new("All nodes").strong());
+                            if nb_nodes > 1 {
+                                ui.label(egui::RichText::new("All nodes").strong());
+                            }
                             ui.end_row();
 
                             let mut keys: Vec<&'static str> = state
@@ -155,11 +164,13 @@ fn draw_hover_window(ctx: &egui::Context, state: &mut State) {
                                     ui.label("-");
                                 }
 
-                                let all = state.delta_compare.get(k).unwrap_or(&0);
-                                if *all != 0 {
-                                    ui.label(format!("{all:+}"));
-                                } else {
-                                    ui.label("-");
+                                if nb_nodes > 1 {
+                                    let all = state.delta_compare.get(k).unwrap_or(&0);
+                                    if *all != 0 {
+                                        ui.label(format!("{all:+}"));
+                                    } else {
+                                        ui.label("-");
+                                    }
                                 }
 
                                 ui.end_row();
