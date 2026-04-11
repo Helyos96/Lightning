@@ -114,6 +114,9 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 if ui.button("Items").clicked() {
                     state.ui_state = UiState::Main(MainState::Items);
                 }
+                if ui.button("Calc").clicked() {
+                    state.ui_state = UiState::Main(MainState::Calc);
+                }
                 ui.end_row();
             });
             egui::ComboBox::from_id_salt("combo_gemlink")

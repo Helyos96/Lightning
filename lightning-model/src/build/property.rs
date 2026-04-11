@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use lazy_static::lazy_static;
 use super::StatId;
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Hash, PartialEq, Eq, strum_macros::Display)]
 pub enum Int {
     Level,
     PowerCharges,
@@ -25,7 +25,7 @@ pub struct IntData {
     pub max: Val,
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Hash, PartialEq, Eq, strum_macros::Display)]
 pub enum Bool {
     Blinded,
     Onslaught,

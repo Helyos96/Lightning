@@ -82,6 +82,20 @@ impl Gem {
         mods
     }
 
+    pub fn mana_cost_level(&self) -> Option<i64> {
+        let level_data = self.data().per_level.get(&self.level)?;
+        if let Some(mana) = level_data.costs.as_ref()?.mana {
+            Some(mana as i64)
+        } else {
+            None
+        }
+    }
+
+    pub fn cost_multiplier_level(&self) -> Option<i64> {
+        let level_data = self.data().per_level.get(&self.level)?;
+        level_data.cost_multiplier
+    }
+
     fn stat_value_level(&self, id: &str) -> Option<i64> {
         let idx = self.data().r#static.stat_idx(id)?;
         let level_data = self.data().per_level.get(&self.level)?;

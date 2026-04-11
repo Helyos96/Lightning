@@ -498,6 +498,16 @@ lazy_static! {
                     ..Default::default()
                 }])
             })
+        ), (
+            regex!(r"^has ([0-9]+) abyssal sockets?$"),
+            Box::new(|c| {
+                Some(vec![Mod {
+                    stat: StatId::AbyssalSockets,
+                    typ: Type::Base,
+                    amount: i64::from_str(&c[1]).unwrap(),
+                    ..Default::default()
+                }])
+            })
         ),
     ];
 
@@ -739,7 +749,13 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
     let mut cache = CACHE.lock().expect("Unable to lock CACHE");
 
     if let Some(mods_opt) = cache.get(input) {
-        return mods_opt.to_owned();
+        let mut mods_opt = mods_opt.to_owned();
+        if let Some(mods) = &mut mods_opt {
+            for m in mods {
+                m.source = source;
+            }
+        }
+        return mods_opt;
     }
 
     let lowercase = input.to_lowercase();

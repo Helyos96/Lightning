@@ -36,6 +36,7 @@ pub enum Slot {
     Ring2,
     Flask(u16), // u16 -> Flask slot
     TreeJewel(u32), // u32 -> Tree node holding the jewel
+    AbyssalJewel(u16), // u16 -> Number of abyssal socket
 }
 
 impl Slot {
@@ -43,6 +44,7 @@ impl Slot {
         match (self, other) {
             (Slot::Flask(_), Slot::Flask(_)) => true,
             (Slot::TreeJewel(_), Slot::TreeJewel(_)) => true,
+            (Slot::AbyssalJewel(_), Slot::AbyssalJewel(_)) => true,
             _ => self == &other,
         }
     }
@@ -77,6 +79,7 @@ impl TryFrom<(&str, u16)> for Slot {
                     Err(())
                 }
             }
+            "AbyssalJewel" => Ok(Slot::AbyssalJewel(x)),
             _ => Err(())
         }
     }
@@ -258,10 +261,18 @@ impl Build {
 
     pub fn update_item_allocations(&mut self) {
         self.tree.nodes_additional.clear();
-        for (slot, idx) in &self.equipment {
-            let item_mods = self.inventory[*idx].calc_nonlocal_mods(*slot);
+        let mut max_abyssal_sockets = 0;
+        let equipment_slots: Vec<(Slot, usize)> = self.equipment.iter().map(|(k, v)| (*k, *v)).collect();
+        for (slot, idx) in equipment_slots {
+            if matches!(slot, Slot::AbyssalJewel(_)) {
+                continue;
+            }
+            let item_mods = self.inventory[idx].calc_nonlocal_mods(slot);
 
             for m in item_mods {
+                if m.stat == stat::StatId::AbyssalSockets {
+                    max_abyssal_sockets += m.amount;
+                }
                 if let Some(n) = m.allocates {
                     if !self.tree.nodes_additional.contains(&n) {
                         self.tree.nodes_additional.push(n);
@@ -269,6 +280,14 @@ impl Build {
                 }
             }
         }
+
+        self.equipment.retain(|k, _| {
+            if let Slot::AbyssalJewel(idx) = k {
+                *idx < max_abyssal_sockets as u16
+            } else {
+                true
+            }
+        });
     }
 
     /// Returns mods from the following sources:

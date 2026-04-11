@@ -46,6 +46,7 @@ fn format_slot(slot: Slot) -> String {
         Slot::Ring2 => "Ring 2".to_string(),
         Slot::Flask(i) => format!("Flask {}", i + 1),
         Slot::TreeJewel(i) => format!("Jewel {}", i),
+        Slot::AbyssalJewel(i) => format!("Abyssal Socket {}", i + 1),
     }
 }
 
@@ -156,6 +157,11 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                                     newly_hovered_idx = Some(hov);
                                 }
                             }
+                            for i in 0..state.abyssal_sockets {
+                                if let Some(hov) = draw_item_combo(ui, state, Slot::AbyssalJewel(i)) {
+                                    newly_hovered_idx = Some(hov);
+                                }
+                            }
                         });
                 });
                 egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(&mut uis[1] /*ui*/, |ui| {
@@ -248,6 +254,9 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 for jewel_node in state.build.tree.jewel_slots() {
                     potential_slots.push(Slot::TreeJewel(jewel_node));
                 }
+                for i in 0..state.abyssal_sockets {
+                    potential_slots.push(Slot::AbyssalJewel(i));
+                }
 
                 for slot in potential_slots {
                     if item.data().item_class.allowed_slots().iter().any(|&s| s.compatible(slot)) {
@@ -303,6 +312,9 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
             potential_slots.extend_from_slice(&SLOTS);
             for jewel_node in state.build.tree.jewel_slots() {
                 potential_slots.push(Slot::TreeJewel(jewel_node));
+            }
+            for i in 0..state.abyssal_sockets {
+                potential_slots.push(Slot::AbyssalJewel(i));
             }
 
             for slot in potential_slots {

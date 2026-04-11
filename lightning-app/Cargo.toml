@@ -12,6 +12,7 @@ raw-window-handle = "0.6.*"
 egui = "0.33.*"
 egui_glow = { version = "0.33.*", features = ["winit", "clipboard"] }
 egui_extras = "0.33.*"
+egui_flex = "0.5.*"
 glow = "0.16.*"
 dirs = "4.*"
 serde = "1.0.*"

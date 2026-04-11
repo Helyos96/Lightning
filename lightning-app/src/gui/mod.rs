@@ -28,6 +28,7 @@ pub enum MainState {
     Config,
     Skills,
     Items,
+    Calc,
     ChooseMastery(u32),
 }
 
@@ -59,10 +60,12 @@ pub struct State {
 
     pub active_skill_calc: FxHashMap<&'static str, i64>,
     pub defence_calc: FxHashMap<&'static str, i64>,
+    pub defence_stats: lightning_model::build::stat::Stats,
     pub delta_compare: FxHashMap<&'static str, i64>,
     pub delta_compare_single: FxHashMap<&'static str, i64>,
     pub passives_count: usize,
     pub passives_max: i64,
+    pub abyssal_sockets: u16,
     pub hovered_node_id: Option<u32>,
     pub path_hovered: Option<Vec<u32>>,
     pub path_red: Option<Vec<u32>>,
@@ -118,10 +121,12 @@ impl State {
 
             active_skill_calc: FxHashMap::default(),
             defence_calc: FxHashMap::default(),
+            defence_stats: Default::default(),
             delta_compare: FxHashMap::default(),
             delta_compare_single: FxHashMap::default(),
             passives_count: 0,
             passives_max: 0,
+            abyssal_sockets: 0,
             hovered_node_id: None,
             path_hovered: None,
             path_red: None,
@@ -212,7 +217,7 @@ impl State {
                 delta.extend(calc::compare(&self.active_skill_calc, &active_gem_compare_calc));
             }
         }
-        let defence_compare_calc = calc::calc_defence(build_compare);
+        let (defence_compare_calc, _) = calc::calc_defence(build_compare);
         delta.extend(calc::compare(&self.defence_calc, &defence_compare_calc));
         delta
     }
@@ -224,7 +229,27 @@ impl State {
         let stats = self.build.calc_stats(&mods, BitFlags::empty());
         self.passives_count = self.build.tree.passives_count();
         self.passives_max = stats.val(lightning_model::build::stat::StatId::PassiveSkillPoints);
-        self.defence_calc = calc::calc_defence(&self.build);
+        self.abyssal_sockets = stats.val(lightning_model::build::stat::StatId::AbyssalSockets) as u16;
+        let (defence_calc, mut defence_stats) = calc::calc_defence(&self.build);
+        for stat in defence_stats.stats.values_mut() {
+            stat.mods.sort_unstable_by(|a, b| {
+                let type_score = |t: lightning_model::modifier::Type| match t {
+                    lightning_model::modifier::Type::Override => 3,
+                    lightning_model::modifier::Type::Base => 2,
+                    lightning_model::modifier::Type::Inc => 1,
+                    lightning_model::modifier::Type::More => 0,
+                };
+                let a_score = type_score(a.typ);
+                let b_score = type_score(b.typ);
+                if a_score != b_score {
+                    b_score.cmp(&a_score)
+                } else {
+                    b.final_amount().cmp(&a.final_amount())
+                }
+            });
+        }
+        self.defence_calc = defence_calc;
+        self.defence_stats = defence_stats;
         self.active_skill_calc.clear();
         if let Some(gem_link) = self.build.gem_links.get(self.gemlink_cur) {
             if let Some(active_gem) = gem_link.active_gems().nth(self.active_skill_cur) {
@@ -254,7 +279,7 @@ impl State {
                     let delta_dps = compare.get("DPS").unwrap_or(&0);
                     vec.push((*delta_dps, gem_data.display_name()));
                 }
-                vec.sort_unstable_by(|a, b| b.0.cmp(&a.0));
+                vec.sort_unstable_by(|a, b| if a.0 != b.0 { b.0.cmp(&a.0) } else { a.1.cmp(b.1) });
                 self.panel_skills.computed_gems = Some(vec);
             }
         } else {

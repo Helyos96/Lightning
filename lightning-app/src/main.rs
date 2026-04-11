@@ -248,6 +248,8 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                 gui::panel::skills::draw(egui_ctx, state);
                             } else if main_state == MainState::Items {
                                 gui::panel::items::draw(egui_ctx, state);
+                            } else if main_state == MainState::Calc {
+                                gui::panel::calc::draw(egui_ctx, state);
                             }
                             if let MainState::ChooseMastery(node_id) = main_state {
                                 if let Some(effect) = gui::select_mastery_effect(egui_ctx, &state.build.tree.masteries, &TREE.nodes[&node_id]) {

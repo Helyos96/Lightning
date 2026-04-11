@@ -2,7 +2,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::{data::{base_item::ItemClass, gem::GemTag}, modifier::{Mod, Type}};
 use lazy_static::lazy_static;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, strum_macros::Display)]
 pub enum StatId {
     #[default]
     Strength,
@@ -126,6 +126,7 @@ pub enum StatId {
     AllocatesPassiveSkills,
     AddedPassiveSkillsGrantNode,
     AddedPassivesAreJewelSockets,
+    AbyssalSockets,
     MaximumFortification,
 }
 
@@ -154,11 +155,11 @@ impl Stats {
 
 #[derive(Debug, Clone)]
 pub struct Stat {
-    base: i64,
-    inc: i64,
-    more: i64,
-    overrid: Option<i64>,
-    mods: Vec<Mod>,
+    pub base: i64,
+    pub inc: i64,
+    pub more: i64,
+    pub overrid: Option<i64>,
+    pub mods: Vec<Mod>,
 }
 
 /// Computes a stat from a mod list

@@ -25,9 +25,9 @@ pub struct BaseItem {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Costs {
     #[serde(rename = "Mana")]
-    mana: Option<i32>,
+    pub mana: Option<i32>,
     #[serde(rename = "Life")]
-    life: Option<i32>,
+    pub life: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -47,13 +47,14 @@ pub struct LevelStat {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Level {
-    costs: Option<Costs>,
+    pub costs: Option<Costs>,
     required_level: Option<f32>,
     #[serde(default)]
     stat_requirements: Option<StatRequirements>,
     pub stats: Option<Vec<Option<LevelStat>>>,
     pub damage_effectiveness: Option<i64>,
     pub damage_multiplier: Option<i64>,
+    pub cost_multiplier: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

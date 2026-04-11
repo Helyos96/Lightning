@@ -116,6 +116,18 @@ fn calc_chance_hit_weapon(stats: &Stats, monster_stats: &Stats, weapon: &Item) -
     chance_to_hit_stat.val()
 }
 
+fn cost_multiplier<'a>(support_gems: impl Iterator<Item = &'a Gem>) -> i64 {
+    let mut multiplier = 100;
+
+    for support in support_gems {
+        if let Some(multi) = support.cost_multiplier_level() {
+            multiplier = (multiplier * multi) / 100;
+        }
+    }
+
+    multiplier
+}
+
 pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, active_gem: &Gem) -> FxHashMap<&'static str, i64> {
     assert!(!active_gem.data().is_support);
     let mut ret = FxHashMap::default();
@@ -240,6 +252,10 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
         }
     };
 
+    /*if let Some(base_cost) = active_gem.mana_cost_level() {
+        ret.insert("Mana Cost", (base_cost * cost_multiplier(support_gems)) / 100);
+    }*/
+
     let average_damage: i64 = damage.iter().sum();
     ret.insert("Average Damage", average_damage);
 
@@ -251,7 +267,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
     ret
 }
 
-pub fn calc_defence(build: &Build) -> FxHashMap<&'static str, i64> {
+pub fn calc_defence(build: &Build) -> (FxHashMap<&'static str, i64>, Stats) {
     let mut ret = FxHashMap::default();
     let mods = build.calc_mods(true);
     let stats = build.calc_stats(&mods, BitFlags::empty());
@@ -293,5 +309,5 @@ pub fn calc_defence(build: &Build) -> FxHashMap<&'static str, i64> {
     mana_regen.adjust(Type::More, (stats.stat(StatId::ManaRegenerationRate).val() * max_mana) / 10000);
     ret.insert("Mana Regeneration", mana_regen.val());
 
-    ret
+    (ret, stats)
 }

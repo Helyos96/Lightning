@@ -176,6 +176,7 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
     let items = client.get(url).send()?.json::<ItemsSkillsChar>()?;
 
     let mut build = Build::new_player();
+    let mut abyssal_jewel_idx = 0;
     build.name = character.to_string();
     build.set_property_int(crate::build::property::Int::Level, items.character.level);
     build.tree.nodes = tree.hashes;
@@ -212,8 +213,11 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
         if let Some(socketed_items) = &item.socketedItems {
             let (gemlink, jewels) = extract_socketed(socketed_items);
             build.gem_links.push(gemlink);
-            // TODO: abyss jewels
-            build.inventory.extend(jewels);
+            for jewel in jewels {
+                build.inventory.push(jewel);
+                build.equipment.insert(Slot::AbyssalJewel(abyssal_jewel_idx), build.inventory.len() - 1);
+                abyssal_jewel_idx += 1;
+            }
         }
         if let Some(inventory_id) = &item.inventoryId {
             if let Some(item_inv) = conv_item(item) {
