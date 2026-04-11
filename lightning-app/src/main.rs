@@ -18,7 +18,6 @@ use crate::tree_gl::TreeGl;
 use glow::HasContext;
 use glutin::surface::SwapInterval;
 use gui::{MainState, State, UiState};
-use lightning_model::build::property;
 use lightning_model::data::TREE;
 use lightning_model::{build, util};
 use std::error::Error;
@@ -52,32 +51,20 @@ fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
     state.ui_state = match &ui_state {
         UiState::LoadBuild(path) => {
             state.build = util::load_build(path)?;
-            state.level = state.build.property_int(property::Int::Level);
-            state.request_recalc = true;
-            state.request_regen = true;
-            state.request_regen_nodes = true;
-            state.reset_history();
+            state.reset();
             println!("Loaded build from {}", &path.display());
             UiState::Main(MainState::Tree)
         }
         #[cfg(feature = "import")]
         UiState::ImportBuild => {
             state.build = util::fetch_build(&state.import_account, &state.import_character)?;
-            state.level = state.build.property_int(property::Int::Level);
-            state.request_recalc = true;
-            state.request_regen = true;
-            state.request_regen_nodes = true;
-            state.reset_history();
+            state.reset();
             println!("Fetched build: {} {}", &state.import_account, &state.import_character);
             UiState::Main(MainState::Tree)
         }
         UiState::NewBuild => {
             state.build = build::Build::new_player();
-            state.level = state.build.property_int(property::Int::Level);
-            state.request_recalc = true;
-            state.request_regen = true;
-            state.request_regen_nodes = true;
-            state.reset_history();
+            state.reset();
             UiState::Main(MainState::Tree)
         }
         _ => state.ui_state.clone(),

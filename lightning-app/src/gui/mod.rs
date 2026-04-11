@@ -12,6 +12,7 @@ use lightning_model::data::tree::Node;
 use lightning_model::data::GEMS;
 use lightning_model::gem::Gem;
 use lightning_model::calc;
+use lightning_model::build::property;
 use panel::items::ItemsPanelState;
 use panel::skills::SkillsPanelState;
 use panel::bottom::BottomPanelState;
@@ -151,10 +152,24 @@ impl State {
         }
     }
 
-    pub fn reset_history(&mut self) {
+    pub fn reset(&mut self) {
         self.history.clear();
         self.history_idx = 0;
         self.snapshot();
+        self.level = self.build.property_int(property::Int::Level);
+        self.request_recalc = true;
+        self.request_regen = true;
+        self.request_regen_nodes = true;
+        self.path_hovered = None;
+        self.path_red = None;
+        self.hovered_node_id = None;
+        self.gemlink_cur = 0;
+        self.active_skill_cur = 0;
+        self.panel_items.editing_item_idx = None;
+        self.panel_items.custom_text.clear();
+        self.panel_items.editing_item = None;
+        self.panel_skills.selected_gemlink = 0;
+        self.panel_skills.selected_gem = None;
     }
 
     pub fn snapshot(&mut self) {
