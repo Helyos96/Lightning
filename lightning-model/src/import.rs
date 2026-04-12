@@ -80,16 +80,12 @@ struct PassiveTree {
 }
 
 impl Item {
-    pub fn quality(&self) -> i64 {
-        if let Some(quality_prop) = self.properties.iter().find(|p| p.name == "Quality") {
-            if !quality_prop.values.is_empty() {
-                let string = quality_prop.values[0].0.replace(['+', '%'], "");
-                if let Ok(quality) = i64::from_str(&string) {
-                    return quality;
-                }
-            }
+    pub fn prop(&self, name: &str) -> Option<i64> {
+        let prop = self.properties.iter().find(|p| p.name == name)?;
+        if prop.values.is_empty() {
+            return None;
         }
-        0
+        i64::from_str(&prop.values[0].0.replace(['+', '%'], "")).ok()
     }
 }
 
@@ -142,17 +138,25 @@ fn conv_item(item: &Item) -> Option<item::Item> {
     let mut mods_expl = item.explicitMods.clone();
     mods_expl.extend(item.craftedMods.clone());
     mods_expl.extend(item.fracturedMods.clone());
-    Some(item::Item {
+    let mut item_ret = item::Item {
         base_item: item.baseType.clone(),
         name: item.name.clone(),
         rarity: item.rarity,
         mods_impl: item.implicitMods.clone(),
         mods_expl,
         mods_enchant: item.enchantMods.clone(),
-        quality: item.quality(),
+        quality: item.prop("Quality").unwrap_or(0),
         corrupted: item.corrupted,
         item_level: item.ilvl.unwrap_or(0),
-    })
+        base_percentile: 0,
+    };
+
+    let (armour, evasion, energy_shield) = (item.prop("Armour"), item.prop("Evasion Rating"), item.prop("Energy Shield"));
+    if armour.is_some() || evasion.is_some() || energy_shield.is_some() {
+        item_ret.reverse_base_percentile(armour.unwrap_or(0), evasion.unwrap_or(0), energy_shield.unwrap_or(0));
+    }
+
+    Some(item_ret)
 }
 
 #[derive(Debug, Clone)]

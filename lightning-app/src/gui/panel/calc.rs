@@ -25,6 +25,27 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                         draw_stat_breakdown(ui, state, StatId::MaximumMana);
                     });
                 });
+
+                flex.add_ui(egui_flex::item(), |ui| {
+                    ui.vertical(|ui| {
+                        ui.label(egui::RichText::new("Armour").size(18.0).color(Color32::WHITE));
+                        draw_stat_breakdown(ui, state, StatId::Armour);
+                    });
+                });
+
+                flex.add_ui(egui_flex::item(), |ui| {
+                    ui.vertical(|ui| {
+                        ui.label(egui::RichText::new("Evasion").size(18.0).color(Color32::GREEN));
+                        draw_stat_breakdown(ui, state, StatId::EvasionRating);
+                    });
+                });
+
+                flex.add_ui(egui_flex::item(), |ui| {
+                    ui.vertical(|ui| {
+                        ui.label(egui::RichText::new("Energy Shield").size(18.0).color(Color32::LIGHT_BLUE));
+                        draw_stat_breakdown(ui, state, StatId::MaximumEnergyShield);
+                    });
+                });
             });
         });
     });

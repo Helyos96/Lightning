@@ -23,6 +23,8 @@ pub struct Item {
     pub corrupted: bool,
     #[serde(default)]
     pub item_level: i64,
+    #[serde(default)]
+    pub base_percentile: i64,
 }
 
 struct LocalModMatch {
@@ -54,9 +56,9 @@ const LOCAL_MODS_ARMOUR: &[LocalModMatch] = &[
     LocalModMatch { stat: StatId::EvasionRating, typ: modifier::Type::Inc },
     LocalModMatch { stat: StatId::Armour, typ: modifier::Type::Base },
     LocalModMatch { stat: StatId::Armour, typ: modifier::Type::Inc },
-    LocalModMatch { stat: StatId::EnergyShield, typ: modifier::Type::Base },
+    LocalModMatch { stat: StatId::MaximumEnergyShield, typ: modifier::Type::Base },
     // TODO: corrupted implicits max ES are global
-    LocalModMatch { stat: StatId::EnergyShield, typ: modifier::Type::Inc },
+    LocalModMatch { stat: StatId::MaximumEnergyShield, typ: modifier::Type::Inc },
     LocalModMatch { stat: StatId::ChanceToBlockAttackDamage, typ: modifier::Type::Inc },
 ];
 
@@ -166,6 +168,10 @@ impl Item {
         None
     }
 
+    fn defence_val(&self, min: i64, max: i64) -> i64 {
+        min + ((max - min) * self.base_percentile) / 100
+    }
+
     pub fn calc_defence(&self) -> DefenceCalc {
         let mut ret = DefenceCalc::default();
         let base_item = self.data();
@@ -176,13 +182,13 @@ impl Item {
 
         // TODO: sacred orb defence adjusting instead of average
         if let Some(armour_prop) = &base_item.properties.armour {
-            ret.armour.adjust_mod(&Mod { typ: Type::Base, amount: ((armour_prop.min + armour_prop.max) / 2) as i64, ..Default::default() });
+            ret.armour.adjust_mod(&Mod { typ: Type::Base, amount: self.defence_val(armour_prop.min as i64, armour_prop.max as i64), ..Default::default() });
         }
         if let Some(energy_shield) = base_item.properties.energy_shield {
-            ret.energy_shield.adjust_mod(&Mod { typ: Type::Base, amount: ((energy_shield.min + energy_shield.max) / 2) as i64, ..Default::default() });
+            ret.energy_shield.adjust_mod(&Mod { typ: Type::Base, amount: self.defence_val(energy_shield.min as i64, energy_shield.max as i64), ..Default::default() });
         }
         if let Some(evasion) = base_item.properties.evasion {
-            ret.evasion.adjust_mod(&Mod { typ: Type::Base, amount: ((evasion.min + evasion.max) / 2) as i64, ..Default::default() });
+            ret.evasion.adjust_mod(&Mod { typ: Type::Base, amount: self.defence_val(evasion.min as i64, evasion.max as i64), ..Default::default() });
         }
         ret.armour.assimilate(&calc_stat(StatId::Armour, &mods));
         ret.energy_shield.assimilate(&calc_stat(StatId::MaximumEnergyShield, &mods));
@@ -193,6 +199,39 @@ impl Item {
         ret.block_chance.adjust_mod(&Mod { typ: Type::Base, amount: self.block_chance().unwrap_or(0), ..Default::default()});
 
         return ret;
+    }
+
+    /// Items can have a "base percentile" (affected by sacred orb) from 0-100% that affects base defences, ranging from prop.min to prop.max
+    /// This attempts to find out the base percentile based on the final armour/evasion/ES value displayed on the item
+    /// Can have discrepancies, especially with small values
+    pub fn reverse_base_percentile(&mut self, armour: i64, evasion: i64, energy_shield: i64) {
+        let mods = self.calc_local_mods();
+        let props = &self.data().properties;
+
+        let mut calc = |target: i64, id: StatId, min: u32, max: u32| {
+            let mut stat = calc_stat(id, &mods);
+            stat.adjust_mod(&Mod {
+                typ: Type::More,
+                amount: self.quality,
+                ..Default::default()
+            });
+
+            let m = stat.mult();
+            if m == 0 { return; }
+
+            let value = ((target * 10000 + (m - 1)) / m) - stat.base - min as i64;
+            let range = (max - min) as i64;
+
+            self.base_percentile = ((value * 100 + (range - 1)) / range).clamp(0, 100);
+        };
+
+        if armour > 0 && let Some(p) = &props.armour {
+            calc(armour, StatId::Armour, p.min, p.max);
+        } else if evasion > 0 && let Some(p) = &props.evasion {
+            calc(evasion, StatId::EvasionRating, p.min, p.max);
+        } else if energy_shield > 0 && let Some(p) = &props.energy_shield {
+            calc(energy_shield, StatId::MaximumEnergyShield, p.min, p.max);
+        }
     }
 
     pub fn accuracy(&self) -> Stat {
@@ -266,10 +305,14 @@ impl Item {
         let mut item = Item::default();
         let mut found_name = false;
         let mut found_class = false;
+        let mut armour = None;
+        let mut evasion = None;
+        let mut energy_shield = None;
         let lines: Vec<&str> = text.lines().map(str::trim).filter(|l| !l.is_empty() && l != &"--------").collect();
 
         for line in lines {
             let line = line.strip_suffix(" (augmented)").unwrap_or(line);
+            let line = line.strip_suffix(" (fractured)").unwrap_or(line);
             if let Some(rarity) = line.strip_prefix("Rarity: ") {
                 item.rarity = Rarity::from_str(rarity).unwrap_or_default();
                 continue;
@@ -296,12 +339,24 @@ impl Item {
                 }
                 continue;
             }
+            if let Some(armour_str) = line.strip_prefix("Armour: ") {
+                armour = i64::from_str(armour_str).ok();
+                continue;
+            }
+            if let Some(evasion_str) = line.strip_prefix("Evasion Rating: ") {
+                evasion = i64::from_str(evasion_str).ok();
+                continue;
+            }
+            if let Some(energy_shield_str) = line.strip_prefix("Energy Shield: ") {
+                energy_shield = i64::from_str(energy_shield_str).ok();
+                continue;
+            }
             if line == "Requirements:" || line.starts_with("Level:") || line.starts_with("Str:") ||
                line.starts_with("Dex:") || line.starts_with("Int:") || line.starts_with("Sockets:") ||
-               line.starts_with("Note:") || line.starts_with("Item Class:") || line.starts_with("Armour:") ||
-               line.starts_with("Energy Shield:") || line.starts_with("Evasion Rating:") || line.starts_with("Physical Damage:") ||
+               line.starts_with("Note:") || line.starts_with("Item Class:") ||
+               line.starts_with("Physical Damage:") ||
                line.starts_with("Elemental Damage:") || line.starts_with("Attacks per Second:")  ||
-               line.starts_with("Critical Strike Chance:") || line.starts_with("Weapon Range:") {
+               line.starts_with("Critical Strike Chance:") || line.starts_with("Weapon Range:") || line.starts_with("Memory Strands:") {
                 continue;
             }
             if let Some(enchant) = line.strip_suffix(" (enchant)") {
@@ -319,6 +374,10 @@ impl Item {
             }
             let line = line.strip_suffix(" (crafted)").unwrap_or(line);
             item.mods_expl.push(line.to_owned());
+        }
+
+        if armour.is_some() || evasion.is_some() || energy_shield.is_some() {
+            item.reverse_base_percentile(armour.unwrap_or(0), evasion.unwrap_or(0), energy_shield.unwrap_or(0));
         }
 
         match found_class {

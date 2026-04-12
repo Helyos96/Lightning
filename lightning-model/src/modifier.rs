@@ -174,7 +174,7 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>)] = 
     ("maximum rage", StatId::MaximumRage, BitFlags::EMPTY, BitFlags::EMPTY),
     ("maximum energy shield", StatId::MaximumEnergyShield, BitFlags::EMPTY, BitFlags::EMPTY),
     ("energy shield recharge rate", StatId::EnergyShieldRechargeRate, BitFlags::EMPTY, BitFlags::EMPTY),
-    ("energy shield", StatId::EnergyShield, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("energy shield", StatId::MaximumEnergyShield, BitFlags::EMPTY, BitFlags::EMPTY),
     ("life regeneration rate", StatId::LifeRegenerationRate, BitFlags::EMPTY, BitFlags::EMPTY),
     ("mana regeneration rate", StatId::ManaRegenerationRate, BitFlags::EMPTY, BitFlags::EMPTY),
     ("mana reservation efficiency", StatId::ManaReservationEfficiency, BitFlags::EMPTY, BitFlags::EMPTY),
@@ -761,7 +761,11 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
     let lowercase = input.to_lowercase();
 
     if let Some(oneshot) = ONESHOTS.get(lowercase.as_str()) {
-        return Some(oneshot.to_owned());
+        let mut mods = oneshot.to_owned();
+        for m in &mut mods {
+            m.source = source;
+        }
+        return Some(mods);
     }
 
     let mut m = &lowercase[0..];

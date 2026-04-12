@@ -82,7 +82,6 @@ pub enum StatId {
     MinimumRage,
     MaximumRage,
     MaximumEnergyShield,
-    EnergyShield,
     EnergyShieldRechargeRate,
     LifeRegeneration,
     LifeRegenerationPct,
@@ -210,7 +209,7 @@ impl Stat {
         }
     }
 
-    fn mult(&self) -> i64 {
+    pub fn mult(&self) -> i64 {
         (100 + self.inc) * self.more
     }
 
