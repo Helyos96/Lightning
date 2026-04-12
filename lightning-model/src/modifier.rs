@@ -6,6 +6,7 @@ use crate::gem::Gem;
 use crate::data::TREE;
 use crate::item::{self, Item};
 use crate::stackvec::StackVec;
+use crate::tree::NOTHINGNESS_NODE_ID;
 use enumflags2::{make_bitflags as flags, BitFlags};
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
@@ -497,6 +498,32 @@ lazy_static! {
                     amount: i64::from_str(&c[1]).unwrap(),
                     ..Default::default()
                 }])
+            })
+        ), (
+            regex!(r"^adds ([0-9]+) jewel socket passive skills$"),
+            Box::new(|c| {
+                Some(vec![Mod {
+                    stat: StatId::AddedPassivesAreJewelSockets,
+                    typ: Type::Base,
+                    amount: i64::from_str(&c[1]).unwrap(),
+                    ..Default::default()
+                }])
+            })
+        ), (
+            regex!(r"^adds ([0-9]+) small passive skills which grant nothing$"),
+            Box::new(|c| {
+                Some(vec![Mod {
+                    stat: StatId::AllocatesPassiveSkills,
+                    typ: Type::Base,
+                    amount: i64::from_str(&c[1]).unwrap(),
+                    ..Default::default()
+                }, Mod {
+                    stat: StatId::AddedPassiveSkillsGrantNode,
+                    typ: Type::Base,
+                    amount: NOTHINGNESS_NODE_ID as i64,
+                    ..Default::default()
+                },
+                ])
             })
         ), (
             regex!(r"^has ([0-9]+) abyssal sockets?$"),

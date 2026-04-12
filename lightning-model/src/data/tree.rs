@@ -185,7 +185,7 @@ pub struct ExpansionJewel {
     pub parent: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Node {
     pub skill: u32,

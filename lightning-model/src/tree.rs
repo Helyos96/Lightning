@@ -49,6 +49,8 @@ impl Default for PassiveTree {
     }
 }
 
+pub const NOTHINGNESS_NODE_ID: u32 = u32::MAX - 1;
+
 fn get_class_node(class: Class) -> u32 {
     TREE.nodes
         .values()
@@ -348,13 +350,25 @@ impl PassiveTree {
         self.nodes.retain(|node_id| self.nodes_data.contains_key(node_id));
     }
 
-    pub fn add_cluster(&mut self, cluster_data: ClusterData, orbit_data: &ClusterOrbitData, jewel_node_id: u32, base_item: &str) {
+    pub fn add_cluster(&mut self, mut cluster_data: ClusterData, orbit_data: &ClusterOrbitData, jewel_node_id: u32, base_item: &str) {
         if let Some(group_id) = self.get_proxy_group(jewel_node_id) {
             //let (total_amount, small_node_id, socket_amount, notables, added_stats) = cluster_data;
             let mut id_counter = u16::MAX as u32 + 1 + self.nodes_cluster.len() as u32;
             let mut new_nodes = vec![];
 
-            if let Some(small_node) = TREE.nodes.get(&cluster_data.small_passives_node_id) {
+            let small_node = if cluster_data.small_passives_node_id == NOTHINGNESS_NODE_ID {
+                // Voices
+                cluster_data.small_passives_amount += 3;
+                Some(&Node {
+                    name: "Nothingness".to_string(),
+                    icon: "Art/2DArt/SkillIcons/passives/flaskdex.png".to_string(),
+                    ..Default::default()
+                })
+            } else {
+                TREE.nodes.get(&cluster_data.small_passives_node_id)
+            };
+
+            if let Some(small_node) = small_node {
                 for i in 0..(cluster_data.small_passives_amount - cluster_data.added_sockets_amount - cluster_data.notables.len() as u32) {
                     let mut node = small_node.clone();
                     node.skill = id_counter;
