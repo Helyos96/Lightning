@@ -352,7 +352,6 @@ impl PassiveTree {
 
     pub fn add_cluster(&mut self, mut cluster_data: ClusterData, orbit_data: &ClusterOrbitData, jewel_node_id: u32, base_item: &str) {
         if let Some(group_id) = self.get_proxy_group(jewel_node_id) {
-            //let (total_amount, small_node_id, socket_amount, notables, added_stats) = cluster_data;
             let mut id_counter = u16::MAX as u32 + 1 + self.nodes_cluster.len() as u32;
             let mut new_nodes = vec![];
 

@@ -44,6 +44,8 @@ const ENDINGS_GEMTAGS: &[(&str, GemTag)] = &[
     ("with attack skills", GemTag::Attack),
     ("to attacks", GemTag::Attack),
     ("of attacks", GemTag::Attack),
+    ("on targets you hit with attacks", GemTag::Attack),
+    ("with attacks", GemTag::Attack),
     ("of skills", GemTag::Active_Skill),
     ("with mines", GemTag::Mine),
     ("with traps", GemTag::Trap),
@@ -85,6 +87,7 @@ const ENDINGS_WEAPON_RESTRICTIONS: &[(&str, BitFlags<ItemClass>)] = &[
 const ENDINGS_CONDITIONS: &[(&str, &[Condition])] = &[
     ("while fortified", &[Condition::PropertyBool((true, property::Bool::Fortified))]),
     ("if you've dealt a critical strike recently", &[Condition::PropertyBool((true, property::Bool::DealtCritRecently))]),
+    ("if you've blocked recently", &[Condition::PropertyBool((true, property::Bool::BlockedRecently))]),
     ("while leeching", &[Condition::PropertyBool((true, property::Bool::Leeching))]),
     ("when on full life", &[Condition::PropertyBool((true, property::Bool::OnFullLife))]),
     ("while on full life", &[Condition::PropertyBool((true, property::Bool::OnFullLife))]),
@@ -155,6 +158,7 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>)] = 
     ("physical attack damage", StatId::PhysicalDamage, flags!(GemTag::Attack), BitFlags::EMPTY),
     ("physical damage", StatId::PhysicalDamage, BitFlags::EMPTY, BitFlags::EMPTY),
     ("wand damage", StatId::Damage, BitFlags::EMPTY, flags!(ItemClass::Wand)),
+    ("damage with bleeding", StatId::BleedDamage, BitFlags::EMPTY, BitFlags::EMPTY),
     ("damage", StatId::Damage, BitFlags::EMPTY, BitFlags::EMPTY),
     ("area of effect", StatId::AreaOfEffect, BitFlags::EMPTY, BitFlags::EMPTY),
     ("accuracy rating", StatId::AccuracyRating, BitFlags::EMPTY, BitFlags::EMPTY),
@@ -202,6 +206,13 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>)] = 
     ("cost", StatId::Cost, BitFlags::EMPTY, BitFlags::EMPTY),
     ("passive skill points", StatId::PassiveSkillPoints, BitFlags::EMPTY, BitFlags::EMPTY),
     ("passive skill point", StatId::PassiveSkillPoints, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("damage over time multiplier for bleeding", StatId::BleedDotMultiplier, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("damage over time multiplier for poison", StatId::PoisonDotMultiplier, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("chance to cause bleeding", StatId::ChanceToBleed, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("chance to ignite", StatId::ChanceToIgnite, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("chance to shock", StatId::ChanceToShock, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("chance to poison on hit", StatId::ChanceToPoison, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("poison duration", StatId::PoisonDuration, BitFlags::EMPTY, BitFlags::EMPTY),
 ];
 
 lazy_static! {
@@ -218,15 +229,7 @@ lazy_static! {
                     _ => panic!(),
                 };
                 Some(stat_tags.iter().map(|s| {
-                    let mut ret = Mod {
-                        stat: s.0,
-                        typ: Type::Inc,
-                        amount,
-                        tags: s.1,
-                        weapons: s.2,
-                        global: s.3,
-                        ..Default::default()
-                    };
+                    let mut ret = Mod { stat: s.0, typ: Type::Inc, amount, tags: s.1, weapons: s.2, global: s.3, ..Default::default() };
                     if insert_minion_tag {
                         ret.tags.insert(GemTag::Minion);
                     }
@@ -234,23 +237,19 @@ lazy_static! {
                 }).collect())
             })
         ), (
-            regex!(r"^(minions have )?([+-]?[0-9]+)%? (?:additional )?(?:to )?(?:all )?([a-z ]+)$"),
+            regex!(r"^(minions have )?(attacks have )?([+-]?[0-9]+)%? (?:additional )?(?:to )?(?:all )?([a-z ]+)$"),
             Box::new(|c| {
-                let stat_tags = parse_stat(&c[3])?;
+                let stat_tags = parse_stat(&c[4])?;
                 let insert_minion_tag = c.get(1).is_some();
-                let amount = i64::from_str(&c[2]).unwrap();
+                let insert_attack_tag = c.get(2).is_some();
+                let amount = i64::from_str(&c[3]).unwrap();
                 Some(stat_tags.iter().map(|s| {
-                    let mut ret = Mod {
-                        stat: s.0,
-                        typ: Type::Base,
-                        amount,
-                        tags: s.1,
-                        weapons: s.2,
-                        global: s.3,
-                        ..Default::default()
-                    };
+                    let mut ret = Mod { stat: s.0, typ: Type::Base, amount, tags: s.1, weapons: s.2, global: s.3, ..Default::default() };
                     if insert_minion_tag {
                         ret.tags.insert(GemTag::Minion);
+                    }
+                    if insert_attack_tag {
+                        ret.tags.insert(GemTag::Attack);
                     }
                     ret
                 }).collect())
@@ -268,30 +267,14 @@ lazy_static! {
                     _ => panic!(),
                 };
                 let mut ret: Vec<Mod> = stat_tags_1.iter().map(|s| {
-                    let mut ret = Mod {
-                        stat: s.0,
-                        typ: Type::Inc,
-                        amount,
-                        tags: s.1,
-                        weapons: s.2,
-                        global: s.3,
-                        ..Default::default()
-                    };
+                    let mut ret = Mod { stat: s.0, typ: Type::Inc, amount, tags: s.1, weapons: s.2, global: s.3, ..Default::default() };
                     if insert_minion_tag {
                         ret.tags.insert(GemTag::Minion);
                     }
                     ret
                 }).collect();
                 ret.extend(stat_tags_2.iter().map(|s| {
-                    let mut ret = Mod {
-                        stat: s.0,
-                        typ: Type::Inc,
-                        amount,
-                        tags: s.1,
-                        weapons: s.2,
-                        global: s.3,
-                        ..Default::default()
-                    };
+                    let mut ret = Mod { stat: s.0, typ: Type::Inc, amount, tags: s.1, weapons: s.2, global: s.3, ..Default::default() };
                     if insert_minion_tag {
                         ret.tags.insert(GemTag::Minion);
                     }
@@ -304,15 +287,7 @@ lazy_static! {
             Box::new(|c| {
                 let stat_tags = parse_stat(&c[2])?;
                 Some(stat_tags.iter().map(|s| {
-                    Mod {
-                        stat: s.0,
-                        typ: Type::More,
-                        amount: i64::from_str(&c[1]).unwrap(),
-                        tags: s.1,
-                        weapons: s.2,
-                        global: s.3,
-                        ..Default::default()
-                    }
+                    Mod { stat: s.0, typ: Type::More, amount: i64::from_str(&c[1]).unwrap(), tags: s.1, weapons: s.2, global: s.3, ..Default::default() }
                 }).collect())
             })
         ), (
@@ -320,15 +295,7 @@ lazy_static! {
             Box::new(|c| {
                 let stat_tags = parse_stat(&c[2])?;
                 Some(stat_tags.iter().map(|s| {
-                    Mod {
-                        stat: s.0,
-                        typ: Type::More,
-                        amount: i64::from_str(&c[1]).unwrap().neg(),
-                        tags: s.1,
-                        weapons: s.2,
-                        global: s.3,
-                        ..Default::default()
-                    }
+                    Mod { stat: s.0, typ: Type::More, amount: i64::from_str(&c[1]).unwrap().neg(), tags: s.1, weapons: s.2, global: s.3, ..Default::default() }
                 }).collect())
             })
         ), (
@@ -336,63 +303,30 @@ lazy_static! {
             Box::new(|c| {
                 let stat_tags_1 = parse_stat_nomulti(&c[2])?;
                 let stat_tags_2 = parse_stat_nomulti(&c[3])?;
-                Some(vec![Mod {
-                    stat: stat_tags_1.0,
-                    typ: Type::Base,
-                    amount: i64::from_str(&c[1]).unwrap(),
-                    tags: stat_tags_1.1,
-                    weapons: stat_tags_1.2,
-                    global: stat_tags_1.3,
-                    ..Default::default()
-                }, Mod {
-                    stat: stat_tags_2.0,
-                    typ: Type::Base,
-                    amount: i64::from_str(&c[1]).unwrap(),
-                    tags: stat_tags_2.1,
-                    weapons: stat_tags_2.2,
-                    global: stat_tags_2.3,
-                    ..Default::default()
-                }])
+                Some(vec![
+                    Mod { stat: stat_tags_1.0, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), tags: stat_tags_1.1, weapons: stat_tags_1.2, global: stat_tags_1.3, ..Default::default() },
+                    Mod { stat: stat_tags_2.0, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), tags: stat_tags_2.1, weapons: stat_tags_2.2, global: stat_tags_2.3, ..Default::default() },
+                ])
             })
         ), (
             regex!(r"^\+([0-9]+)%? to ([a-z]+) and ([a-z]+) resistances$"),
             Box::new(|c| {
                 let stat_tags_1 = STATS_MAP.get(format!("{} resistance", &c[2]).as_str()).cloned()?;
                 let stat_tags_2 = STATS_MAP.get(format!("{} resistance", &c[3]).as_str()).cloned()?;
-                Some(vec![Mod {
-                    stat: stat_tags_1.0,
-                    typ: Type::Base,
-                    amount: i64::from_str(&c[1]).unwrap(),
-                    tags: stat_tags_1.1,
-                    ..Default::default()
-                }, Mod {
-                    stat: stat_tags_2.0,
-                    typ: Type::Base,
-                    amount: i64::from_str(&c[1]).unwrap(),
-                    tags: stat_tags_2.1,
-                    ..Default::default()
-                }])
+                Some(vec![
+                    Mod { stat: stat_tags_1.0, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), tags: stat_tags_1.1, ..Default::default() },
+                    Mod { stat: stat_tags_2.0, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), tags: stat_tags_2.1, ..Default::default() },
+                ])
             })
         ), (
             regex!(r"^adds ([0-9]+) to ([0-9]+) ([a-z ]+)$"),
             Box::new(|c| {
                 let stat_tags_1 = STATS_MAP.get(format!("added minimum {}", &c[3]).as_str()).cloned()?;
                 let stat_tags_2 = STATS_MAP.get(format!("added maximum {}", &c[3]).as_str()).cloned()?;
-                Some(vec![Mod {
-                    stat: stat_tags_1.0,
-                    typ: Type::Base,
-                    amount: i64::from_str(&c[1]).unwrap(),
-                    tags: stat_tags_1.1,
-                    weapons: stat_tags_1.2,
-                    ..Default::default()
-                }, Mod {
-                    stat: stat_tags_2.0,
-                    typ: Type::Base,
-                    amount: i64::from_str(&c[2]).unwrap(),
-                    tags: stat_tags_2.1,
-                    weapons: stat_tags_2.2,
-                    ..Default::default()
-                }])
+                Some(vec![
+                    Mod { stat: stat_tags_1.0, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), tags: stat_tags_1.1, weapons: stat_tags_1.2, ..Default::default() },
+                    Mod { stat: stat_tags_2.0, typ: Type::Base, amount: i64::from_str(&c[2]).unwrap(), tags: stat_tags_2.1, weapons: stat_tags_2.2, ..Default::default() },
+                ])
             })
         ), (
             regex!(r"^regenerate ([0-9.]+) (life|mana) per second$"),
@@ -402,12 +336,7 @@ lazy_static! {
                 } else {
                     StatId::ManaRegeneration
                 };
-                Some(vec![Mod {
-                    stat,
-                    typ: Type::Base,
-                    amount: parse_val100(&c[1])?,
-                    ..Default::default()
-                }])
+                Some(vec![Mod { stat, typ: Type::Base, amount: parse_val100(&c[1])?, ..Default::default() }])
             })
         ), (
             regex!(r"^regenerate ([0-9.]+)% of (life|mana) per second$"),
@@ -417,36 +346,19 @@ lazy_static! {
                 } else {
                     StatId::ManaRegenerationPct
                 };
-                Some(vec![Mod {
-                    stat,
-                    typ: Type::Base,
-                    amount: parse_val100(&c[1])?,
-                    ..Default::default()
-                }])
+                Some(vec![Mod { stat, typ: Type::Base, amount: parse_val100(&c[1])?, ..Default::default() }])
             })
         ), (
             regex!(r"^damage penetrates ([0-9]+)% ([a-z]+) resistance$"),
             Box::new(|c| {
                 let stat_tags_1 = STATS_MAP.get(format!("{} damage penetration", &c[2]).as_str()).cloned()?;
-                Some(vec![Mod {
-                    stat: stat_tags_1.0,
-                    typ: Type::Base,
-                    amount: parse_val100(&c[1])?,
-                    tags: stat_tags_1.1,
-                    ..Default::default()
-                }])
+                Some(vec![Mod { stat: stat_tags_1.0, typ: Type::Base, amount: parse_val100(&c[1])?, tags: stat_tags_1.1, ..Default::default() }])
             })
         ), (
             regex!(r"^grants ([0-9]+) ([a-z ]+)$"),
             Box::new(|c| {
                 let stat_tags_1 = parse_stat_nomulti(&c[2])?;
-                Some(vec![Mod {
-                    stat: stat_tags_1.0,
-                    typ: Type::Base,
-                    amount: i64::from_str(&c[1]).unwrap(),
-                    global: stat_tags_1.3,
-                    ..Default::default()
-                }])
+                Some(vec![Mod { stat: stat_tags_1.0, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), global: stat_tags_1.3, ..Default::default() }])
             })
         ), (
             regex!(r"^allocates ([a-z ]+)$"),
@@ -454,20 +366,12 @@ lazy_static! {
                 let (node, _) = TREE.nodes.iter().find(|(_, v)| {
                     v.name.to_lowercase() == &c[1]
                 })?;
-                Some(vec![Mod {
-                    allocates: Some(*node),
-                    ..Default::default()
-                }])
+                Some(vec![Mod { allocates: Some(*node), ..Default::default() }])
             })
         ), (
             regex!(r"^adds ([0-9]+) passive skills$"),
             Box::new(|c| {
-                Some(vec![Mod {
-                    stat: StatId::AllocatesPassiveSkills,
-                    typ: Type::Base,
-                    amount: i64::from_str(&c[1]).unwrap(),
-                    ..Default::default()
-                }])
+                Some(vec![Mod { stat: StatId::AllocatesPassiveSkills, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() }])
             })
         ), (
             regex!(r"^added small passive skills grant: (.*)$"),
@@ -482,58 +386,35 @@ lazy_static! {
                         None
                     }
                 })?;
-                Some(vec![Mod {
-                    stat: StatId::AddedPassiveSkillsGrantNode,
-                    typ: Type::Base,
-                    amount: node_id as i64,
-                    ..Default::default()
-                }])
+                Some(vec![Mod { stat: StatId::AddedPassiveSkillsGrantNode, typ: Type::Base, amount: node_id as i64, ..Default::default() }])
             })
         ), (
             regex!(r"^([0-9]+) added passive skills? (are|is a) jewel sockets?$"),
             Box::new(|c| {
-                Some(vec![Mod {
-                    stat: StatId::AddedPassivesAreJewelSockets,
-                    typ: Type::Base,
-                    amount: i64::from_str(&c[1]).unwrap(),
-                    ..Default::default()
-                }])
+                Some(vec![Mod { stat: StatId::AddedPassivesAreJewelSockets, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() }])
             })
         ), (
             regex!(r"^adds ([0-9]+) jewel socket passive skills$"),
             Box::new(|c| {
-                Some(vec![Mod {
-                    stat: StatId::AddedPassivesAreJewelSockets,
-                    typ: Type::Base,
-                    amount: i64::from_str(&c[1]).unwrap(),
-                    ..Default::default()
-                }])
+                Some(vec![Mod { stat: StatId::AddedPassivesAreJewelSockets, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() }])
             })
         ), (
             regex!(r"^adds ([0-9]+) small passive skills which grant nothing$"),
             Box::new(|c| {
-                Some(vec![Mod {
-                    stat: StatId::AllocatesPassiveSkills,
-                    typ: Type::Base,
-                    amount: i64::from_str(&c[1]).unwrap(),
-                    ..Default::default()
-                }, Mod {
-                    stat: StatId::AddedPassiveSkillsGrantNode,
-                    typ: Type::Base,
-                    amount: NOTHINGNESS_NODE_ID as i64,
-                    ..Default::default()
-                },
+                Some(vec![
+                    Mod { stat: StatId::AllocatesPassiveSkills, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() },
+                    Mod { stat: StatId::AddedPassiveSkillsGrantNode, typ: Type::Base, amount: NOTHINGNESS_NODE_ID as i64, ..Default::default() },
                 ])
             })
         ), (
             regex!(r"^has ([0-9]+) abyssal sockets?$"),
             Box::new(|c| {
-                Some(vec![Mod {
-                    stat: StatId::AbyssalSockets,
-                    typ: Type::Base,
-                    amount: i64::from_str(&c[1]).unwrap(),
-                    ..Default::default()
-                }])
+                Some(vec![Mod { stat: StatId::AbyssalSockets, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() }])
+            })
+        ), (
+            regex!(r"^attacks have ([0-9]+) abyssal sockets?$"),
+            Box::new(|c| {
+                Some(vec![Mod { stat: StatId::AbyssalSockets, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() }])
             })
         ),
     ];

@@ -15,6 +15,7 @@ lazy_static! {
         (property::Bool::Blinded, "Are you Blind?"),
         (property::Bool::Onslaught, "Do you have Onslaught?"),
         (property::Bool::DealtCritRecently, "Dealt a Crit Recently?"),
+        (property::Bool::BlockedRecently, "Blocked Recently?"),
         (property::Bool::Leeching, "Are you Leeching?"),
         (property::Bool::OnFullLife, "Are you on Full Life?"),
         (property::Bool::OnLowLife, "Are you on Low Life?"),

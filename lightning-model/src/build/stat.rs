@@ -127,6 +127,17 @@ pub enum StatId {
     AddedPassivesAreJewelSockets,
     AbyssalSockets,
     MaximumFortification,
+    ChanceToPoison,
+    ChanceToBleed,
+    ChanceToShock,
+    ChanceToIgnite,
+    ChanceToFreeze,
+    PhysicalDotMultiplier,
+    ChaosDotMultiplier,
+    BleedDotMultiplier,
+    PoisonDotMultiplier,
+    PoisonDuration,
+    BleedDamage,
 }
 
 #[derive(Debug, Clone, Default)]

@@ -116,7 +116,7 @@ fn calc_chance_hit_weapon(stats: &Stats, monster_stats: &Stats, weapon: &Item) -
     chance_to_hit_stat.val()
 }
 
-fn cost_multiplier<'a>(support_gems: impl Iterator<Item = &'a Gem>) -> i64 {
+fn cost_multiplier(support_gems: &[&Gem]) -> i64 {
     let mut multiplier = 100;
 
     for support in support_gems {
@@ -128,7 +128,7 @@ fn cost_multiplier<'a>(support_gems: impl Iterator<Item = &'a Gem>) -> i64 {
     multiplier
 }
 
-pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, active_gem: &Gem) -> FxHashMap<&'static str, i64> {
+pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> FxHashMap<&'static str, i64> {
     assert!(!active_gem.data().is_support);
     let mut ret = FxHashMap::default();
 
@@ -158,38 +158,39 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
         for slot in [Slot::Weapon, Slot::Offhand] {
             if let Some(weapon) = build.get_equipped(slot) {
                 let weapon_restrictions = &active_gem.data().active_skill.as_ref().unwrap().weapon_restrictions;
-                if weapon_restrictions.is_empty() || weapon_restrictions.contains(&weapon.data().item_class) {
-                    let chance_to_hit = calc_chance_hit_weapon(&stats, &monster_stats, weapon);
-                    let crit_chance = calc_crit_chance(&stats, weapon.crit_chance());
-
-                    if crit_chance > 0 {
-                        if slot == Slot::Weapon {
-                            ret.insert("Chance to Hit (MH)", chance_to_hit);
-                            ret.insert("Crit Chance (MH)", crit_chance);
-                        } else {
-                            ret.insert("Chance to Hit (OH)", chance_to_hit);
-                            ret.insert("Crit Chance (OH)", crit_chance);
-                        }
-                    }
-
-                    let mut dmg_inst = DamageInstance {
-                        source: DamageSource::Slot(slot),
-                        instance_type: vec![],
-                    };
-                    for dg in &DAMAGE_GROUPS {
-                        let avg_damage = calc_weapon_average_dmg(&stats, weapon, active_gem, slot, dg);
-                        if avg_damage > 0 {
-                            dmg_inst.instance_type.push(DamageInstanceType {
-                                typ: dg.damage_type,
-                                amount: avg_damage,
-                                chance_to_hit,
-                                crit_chance,
-                            });
-                            damage.push(calc_dmg_crit_accuracy(avg_damage, crit_chance, crit_multi, chance_to_hit));
-                        }
-                    }
-                    damage_instances.push(dmg_inst);
+                if !weapon_restrictions.is_empty() && !weapon_restrictions.contains(&weapon.data().item_class) {
+                    continue;
                 }
+                let chance_to_hit = calc_chance_hit_weapon(&stats, &monster_stats, weapon);
+                let crit_chance = calc_crit_chance(&stats, weapon.crit_chance());
+
+                if crit_chance > 0 {
+                    if slot == Slot::Weapon {
+                        ret.insert("Chance to Hit (MH)", chance_to_hit);
+                        ret.insert("Crit Chance (MH)", crit_chance);
+                    } else {
+                        ret.insert("Chance to Hit (OH)", chance_to_hit);
+                        ret.insert("Crit Chance (OH)", crit_chance);
+                    }
+                }
+
+                let mut dmg_inst = DamageInstance {
+                    source: DamageSource::Slot(slot),
+                    instance_type: vec![],
+                };
+                for dg in &DAMAGE_GROUPS {
+                    let avg_damage = calc_weapon_average_dmg(&stats, weapon, active_gem, slot, dg);
+                    if avg_damage > 0 {
+                        dmg_inst.instance_type.push(DamageInstanceType {
+                            typ: dg.damage_type,
+                            amount: avg_damage,
+                            chance_to_hit,
+                            crit_chance,
+                        });
+                        damage.push(calc_dmg_crit_accuracy(avg_damage, crit_chance, crit_multi, chance_to_hit));
+                    }
+                }
+                damage_instances.push(dmg_inst);
             }
         }
     } else if tags.contains(GemTag::Spell) {
@@ -252,9 +253,9 @@ pub fn calc_gem<'a>(build: &Build, support_gems: impl Iterator<Item = &'a Gem>, 
         }
     };
 
-    /*if let Some(base_cost) = active_gem.mana_cost_level() {
+    if let Some(base_cost) = active_gem.mana_cost_level() {
         ret.insert("Mana Cost", (base_cost * cost_multiplier(support_gems)) / 100);
-    }*/
+    }
 
     let average_damage: i64 = damage.iter().sum();
     ret.insert("Average Damage", average_damage);

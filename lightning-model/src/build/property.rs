@@ -31,6 +31,7 @@ pub enum Bool {
     Onslaught,
     Fortified,
     DealtCritRecently,
+    BlockedRecently,
     Leeching,
     OnFullLife,
     OnLowLife,

@@ -213,7 +213,8 @@ impl State {
         let mut delta = FxHashMap::default();
         if let Some(gem_link_compare) = build_compare.gem_links.get(self.gemlink_cur) {
             if let Some(active_gem_compare) = gem_link_compare.active_gems().nth(self.active_skill_cur) {
-                let active_gem_compare_calc = calc::calc_gem(build_compare, gem_link_compare.support_gems().filter(|g| g.enabled), active_gem_compare);
+                let supports: Vec<&Gem> = gem_link_compare.support_gems().filter(|g| g.enabled).collect();
+                let active_gem_compare_calc = calc::calc_gem(build_compare, &supports, active_gem_compare);
                 delta.extend(calc::compare(&self.active_skill_calc, &active_gem_compare_calc));
             }
         }
@@ -253,7 +254,8 @@ impl State {
         self.active_skill_calc.clear();
         if let Some(gem_link) = self.build.gem_links.get(self.gemlink_cur) {
             if let Some(active_gem) = gem_link.active_gems().nth(self.active_skill_cur) {
-                self.active_skill_calc = calc::calc_gem(&self.build, gem_link.support_gems().filter(|g| g.enabled), active_gem);
+                let supports: Vec<&Gem> = gem_link.support_gems().filter(|g| g.enabled).collect();
+                self.active_skill_calc = calc::calc_gem(&self.build, &supports, active_gem);
             }
         }
         if let Some(build_compare) = self.build_compare.as_ref() {
