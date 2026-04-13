@@ -90,6 +90,7 @@ const ENDINGS_CONDITIONS: &[(&str, &[Condition])] = &[
     ("if you've blocked recently", &[Condition::PropertyBool((true, property::Bool::BlockedRecently))]),
     ("while leeching", &[Condition::PropertyBool((true, property::Bool::Leeching))]),
     ("when on full life", &[Condition::PropertyBool((true, property::Bool::OnFullLife))]),
+    ("while on full energy shield", &[Condition::PropertyBool((true, property::Bool::OnFullEnergyShield))]),
     ("while on full life", &[Condition::PropertyBool((true, property::Bool::OnFullLife))]),
     ("while on low life", &[Condition::PropertyBool((true, property::Bool::OnLowLife))]),
     ("while holding a shield", &[Condition::WhileWielding(flags!(ItemClass::Shield))]),

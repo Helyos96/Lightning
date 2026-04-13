@@ -35,6 +35,7 @@ pub enum Bool {
     Leeching,
     OnFullLife,
     OnLowLife,
+    OnFullEnergyShield,
 }
 
 pub fn int_data(p: Int) -> &'static IntData {

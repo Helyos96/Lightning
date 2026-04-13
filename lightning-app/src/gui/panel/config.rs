@@ -18,6 +18,7 @@ lazy_static! {
         (property::Bool::BlockedRecently, "Blocked Recently?"),
         (property::Bool::Leeching, "Are you Leeching?"),
         (property::Bool::OnFullLife, "Are you on Full Life?"),
+        (property::Bool::OnFullEnergyShield, "Are you on Full ES?"),
         (property::Bool::OnLowLife, "Are you on Low Life?"),
     ];
 }
