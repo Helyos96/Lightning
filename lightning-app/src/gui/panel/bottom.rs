@@ -4,37 +4,46 @@ pub const HEIGHT: f32 = 40.0;
 
 #[derive(Default)]
 pub struct BottomPanelState {
-	pub search: String,
-	pub search_nodes: Vec<u32>,
+    pub search: String,
+    pub search_nodes: Vec<u32>,
 }
 
 pub fn draw(ctx: &egui::Context, state: &mut State) {
-	egui::TopBottomPanel::bottom("BottomPanel")
-		.resizable(false)
+    egui::TopBottomPanel::bottom("BottomPanel")
+        .resizable(false)
         .exact_height(HEIGHT)
         .show(ctx, |ui| {
-        	ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-        		//ui.label("Search:");
-        		let search = egui::TextEdit::singleline(&mut state.panel_bottom.search).desired_width(120.0).hint_text("Search");
-        		let response = search.show(ui).response;
-        		if response.changed() {
-        			state.panel_bottom.search_nodes.clear();
-        			if !state.panel_bottom.search.is_empty() {
-	        			'outer: for node in state.build.tree.nodes_data.values().filter(|n| n.group.is_some()) {
-	        				if node.name.to_lowercase().contains(&state.panel_bottom.search) {
-	        					state.panel_bottom.search_nodes.push(node.skill);
-	        					continue;
-	        				}
-	        				for stat in &node.stats {
-	        					if stat.to_lowercase().contains(&state.panel_bottom.search) {
-	        						state.panel_bottom.search_nodes.push(node.skill);
-	        						continue 'outer;
-	        					}
-	        				}
-	        			}
-        			}
-        			state.request_regen = true;
-        		}
-        	});
-    	});
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                //ui.label("Search:");
+                let search = egui::TextEdit::singleline(&mut state.panel_bottom.search).desired_width(120.0).hint_text("Search");
+                let response = search.show(ui).response;
+                if response.changed() {
+                    state.panel_bottom.search_nodes.clear();
+                    let search_str = state.panel_bottom.search.to_lowercase();
+                    if !state.panel_bottom.search.is_empty() {
+                        'outer: for node in state.build.tree.nodes_data.values().filter(|n| n.group.is_some()) {
+                            if node.name.to_lowercase().contains(&search_str) {
+                                state.panel_bottom.search_nodes.push(node.skill);
+                                continue;
+                            }
+                            for stat in &node.stats {
+                                if stat.to_lowercase().contains(&search_str) {
+                                    state.panel_bottom.search_nodes.push(node.skill);
+                                    continue 'outer;
+                                }
+                            }
+                            for mastery_effect in &node.mastery_effects {
+                                for stat in &mastery_effect.stats {
+                                    if stat.to_lowercase().contains(&search_str) {
+                                        state.panel_bottom.search_nodes.push(node.skill);
+                                        continue 'outer;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    state.request_regen = true;
+                }
+            });
+        });
 }
