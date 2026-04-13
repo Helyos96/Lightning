@@ -46,7 +46,7 @@ const ENDINGS_GEMTAGS: &[(&str, GemTag)] = &[
     ("of attacks", GemTag::Attack),
     ("on targets you hit with attacks", GemTag::Attack),
     ("with attacks", GemTag::Attack),
-    ("of skills", GemTag::Active_Skill),
+    ("of skills", GemTag::Grants_Active_Skill),
     ("with mines", GemTag::Mine),
     ("with traps", GemTag::Trap),
     ("with bow skills", GemTag::Bow),
@@ -532,7 +532,7 @@ pub enum Source {
     Node(u32),
     Mastery((u32, u32)),
     Item(Slot),
-    Gem,
+    Gem(&'static str),
 }
 
 #[derive(Default, Debug, Clone, Copy)]

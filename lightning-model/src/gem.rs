@@ -40,6 +40,7 @@ impl Gem {
 
     pub fn calc_mods(&self) -> Vec<Mod> {
         let mut mods = vec![];
+        let source = Source::Gem(self.data().display_name());
 
         if let Some(stats) = &self.data().r#static.stats {
             for gem_stat in stats.iter().flatten() {
@@ -49,7 +50,7 @@ impl Gem {
                             if modifier.amount == 0 {
                                 modifier.amount = self.stat_value(id).unwrap_or(0);
                             }
-                            modifier.source = Source::Gem;
+                            modifier.source = source;
                             mods.push(modifier);
                         }
                     } else {
@@ -66,7 +67,7 @@ impl Gem {
                         if modifier.amount == 0 {
                             modifier.amount = (*val as i64 * self.qual as i64) / 1000;
                         }
-                        modifier.source = Source::Gem;
+                        modifier.source = source;
                         mods.push(modifier);
                     }
                 } else {
@@ -76,7 +77,15 @@ impl Gem {
         }
 
         if let Some(speed_multiplier) = &self.data().r#static.attack_speed_multiplier {
-            mods.push(Mod {stat: StatId::AttackSpeed, typ: Type::More, amount: *speed_multiplier as i64, ..Default::default()});
+            mods.push(Mod {stat: StatId::AttackSpeed, typ: Type::More, amount: *speed_multiplier as i64, source, ..Default::default()});
+        }
+
+        if let Some(base_mana_cost) = self.mana_cost_level() {
+            mods.push(Mod {stat: StatId::ManaCost, typ: Type::Base, amount: base_mana_cost, source, ..Default::default()});
+        }
+
+        if let Some(cost_multiplier) = self.cost_multiplier_level() {
+            mods.push(Mod {stat: StatId::Cost, typ: Type::More, amount: cost_multiplier, source, ..Default::default()});
         }
 
         mods

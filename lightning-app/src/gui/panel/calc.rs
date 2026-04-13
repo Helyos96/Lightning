@@ -108,7 +108,7 @@ fn draw_stat_breakdown(ui: &mut egui::Ui, state: &State, stat_id: StatId) {
                                         egui::RichText::new(format!("{:?}", slot))
                                     }
                                 },
-                                Source::Gem => egui::RichText::new("Gem"),
+                                Source::Gem(gem_name) => egui::RichText::new(gem_name),
                             };
                             ui.add(egui::Label::new(source_text).wrap_mode(egui::TextWrapMode::Extend));
                         });

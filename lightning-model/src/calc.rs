@@ -116,18 +116,6 @@ fn calc_chance_hit_weapon(stats: &Stats, monster_stats: &Stats, weapon: &Item) -
     chance_to_hit_stat.val()
 }
 
-fn cost_multiplier(support_gems: &[&Gem]) -> i64 {
-    let mut multiplier = 100;
-
-    for support in support_gems {
-        if let Some(multi) = support.cost_multiplier_level() {
-            multiplier = (multiplier * multi) / 100;
-        }
-    }
-
-    multiplier
-}
-
 pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> FxHashMap<&'static str, i64> {
     assert!(!active_gem.data().is_support);
     let mut ret = FxHashMap::default();
@@ -253,9 +241,9 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
         }
     };
 
-    if let Some(base_cost) = active_gem.mana_cost_level() {
-        ret.insert("Mana Cost", (base_cost * cost_multiplier(support_gems)) / 100);
-    }
+    let mut mana_cost_stat = stats.stat(StatId::ManaCost).to_owned();
+    mana_cost_stat.assimilate(stats.stat(StatId::Cost));
+    ret.insert("Mana Cost", mana_cost_stat.val());
 
     let average_damage: i64 = damage.iter().sum();
     ret.insert("Average Damage", average_damage);
