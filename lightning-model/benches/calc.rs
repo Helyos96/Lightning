@@ -1,7 +1,3 @@
-#[macro_use]
-extern crate bencher;
-
-use bencher::Bencher;
 use enumflags2::BitFlags;
 use lightning_model::{build::Build, modifier::CACHE};
 use std::fs;
@@ -22,7 +18,8 @@ fn fetch() -> Result<Build, Box<dyn std::error::Error>> {
     Ok(player)
 }
 
-fn calc_mods_cached(bench: &mut Bencher) {
+#[divan::bench]
+fn calc_mods_cached(bencher: divan::Bencher) {
     let player = match fetch() {
         Ok(b) => b,
         Err(err) => {
@@ -33,12 +30,13 @@ fn calc_mods_cached(bench: &mut Bencher) {
 
     player.calc_mods(true);
 
-    bench.iter(|| {
+    bencher.bench_local(|| {
         player.calc_mods(true);
-    })
+    });
 }
 
-fn calc_mods_uncached(bench: &mut Bencher) {
+#[divan::bench]
+fn calc_mods_uncached(bencher: divan::Bencher) {
     let player = match fetch() {
         Ok(b) => b,
         Err(err) => {
@@ -47,13 +45,14 @@ fn calc_mods_uncached(bench: &mut Bencher) {
         }
     };
 
-    bench.iter(|| {
+    bencher.bench_local(|| {
         player.calc_mods(true);
         CACHE.lock().unwrap().clear();
-    })
+    });
 }
 
-fn calc_stats(bench: &mut Bencher) {
+#[divan::bench]
+fn calc_stats(bencher: divan::Bencher) {
     let player = match fetch() {
         Ok(b) => b,
         Err(err) => {
@@ -63,12 +62,13 @@ fn calc_stats(bench: &mut Bencher) {
     };
     let mods = player.calc_mods(true);
 
-    bench.iter(|| {
-        player.calc_stats(&mods, BitFlags::empty());
-    })
+    bencher.bench_local(|| {
+        player.calc_stats(&mods, BitFlags::EMPTY, BitFlags::EMPTY);
+    });
 }
 
-fn calc_clone_build(bench: &mut Bencher) {
+#[divan::bench]
+fn calc_clone_build(bencher: divan::Bencher) {
     let player = match fetch() {
         Ok(b) => b,
         Err(err) => {
@@ -77,10 +77,11 @@ fn calc_clone_build(bench: &mut Bencher) {
         }
     };
 
-    bench.iter(|| {
+    bencher.bench_local(|| {
         let _ = player.clone();
-    })
+    });
 }
 
-benchmark_group!(benches, calc_mods_cached, calc_mods_uncached, calc_stats, calc_clone_build);
-benchmark_main!(benches);
+fn main() {
+    divan::main();
+}

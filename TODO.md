@@ -1,13 +1,16 @@
 * build.rs for automating cleanups/json2bincode/putting every target file in the right place
+* Remember selected skill in saved build
 * Tree view
 	* Jewels
 		* ~~Basic jewels~~
 		* With radius shown
 		* Cluster jewels
 	* Calc functions (highest dps unallocated etc.)
-* Abyss jewels
+* ~~Abyss jewels~~
+	* Sorta done, but they're not tied to items yet
 * Unique items
 * Skills GUI
+	* Color gems by str/dex/int in dropdown
 	* Show gem popup
 	* Stats compare on hover enable checkbox
 	* Stats compare on hover skill in dropdown
@@ -18,9 +21,10 @@
 		* Stats compare if remove
 	* Item creator
 	* Stats compare new items
-* Calc breakdown
-	* in lightning-model
-	* GUI
+* Better calc breakdown
+	* Active skill stats
+	* More defence stats
+	* Better layout
 * Tatoos
 * Minions
 * Impale

@@ -112,10 +112,10 @@ fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<u
             state.build.equip(slot, i);
             state.request_recalc = true;
             if matches!(slot, Slot::TreeJewel(_)) {
-                state.request_regen = true;
+                state.request_regen_gl = true;
             }
             if old_nodes_nb != state.build.tree.nodes_data.len() {
-                state.request_regen_nodes = true;
+                state.request_regen_nodes_gl = true;
             }
         },
         Some(None) => {
@@ -123,8 +123,8 @@ fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<u
             state.request_recalc = true;
             if matches!(slot, Slot::TreeJewel(_)) {
                 // In case we removed a cluster jewel, regen all opengl stuff
-                state.request_regen = true;
-                state.request_regen_nodes = true;
+                state.request_regen_gl = true;
+                state.request_regen_nodes_gl = true;
             }
         },
         None => {},

@@ -202,14 +202,14 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                 if state.request_recalc {
                     state.recalc();
                 }
-                if state.request_regen {
+                if state.request_regen_gl {
                     tree_gl.regen_active(gl, &state.build, &state.path_hovered, &state.path_red, state.hovered_node_id, &state.panel_bottom.search_nodes);
-                    state.request_regen = false;
+                    state.request_regen_gl = false;
                 }
-                if state.request_regen_nodes {
+                if state.request_regen_nodes_gl {
                     tree_gl.regen_nodes(gl, &state.build);
                     state.regen_quadtree_hover();
-                    state.request_regen_nodes = false;
+                    state.request_regen_nodes_gl = false;
                 }
 
                 match state.ui_state.clone() {
@@ -280,7 +280,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                 }
 
                 egui_glow.paint(window);
-                if egui_glow.egui_ctx.has_requested_repaint() || state.request_recalc || state.request_regen {
+                if egui_glow.egui_ctx.has_requested_repaint() || state.request_recalc || state.request_regen_gl {
                     window.request_redraw();
                 }
 
@@ -363,7 +363,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                             }
                                             state.path_hovered = None;
                                         }
-                                        state.request_regen = true;
+                                        state.request_regen_gl = true;
                                         state.request_recalc = true;
                                         window.request_redraw();
                                     }
@@ -437,7 +437,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                             state.delta_compare_single.clear();
                                             state.build_compare = None;
                                         }
-                                        state.request_regen = true;
+                                        state.request_regen_gl = true;
                                         window.request_redraw();
                                     }
                                 } else if state.hovered_node_id.is_some() {
@@ -445,7 +445,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                     state.path_red = None;
                                     state.path_hovered = None;
                                     state.build_compare = None;
-                                    state.request_regen = true;
+                                    state.request_regen_gl = true;
                                     window.request_redraw();
                                 }
                             }

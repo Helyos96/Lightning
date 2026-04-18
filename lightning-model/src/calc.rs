@@ -6,8 +6,8 @@ use crate::data::gem::GemTag;
 use crate::data::{DamageGroup, DamageType, DAMAGE_GROUPS};
 use crate::gem::Gem;
 use crate::item::Item;
-use crate::modifier::{Mod, Source, Type};
-use enumflags2::BitFlags;
+use crate::modifier::{Mod, ModFlag, Source, Type};
+use enumflags2::{BitFlags, make_bitflags};
 use rustc_hash::FxHashMap;
 
 enum DamageSource {
@@ -47,7 +47,7 @@ fn calc_dmg_crit_accuracy(damage: i64, crit_chance: i64, crit_multi: i64, chance
     damage_crit + damage_noncrit
 }
 
-fn calc_average_dmg(stats: &Stats, active_gem: &Gem, mut base_min: i64, mut base_max: i64, mut added_min: i64, mut added_max: i64, dg: &DamageGroup) -> i64 {
+fn calc_min_max_dmg(stats: &Stats, active_gem: &Gem, mut base_min: i64, mut base_max: i64, mut added_min: i64, mut added_max: i64, dg: &DamageGroup) -> (i64, i64) {
     if let Some(damage_multiplier) = active_gem.damage_multiplier() {
         base_min = (base_min * (10000 + damage_multiplier)) / 10000;
         base_max = (base_max * (10000 + damage_multiplier)) / 10000;
@@ -64,10 +64,15 @@ fn calc_average_dmg(stats: &Stats, active_gem: &Gem, mut base_min: i64, mut base
     stat_min_dt.adjust_mod(&Mod { typ: Type::Base, amount: base_min + added_min, ..Default::default() });
     stat_max_dt.adjust_mod(&Mod { typ: Type::Base, amount: base_max + added_max, ..Default::default() });
 
-    (stat_min_dt.val() + stat_max_dt.val()) / 2
+    (stat_min_dt.val(), stat_max_dt.val())
 }
 
-fn calc_weapon_average_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, _slot: Slot, dg: &DamageGroup) -> i64 {
+fn calc_average_dmg(stats: &Stats, active_gem: &Gem, base_min: i64, base_max: i64, added_min: i64, added_max: i64, dg: &DamageGroup) -> i64 {
+    let (min, max) = calc_min_max_dmg(stats, active_gem, base_min, base_max, added_min, added_max, dg);
+    (min + max) / 2
+}
+
+fn calc_weapon_average_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &DamageGroup) -> i64 {
     if let Some((min_item, max_item)) = weapon.calc_dmg(dg.damage_type) {
         let item_class = Some(weapon.data().item_class);
         let added_min_stat = stats.stat(dg.added_min_id).with_weapon(item_class);
@@ -78,6 +83,29 @@ fn calc_weapon_average_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, _slot
         dmg_stat.assimilate(&dmg_stat_dt);
         dmg_stat.adjust(Type::Base, average);
         return dmg_stat.val();
+    }
+    0
+}
+
+fn calc_weapon_max_base_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &DamageGroup) -> Option<Stat> {
+    if let Some((_, max_item)) = weapon.calc_dmg(dg.damage_type) {
+        let item_class = Some(weapon.data().item_class);
+        let added_max_stat = stats.stat(dg.added_max_id).with_weapon(item_class);
+        let (_, max) = calc_min_max_dmg(stats, active_gem, 0, max_item, 0, added_max_stat.val(), dg);
+        let dmg_stat_dt = stats.stat(dg.stat_id).with_weapon(item_class);
+        let mut dmg_stat = stats.stat(StatId::Damage).with_weapon(item_class);
+        dmg_stat.assimilate(&dmg_stat_dt);
+        dmg_stat.adjust(Type::Base, max);
+        return Some(dmg_stat);
+    }
+    None
+}
+
+fn calc_weapon_bleed_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &DamageGroup) -> i64 {
+    if let Some(mut max_dmg) = calc_weapon_max_base_dmg(stats, weapon, active_gem, dg) {
+        max_dmg.assimilate(stats.stat(StatId::DamageWithAilments));
+        max_dmg.assimilate(stats.stat(StatId::BleedDamage));
+        return max_dmg.val();
     }
     0
 }
@@ -132,17 +160,21 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
         }
     }
 
-    let stats = build.calc_stats(&mods, tags);
+    let stats = build.calc_stats(&mods, tags, make_bitflags!(ModFlag::Hit));
+    let stats_no_modflags = build.calc_stats(&mods, tags, BitFlags::EMPTY);
 
     let monster_build = Build::new_player();
     let monster_mods = monster_build.calc_mods_monster(build.property_int(property::Int::Level).min(83));
-    let monster_stats = monster_build.calc_stats(&monster_mods, BitFlags::empty());
+    let monster_stats = monster_build.calc_stats(&monster_mods, BitFlags::empty(), BitFlags::EMPTY);
 
     let crit_multi = stats.val(StatId::CriticalStrikeMultiplier);
 
     let mut damage_instances = vec![];
+    let mut bleed_dps = 0;
 
     if tags.contains(GemTag::Attack) {
+        let bleed_chance = stats.val(StatId::ChanceToBleed);
+
         for slot in [Slot::Weapon, Slot::Offhand] {
             if let Some(weapon) = build.get_equipped(slot) {
                 let weapon_restrictions = &active_gem.data().active_skill.as_ref().unwrap().weapon_restrictions;
@@ -167,7 +199,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
                     instance_type: vec![],
                 };
                 for dg in &DAMAGE_GROUPS {
-                    let avg_damage = calc_weapon_average_dmg(&stats, weapon, active_gem, slot, dg);
+                    let avg_damage = calc_weapon_average_dmg(&stats, weapon, active_gem, dg);
                     if avg_damage > 0 {
                         dmg_inst.instance_type.push(DamageInstanceType {
                             typ: dg.damage_type,
@@ -176,6 +208,12 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
                             crit_chance,
                         });
                         damage.push(calc_dmg_crit_accuracy(avg_damage, crit_chance, crit_multi, chance_to_hit));
+                    }
+                    if dg.damage_type == DamageType::Physical && bleed_chance > 0 {
+                        let local_bleed_dps = calc_weapon_bleed_dmg(&stats_no_modflags, weapon, active_gem, dg);
+                        if local_bleed_dps > bleed_dps {
+                            bleed_dps = local_bleed_dps;
+                        }
                     }
                 }
                 damage_instances.push(dmg_inst);
@@ -203,6 +241,8 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
             }
         }
     }
+
+    ret.insert("Bleed DPS", bleed_dps);
 
     if ret.contains_key("Crit Chance") || ret.contains_key("Crit Chance (MH)") || ret.contains_key("Crit Chance (OH)") {
         ret.insert("Crit Multi", crit_multi);
@@ -259,7 +299,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
 pub fn calc_defence(build: &Build) -> (FxHashMap<&'static str, i64>, Stats) {
     let mut ret = FxHashMap::default();
     let mods = build.calc_mods(true);
-    let stats = build.calc_stats(&mods, BitFlags::empty());
+    let stats = build.calc_stats(&mods, BitFlags::EMPTY, BitFlags::EMPTY);
 
     let max_life = stats.stat(StatId::MaximumLife).val_ceil();
     let max_mana = stats.stat(StatId::MaximumMana).val_ceil();

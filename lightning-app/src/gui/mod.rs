@@ -53,7 +53,6 @@ pub struct State {
     pub import_account: String,
     pub import_character: String,
     pub request_recalc: bool,
-    pub request_regen_nodes: bool,
     pub last_instant: Instant,
     pub show_settings: bool,
     pub modifiers: Modifiers,
@@ -90,7 +89,8 @@ pub struct State {
     pub tree_translate: (f32, f32),
     pub zoom: f32,
     pub zoom_tmp: f32,
-    pub request_regen: bool,
+    pub request_regen_gl: bool,
+    pub request_regen_nodes_gl: bool,
     pub quadtree_hover: QuadTreeHover,
 
     // Controls
@@ -114,7 +114,7 @@ impl State {
             import_account: String::new(),
             import_character: String::new(),
             request_recalc: false,
-            request_regen_nodes: false,
+            request_regen_nodes_gl: false,
             last_instant: Instant::now(),
             show_settings: false,
             modifiers: Default::default(),
@@ -149,7 +149,7 @@ impl State {
             zoom: 1.0,
             zoom_tmp: 1.0,
             tree_translate: (0.0, 0.0),
-            request_regen: false,
+            request_regen_gl: false,
 
             mouse_pos: (0.0, 0.0),
 
@@ -163,8 +163,8 @@ impl State {
         self.snapshot();
         self.level = self.build.property_int(property::Int::Level);
         self.request_recalc = true;
-        self.request_regen = true;
-        self.request_regen_nodes = true;
+        self.request_regen_gl = true;
+        self.request_regen_nodes_gl = true;
         self.path_hovered = None;
         self.path_red = None;
         self.hovered_node_id = None;
@@ -193,7 +193,7 @@ impl State {
             self.build = prev_build.clone();
             self.history_idx += 1;
             self.request_recalc = true;
-            self.request_regen = true;
+            self.request_regen_gl = true;
         }
     }
 
@@ -204,7 +204,7 @@ impl State {
         if let Some(build) = self.history.get(self.history_idx - 1) {
             self.build = build.clone();
             self.request_recalc = true;
-            self.request_regen = true;
+            self.request_regen_gl = true;
             self.history_idx -= 1;
         }
     }
@@ -227,7 +227,7 @@ impl State {
         self.can_save = true;
         self.build.update_item_allocations();
         let mods = self.build.calc_mods(true);
-        let stats = self.build.calc_stats(&mods, BitFlags::empty());
+        let stats = self.build.calc_stats(&mods, BitFlags::EMPTY, BitFlags::EMPTY);
         self.passives_count = self.build.tree.passives_count();
         self.passives_max = stats.val(lightning_model::build::stat::StatId::PassiveSkillPoints);
         self.abyssal_sockets = stats.val(lightning_model::build::stat::StatId::AbyssalSockets) as u16;

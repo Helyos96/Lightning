@@ -1,6 +1,6 @@
 use crate::build::stat::StatId;
 use crate::data::gem::GemTag;
-use crate::modifier::{Mod, Type};
+use crate::modifier::{Mod, Type, ModFlag};
 use enumflags2::{make_bitflags as flags, BitFlags};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
@@ -56,8 +56,12 @@ lazy_static! {
         ("maximum_added_chaos_damage", vec![
             Mod { stat: StatId::AddedMaxChaosDamage, ..Default::default() },
         ]),
+        ("poison_and_bleeding_damage", vec![
+            Mod { stat: StatId::BleedDamage, ..Default::default() },
+            Mod { stat: StatId::PoisonDamage, ..Default::default() },
+        ]),
         ("melee_physical_damage", vec![
-            Mod { stat: StatId::PhysicalDamage, tags: flags!(GemTag::Melee), ..Default::default() },
+            Mod { stat: StatId::PhysicalDamage, tags: flags!(GemTag::Melee), flags: flags!(ModFlag::Hit), ..Default::default() },
         ]),
         ("physical_damage", vec![
             Mod { stat: StatId::PhysicalDamage, ..Default::default() },
@@ -75,7 +79,7 @@ lazy_static! {
             Mod { stat: StatId::ChaosDamage, ..Default::default() },
         ]),
         ("melee_area_damage", vec![
-            Mod { stat: StatId::Damage, tags: flags!(GemTag::{Melee | Area}), ..Default::default() },
+            Mod { stat: StatId::Damage, tags: flags!(GemTag::{Melee | Area}), flags: flags!(ModFlag::Hit), ..Default::default() },
         ]),
         ("melee_damage", vec![
             Mod { stat: StatId::Damage, tags: flags!(GemTag::Melee), ..Default::default() },
@@ -114,7 +118,13 @@ lazy_static! {
 
 pub fn match_gemstat(stat: &str) -> Option<Vec<Mod>> {
     let mut typ_override = None;
-    let search_in = if let Some(ret) = stat.strip_suffix("_+%_final") {
+    let mut gem_tags = BitFlags::EMPTY;
+
+    let search_in = if let Some(ret) = stat.strip_suffix("_+%_final_from_melee_hits") {
+        typ_override = Some(Type::More);
+        gem_tags.insert(GemTag::Melee);
+        ret
+    } else if let Some(ret) = stat.strip_suffix("_+%_final") {
         typ_override = Some(Type::More);
         ret
     } else if let Some(ret) = stat.strip_suffix("_+%") {

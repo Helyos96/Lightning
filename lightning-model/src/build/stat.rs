@@ -2,7 +2,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::{data::{base_item::ItemClass, gem::GemTag}, modifier::{Mod, Type}};
 use lazy_static::lazy_static;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, strum_macros::Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, strum_macros::Display, strum_macros::EnumCount)]
 pub enum StatId {
     #[default]
     Strength,
@@ -138,6 +138,14 @@ pub enum StatId {
     PoisonDotMultiplier,
     PoisonDuration,
     BleedDamage,
+    PoisonDamage,
+    DamageWithAilments,
+}
+
+impl StatId {
+    pub fn as_usize(self) -> usize {
+        self as usize
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -200,6 +208,11 @@ impl Stat {
     pub fn adjust_mod(&mut self, m: &Mod) {
         self.adjust(m.typ, m.final_amount());
         self.mods.push(m.to_owned());
+    }
+
+    pub fn adjust_mod_move(&mut self, m: Mod) {
+        self.adjust(m.typ, m.final_amount());
+        self.mods.push(m);
     }
 
     pub fn adjust(&mut self, t: Type, amount: i64) {

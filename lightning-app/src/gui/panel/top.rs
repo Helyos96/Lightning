@@ -30,7 +30,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                         for class in TREE.classes.keys() {
                             if ui.selectable_label(*class == state.build.tree.class, class.as_ref()).clicked() {
                                 state.build.tree.set_class(*class);
-                                state.request_regen = true;
+                                state.request_regen_gl = true;
                                 state.request_recalc = true;
                             }
                         }
@@ -47,7 +47,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                         for ascendancy in state.build.tree.class.ascendancies() {
                             if ui.selectable_label(Some(ascendancy) == state.build.tree.ascendancy, Into::<&str>::into(ascendancy)).clicked() {
                                 state.build.tree.set_ascendancy(Some(ascendancy));
-                                state.request_regen = true;
+                                state.request_regen_gl = true;
                                 state.request_recalc = true;
                             }
                         }
@@ -70,14 +70,14 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
 
                         if ui.selectable_label(state.build.tree.bloodline.is_none(), "None").clicked() {
                             state.build.tree.set_bloodline(None);
-                            state.request_regen = true;
+                            state.request_regen_gl = true;
                             state.request_recalc = true;
                         }
 
                         for asc in &bloodlines {
                             if ui.selectable_label(Some(*asc) == state.build.tree.bloodline, asc.display_name()).clicked() {
                                 state.build.tree.set_bloodline(Some(*asc));
-                                state.request_regen = true;
+                                state.request_regen_gl = true;
                                 state.request_recalc = true;
                             }
                         }

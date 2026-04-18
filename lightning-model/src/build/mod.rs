@@ -10,7 +10,7 @@ use crate::data::tree::get_cluster_orbit_data;
 use crate::data::{MONSTER_STATS, TREE};
 use crate::gem::Gem;
 use crate::item::Item;
-use crate::modifier::{Condition, Mod, Mutation, Source, Type};
+use crate::modifier::{Condition, Mod, ModFlag, Mutation, Source, Type};
 use crate::stackvec;
 use crate::tree::PassiveTree;
 use enumflags2::BitFlags;
@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use lazy_static::lazy_static;
 use stat::{Stat, StatId, Stats};
+use strum::EnumCount;
 use strum_macros::{AsRefStr, EnumIter};
 
 #[derive(Serialize, Deserialize, Default, Eq, PartialEq, Hash, Clone, Copy, Debug)]
@@ -807,18 +808,12 @@ impl Build {
         m.revised_amount = Some(amount.min(up_to));
     }
 
-    pub fn calc_stats(&self, mods: &[Mod], tags: BitFlags<GemTag>) -> Stats {
+    pub fn calc_stats(&self, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>) -> Stats {
         let mut stats: FxHashMap<StatId, Stat> = Default::default();
-        let mut mods_sec_pass = vec![];
-        let mut mods_third_pass = vec![];
+        let mut mods_sec_pass = Vec::with_capacity(128);
+        let mut mods_third_pass = Vec::with_capacity(64);
 
-        for m in mods {
-            if !tags.contains(m.tags) {
-                continue;
-            }
-            if !m.weapons.is_empty() && !self.is_holding(&m.weapons) {
-                continue;
-            }
+        for m in mods.iter().filter(|m| tags.contains(m.tags) && flags.contains(m.flags) && (m.weapons.is_empty() || self.is_holding(&m.weapons))) {
             if !m.conditions.is_empty() {
                 mods_third_pass.push(m);
                 continue;
@@ -833,7 +828,7 @@ impl Build {
         for m in mods_sec_pass {
             let mut m = m.to_owned();
             self.apply_mutations(&stats, &mut m);
-            stats.entry(m.stat).or_default().adjust_mod(&m);
+            stats.entry(m.stat).or_default().adjust_mod_move(m);
         }
 
         for m in mods_third_pass {
@@ -842,10 +837,45 @@ impl Build {
                 continue;
             }
             self.apply_mutations(&stats, &mut m);
-            stats.entry(m.stat).or_default().adjust_mod(&m);
+            stats.entry(m.stat).or_default().adjust_mod_move(m);
         }
 
         Stats { stats }
+    }
+
+    pub fn calc_stat(&self, stat_id: StatId, stats: &Stats, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>) -> Stat {
+        let mut stat: Stat = Default::default();
+        let mut mods_sec_pass = vec![];
+        let mut mods_third_pass = vec![];
+
+        for m in mods.iter().filter(|m| m.stat == stat_id && tags.contains(m.tags) && flags.contains(m.flags) && (m.weapons.is_empty() || self.is_holding(&m.weapons))) {
+            if !m.conditions.is_empty() {
+                mods_third_pass.push(m);
+                continue;
+            }
+            if !m.mutations.is_empty() {
+                mods_sec_pass.push(m);
+                continue;
+            }
+            stat.adjust_mod(m);
+        }
+
+        for m in mods_sec_pass {
+            let mut m = m.to_owned();
+            self.apply_mutations(&stats.stats, &mut m);
+            stat.adjust_mod_move(m);
+        }
+
+        for m in mods_third_pass {
+            let mut m = m.to_owned();
+            if !self.check_conditions(&stats.stats, &m) {
+                continue;
+            }
+            self.apply_mutations(&stats.stats, &mut m);
+            stat.adjust_mod_move(m);
+        }
+
+        stat
     }
 
     pub fn save(&self, dir: &Path) -> io::Result<()> {
@@ -859,7 +889,7 @@ impl Build {
 #[test]
 fn test_build() {
     let player = Build::new_player();
-    let stats = player.calc_stats(&player.calc_mods(true), BitFlags::empty());
+    let stats = player.calc_stats(&player.calc_mods(true), BitFlags::EMPTY, BitFlags::EMPTY);
 
     assert_eq!(stats.stat(StatId::MaximumLife).val(), 60);
 }

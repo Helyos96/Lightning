@@ -6,7 +6,6 @@ use std::{fmt, ptr, slice};
 macro_rules! stackvec {
     ( $( $elem:expr ),* $(,)? ) => {{
         let mut vec = crate::stackvec::StackVec::new();
-        // We unwrap here for simplicity, but you could handle capacity errors more gracefully.
         $( vec.push($elem); )*
         vec
     }};
@@ -28,7 +27,7 @@ impl<T: Copy, const N: usize> StackVec<T, N> {
     }
 
     pub fn push(&mut self, value: T) {
-        debug_assert!(self.len < N);
+        assert!(self.len < N);
         self.data[self.len] = MaybeUninit::new(value);
         self.len += 1;
     }
@@ -55,7 +54,7 @@ impl<T: Copy, const N: usize> StackVec<T, N> {
 
     pub fn extend_from_slice(&mut self, src: &[T]) {
         let available = N - self.len;
-        debug_assert!(available >= src.len());
+        assert!(available >= src.len());
 
         unsafe {
             let dst_ptr = self.data.as_mut_ptr().add(self.len) as *mut T;
@@ -64,6 +63,12 @@ impl<T: Copy, const N: usize> StackVec<T, N> {
         }
 
         self.len += src.len();
+    }
+
+    pub fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        for item in iter {
+            self.push(item);
+        }
     }
 
     pub fn iter(&self) -> std::slice::Iter<'_, T> {
@@ -80,14 +85,14 @@ impl<T: Copy, const N: usize> StackVec<T, N> {
 impl<T: Copy, const N: usize> std::ops::Index<usize> for StackVec<T, N> {
     type Output = T;
     fn index(&self, idx: usize) -> &Self::Output {
-        debug_assert!(idx < self.len);
+        assert!(idx < self.len);
         unsafe { &*self.data[idx].as_ptr() }
     }
 }
 
 impl<T: Copy, const N: usize> std::ops::IndexMut<usize> for StackVec<T, N> {
     fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
-        debug_assert!(idx < self.len);
+        assert!(idx < self.len);
         unsafe { &mut *self.data[idx].as_mut_ptr() }
     }
 }
@@ -131,6 +136,45 @@ impl<'a, T: Copy, const N: usize> IntoIterator for &'a StackVec<T, N> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
+    }
+}
+
+pub struct StackVecIntoIter<T: Copy, const N: usize> {
+    vec: StackVec<T, N>,
+    index: usize,
+}
+
+impl<T: Copy, const N: usize> Iterator for StackVecIntoIter<T, N> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.vec.len() {
+            // Because T is Copy, we can just read it out
+            let val = self.vec[self.index];
+            self.index += 1;
+            Some(val)
+        } else {
+            None
+        }
+    }
+}
+
+// Implement IntoIterator for the owned StackVec
+impl<T: Copy, const N: usize> IntoIterator for StackVec<T, N> {
+    type Item = T;
+    type IntoIter = StackVecIntoIter<T, N>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        StackVecIntoIter {
+            vec: self,
+            index: 0,
+        }
+    }
+}
+
+impl<T: Copy, const N: usize> Extend<T> for StackVec<T, N> {
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        self.extend(iter);
     }
 }
 

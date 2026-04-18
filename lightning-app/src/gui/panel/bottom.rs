@@ -42,7 +42,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                             }
                         }
                     }
-                    state.request_regen = true;
+                    state.request_regen_gl = true;
                 }
             });
         });
