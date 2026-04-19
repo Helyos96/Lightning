@@ -1,6 +1,6 @@
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
-use enumflags2::bitflags;
+use enumflags2::{BitFlags, bitflags, make_bitflags as flags};
 
 use crate::build::Slot;
 
@@ -52,6 +52,16 @@ pub enum ItemClass {
 }
 
 impl ItemClass {
+    pub const AXES: BitFlags<ItemClass> = flags!(ItemClass::{OneHandAxe | TwoHandAxe});
+    pub const SWORDS: BitFlags<ItemClass> = flags!(ItemClass::{OneHandSword | TwoHandSword | ThrustingOneHandSword});
+    pub const MACES: BitFlags<ItemClass> = flags!(ItemClass::{OneHandMace | TwoHandMace});
+    pub const ONE_HANDED_MELEE: BitFlags<ItemClass> = flags!(ItemClass::{OneHandSword | OneHandMace | OneHandAxe | ThrustingOneHandSword | Sceptre | Claw});
+    pub const TWO_HANDED_MELEE: BitFlags<ItemClass> = flags!(ItemClass::{TwoHandSword | TwoHandMace | TwoHandAxe | Warstaff | Staff});
+    pub const ONE_HANDED: BitFlags<ItemClass> = ItemClass::ONE_HANDED_MELEE.union_c(flags!(ItemClass::Wand));
+    pub const MELEE: BitFlags<ItemClass> = ItemClass::ONE_HANDED_MELEE.union_c(ItemClass::TWO_HANDED_MELEE);
+    pub const STAVES: BitFlags<ItemClass> = flags!(ItemClass::{Staff | Warstaff});
+    pub const DAGGERS: BitFlags<ItemClass> = flags!(ItemClass::{Dagger | RuneDagger});
+
     pub fn allowed_slots(&self) -> &'static [Slot] {
         use ItemClass::*;
         match self {

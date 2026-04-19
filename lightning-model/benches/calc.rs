@@ -1,5 +1,5 @@
 use enumflags2::BitFlags;
-use lightning_model::{build::Build, modifier::CACHE};
+use lightning_model::{build::Build, gem::Gem, modifier::CACHE};
 use std::fs;
 
 use lightning_model::import;
@@ -20,13 +20,7 @@ fn fetch() -> Result<Build, Box<dyn std::error::Error>> {
 
 #[divan::bench]
 fn calc_mods_cached(bencher: divan::Bencher) {
-    let player = match fetch() {
-        Ok(b) => b,
-        Err(err) => {
-            println!("{err}");
-            return;
-        }
-    };
+    let player = fetch().expect("Failed to get a build");
 
     player.calc_mods(true);
 
@@ -37,29 +31,18 @@ fn calc_mods_cached(bencher: divan::Bencher) {
 
 #[divan::bench]
 fn calc_mods_uncached(bencher: divan::Bencher) {
-    let player = match fetch() {
-        Ok(b) => b,
-        Err(err) => {
-            println!("{err}");
-            return;
-        }
-    };
+    let player = fetch().expect("Failed to get a build");
 
     bencher.bench_local(|| {
-        player.calc_mods(true);
         CACHE.lock().unwrap().clear();
+        player.tree.force_regen_modcache();
+        player.calc_mods(true);
     });
 }
 
 #[divan::bench]
 fn calc_stats(bencher: divan::Bencher) {
-    let player = match fetch() {
-        Ok(b) => b,
-        Err(err) => {
-            println!("{err}");
-            return;
-        }
-    };
+    let player = fetch().expect("Failed to get a build");
     let mods = player.calc_mods(true);
 
     bencher.bench_local(|| {
@@ -69,16 +52,23 @@ fn calc_stats(bencher: divan::Bencher) {
 
 #[divan::bench]
 fn calc_clone_build(bencher: divan::Bencher) {
-    let player = match fetch() {
-        Ok(b) => b,
-        Err(err) => {
-            println!("{err}");
-            return;
-        }
-    };
+    let player = fetch().expect("Failed to get a build");
 
     bencher.bench_local(|| {
         let _ = player.clone();
+    });
+}
+
+#[divan::bench]
+fn calc_gem(bencher: divan::Bencher) {
+    let player = fetch().expect("Failed to get a build");
+    let active_gem = player.gem_links[1].active_gems().nth(0).unwrap();
+    let support_gems: Vec<&Gem> = player.gem_links[1].support_gems().collect();
+
+    lightning_model::calc::calc_gem(&player, &support_gems, active_gem);
+
+    bencher.bench_local(|| {
+        lightning_model::calc::calc_gem(&player, &support_gems, active_gem);
     });
 }
 

@@ -86,7 +86,7 @@ impl TryFrom<(&str, u16)> for Slot {
     }
 }
 
-#[derive(Clone, Default, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct GemLink {
     //pub active_gems: Vec<Gem>,
     //pub support_gems: Vec<Gem>,
@@ -227,6 +227,198 @@ lazy_static! {
         ]);
         ret
     };
+
+    static ref BASE_MODES: Vec<Mod> = vec![
+        Mod {
+            stat: StatId::MaximumLife,
+            typ: Type::Base,
+            amount: 12,
+            mutations: stackvec![Mutation::MultiplierProperty((1, property::Int::Level))],
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::MaximumLife,
+            typ: Type::Base,
+            amount: 38,
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::MaximumLife,
+            typ: Type::Base,
+            amount: 1,
+            mutations: stackvec![Mutation::MultiplierStat((2, StatId::Strength))],
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::MaximumEnergyShield,
+            typ: Type::Inc,
+            amount: 1,
+            mutations: stackvec![Mutation::MultiplierStat((10, StatId::Intelligence))],
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::MaximumMana,
+            typ: Type::Base,
+            amount: 6,
+            mutations: stackvec![Mutation::MultiplierProperty((1, property::Int::Level))],
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::MaximumMana,
+            typ: Type::Base,
+            amount: 34,
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::MaximumMana,
+            typ: Type::Base,
+            amount: 1,
+            mutations: stackvec![Mutation::MultiplierStat((2, StatId::Intelligence))],
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::ManaRegenerationPct,
+            typ: Type::Base,
+            amount: 180,
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::MaximumFrenzyCharges,
+            typ: Type::Base,
+            amount: 3,
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::MaximumPowerCharges,
+            typ: Type::Base,
+            amount: 3,
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::MaximumEnduranceCharges,
+            typ: Type::Base,
+            amount: 3,
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::MaximumRage,
+            typ: Type::Base,
+            amount: 30,
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::Damage,
+            typ: Type::More,
+            amount: 1,
+            mutations: stackvec![
+                Mutation::MultiplierProperty((1, property::Int::Rage)),
+            ],
+            tags: GemTag::Attack.into(),
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::PassiveSkillPoints,
+            typ: Type::Base,
+            amount: 1,
+            mutations: stackvec![
+                Mutation::MultiplierProperty((1, property::Int::Level)),
+            ],
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::PassiveSkillPoints,
+            typ: Type::Base,
+            amount: 22, // 23 from quests -1 for level 1
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::PhysicalDamage,
+            typ: Type::Inc,
+            amount: 1,
+            mutations: stackvec![Mutation::MultiplierStat((5, StatId::Strength))],
+            tags: GemTag::Melee.into(),
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::Damage,
+            typ: Type::More,
+            amount: 4,
+            mutations: stackvec![
+                Mutation::MultiplierProperty((1, property::Int::FrenzyCharges)),
+            ],
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::AttackSpeed,
+            typ: Type::Inc,
+            amount: 4,
+            mutations: stackvec![
+                Mutation::MultiplierProperty((1, property::Int::FrenzyCharges)),
+            ],
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::CastSpeed,
+            typ: Type::Inc,
+            amount: 4,
+            mutations: stackvec![
+                Mutation::MultiplierProperty((1, property::Int::FrenzyCharges)),
+            ],
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::CriticalStrikeChance,
+            typ: Type::Inc,
+            amount: 50,
+            mutations: stackvec![
+                Mutation::MultiplierProperty((1, property::Int::PowerCharges)),
+            ],
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::MaximumFireResistance,
+            typ: Type::Base,
+            amount: 75,
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::MaximumColdResistance,
+            typ: Type::Base,
+            amount: 75,
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::MaximumLightningResistance,
+            typ: Type::Base,
+            amount: 75,
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::MaximumChaosResistance,
+            typ: Type::Base,
+            amount: 75,
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::AccuracyRating,
+            typ: Type::Base,
+            amount: 2,
+            mutations: stackvec![Mutation::MultiplierStat((1, StatId::Dexterity))],
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::CriticalStrikeMultiplier,
+            typ: Type::Base,
+            amount: 150,
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::MaximumFortification,
+            typ: Type::Base,
+            amount: 20,
+            ..Default::default()
+        },
+    ];
 }
 
 #[serde_as]
@@ -298,84 +490,8 @@ impl Build {
     pub fn calc_mods(&self, _include_global: bool) -> Vec<Mod> {
         let class_data = &TREE.classes[&self.tree.class];
         let mut mods = Vec::with_capacity(600);
+        mods.extend_from_slice(&BASE_MODES);
         mods.extend_from_slice(&[
-            Mod {
-                stat: StatId::MaximumLife,
-                typ: Type::Base,
-                amount: 12,
-                mutations: stackvec![Mutation::MultiplierProperty((1, property::Int::Level))],
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::MaximumLife,
-                typ: Type::Base,
-                amount: 38,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::MaximumLife,
-                typ: Type::Base,
-                amount: 1,
-                mutations: stackvec![Mutation::MultiplierStat((2, StatId::Strength))],
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::MaximumEnergyShield,
-                typ: Type::Inc,
-                amount: 1,
-                mutations: stackvec![Mutation::MultiplierStat((10, StatId::Intelligence))],
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::MaximumMana,
-                typ: Type::Base,
-                amount: 6,
-                mutations: stackvec![Mutation::MultiplierProperty((1, property::Int::Level))],
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::MaximumMana,
-                typ: Type::Base,
-                amount: 34,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::MaximumMana,
-                typ: Type::Base,
-                amount: 1,
-                mutations: stackvec![Mutation::MultiplierStat((2, StatId::Intelligence))],
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::ManaRegenerationPct,
-                typ: Type::Base,
-                amount: 180,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::MaximumFrenzyCharges,
-                typ: Type::Base,
-                amount: 3,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::MaximumPowerCharges,
-                typ: Type::Base,
-                amount: 3,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::MaximumEnduranceCharges,
-                typ: Type::Base,
-                amount: 3,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::MaximumRage,
-                typ: Type::Base,
-                amount: 30,
-                ..Default::default()
-            },
             Mod {
                 stat: StatId::Strength,
                 typ: Type::Base,
@@ -394,122 +510,10 @@ impl Build {
                 amount: class_data.base_int,
                 ..Default::default()
             },
-            Mod {
-                stat: StatId::Damage,
-                typ: Type::More,
-                amount: 1,
-                mutations: stackvec![
-                    Mutation::MultiplierProperty((1, property::Int::Rage)),
-                ],
-                tags: GemTag::Attack.into(),
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::PassiveSkillPoints,
-                typ: Type::Base,
-                amount: 1,
-                mutations: stackvec![
-                    Mutation::MultiplierProperty((1, property::Int::Level)),
-                ],
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::PassiveSkillPoints,
-                typ: Type::Base,
-                amount: 22, // 23 from quests -1 for level 1
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::PhysicalDamage,
-                typ: Type::Inc,
-                amount: 1,
-                mutations: stackvec![Mutation::MultiplierStat((5, StatId::Strength))],
-                tags: GemTag::Melee.into(),
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::Damage,
-                typ: Type::More,
-                amount: 4,
-                mutations: stackvec![
-                    Mutation::MultiplierProperty((1, property::Int::FrenzyCharges)),
-                ],
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::AttackSpeed,
-                typ: Type::Inc,
-                amount: 4,
-                mutations: stackvec![
-                    Mutation::MultiplierProperty((1, property::Int::FrenzyCharges)),
-                ],
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::CastSpeed,
-                typ: Type::Inc,
-                amount: 4,
-                mutations: stackvec![
-                    Mutation::MultiplierProperty((1, property::Int::FrenzyCharges)),
-                ],
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::CriticalStrikeChance,
-                typ: Type::Inc,
-                amount: 50,
-                mutations: stackvec![
-                    Mutation::MultiplierProperty((1, property::Int::PowerCharges)),
-                ],
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::MaximumFireResistance,
-                typ: Type::Base,
-                amount: 75,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::MaximumColdResistance,
-                typ: Type::Base,
-                amount: 75,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::MaximumLightningResistance,
-                typ: Type::Base,
-                amount: 75,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::MaximumChaosResistance,
-                typ: Type::Base,
-                amount: 75,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::AccuracyRating,
-                typ: Type::Base,
-                amount: 2,
-                mutations: stackvec![Mutation::MultiplierStat((1, StatId::Dexterity))],
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::CriticalStrikeMultiplier,
-                typ: Type::Base,
-                amount: 150,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::MaximumFortification,
-                typ: Type::Base,
-                amount: 20,
-                ..Default::default()
-            },
         ]);
         mods.append(&mut BANDIT_STATS.get(&self.bandit_choice).unwrap().clone());
         mods.append(&mut CAMPAIGN_STATS.get(&self.campaign_choice).unwrap().clone());
-        mods.append(&mut self.tree.calc_mods());
+        mods.extend_from_slice(&self.tree.calc_mods());
         for (slot, idx) in &self.equipment {
             let item = &self.inventory[*idx];
             if let Slot::TreeJewel(node_id) = slot {

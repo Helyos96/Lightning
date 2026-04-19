@@ -7,7 +7,9 @@ use pathfinding::directed::strongly_connected_components;
 use pathfinding::prelude::bfs;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
+use std::cell::{Cell, RefCell};
 use std::fmt;
+use std::rc::Rc;
 use std::str::FromStr;
 use std::convert::AsRef;
 
@@ -26,10 +28,18 @@ pub struct PassiveTree {
     #[serde(default)]
     pub nodes_cluster: Vec<(u32, Node)>,
     pub masteries: FxHashMap<u32, u32>,
+    #[serde(skip)]
+    mod_cache: RefCell<Rc<Vec<Mod>>>,
+    #[serde(skip, default = "default_cell_true")]
+    should_regen_modcache: Cell<bool>,
 }
 
 fn init_data() -> imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK> {
     TREE.nodes.clone()
+}
+
+fn default_cell_true() -> Cell<bool> {
+    Cell::new(true)
 }
 
 impl Default for PassiveTree {
@@ -43,6 +53,8 @@ impl Default for PassiveTree {
             masteries: Default::default(),
             nodes_data: TREE.nodes.clone(),
             nodes_cluster: Default::default(),
+            mod_cache: Default::default(),
+            should_regen_modcache: Cell::new(true),
         };
         pt.nodes.push(get_class_node(pt.class));
         pt
@@ -229,6 +241,13 @@ impl PassiveTree {
         } else if let Some(path) = self.find_path(node) {
             self.nodes.extend_from_slice(&path[0..path.len() - 1]);
         }
+
+        self.should_regen_modcache.set(true);
+    }
+
+    /// Only used in benchmarks
+    pub fn force_regen_modcache(&self) {
+        self.should_regen_modcache.set(true);
     }
 
     pub fn jewel_slots(&self) -> Vec<u32> {
@@ -274,14 +293,14 @@ impl PassiveTree {
         self.bloodline = bloodline;
 
         if let Some(bloodline) = bloodline {
-            self.nodes.push(get_bloodline_node(bloodline));
+            self.flip_node(get_bloodline_node(bloodline));
         }
         if let Some(old_bloodline) = old_bloodline {
             self.flip_node(get_bloodline_node(old_bloodline));
         }
     }
 
-    pub fn calc_mods(&self) -> Vec<Mod> {
+    pub fn regen_modcache(&self) {
         let mut mods = Vec::with_capacity(300);
 
         let extra_nodes = self.nodes_additional.iter().filter(|n| !self.nodes.contains(n));
@@ -309,7 +328,16 @@ impl PassiveTree {
             }
         }
 
-        mods
+        *self.mod_cache.borrow_mut() = Rc::new(mods);
+        self.should_regen_modcache.set(false);
+    }
+
+    pub fn calc_mods(&self) -> Rc<Vec<Mod>> {
+        if self.should_regen_modcache.get() {
+            self.regen_modcache();
+        }
+
+        return self.mod_cache.borrow().clone();
     }
 
     fn _remove_jewel(&mut self, node_id: u32) {

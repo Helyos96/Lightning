@@ -49,10 +49,11 @@ fn parse_val100(val: &str) -> Option<i64> {
 }
 
 const BEGINNINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, &[Condition])] = &[
-    ("axe attacks deal", flags!(GemTag::Attack), flags!(ItemClass::{OneHandAxe | TwoHandAxe}), &[]),
-    ("sword attacks deal", flags!(GemTag::Attack), flags!(ItemClass::{OneHandSword | TwoHandSword | ThrustingOneHandSword}), &[]),
+    ("axe attacks deal", flags!(GemTag::Attack), ItemClass::AXES, &[]),
+    ("sword attacks deal", flags!(GemTag::Attack), ItemClass::SWORDS, &[]),
     ("mace or sceptre attacks deal", flags!(GemTag::Attack), flags!(ItemClass::{OneHandMace | TwoHandMace | Sceptre}), &[]),
-    ("attacks with two handed melee weapons deal", flags!(GemTag::Attack), flags!(ItemClass::{TwoHandSword | TwoHandMace | TwoHandAxe | Warstaff | Staff}), &[]),
+    ("attacks with two handed melee weapons deal", flags!(GemTag::Attack), ItemClass::TWO_HANDED_MELEE, &[]),
+    ("attacks with melee weapons deal", flags!(GemTag::Attack), ItemClass::MELEE, &[]),
 ];
 
 const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, &[Condition])] = &[
@@ -74,17 +75,17 @@ const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, &[Condition])] = 
     ("with fire skills", flags!(GemTag::Fire), BitFlags::EMPTY, &[]),
     ("with lightning skills", flags!(GemTag::Lightning), BitFlags::EMPTY, &[]),
     ("with brand skills", flags!(GemTag::Brand), BitFlags::EMPTY, &[]),
-    ("with axes", BitFlags::EMPTY, flags!(ItemClass::{OneHandAxe | TwoHandAxe}), &[]),
-    ("with swords", BitFlags::EMPTY, flags!(ItemClass::{OneHandSword | TwoHandSword | ThrustingOneHandSword}), &[]),
-    ("with maces", BitFlags::EMPTY, flags!(ItemClass::{OneHandMace | TwoHandMace}), &[]),
-    ("with two handed melee weapons", BitFlags::EMPTY, flags!(ItemClass::{TwoHandSword | TwoHandMace | TwoHandAxe | Warstaff | Staff}), &[]),
-    ("with one handed melee weapons", BitFlags::EMPTY, flags!(ItemClass::{OneHandSword | OneHandMace | OneHandAxe | ThrustingOneHandSword}), &[]),
-    ("with one handed weapons", BitFlags::EMPTY, flags!(ItemClass::{OneHandSword | OneHandMace | OneHandAxe | ThrustingOneHandSword}), &[]),
-    ("with staves", BitFlags::EMPTY, flags!(ItemClass::{Staff | Warstaff}), &[]),
+    ("with axes", BitFlags::EMPTY, ItemClass::AXES, &[]),
+    ("with swords", BitFlags::EMPTY, ItemClass::SWORDS, &[]),
+    ("with maces", BitFlags::EMPTY, ItemClass::MACES, &[]),
+    ("with two handed melee weapons", BitFlags::EMPTY, ItemClass::TWO_HANDED_MELEE, &[]),
+    ("with one handed melee weapons", BitFlags::EMPTY, ItemClass::ONE_HANDED_MELEE, &[]),
+    ("with one handed weapons", BitFlags::EMPTY, ItemClass::ONE_HANDED, &[]),
+    ("with staves", BitFlags::EMPTY, ItemClass::STAVES, &[]),
     ("with bows", BitFlags::EMPTY, flags!(ItemClass::Bow), &[]),
     ("with claws", BitFlags::EMPTY, flags!(ItemClass::Claw), &[]),
     ("with wands", BitFlags::EMPTY, flags!(ItemClass::Wand), &[]),
-    ("with daggers", BitFlags::EMPTY, flags!(ItemClass::{Dagger | RuneDagger}), &[]),
+    ("with daggers", BitFlags::EMPTY, ItemClass::DAGGERS, &[]),
     ("with maces or sceptres", BitFlags::EMPTY, flags!(ItemClass::{OneHandMace | TwoHandMace | Sceptre}), &[]),
     ("while fortified", BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::PropertyBool((true, property::Bool::Fortified))]),
     ("if you've dealt a critical strike recently", BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::PropertyBool((true, property::Bool::DealtCritRecently))]),
@@ -96,9 +97,9 @@ const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, &[Condition])] = 
     ("while on low life", BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::PropertyBool((true, property::Bool::OnLowLife))]),
     ("while holding a shield", BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(flags!(ItemClass::Shield))]),
     ("while wielding a wand", BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(flags!(ItemClass::Wand))]),
-    ("while wielding a staff", BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(flags!(ItemClass::{Staff | Warstaff}))]),
-    ("while wielding a sword", BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(flags!(ItemClass::{OneHandSword | TwoHandSword | ThrustingOneHandSword}))]),
-    ("while wielding a dagger", BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(flags!(ItemClass::{Dagger | RuneDagger}))]),
+    ("while wielding a staff", BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(ItemClass::STAVES)]),
+    ("while wielding a sword", BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(ItemClass::SWORDS)]),
+    ("while wielding a dagger", BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(ItemClass::DAGGERS)]),
     ("while wielding a mace or sceptre", BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(flags!(ItemClass::{OneHandMace | TwoHandMace | Sceptre}))]),
     ("while wielding a claw or dagger", BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(flags!(ItemClass::{Dagger | RuneDagger | Claw}))]),
     ("if equipped helmet, body armour, gloves, and boots all have armour", BitFlags::EMPTY, BitFlags::EMPTY, &[
@@ -710,20 +711,20 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
             m = &m[0..m.len() - 1];
         }
 
-        mutations.extend(modifier.mutations);
+        mutations.extend_from_slice(&modifier.mutations);
         tags.insert(modifier.tags);
         weapons.insert(modifier.weapons);
         flags.insert(modifier.flags);
-        conditions.extend(modifier.conditions);
+        conditions.extend_from_slice(&modifier.conditions);
     }
 
     while let Some((size, modifier)) = parse_beginning(&m) {
         m = &m[size + 1..m.len()];
-        mutations.extend(modifier.mutations);
+        mutations.extend_from_slice(&modifier.mutations);
         tags.insert(modifier.tags);
         weapons.insert(modifier.weapons);
         flags.insert(modifier.flags);
-        conditions.extend(modifier.conditions);
+        conditions.extend_from_slice(&modifier.conditions);
     }
 
     for begin in CORES.iter() {
