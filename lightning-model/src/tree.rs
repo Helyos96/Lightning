@@ -245,7 +245,6 @@ impl PassiveTree {
         self.should_regen_modcache.set(true);
     }
 
-    /// Only used in benchmarks
     pub fn force_regen_modcache(&self) {
         self.should_regen_modcache.set(true);
     }

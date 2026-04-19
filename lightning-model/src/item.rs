@@ -395,8 +395,11 @@ impl Item {
         }
         output += format!("{}\n", self.data().name).as_str();
         output += "--------\n";
-        output += format!("Item Level: {}\n", self.item_level).as_str();
-        output += "--------\n";
+
+        if self.quality > 0 {
+            output += format!("Quality: +{}%\n", self.quality).as_str();
+            output += "--------\n";
+        }
 
         if let Some(reqs) = &self.data().requirements {
             if reqs.level > 0 || reqs.strength > 0 || reqs.dexterity > 0 || reqs.intelligence > 0 {
@@ -416,6 +419,9 @@ impl Item {
             }
             output += "--------\n";
         }
+
+        output += format!("Item Level: {}\n", self.item_level).as_str();
+        output += "--------\n";
 
         for m in &self.mods_enchant {
             output += format!("{} (enchant)\n", m).as_str();

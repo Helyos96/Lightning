@@ -421,6 +421,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                             } else {
                                                 build_compare_single.tree.nodes.push(node.skill);
                                             }
+                                            build_compare_single.tree.force_regen_modcache();
                                             state.delta_compare_single = state.compare(&build_compare_single);
 
                                             if !state.build.tree.nodes.contains(&node.skill) {

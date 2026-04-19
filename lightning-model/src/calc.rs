@@ -105,6 +105,8 @@ fn calc_weapon_bleed_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &Da
     if let Some(mut max_dmg) = calc_weapon_max_base_dmg(stats, weapon, active_gem, dg) {
         max_dmg.assimilate(stats.stat(StatId::DamageWithAilments));
         max_dmg.assimilate(stats.stat(StatId::BleedDamage));
+        max_dmg.adjust_mod(&Mod { typ: Type::More, amount: -30, ..Default::default() });
+        dbg!(&max_dmg);
         return max_dmg.val();
     }
     0

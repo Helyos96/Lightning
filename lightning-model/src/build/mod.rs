@@ -337,6 +337,7 @@ lazy_static! {
             amount: 1,
             mutations: stackvec![Mutation::MultiplierStat((5, StatId::Strength))],
             tags: GemTag::Melee.into(),
+            flags: ModFlag::Hit.into(),
             ..Default::default()
         },
         Mod {
