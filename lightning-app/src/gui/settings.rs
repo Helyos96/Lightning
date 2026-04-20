@@ -32,6 +32,26 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                     let _ = state.config.save();
                 }
                 ui.end_row();
+                ui.label("UI Zoom");
+                egui::ComboBox::from_id_salt("zoom_combo")
+                    .selected_text(format!("{}%", state.config.ui_zoom_factor_pct))
+                    .show_ui(ui, |ui| {
+                    let mut changed = false;
+                    changed |= ui.selectable_value(&mut state.config.ui_zoom_factor_pct, 50, "50%").changed();
+                    changed |= ui.selectable_value(&mut state.config.ui_zoom_factor_pct, 75, "75%").changed();
+                    changed |= ui.selectable_value(&mut state.config.ui_zoom_factor_pct, 100, "100%").changed();
+                    changed |= ui.selectable_value(&mut state.config.ui_zoom_factor_pct, 125, "125%").changed();
+                    changed |= ui.selectable_value(&mut state.config.ui_zoom_factor_pct, 150, "150%").changed();
+                    changed |= ui.selectable_value(&mut state.config.ui_zoom_factor_pct, 175, "175%").changed();
+                    changed |= ui.selectable_value(&mut state.config.ui_zoom_factor_pct, 200, "200%").changed();
+                    changed |= ui.selectable_value(&mut state.config.ui_zoom_factor_pct, 225, "225%").changed();
+                    changed |= ui.selectable_value(&mut state.config.ui_zoom_factor_pct, 250, "250%").changed();
+
+                    if changed {
+                        let _ = state.config.save();
+                    }
+                });
+                ui.end_row();
             });
             if ui.button("Close").clicked() {
                 state.show_settings = false;

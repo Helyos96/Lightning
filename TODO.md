@@ -4,11 +4,11 @@
 	* Jewels
 		* ~~Basic jewels~~
 		* With radius shown
-		* Cluster jewels
+		* ~~Cluster jewels~~
+			* Correct orbit_index for all positions
 	* Calc functions (highest dps unallocated etc.)
 * ~~Abyss jewels~~
 	* Sorta done, but they're not tied to items yet
-* Unique items
 * Skills GUI
 	* Color gems by str/dex/int in dropdown
 	* Show gem popup
@@ -17,10 +17,7 @@
 	* Default level/quality
 		* Check against gem's max level
 * Items GUI
-	* ~~Equipment comboboxes~~
-		* Stats compare if remove
-	* Item creator
-	* Stats compare new items
+	* Unique items
 * Better calc breakdown
 	* Active skill stats
 	* More defence stats
@@ -39,6 +36,4 @@
 		* PDR
 	* Ward
 	* Block
-* ~~Accuracy~~
-	* Per-weapon + local weapon accuracy mods
 * All the mods and gems

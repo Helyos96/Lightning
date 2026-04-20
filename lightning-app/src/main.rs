@@ -104,6 +104,7 @@ struct GlowApp {
     egui_glow: Option<egui_glow::EguiGlow>,
     state: State,
     tree_gl: TreeGl,
+    ui_zoom_factor: u32,
 }
 
 impl GlowApp {
@@ -116,6 +117,7 @@ impl GlowApp {
             egui_glow: None,
             state: State::new(get_config()),
             tree_gl: TreeGl::default(),
+            ui_zoom_factor: 10,
         }
     }
 }
@@ -212,6 +214,11 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                     state.request_regen_nodes_gl = false;
                 }
 
+                if self.ui_zoom_factor != state.config.ui_zoom_factor_pct {
+                    egui_glow.egui_ctx.set_zoom_factor((state.config.ui_zoom_factor_pct as f32) / 100.0);
+                    self.ui_zoom_factor = state.config.ui_zoom_factor_pct
+                }
+
                 match state.ui_state.clone() {
                     UiState::ChooseBuild => {
                         egui_glow.run(window, |egui_ctx| {
@@ -236,6 +243,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                 state.tree_translate,
                             );
                         }
+
                         egui_glow.run(window, |egui_ctx| {
                             gui::panel::top::draw(egui_ctx, state);
                             gui::panel::left::draw(egui_ctx, state);

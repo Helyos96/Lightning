@@ -4,52 +4,42 @@ use lightning_model::build::Slot;
 use lightning_model::data::tree::NodeType;
 use lightning_model::modifier::Source;
 
-fn is_mouse_left_area(state: &State) -> bool {
-    let tree_three_quarters = ((state.dimensions.0 as f32 - super::panel::left::WIDTH) * 0.75)
-        + super::panel::left::WIDTH;
-    if state.mouse_pos.0 <= tree_three_quarters {
-        return true;
-    }
-    false
-}
+fn get_align(ctx: &egui::Context) -> (egui::Align2, egui::Vec2) {
+    let content_rect = ctx.content_rect();
+    let pointer_pos = ctx.input(|i| i.pointer.hover_pos()).unwrap_or_default();
+    let cutoff = ((content_rect.width() - super::panel::left::WIDTH) * 0.65) + super::panel::left::WIDTH;
+    let is_left = pointer_pos.x <= cutoff;
+    let tree_center = (content_rect.height() / 2.0) + (super::panel::top::HEIGHT / 2.0);
+    let is_top = pointer_pos.y <= tree_center;
 
-fn is_mouse_top_area(state: &State) -> bool {
-    let tree_center = (state.dimensions.1 as f32 / 2.0) + (super::panel::top::HEIGHT / 2.0);
-    if state.mouse_pos.1 <= tree_center {
-        return true;
-    }
-    false
-}
-
-// Used to adjust where the hover window will pop depending on where the mouse is
-fn get_align(state: &State) -> (egui::Align2, (f32, f32)) {
-    let (h_align, h_margin) = if is_mouse_left_area(state) {
+    let (h_align, h_margin) = if is_left {
         (egui::Align::Min, 15.0)
     } else {
         (egui::Align::Max, -15.0)
     };
 
-    let (v_align, v_margin) = if is_mouse_top_area(state) {
+    let (v_align, v_margin) = if is_top {
         (egui::Align::Min, 15.0)
     } else {
         (egui::Align::Max, -15.0)
     };
 
-    (egui::Align2([h_align, v_align]), (h_margin, v_margin))
+    (egui::Align2([h_align, v_align]), egui::Vec2::new(h_margin, v_margin))
 }
 
 fn draw_hover_window(ctx: &egui::Context, state: &mut State) {
     let node = state.build.tree.nodes_data.get(&state.hovered_node_id.unwrap()).unwrap();
     let c = ctx.style().visuals.window_fill;
     let background_color = egui::Color32::from_rgba_premultiplied(c.r(), c.g(), c.b(), 210);
-    let (align, margin) = get_align(state);
+    let (align, margin) = get_align(ctx);
+    let pointer_pos = ctx.input(|i| i.pointer.hover_pos()).unwrap_or_default();
     egui::Window::new("Hover")
         .collapsible(false)
         .movable(false)
         .title_bar(false)
         .resizable(false)
         .pivot(align)
-        .fixed_pos([state.mouse_pos.0 + margin.0, state.mouse_pos.1 + margin.1])
+        .fixed_pos(pointer_pos + margin)
         .frame(egui::Frame::window(&ctx.style()).fill(background_color))
         .show(ctx, |ui| {
             ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
@@ -141,7 +131,7 @@ fn draw_hover_window(ctx: &egui::Context, state: &mut State) {
                             ui.label(egui::RichText::new("Stat").strong());
                             ui.label(egui::RichText::new("This node").strong());
                             if nb_nodes > 1 {
-                                ui.label(egui::RichText::new("All nodes").strong());
+                                ui.label(egui::RichText::new(format!("All {nb_nodes} nodes")).strong());
                             }
                             ui.end_row();
 

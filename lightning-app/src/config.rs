@@ -12,6 +12,12 @@ pub struct Config {
     pub vsync: bool,
     #[serde(default)]
     pub show_debug: bool,
+    #[serde(default = "default_ui_zoom")]
+    pub ui_zoom_factor_pct: u32,
+}
+
+fn default_ui_zoom() -> u32 {
+    100
 }
 
 #[cfg(target_os = "linux")]
@@ -55,6 +61,7 @@ impl Default for Config {
             framerate: 165,
             vsync: false,
             show_debug: false,
+            ui_zoom_factor_pct: 100,
         }
     }
 }
