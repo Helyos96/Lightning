@@ -234,5 +234,13 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
     }
 
     build.import_account = Some((account.to_string(), character.to_string()));
+    build.campaign_choice = if items.character.level >= 67 {
+        build::CampaignChoice::ActTen
+    } else if items.character.level >= 45 {
+        build::CampaignChoice::ActFive
+    } else {
+        build::CampaignChoice::Beach
+    };
+
     Ok(build)
 }

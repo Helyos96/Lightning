@@ -114,7 +114,6 @@ impl State {
             import_account: String::new(),
             import_character: String::new(),
             request_recalc: false,
-            request_regen_nodes_gl: false,
             last_instant: Instant::now(),
             show_settings: false,
             modifiers: Default::default(),
@@ -150,6 +149,7 @@ impl State {
             zoom_tmp: 1.0,
             tree_translate: (0.0, 0.0),
             request_regen_gl: false,
+            request_regen_nodes_gl: false,
 
             mouse_pos: (0.0, 0.0),
 

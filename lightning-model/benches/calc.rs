@@ -1,5 +1,5 @@
 use enumflags2::BitFlags;
-use lightning_model::{build::Build, gem::Gem, modifier::CACHE};
+use lightning_model::{build::Build, calc, gem::Gem, modifier::CACHE};
 use std::fs;
 
 use lightning_model::import;
@@ -60,6 +60,24 @@ fn calc_clone_build(bencher: divan::Bencher) {
 }
 
 #[divan::bench]
+fn calc_power_report_maxhp(bencher: divan::Bencher) {
+    let player = fetch().expect("Failed to get a build");
+    let _base_maxhp = calc::calc_defence(&player).0["Maximum Life"];
+
+    bencher.bench_local(|| {
+        for node in player.tree.nodes_data.keys() {
+            if player.tree.nodes.contains(node) {
+                continue;
+            }
+            let mut compare_build = player.clone();
+            compare_build.tree.nodes.push(*node);
+            compare_build.tree.force_regen_modcache();
+            let compare_maxhp = calc::calc_defence(&compare_build).0["Maximum Life"];
+        }
+    });
+}
+
+#[divan::bench]
 fn calc_gem(bencher: divan::Bencher) {
     let player = fetch().expect("Failed to get a build");
     let active_gem = player.gem_links[1].active_gems().nth(0).unwrap();
@@ -69,6 +87,17 @@ fn calc_gem(bencher: divan::Bencher) {
 
     bencher.bench_local(|| {
         lightning_model::calc::calc_gem(&player, &support_gems, active_gem);
+    });
+}
+
+#[divan::bench]
+fn calc_defence(bencher: divan::Bencher) {
+    let player = fetch().expect("Failed to get a build");
+
+    lightning_model::calc::calc_defence(&player);
+
+    bencher.bench_local(|| {
+        lightning_model::calc::calc_defence(&player);
     });
 }
 

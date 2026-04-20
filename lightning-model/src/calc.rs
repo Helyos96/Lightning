@@ -1,3 +1,5 @@
+use std::ops::Neg;
+
 use crate::build::stat::{Stat, StatId, Stats};
 use crate::build::{self, property, Build, Slot};
 use crate::data::base_item::ItemClass;
@@ -72,7 +74,7 @@ fn calc_average_dmg(stats: &Stats, active_gem: &Gem, base_min: i64, base_max: i6
     (min + max) / 2
 }
 
-fn calc_weapon_average_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &DamageGroup) -> i64 {
+fn calc_weapon_average_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &DamageGroup) -> Option<Stat> {
     if let Some((min_item, max_item)) = weapon.calc_dmg(dg.damage_type) {
         let item_class = Some(weapon.data().item_class);
         let added_min_stat = stats.stat(dg.added_min_id).with_weapon(item_class);
@@ -82,9 +84,9 @@ fn calc_weapon_average_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &
         let mut dmg_stat = stats.stat(StatId::Damage).with_weapon(item_class);
         dmg_stat.assimilate(&dmg_stat_dt);
         dmg_stat.adjust(Type::Base, average);
-        return dmg_stat.val();
+        return Some(dmg_stat);
     }
-    0
+    None
 }
 
 fn calc_weapon_max_base_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &DamageGroup) -> Option<Stat> {
@@ -105,7 +107,8 @@ fn calc_weapon_bleed_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &Da
     if let Some(mut max_dmg) = calc_weapon_max_base_dmg(stats, weapon, active_gem, dg) {
         max_dmg.assimilate(stats.stat(StatId::DamageWithAilments));
         max_dmg.assimilate(stats.stat(StatId::BleedDamage));
-        max_dmg.adjust_mod(&Mod { typ: Type::More, amount: -30, ..Default::default() });
+        max_dmg.adjust_mod(&Mod { typ: Type::More, amount: -30, source: Source::Custom("Bleeds deal 70%"), ..Default::default() });
+        max_dmg.adjust_mod(&Mod { typ: Type::More, amount: stats.val(StatId::BleedDotMultiplier), source: Source::Custom("Bleed Multi"), ..Default::default() });
         return max_dmg.val();
     }
     0
@@ -143,6 +146,11 @@ fn calc_chance_hit_weapon(stats: &Stats, monster_stats: &Stats, weapon: &Item) -
     let chance_to_hit_from_accuracy = ((((1.25 * accuracy) / (accuracy + (monster_evasion * 0.2).powf(0.9))) * 100.0) as i64).clamp(0, 100);
     chance_to_hit_stat.adjust_mod(&Mod { amount: chance_to_hit_from_accuracy, typ: Type::Base, ..Default::default()});
     chance_to_hit_stat.val()
+}
+
+fn physical_damage_reduction_armour(amount: i64, armour: i64, pdr: i64) -> i64 {
+    let pdr_from_armour = (armour * 100) / (armour + 5 * amount);
+    pdr + pdr_from_armour
 }
 
 pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> FxHashMap<&'static str, i64> {
@@ -200,8 +208,12 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
                     instance_type: vec![],
                 };
                 for dg in &DAMAGE_GROUPS {
-                    let avg_damage = calc_weapon_average_dmg(&stats, weapon, active_gem, dg);
-                    if avg_damage > 0 {
+                    if let Some(mut avg_damage_stat) = calc_weapon_average_dmg(&stats, weapon, active_gem, dg) {
+                        if dg.damage_type == DamageType::Physical {
+                            let pdr = physical_damage_reduction_armour(avg_damage_stat.val(), monster_stats.val(StatId::Armour), 0);
+                            avg_damage_stat.adjust_mod(&Mod { stat: StatId::PhysicalDamage, typ: Type::More, amount: pdr.neg(), source: Source::Custom("Phys DR"), ..Default::default() });
+                        }
+                        let avg_damage = avg_damage_stat.val();
                         dmg_inst.instance_type.push(DamageInstanceType {
                             typ: dg.damage_type,
                             amount: avg_damage,

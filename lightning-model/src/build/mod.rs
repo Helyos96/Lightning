@@ -22,7 +22,7 @@ use stat::{Stat, StatId, Stats};
 use strum::EnumCount;
 use strum_macros::{AsRefStr, EnumIter};
 
-#[derive(Serialize, Deserialize, Default, Eq, PartialEq, Hash, Clone, Copy, Debug)]
+#[derive(Serialize, Deserialize, Default, Eq, PartialEq, Hash, Clone, Copy, Debug, strum_macros::Display)]
 pub enum Slot {
     #[default]
     Helm,
@@ -408,6 +408,19 @@ lazy_static! {
             ..Default::default()
         },
         Mod {
+            stat: StatId::AccuracyRating,
+            typ: Type::Base,
+            amount: 2,
+            ..Default::default()
+        },
+        Mod {
+            stat: StatId::AccuracyRating,
+            typ: Type::Base,
+            amount: 2,
+            mutations: stackvec![Mutation::MultiplierProperty((1, property::Int::Level))],
+            ..Default::default()
+        },
+        Mod {
             stat: StatId::CriticalStrikeMultiplier,
             typ: Type::Base,
             amount: 150,
@@ -455,6 +468,7 @@ impl Build {
 
     pub fn update_item_allocations(&mut self) {
         self.tree.nodes_additional.clear();
+        self.tree.force_regen_modcache();
         let mut max_abyssal_sockets = 0;
         let equipment_slots: Vec<(Slot, usize)> = self.equipment.iter().map(|(k, v)| (*k, *v)).collect();
         for (slot, idx) in equipment_slots {
@@ -819,7 +833,8 @@ impl Build {
         let mut mods_third_pass = Vec::with_capacity(64);
 
         for m in mods.iter().filter(|m| tags.contains(m.tags) && flags.contains(m.flags) && (m.weapons.is_empty() || self.is_holding(&m.weapons))) {
-            if !m.conditions.is_empty() {
+            use Condition::*;
+            if m.conditions.iter().filter(|c| matches!(c, GreaterEqualProperty(_) | LesserEqualProperty(_) | GreaterEqualStat(_) | LesserEqualStat(_))).count() > 0 {
                 mods_third_pass.push(m);
                 continue;
             }

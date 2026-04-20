@@ -69,12 +69,15 @@ fn draw_stat_breakdown(ui: &mut egui::Ui, state: &State, stat_id: StatId) {
     ui.add_space(5.0);
 
     ui.push_id(format!("calc_grid_{:?}", stat_id), |ui| {
+        ui.spacing_mut().scroll.floating = false;
+        ui.spacing_mut().scroll.bar_width = 4.0;
         TableBuilder::new(ui)
             .striped(true)
             .column(Column::auto())
             .column(Column::auto())
             .column(Column::auto())
             .column(Column::auto())
+            .max_scroll_height(500.0)
             .header(20.0, |mut header| {
                 header.col(|ui| { ui.label(egui::RichText::new("Value").strong()); });
                 header.col(|ui| { ui.label(egui::RichText::new("Type").strong()); });
@@ -98,17 +101,18 @@ fn draw_stat_breakdown(ui: &mut egui::Ui, state: &State, stat_id: StatId) {
                                     egui::RichText::new(name).color(Color32::LIGHT_GREEN)
                                 },
                                 Source::Mastery(id) => {
-                                    let name = state.build.tree.nodes_data.get(&id.1).map(|n| n.name.clone()).unwrap_or_else(|| format!("Mastery {:?}", id));
+                                    let name = state.build.tree.nodes_data.get(&id.0).map(|n| n.name.clone()).unwrap_or_else(|| format!("Mastery {:?}", id));
                                     egui::RichText::new(name).color(Color32::LIGHT_GREEN)
                                 },
                                 Source::Item(slot) => {
                                     if let Some(item) = state.build.get_equipped(slot) {
-                                        egui::RichText::new(item.name().to_string()).color(crate::gui::utils::rarity_to_color(item.rarity))
+                                        egui::RichText::new(format!("{slot}")).color(crate::gui::utils::rarity_to_color(item.rarity))
                                     } else {
                                         egui::RichText::new(format!("{:?}", slot))
                                     }
                                 },
                                 Source::Gem(gem_name) => egui::RichText::new(gem_name),
+                                Source::Custom(custom) => egui::RichText::new(custom),
                             };
                             ui.add(egui::Label::new(source_text).wrap_mode(egui::TextWrapMode::Extend));
                         });

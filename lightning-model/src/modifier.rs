@@ -54,6 +54,10 @@ const BEGINNINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, &[Condition])]
     ("mace or sceptre attacks deal", flags!(GemTag::Attack), flags!(ItemClass::{OneHandMace | TwoHandMace | Sceptre}), &[]),
     ("attacks with two handed melee weapons deal", flags!(GemTag::Attack), ItemClass::TWO_HANDED_MELEE, &[]),
     ("attacks with melee weapons deal", flags!(GemTag::Attack), ItemClass::MELEE, &[]),
+    ("attack skills deal", flags!(GemTag::Attack), BitFlags::EMPTY, &[]),
+    ("attacks have", flags!(GemTag::Attack), BitFlags::EMPTY, &[]),
+    ("minions have", flags!(GemTag::Minion), BitFlags::EMPTY, &[]),
+    ("minions deal", flags!(GemTag::Minion), BitFlags::EMPTY, &[]),
 ];
 
 const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, &[Condition])] = &[
@@ -222,67 +226,44 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
 lazy_static! {
     static ref CORES: Vec<(Regex, Box<dyn Fn(&Captures) -> Option<Vec<Mod>> + Send + Sync>)> = vec![
         (
-            regex!(r"^(minions (?:have|deal) )?([0-9]+)% (increased|reduced) ([a-z ]+)$"),
+            regex!(r"^([0-9]+)% (increased|reduced) ([a-z ]+)$"),
             Box::new(|c| {
-                let stat_tags = parse_stat(&c[4])?;
-                let insert_minion_tag = c.get(1).is_some();
-                let mut amount = i64::from_str(&c[2]).unwrap();
-                amount = match &c[3] {
+                let stat_tags = parse_stat(&c[3])?;
+                let mut amount = i64::from_str(&c[1]).unwrap();
+                amount = match &c[2] {
                     "reduced" => amount.neg(),
                     "increased" => amount,
                     _ => panic!(),
                 };
                 Some(stat_tags.iter().map(|s| {
-                    let mut ret = Mod { stat: s.0, typ: Type::Inc, amount, tags: s.1, weapons: s.2, global: s.3, flags: s.4, ..Default::default() };
-                    if insert_minion_tag {
-                        ret.tags.insert(GemTag::Minion);
-                    }
-                    ret
+                    Mod { stat: s.0, typ: Type::Inc, amount, tags: s.1, weapons: s.2, global: s.3, flags: s.4, ..Default::default() }
                 }).collect())
             })
         ), (
-            regex!(r"^(minions have )?(attacks have )?([+-]?[0-9]+)%? (?:additional )?(?:to )?(?:all )?([a-z ]+)$"),
+            regex!(r"^([+-]?[0-9]+)%? (?:additional )?(?:to )?(?:all )?([a-z ]+)$"),
             Box::new(|c| {
-                let stat_tags = parse_stat(&c[4])?;
-                let insert_minion_tag = c.get(1).is_some();
-                let insert_attack_tag = c.get(2).is_some();
-                let amount = i64::from_str(&c[3]).unwrap();
+                let stat_tags = parse_stat(&c[2])?;
+                let amount = i64::from_str(&c[1]).unwrap();
                 Some(stat_tags.iter().map(|s| {
-                    let mut ret = Mod { stat: s.0, typ: Type::Base, amount, tags: s.1, weapons: s.2, global: s.3, flags: s.4, ..Default::default() };
-                    if insert_minion_tag {
-                        ret.tags.insert(GemTag::Minion);
-                    }
-                    if insert_attack_tag {
-                        ret.tags.insert(GemTag::Attack);
-                    }
-                    ret
+                    Mod { stat: s.0, typ: Type::Base, amount, tags: s.1, weapons: s.2, global: s.3, flags: s.4, ..Default::default() }
                 }).collect())
             })
         ), (
-            regex!(r"^(minions (?:have|deal) )?([0-9]+)% (increased|reduced) ([a-z ]+) and ([a-z ]+)$"),
+            regex!(r"^([0-9]+)% (increased|reduced) ([a-z ]+) and ([a-z ]+)$"),
             Box::new(|c| {
-                let stat_tags_1 = parse_stat(&c[4])?;
-                let stat_tags_2 = parse_stat(&c[5])?;
-                let insert_minion_tag = c.get(1).is_some();
-                let mut amount = i64::from_str(&c[2]).unwrap();
-                amount = match &c[3] {
+                let stat_tags_1 = parse_stat(&c[3])?;
+                let stat_tags_2 = parse_stat(&c[4])?;
+                let mut amount = i64::from_str(&c[1]).unwrap();
+                amount = match &c[2] {
                     "reduced" => amount.neg(),
                     "increased" => amount,
                     _ => panic!(),
                 };
                 let mut ret: Vec<Mod> = stat_tags_1.iter().map(|s| {
-                    let mut ret = Mod { stat: s.0, typ: Type::Inc, amount, tags: s.1, weapons: s.2, global: s.3, flags: s.4, ..Default::default() };
-                    if insert_minion_tag {
-                        ret.tags.insert(GemTag::Minion);
-                    }
-                    ret
+                    Mod { stat: s.0, typ: Type::Inc, amount, tags: s.1, weapons: s.2, global: s.3, flags: s.4, ..Default::default() }
                 }).collect();
                 ret.extend(stat_tags_2.iter().map(|s| {
-                    let mut ret = Mod { stat: s.0, typ: Type::Inc, amount, tags: s.1, weapons: s.2, global: s.3, flags: s.4, ..Default::default() };
-                    if insert_minion_tag {
-                        ret.tags.insert(GemTag::Minion);
-                    }
-                    ret
+                    Mod { stat: s.0, typ: Type::Inc, amount, tags: s.1, weapons: s.2, global: s.3, flags: s.4, ..Default::default() }
                 }));
                 Some(ret)
             })
@@ -530,6 +511,7 @@ pub enum Source {
     Mastery((u32, u32)),
     Item(Slot),
     Gem(&'static str),
+    Custom(&'static str),
 }
 
 #[bitflags]
@@ -736,7 +718,7 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
                     modifier.weapons.insert(weapons);
                     modifier.conditions.extend_from_slice(&conditions);
                     modifier.source = source;
-                    modifier.flags = flags;
+                    modifier.flags.insert(flags);
                 }
                 cache.insert(input.to_string(), Some(mods.clone()));
                 return Some(mods);
