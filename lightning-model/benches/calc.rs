@@ -72,7 +72,7 @@ fn calc_power_report_maxhp(bencher: divan::Bencher) {
             let mut compare_build = player.clone();
             compare_build.tree.nodes.push(*node);
             compare_build.tree.force_regen_modcache();
-            let compare_maxhp = calc::calc_defence(&compare_build).0["Maximum Life"];
+            let _compare_maxhp = calc::calc_defence(&compare_build).0["Maximum Life"];
         }
     });
 }

@@ -86,6 +86,13 @@ impl TryFrom<(&str, u16)> for Slot {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum Defence {
+    Armour,
+    Evasion,
+    EnergyShield
+}
+
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct GemLink {
     //pub active_gems: Vec<Gem>,
@@ -638,6 +645,7 @@ impl Build {
 
     pub fn get_equipped(&self, slot: Slot) -> Option<&Item> {
         if let Some(idx) = self.equipment.get(&slot) {
+            assert!(self.inventory.len() > *idx);
             return Some(&self.inventory[*idx]);
         }
         None
@@ -762,26 +770,33 @@ impl Build {
                         return false;
                     }
                 },
-                Condition::SlotHasArmour(slot) => {
-                    // Using self.inventory[*item_idx] directly because it's always supposed to be valid
-                    if let Some(item_idx) = self.equipment.get(&slot) &&
-                       self.inventory[*item_idx].calc_defence().armour.val() > 0 {
-                        return true;
-                    } else {
-                        return false
+                Condition::SlotsHaveDefence((defence, slots)) => {
+                    for slot in *slots {
+                        if let Some(item) = self.get_equipped(*slot) {
+                            let calc_defence = item.calc_defence();
+                            let val = match defence {
+                                Defence::Armour => calc_defence.armour.val(),
+                                Defence::Evasion => calc_defence.evasion.val(),
+                                Defence::EnergyShield => calc_defence.energy_shield.val(),
+                            };
+
+                            if val == 0 {
+                                return false;
+                            }
+                        } else {
+                            return false;
+                        }
                     }
                 },
-                Condition::SlotLesserEqualStat((slot, amount, stat_id)) => {
-                    if let Some(item_idx) = self.equipment.get(slot) {
-                        // Using self.inventory[*item_idx] directly because it's always supposed to be valid
-                        let mods = self.inventory[*item_idx].calc_nonlocal_mods(*slot);
-                        let stat = stat::calc_stat(*stat_id, &mods);
-                        if stat.val() <= *amount {
-                            return true;
+                Condition::SlotLesserEqualStats((slot, amount, stat_ids)) => {
+                    if let Some(item) = self.get_equipped(*slot) {
+                        for stat_id in *stat_ids {
+                            let mods = item.calc_nonlocal_mods(*slot);
+                            let stat = stat::calc_stat(*stat_id, &mods);
+                            if stat.val() > *amount {
+                                return false;
+                            }
                         }
-                        return false;
-                    } else {
-                        return false
                     }
                 },
             }
@@ -840,6 +855,9 @@ impl Build {
             }
             if !m.mutations.is_empty() {
                 mods_sec_pass.push(m);
+                continue;
+            }
+            if !self.check_conditions(&stats, &m) {
                 continue;
             }
             stats.entry(m.stat).or_default().adjust_mod(m);

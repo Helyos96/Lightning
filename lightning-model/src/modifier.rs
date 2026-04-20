@@ -1,5 +1,5 @@
 use crate::build::stat::StatId;
-use crate::build::{property, Slot};
+use crate::build::{Defence, Slot, property};
 use crate::data::base_item::ItemClass;
 use crate::data::gem::GemTag;
 use crate::gem::Gem;
@@ -107,16 +107,10 @@ const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, &[Condition])] = 
     ("while wielding a mace or sceptre", BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(flags!(ItemClass::{OneHandMace | TwoHandMace | Sceptre}))]),
     ("while wielding a claw or dagger", BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(flags!(ItemClass::{Dagger | RuneDagger | Claw}))]),
     ("if equipped helmet, body armour, gloves, and boots all have armour", BitFlags::EMPTY, BitFlags::EMPTY, &[
-        Condition::SlotHasArmour(Slot::Helm),
-        Condition::SlotHasArmour(Slot::BodyArmour),
-        Condition::SlotHasArmour(Slot::Gloves),
-        Condition::SlotHasArmour(Slot::Boots),
+        Condition::SlotsHaveDefence((Defence::Armour, &[Slot::Helm, Slot::BodyArmour, Slot::Gloves, Slot::Boots])),
     ]),
     ("if there are no life modifiers on equipped body armour", BitFlags::EMPTY, BitFlags::EMPTY, &[
-        Condition::SlotLesserEqualStat((Slot::BodyArmour, 0, StatId::MaximumLife)),
-        Condition::SlotLesserEqualStat((Slot::BodyArmour, 0, StatId::LifeRegeneration)),
-        Condition::SlotLesserEqualStat((Slot::BodyArmour, 0, StatId::LifeRegenerationPct)),
-        Condition::SlotLesserEqualStat((Slot::BodyArmour, 0, StatId::LifeRegenerationRate)),
+        Condition::SlotLesserEqualStats((Slot::BodyArmour, 0, &[StatId::MaximumLife, StatId::LifeRegeneration, StatId::LifeRegenerationPct, StatId::LifeRegenerationRate])),
     ]),
 ];
 
@@ -314,23 +308,16 @@ lazy_static! {
                 ])
             })
         ), (
-            regex!(r"^regenerate ([0-9.]+) (life|mana) per second$"),
+            regex!(r"^regenerate ([0-9.]+)(% of)? (life|mana) per second$"),
             Box::new(|c| {
-                let stat = if &c[2] == "life" {
-                    StatId::LifeRegeneration
-                } else {
-                    StatId::ManaRegeneration
+                let stat = match(&c[3], c.get(2).is_some()) {
+                    ("life", false) => StatId::LifeRegeneration,
+                    ("life", true) => StatId::LifeRegenerationPct,
+                    ("mana", false) => StatId::ManaRegeneration,
+                    ("mana", true) => StatId::ManaRegenerationPct,
+                    _ => panic!(),
                 };
-                Some(vec![Mod { stat, typ: Type::Base, amount: parse_val100(&c[1])?, ..Default::default() }])
-            })
-        ), (
-            regex!(r"^regenerate ([0-9.]+)% of (life|mana) per second$"),
-            Box::new(|c| {
-                let stat = if &c[2] == "life" {
-                    StatId::LifeRegenerationPct
-                } else {
-                    StatId::ManaRegenerationPct
-                };
+
                 Some(vec![Mod { stat, typ: Type::Base, amount: parse_val100(&c[1])?, ..Default::default() }])
             })
         ), (
@@ -499,8 +486,8 @@ pub enum Condition {
     LesserEqualStat((i64, StatId)),
     PropertyBool((bool, property::Bool)),
     WhileWielding(BitFlags<ItemClass>),
-    SlotHasArmour(Slot),
-    SlotLesserEqualStat((Slot, i64, StatId)),
+    SlotsHaveDefence((Defence, &'static [Slot])),
+    SlotLesserEqualStats((Slot, i64, &'static [StatId])),
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -523,7 +510,7 @@ pub enum ModFlag {
 }
 
 const MUTATIONS_COUNT: usize = 2;
-const CONDITIONS_COUNT: usize = 4;
+const CONDITIONS_COUNT: usize = 2;
 
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Mod {
@@ -656,7 +643,8 @@ lazy_static! {
 /// 1. ONESHOTS array for static string mods
 /// 2. if not oneshot, parse right to left:
 ///    2.1. any amount of ENDINGS
-///    2.2. a BEGINNING
+///    2.2. any amount of BEGINNINGS
+///    2.3. a CORES
 pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
     let mut cache = CACHE.lock().expect("Unable to lock CACHE");
 
