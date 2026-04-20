@@ -105,10 +105,10 @@ fn calc_weapon_max_base_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: 
 
 fn calc_weapon_bleed_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &DamageGroup) -> i64 {
     if let Some(mut max_dmg) = calc_weapon_max_base_dmg(stats, weapon, active_gem, dg) {
-        max_dmg.assimilate(stats.stat(StatId::DamageWithAilments));
-        max_dmg.assimilate(stats.stat(StatId::BleedDamage));
+        let mut dot_multi = stats.stat(StatId::DotMultiplier).to_owned();
+        dot_multi.assimilate(stats.stat(StatId::PhysicalDotMultiplier));
         max_dmg.adjust_mod(&Mod { typ: Type::More, amount: -30, source: Source::Custom("Bleeds deal 70%"), ..Default::default() });
-        max_dmg.adjust_mod(&Mod { typ: Type::More, amount: stats.val(StatId::BleedDotMultiplier), source: Source::Custom("Bleed Multi"), ..Default::default() });
+        max_dmg.adjust_mod(&Mod { typ: Type::More, amount: dot_multi.val(), source: Source::Custom("Bleed Multi"), ..Default::default() });
         return max_dmg.val();
     }
     0
@@ -170,7 +170,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
     }
 
     let stats = build.calc_stats(&mods, tags, make_bitflags!(ModFlag::Hit));
-    let stats_no_modflags = build.calc_stats(&mods, tags, BitFlags::EMPTY);
+    let stats_bleed = build.calc_stats(&mods, tags, make_bitflags!(ModFlag::{Ailment | Bleed}));
 
     let monster_build = Build::new_player();
     let monster_mods = monster_build.calc_mods_monster(build.property_int(property::Int::Level).min(83));
@@ -223,7 +223,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
                         damage.push(calc_dmg_crit_accuracy(avg_damage, crit_chance, crit_multi, chance_to_hit));
                     }
                     if dg.damage_type == DamageType::Physical && bleed_chance > 0 {
-                        let local_bleed_dps = calc_weapon_bleed_dmg(&stats_no_modflags, weapon, active_gem, dg);
+                        let local_bleed_dps = calc_weapon_bleed_dmg(&stats_bleed, weapon, active_gem, dg);
                         if local_bleed_dps > bleed_dps {
                             bleed_dps = local_bleed_dps;
                         }

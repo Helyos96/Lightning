@@ -847,7 +847,7 @@ impl Build {
         let mut mods_sec_pass = Vec::with_capacity(128);
         let mut mods_third_pass = Vec::with_capacity(64);
 
-        for m in mods.iter().filter(|m| tags.contains(m.tags) && flags.contains(m.flags) && (m.weapons.is_empty() || self.is_holding(&m.weapons))) {
+        for m in mods.iter().filter(|m| tags.contains(m.tags) && (m.flags.is_empty() || flags.intersects(m.flags)) && (m.weapons.is_empty() || self.is_holding(&m.weapons))) {
             use Condition::*;
             if m.conditions.iter().filter(|c| matches!(c, GreaterEqualProperty(_) | LesserEqualProperty(_) | GreaterEqualStat(_) | LesserEqualStat(_))).count() > 0 {
                 mods_third_pass.push(m);
@@ -883,34 +883,14 @@ impl Build {
 
     pub fn calc_stat(&self, stat_id: StatId, stats: &Stats, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>) -> Stat {
         let mut stat: Stat = Default::default();
-        let mut mods_sec_pass = vec![];
-        let mut mods_third_pass = vec![];
 
-        for m in mods.iter().filter(|m| m.stat == stat_id && tags.contains(m.tags) && flags.contains(m.flags) && (m.weapons.is_empty() || self.is_holding(&m.weapons))) {
-            if !m.conditions.is_empty() {
-                mods_third_pass.push(m);
-                continue;
-            }
-            if !m.mutations.is_empty() {
-                mods_sec_pass.push(m);
-                continue;
-            }
-            stat.adjust_mod(m);
-        }
-
-        for m in mods_sec_pass {
-            let mut m = m.to_owned();
-            self.apply_mutations(&stats.stats, &mut m);
-            stat.adjust_mod_move(m);
-        }
-
-        for m in mods_third_pass {
+        for m in mods.iter().filter(|m| m.stat == stat_id && tags.contains(m.tags) && (m.flags.is_empty() || flags.intersects(m.flags)) && (m.weapons.is_empty() || self.is_holding(&m.weapons))) {
             let mut m = m.to_owned();
             if !self.check_conditions(&stats.stats, &m) {
                 continue;
             }
             self.apply_mutations(&stats.stats, &mut m);
-            stat.adjust_mod_move(m);
+            stat.adjust_mod(&m);
         }
 
         stat

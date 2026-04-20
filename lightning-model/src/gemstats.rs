@@ -57,8 +57,7 @@ lazy_static! {
             Mod { stat: StatId::AddedMaxChaosDamage, ..Default::default() },
         ]),
         ("poison_and_bleeding_damage", vec![
-            Mod { stat: StatId::BleedDamage, ..Default::default() },
-            Mod { stat: StatId::PoisonDamage, ..Default::default() },
+            Mod { stat: StatId::Damage, flags: flags!(ModFlag::{Bleed | Poison}), ..Default::default() },
         ]),
         ("melee_physical_damage", vec![
             Mod { stat: StatId::PhysicalDamage, tags: flags!(GemTag::Melee), flags: flags!(ModFlag::Hit), ..Default::default() },
