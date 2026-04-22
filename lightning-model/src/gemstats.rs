@@ -1,13 +1,14 @@
 use crate::build::stat::StatId;
 use crate::data::gem::GemTag;
 use crate::modifier::{Mod, Type, ModFlag};
+use rustc_hash::FxHashMap;
 use enumflags2::{make_bitflags as flags, BitFlags};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 
 lazy_static! {
     // Order is important, end-of-string match is performed in-order
-    static ref GEMSTATS: Vec<(&'static str, Vec<Mod>)> = vec![
+    static ref GEMSTATS_GENERIC: Vec<(&'static str, Vec<Mod>)> = vec![
         ("spell_minimum_base_fire_damage", vec![
             Mod { stat: StatId::BaseMinFireDamage, tags: flags!(GemTag::Spell), ..Default::default() },
         ]),
@@ -62,6 +63,9 @@ lazy_static! {
         ("melee_physical_damage", vec![
             Mod { stat: StatId::PhysicalDamage, tags: flags!(GemTag::Melee), flags: flags!(ModFlag::Hit), ..Default::default() },
         ]),
+        ("herald_of_purity_physical_damage", vec![
+            Mod { stat: StatId::PhysicalDamage, flags: flags!(ModFlag::Buff), ..Default::default() },
+        ]),
         ("physical_damage", vec![
             Mod { stat: StatId::PhysicalDamage, ..Default::default() },
         ]),
@@ -109,21 +113,53 @@ lazy_static! {
         ("additional_weapon_base_attack_time_ms", vec![
             Mod { stat: StatId::AddedAttackTime, ..Default::default() },
         ]),
+        ("accuracy_rating", vec![
+            Mod { stat: StatId::AccuracyRating, typ: Type::Base, ..Default::default() },
+        ]),
+        ("skill_buff_grants_critical_strike_chance", vec![
+            Mod { stat: StatId::CriticalStrikeChance, flags: flags!(ModFlag::Aura), ..Default::default() },
+        ]),
+        ("critical_strike_chance", vec![
+            Mod { stat: StatId::CriticalStrikeChance, ..Default::default() },
+        ]),
+        ("base_fire_damage_resistance", vec![
+            Mod { stat: StatId::FireResistance, ..Default::default() },
+        ]),
         ("damage", vec![
             Mod { stat: StatId::Damage, ..Default::default() },
         ]),
     ];
+
+    // HashMap<gemname<HashMap<statname>>>>
+    static ref GEMSTATS_PERGEM: FxHashMap<&'static str, FxHashMap<&'static str, Vec<Mod>>> =
+    [
+        // Gem name = GemData::base_item::display_name
+        ("Precision", [
+            ("additional_accuracy", vec![
+                Mod { stat: StatId::AccuracyRating, typ: Type::Base, flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+        ].into_iter().collect()),
+        ("Haste", [
+            ("attack_speed", vec![
+                Mod { stat: StatId::AttackSpeed, typ: Type::Inc, flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+        ].into_iter().collect()),
+    ].into_iter().collect();
 }
 
-pub fn match_gemstat(stat: &str) -> Option<Vec<Mod>> {
+pub fn match_gemstat(gem_basename: &str, mut stat: &str) -> Option<Vec<Mod>> {
     let mut typ_override = None;
     let mut gem_tags = BitFlags::EMPTY;
+    let mut mods = vec![];
 
-    let search_in = if let Some(ret) = stat.strip_suffix("_+%_final_from_melee_hits") {
-        typ_override = Some(Type::More);
+    if let Some(substat) = stat.strip_suffix("_granted_from_skill") {
+        stat = substat;
+    } else if let Some(substat) = stat.strip_suffix("_from_melee_hits") {
         gem_tags.insert(GemTag::Melee);
-        ret
-    } else if let Some(ret) = stat.strip_suffix("_+%_final") {
+        stat = substat;
+    }
+
+    let search_in = if let Some(ret) = stat.strip_suffix("_+%_final") {
         typ_override = Some(Type::More);
         ret
     } else if let Some(ret) = stat.strip_suffix("_+%") {
@@ -133,17 +169,27 @@ pub fn match_gemstat(stat: &str) -> Option<Vec<Mod>> {
         stat
     };
 
-    for gemstat in GEMSTATS.iter() {
-        if search_in.ends_with(gemstat.0) {
-            let mut mods = gemstat.1.to_owned();
-            if let Some(typ_override) = typ_override {
-                for m in &mut mods {
-                    m.typ = typ_override;
-                }
+    if let Some(gemstats) = GEMSTATS_PERGEM.get(gem_basename) &&
+       let Some(gem_mods) = gemstats.get(search_in) {
+        mods = gem_mods.to_owned();
+    } else {
+        for gemstat in GEMSTATS_GENERIC.iter() {
+            if search_in.ends_with(gemstat.0) {
+                mods = gemstat.1.to_owned();
+                break;
             }
-            return Some(mods);
         }
     }
 
-    None
+    if mods.is_empty() {
+        return None;
+    }
+
+    if let Some(typ_override) = typ_override {
+        for m in &mut mods {
+            m.typ = typ_override;
+        }
+    }
+
+    Some(mods)
 }

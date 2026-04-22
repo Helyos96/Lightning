@@ -1,10 +1,11 @@
 use crate::build::stat::StatId;
-use crate::data::gem::GemData;
+use crate::data::gem::{GemData, GemTag};
 use crate::data::{DamageType, GEMS};
 use crate::gemstats;
-use crate::modifier::{Mod, Source, Type};
+use crate::modifier::{Mod, ModFlag, Source, Type};
 use crate::{item, util};
 use crate::data;
+use enumflags2::make_bitflags;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
@@ -38,15 +39,18 @@ impl Gem {
         true
     }
 
-    pub fn calc_mods(&self) -> Vec<Mod> {
+    pub fn calc_mods(&self, as_aura_buff: bool) -> Vec<Mod> {
         let mut mods = vec![];
         let source = Source::Gem(self.data().display_name());
 
         if let Some(stats) = &self.data().r#static.stats {
             for gem_stat in stats.iter().flatten() {
                 if let Some(id) = &gem_stat.id {
-                    if let Some(modifiers) = gemstats::match_gemstat(id) {
+                    if let Some(modifiers) = gemstats::match_gemstat(&self.data().base_item.display_name, id) {
                         for mut modifier in modifiers {
+                            if as_aura_buff != modifier.flags.intersects(make_bitflags!(ModFlag::{Aura | Buff})) {
+                                continue;
+                            }
                             if modifier.amount == 0 {
                                 modifier.amount = self.stat_value(id).unwrap_or(0);
                             }
@@ -62,8 +66,11 @@ impl Gem {
 
         for quality_stat in &self.data().r#static.quality_stats {
             for (stat_name, val) in &quality_stat.stats {
-                if let Some(modifiers) = gemstats::match_gemstat(stat_name) {
+                if let Some(modifiers) = gemstats::match_gemstat(&self.data().base_item.display_name, stat_name) {
                     for mut modifier in modifiers {
+                        if as_aura_buff != modifier.flags.intersects(make_bitflags!(ModFlag::{Aura | Buff})) {
+                            continue;
+                        }
                         if modifier.amount == 0 {
                             modifier.amount = (*val as i64 * self.qual as i64) / 1000;
                         }
@@ -76,16 +83,18 @@ impl Gem {
             }
         }
 
-        if let Some(speed_multiplier) = &self.data().r#static.attack_speed_multiplier {
-            mods.push(Mod {stat: StatId::AttackSpeed, typ: Type::More, amount: *speed_multiplier as i64, source, ..Default::default()});
-        }
+        if !as_aura_buff {
+            if let Some(speed_multiplier) = &self.data().r#static.attack_speed_multiplier {
+                mods.push(Mod {stat: StatId::AttackSpeed, typ: Type::More, amount: *speed_multiplier as i64, source, ..Default::default()});
+            }
 
-        if let Some(base_mana_cost) = self.mana_cost_level() {
-            mods.push(Mod {stat: StatId::ManaCost, typ: Type::Base, amount: base_mana_cost, source, ..Default::default()});
-        }
+            if let Some(base_mana_cost) = self.mana_cost_level() {
+                mods.push(Mod {stat: StatId::ManaCost, typ: Type::Base, amount: base_mana_cost, source, ..Default::default()});
+            }
 
-        if let Some(cost_multiplier) = self.cost_multiplier_level() {
-            mods.push(Mod {stat: StatId::Cost, typ: Type::More, amount: cost_multiplier, source, ..Default::default()});
+            if let Some(cost_multiplier) = self.cost_multiplier_level() {
+                mods.push(Mod {stat: StatId::Cost, typ: Type::More, amount: cost_multiplier, source, ..Default::default()});
+            }
         }
 
         mods

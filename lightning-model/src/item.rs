@@ -63,7 +63,7 @@ const LOCAL_MODS_ARMOUR: &[LocalModMatch] = &[
 ];
 
 fn match_local(m: &Mod, match_table: &[LocalModMatch]) -> bool {
-    if !m.conditions.is_empty() || !m.mutations.is_empty() || m.global {
+    if !m.conditions.is_empty() || !m.mutations.is_empty() {
         return false;
     }
     for local_mod_match in match_table {

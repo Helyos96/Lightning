@@ -1,11 +1,13 @@
 pub mod property;
 pub mod stat;
+pub mod evaluator;
 
 use std::{fs, io};
 use std::path::Path;
 
+use crate::build::evaluator::Evaluator;
 use crate::data::base_item::ItemClass;
-use crate::data::gem::GemTag;
+use crate::data::gem::{ActiveSkillType, GemTag};
 use crate::data::tree::get_cluster_orbit_data;
 use crate::data::{MONSTER_STATS, TREE};
 use crate::gem::Gem;
@@ -505,11 +507,20 @@ impl Build {
         });
     }
 
+    pub fn calc_buffs_auras(&self) -> Vec<Mod> {
+        let mut ret = vec![];
+        for link in &self.gem_links {
+            for active_gem in link.active_gems().filter(|gem| gem.enabled && (gem.data().active_skill.as_ref().unwrap().types.contains(&ActiveSkillType::Aura) || gem.data().active_skill.as_ref().unwrap().types.contains(&ActiveSkillType::Buff))) {
+                let mut mods = active_gem.calc_mods(true);
+                ret.append(&mut mods);
+            }
+        }
+        ret
+    }
+
     /// Returns mods from the following sources:
     /// Innate, Passive Tree, Items, Global Skills (Auras..)
-    /// todo: add some caching to not parse & collect all mods
-    /// every time.
-    pub fn calc_mods(&self, _include_global: bool) -> Vec<Mod> {
+    pub fn calc_mods(&self, include_global: bool) -> Vec<Mod> {
         let class_data = &TREE.classes[&self.tree.class];
         let mut mods = Vec::with_capacity(600);
         mods.extend_from_slice(&BASE_MODES);
@@ -559,14 +570,9 @@ impl Build {
                 }
             }
         }
-        // TODO auras
-        /*if include_global {
-            for gl in &self.gem_links {
-                for ag in gl.active_gems().filter(|g| g.data().tags.contains(&GemTag::Aura)) {
-                    mods.extend(ag.calc_mods());
-                }
-            }
-        }*/
+        if include_global {
+            mods.append(&mut self.calc_buffs_auras());
+        }
         mods
     }
 
@@ -843,57 +849,21 @@ impl Build {
     }
 
     pub fn calc_stats(&self, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>) -> Stats {
-        let mut stats: FxHashMap<StatId, Stat> = Default::default();
-        let mut mods_sec_pass = Vec::with_capacity(128);
-        let mut mods_third_pass = Vec::with_capacity(64);
+        let mut evaluator = Evaluator::new(self, mods, tags, flags);
 
-        for m in mods.iter().filter(|m| tags.contains(m.tags) && (m.flags.is_empty() || flags.intersects(m.flags)) && (m.weapons.is_empty() || self.is_holding(&m.weapons))) {
-            use Condition::*;
-            if m.conditions.iter().filter(|c| matches!(c, GreaterEqualProperty(_) | LesserEqualProperty(_) | GreaterEqualStat(_) | LesserEqualStat(_))).count() > 0 {
-                mods_third_pass.push(m);
-                continue;
-            }
-            if !m.mutations.is_empty() {
-                mods_sec_pass.push(m);
-                continue;
-            }
-            if !self.check_conditions(&stats, &m) {
-                continue;
-            }
-            stats.entry(m.stat).or_default().adjust_mod(m);
+        let stat_ids: Vec<StatId> = evaluator.mods_by_stat.keys().copied().collect();
+
+        for stat_id in stat_ids {
+            evaluator.eval_stat(stat_id);
         }
 
-        for m in mods_sec_pass {
-            let mut m = m.to_owned();
-            self.apply_mutations(&stats, &mut m);
-            stats.entry(m.stat).or_default().adjust_mod_move(m);
-        }
-
-        for m in mods_third_pass {
-            let mut m = m.to_owned();
-            if !self.check_conditions(&stats, &m) {
-                continue;
-            }
-            self.apply_mutations(&stats, &mut m);
-            stats.entry(m.stat).or_default().adjust_mod_move(m);
-        }
-
-        Stats { stats }
+        Stats { stats: evaluator.resolved_stats }
     }
 
-    pub fn calc_stat(&self, stat_id: StatId, stats: &Stats, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>) -> Stat {
-        let mut stat: Stat = Default::default();
+    pub fn calc_stat(&self, stat_id: StatId, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>) -> Stat {
+        let mut evaluator = Evaluator::new(self, mods, tags, flags);
 
-        for m in mods.iter().filter(|m| m.stat == stat_id && tags.contains(m.tags) && (m.flags.is_empty() || flags.intersects(m.flags)) && (m.weapons.is_empty() || self.is_holding(&m.weapons))) {
-            let mut m = m.to_owned();
-            if !self.check_conditions(&stats.stats, &m) {
-                continue;
-            }
-            self.apply_mutations(&stats.stats, &mut m);
-            stat.adjust_mod(&m);
-        }
-
-        stat
+        evaluator.eval_stat(stat_id)
     }
 
     pub fn save(&self, dir: &Path) -> io::Result<()> {

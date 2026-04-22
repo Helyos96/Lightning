@@ -133,6 +133,7 @@ pub enum StatId {
     ChanceToIgnite,
     ChanceToFreeze,
     PoisonDuration,
+    AuraEffect,
 }
 
 impl StatId {

@@ -220,12 +220,13 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("chance to shock", StatId::ChanceToShock, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("chance to poison on hit", StatId::ChanceToPoison, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("poison duration", StatId::PoisonDuration, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("effect of non-curse auras from your skills", StatId::AuraEffect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
 ];
 
 lazy_static! {
     static ref CORES: Vec<(Regex, Box<dyn Fn(&Captures) -> Option<Vec<Mod>> + Send + Sync>)> = vec![
         (
-            regex!(r"^([0-9]+)% (increased|reduced) ([a-z ]+)$"),
+            regex!(r"^([0-9]+)% (increased|reduced) ([a-z -]+)$"),
             Box::new(|c| {
                 let stat_tags = parse_stat(&c[3])?;
                 let mut amount = i64::from_str(&c[1]).unwrap();
@@ -235,20 +236,20 @@ lazy_static! {
                     _ => panic!(),
                 };
                 Some(stat_tags.iter().map(|s| {
-                    Mod { stat: s.0, typ: Type::Inc, amount, tags: s.1, weapons: s.2, global: s.3, flags: s.4, ..Default::default() }
+                    Mod { stat: s.0, typ: Type::Inc, amount, tags: s.1, weapons: s.2, flags: s.3, ..Default::default() }
                 }).collect())
             })
         ), (
-            regex!(r"^([+-]?[0-9]+)%? (?:additional )?(?:to )?(?:all )?([a-z ]+)$"),
+            regex!(r"^([+-]?[0-9]+)%? (?:additional )?(?:to )?(?:all )?([a-z -]+)$"),
             Box::new(|c| {
                 let stat_tags = parse_stat(&c[2])?;
                 let amount = i64::from_str(&c[1]).unwrap();
                 Some(stat_tags.iter().map(|s| {
-                    Mod { stat: s.0, typ: Type::Base, amount, tags: s.1, weapons: s.2, global: s.3, flags: s.4, ..Default::default() }
+                    Mod { stat: s.0, typ: Type::Base, amount, tags: s.1, weapons: s.2, flags: s.3, ..Default::default() }
                 }).collect())
             })
         ), (
-            regex!(r"^([0-9]+)% (increased|reduced) ([a-z ]+) and ([a-z ]+)$"),
+            regex!(r"^([0-9]+)% (increased|reduced) ([a-z -]+) and ([a-z -]+)$"),
             Box::new(|c| {
                 let stat_tags_1 = parse_stat(&c[3])?;
                 let stat_tags_2 = parse_stat(&c[4])?;
@@ -259,37 +260,37 @@ lazy_static! {
                     _ => panic!(),
                 };
                 let mut ret: Vec<Mod> = stat_tags_1.iter().map(|s| {
-                    Mod { stat: s.0, typ: Type::Inc, amount, tags: s.1, weapons: s.2, global: s.3, flags: s.4, ..Default::default() }
+                    Mod { stat: s.0, typ: Type::Inc, amount, tags: s.1, weapons: s.2, flags: s.3, ..Default::default() }
                 }).collect();
                 ret.extend(stat_tags_2.iter().map(|s| {
-                    Mod { stat: s.0, typ: Type::Inc, amount, tags: s.1, weapons: s.2, global: s.3, flags: s.4, ..Default::default() }
+                    Mod { stat: s.0, typ: Type::Inc, amount, tags: s.1, weapons: s.2, flags: s.3, ..Default::default() }
                 }));
                 Some(ret)
             })
         ), (
-            regex!(r"^([0-9]+)% more ([a-z ]+)$"),
+            regex!(r"^([0-9]+)% more ([a-z -]+)$"),
             Box::new(|c| {
                 let stat_tags = parse_stat(&c[2])?;
                 Some(stat_tags.iter().map(|s| {
-                    Mod { stat: s.0, typ: Type::More, amount: i64::from_str(&c[1]).unwrap(), tags: s.1, weapons: s.2, global: s.3, flags: s.4, ..Default::default() }
+                    Mod { stat: s.0, typ: Type::More, amount: i64::from_str(&c[1]).unwrap(), tags: s.1, weapons: s.2, flags: s.3, ..Default::default() }
                 }).collect())
             })
         ), (
-            regex!(r"^([0-9]+)% less ([a-z ]+)$"),
+            regex!(r"^([0-9]+)% less ([a-z -]+)$"),
             Box::new(|c| {
                 let stat_tags = parse_stat(&c[2])?;
                 Some(stat_tags.iter().map(|s| {
-                    Mod { stat: s.0, typ: Type::More, amount: i64::from_str(&c[1]).unwrap().neg(), tags: s.1, weapons: s.2, global: s.3, flags: s.4, ..Default::default() }
+                    Mod { stat: s.0, typ: Type::More, amount: i64::from_str(&c[1]).unwrap().neg(), tags: s.1, weapons: s.2, flags: s.3, ..Default::default() }
                 }).collect())
             })
         ), (
-            regex!(r"^\+([0-9]+)%? to ([a-z ]+) and ([a-z ]+)$"),
+            regex!(r"^\+([0-9]+)%? to ([a-z -]+) and ([a-z ]+)$"),
             Box::new(|c| {
                 let stat_tags_1 = parse_stat_nomulti(&c[2])?;
                 let stat_tags_2 = parse_stat_nomulti(&c[3])?;
                 Some(vec![
-                    Mod { stat: stat_tags_1.0, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), tags: stat_tags_1.1, weapons: stat_tags_1.2, global: stat_tags_1.3, ..Default::default() },
-                    Mod { stat: stat_tags_2.0, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), tags: stat_tags_2.1, weapons: stat_tags_2.2, global: stat_tags_2.3, ..Default::default() },
+                    Mod { stat: stat_tags_1.0, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), tags: stat_tags_1.1, weapons: stat_tags_1.2, ..Default::default() },
+                    Mod { stat: stat_tags_2.0, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), tags: stat_tags_2.1, weapons: stat_tags_2.2, ..Default::default() },
                 ])
             })
         ), (
@@ -303,7 +304,7 @@ lazy_static! {
                 ])
             })
         ), (
-            regex!(r"^adds ([0-9]+) to ([0-9]+) ([a-z ]+)$"),
+            regex!(r"^adds ([0-9]+) to ([0-9]+) ([a-z -]+)$"),
             Box::new(|c| {
                 let stat_tags_1 = STATS_MAP.get(format!("added minimum {}", &c[3]).as_str()).cloned()?;
                 let stat_tags_2 = STATS_MAP.get(format!("added maximum {}", &c[3]).as_str()).cloned()?;
@@ -332,13 +333,13 @@ lazy_static! {
                 Some(vec![Mod { stat: stat_tags_1.0, typ: Type::Base, amount: parse_val100(&c[1])?, tags: stat_tags_1.1, ..Default::default() }])
             })
         ), (
-            regex!(r"^grants ([0-9]+) ([a-z ]+)$"),
+            regex!(r"^grants ([0-9]+) ([a-z -]+)$"),
             Box::new(|c| {
                 let stat_tags_1 = parse_stat_nomulti(&c[2])?;
-                Some(vec![Mod { stat: stat_tags_1.0, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), global: stat_tags_1.3, ..Default::default() }])
+                Some(vec![Mod { stat: stat_tags_1.0, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() }])
             })
         ), (
-            regex!(r"^allocates ([a-z ]+)$"),
+            regex!(r"^allocates ([a-z -]+)$"),
             Box::new(|c| {
                 let (node, _) = TREE.nodes.iter().find(|(_, v)| {
                     v.name.to_lowercase() == &c[1]
@@ -514,25 +515,25 @@ pub enum ModFlag {
     Ailment,
     Bleed,
     Poison,
+    Aura,
+    Buff,
 }
 
 const MUTATIONS_COUNT: usize = 2;
-const CONDITIONS_COUNT: usize = 2;
+const CONDITIONS_COUNT: usize = 1;
 
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Mod {
     pub stat: StatId,
     pub typ: Type,
     pub amount: i64,
-    // After mutations or other amount-modifying functions
-    pub revised_amount: Option<i64>,
+    pub revised_amount: Option<i64>, // After mutations or other amount-modifying functions
     pub mutations: StackVec<Mutation, MUTATIONS_COUNT>,
     pub conditions: StackVec<Condition, CONDITIONS_COUNT>,
     pub tags: BitFlags<GemTag>,
     pub source: Source,
     pub weapons: BitFlags<ItemClass>,
     pub flags: BitFlags<ModFlag>,
-    pub global: bool,
     pub allocates: Option<u32>,
 }
 
@@ -603,9 +604,8 @@ fn parse_ending(m: &str) -> Option<(usize, Mod)> {
 }
 
 /// Attempts to parse a chunk like "melee physical damage", non-multi stat
-fn parse_stat_nomulti(input: &str) -> Option<(StatId, BitFlags<GemTag>, BitFlags<ItemClass>, bool, BitFlags<ModFlag>)> {
+fn parse_stat_nomulti(input: &str) -> Option<(StatId, BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>)> {
     let mut tags = BitFlags::empty();
-    let mut global = false;
 
     let stat = STATS.iter().find(|s| {
         if input.ends_with(s.0) {
@@ -621,19 +621,18 @@ fn parse_stat_nomulti(input: &str) -> Option<(StatId, BitFlags<GemTag>, BitFlags
         if let Some(t) = TAGS.get(chunk) {
             tags.insert(*t);
         } else if chunk == "global" {
-            global = true;
         } else {
             return None;
         }
     }
 
-    Some((stat.1, tags | stat.2, stat.3, global, stat.4))
+    Some((stat.1, tags | stat.2, stat.3, stat.4))
 }
 
 /// Attempts to parse a chunk like "melee physical damage" or a multistat
-fn parse_stat(input: &str) -> Option<Vec<(StatId, BitFlags<GemTag>, BitFlags<ItemClass>, bool, BitFlags<ModFlag>)>> {
+fn parse_stat(input: &str) -> Option<Vec<(StatId, BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>)>> {
     if let Some(stats) = MULTISTATS.get(input) {
-        return Some(stats.iter().map(|id| (*id, BitFlags::EMPTY, BitFlags::EMPTY, false, BitFlags::EMPTY)).collect());
+        return Some(stats.iter().map(|id| (*id, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY)).collect());
     }
 
     if let Some(stat) = parse_stat_nomulti(input) {

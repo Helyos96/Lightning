@@ -59,7 +59,7 @@ fn calc_clone_build(bencher: divan::Bencher) {
     });
 }
 
-#[divan::bench]
+#[divan::bench(sample_count = 25)]
 fn calc_power_report_maxhp(bencher: divan::Bencher) {
     let player = fetch().expect("Failed to get a build");
     let _base_maxhp = calc::calc_defence(&player).0["Maximum Life"];

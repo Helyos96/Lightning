@@ -162,15 +162,15 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
     let mut damage = vec![];
 
     let mut mods = build.calc_mods(true);
-    mods.extend(active_gem.calc_mods());
+    mods.extend(active_gem.calc_mods(false));
     for support_gem in support_gems {
         if support_gem.can_support(active_gem) {
-            mods.extend(support_gem.calc_mods());
+            mods.extend(support_gem.calc_mods(false));
         }
     }
 
-    let stats = build.calc_stats(&mods, tags, make_bitflags!(ModFlag::Hit));
-    let stats_bleed = build.calc_stats(&mods, tags, make_bitflags!(ModFlag::{Ailment | Bleed}));
+    let stats = build.calc_stats(&mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff}));
+    let stats_bleed = build.calc_stats(&mods, tags, make_bitflags!(ModFlag::{Ailment | Bleed | Aura | Buff}));
 
     let monster_build = Build::new_player();
     let monster_mods = monster_build.calc_mods_monster(build.property_int(property::Int::Level).min(83));
