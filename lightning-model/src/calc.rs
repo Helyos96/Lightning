@@ -312,7 +312,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
 pub fn calc_defence(build: &Build) -> (FxHashMap<&'static str, i64>, Stats) {
     let mut ret = FxHashMap::default();
     let mods = build.calc_mods(true);
-    let stats = build.calc_stats(&mods, BitFlags::EMPTY, BitFlags::EMPTY);
+    let stats = build.calc_stats(&mods, BitFlags::EMPTY, make_bitflags!(ModFlag::{Aura | Buff}));
 
     let max_life = stats.stat(StatId::MaximumLife).val_ceil();
     let max_mana = stats.stat(StatId::MaximumMana).val_ceil();

@@ -143,7 +143,105 @@ lazy_static! {
             ("attack_speed", vec![
                 Mod { stat: StatId::AttackSpeed, typ: Type::Inc, flags: flags!(ModFlag::Aura), ..Default::default() },
             ]),
+            ("cast_speed", vec![
+                Mod { stat: StatId::CastSpeed, typ: Type::Inc, flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+            ("base_movement_velocity", vec![
+                Mod { stat: StatId::MovementSpeed, typ: Type::Inc, flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
         ].into_iter().collect()),
+        ("Anger", [
+            ("attack_minimum_added_fire_damage", vec![
+                Mod { stat: StatId::AddedMinFireDamage, tags: flags!(GemTag::Attack), flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+            ("attack_maximum_added_fire_damage", vec![
+                Mod { stat: StatId::AddedMaxFireDamage, tags: flags!(GemTag::Attack), flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+            ("spell_minimum_added_fire_damage", vec![
+                Mod { stat: StatId::AddedMinFireDamage, tags: flags!(GemTag::Spell), flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+            ("spell_maximum_added_fire_damage", vec![
+                Mod { stat: StatId::AddedMaxFireDamage, tags: flags!(GemTag::Spell), flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+        ].into_iter().collect()),
+        ("Wrath", [
+            ("attack_minimum_added_lightning_damage", vec![
+                Mod { stat: StatId::AddedMinLightningDamage, tags: flags!(GemTag::Attack), flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+            ("attack_maximum_added_lightning_damage", vec![
+                Mod { stat: StatId::AddedMaxLightningDamage, tags: flags!(GemTag::Attack), flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+            ("wrath_aura_spell_lightning_damage", vec![
+                Mod { stat: StatId::LightningDamage, tags: flags!(GemTag::Spell), flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+        ].into_iter().collect()),
+        ("Tempest Shield", [
+            ("shield_spell_block", vec![
+                Mod { stat: StatId::ChanceToBlockSpellDamage, flags: flags!(ModFlag::Buff), ..Default::default() },
+            ]),
+        ].into_iter().collect()),
+        ("Blood Rage", [
+            ("attack_speed", vec![
+                Mod { stat: StatId::AttackSpeed, flags: flags!(ModFlag::Buff), ..Default::default() },
+            ]),
+        ].into_iter().collect()),
+        ("Purity of Fire", [
+            ("base_fire_damage_resistance", vec![
+                Mod { stat: StatId::FireResistance, flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+            ("base_maximum_fire_damage_resistance", vec![
+                Mod { stat: StatId::MaximumFireResistance, flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+        ].into_iter().collect()),
+        ("Purity of Fire", [
+            ("base_cold_damage_resistance", vec![
+                Mod { stat: StatId::ColdResistance, flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+            ("base_maximum_cold_damage_resistance", vec![
+                Mod { stat: StatId::MaximumColdResistance, flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+        ].into_iter().collect()),
+        ("Purity of Lightning", [
+            ("base_lightning_damage_resistance", vec![
+                Mod { stat: StatId::LightningResistance, flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+            ("base_maximum_lightning_damage_resistance", vec![
+                Mod { stat: StatId::MaximumLightningResistance, flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+        ].into_iter().collect()),
+        ("Discipline", [
+            ("base_maximum_energy_shield", vec![
+                Mod { stat: StatId::MaximumEnergyShield, flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+        ].into_iter().collect()),
+        /*("Clarity", [
+            ("base_mana_regeneration_rate_per_minute", vec![
+                // Should be per minute
+                Mod { stat: StatId::ManaRegeneration, flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+        ].into_iter().collect()),*/
+        ("Zealotry", [
+            ("spell_damage_aura_spell_damage", vec![
+                Mod { stat: StatId::Damage, tags: flags!(GemTag::Spell), flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+            ("spell_critical_strike_chance", vec![
+                Mod { stat: StatId::CriticalStrikeChance, tags: flags!(GemTag::Spell), flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+        ].into_iter().collect()),
+        ("Determination", [
+            ("determination_aura_armour", vec![
+                Mod { stat: StatId::Armour, flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+            ("base_physical_damage_reduction_rating", vec![
+                Mod { stat: StatId::Armour, flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+        ].into_iter().collect()),
+       /* ("Vitality", [
+            // Should be per minute
+            ("base_life_regeneration_rate_per_minute", vec![
+                Mod { stat: StatId::LifeRegeneration, flags: flags!(ModFlag::Aura), ..Default::default() },
+            ]),
+        ].into_iter().collect()),*/
     ].into_iter().collect();
 }
 
@@ -164,6 +262,9 @@ pub fn match_gemstat(gem_basename: &str, mut stat: &str) -> Option<Vec<Mod>> {
         ret
     } else if let Some(ret) = stat.strip_suffix("_+%") {
         typ_override = Some(Type::Inc);
+        ret
+    } else if let Some(ret) = stat.strip_suffix("_%") {
+        typ_override = Some(Type::Base);
         ret
     } else {
         stat
