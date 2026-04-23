@@ -115,11 +115,11 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
             egui::CentralPanel::default().show_inside(ui, |ui| {
                 egui::ScrollArea::new([false, true]).show(ui, |ui| {
                     egui::Grid::new("grid_ui_select").show(ui, |ui| {
-                        if ui.button("Tree").clicked() { state.ui_state = UiState::Main(MainState::Tree); }
-                        if ui.button("Config").clicked() { state.ui_state = UiState::Main(MainState::Config); }
-                        if ui.button("Skills").clicked() { state.ui_state = UiState::Main(MainState::Skills); }
-                        if ui.button("Items").clicked() { state.ui_state = UiState::Main(MainState::Items); }
-                        if ui.button("Calc").clicked() { state.ui_state = UiState::Main(MainState::Calc); }
+                        if ui.add_enabled(state.ui_state != UiState::Main(MainState::Tree), egui::Button::new("Tree")).clicked() { state.ui_state = UiState::Main(MainState::Tree); }
+                        if ui.add_enabled(state.ui_state != UiState::Main(MainState::Config), egui::Button::new("Config")).clicked() { state.ui_state = UiState::Main(MainState::Config); }
+                        if ui.add_enabled(state.ui_state != UiState::Main(MainState::Skills), egui::Button::new("Skills")).clicked() { state.ui_state = UiState::Main(MainState::Skills); }
+                        if ui.add_enabled(state.ui_state != UiState::Main(MainState::Items), egui::Button::new("Items")).clicked() { state.ui_state = UiState::Main(MainState::Items); }
+                        if ui.add_enabled(state.ui_state != UiState::Main(MainState::Calc), egui::Button::new("Calc")).clicked() { state.ui_state = UiState::Main(MainState::Calc); }
                         ui.end_row();
                     });
                     egui::ComboBox::from_id_salt("combo_gemlink")
