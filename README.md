@@ -1,6 +1,4 @@
-Super Scuffed Build planner for Path of Exile.
-
-Needed something fun to do to learn Rust. Don't use this.
+Super Scuffed Build planner for Path of Exile written entirely in Rust.
 
 ![Main view](https://github.com/user-attachments/assets/d1ee672c-9992-4c92-8aba-5a07d21fb335)
 
