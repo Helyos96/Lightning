@@ -8,8 +8,8 @@ Needed something fun to do to learn Rust. Don't use this.
 
 ![Calc view](https://github.com/user-attachments/assets/6c1a271d-1dcb-4d58-bad6-8592d45b3cc1)
 
-lightning-model is a framework for computing mods, stats, importing characters and a static data store.<br />
-lightning-app is a GL+egui+winit UI.
+lightning-model is a framework for computing mods, stats, importing characters and a static data store. <br />
+lightning-app is a GL+egui+winit UI. <br />
 lightning-data is an uncomplete GGPK data extractor for PoE2. It is unmaintained as Lightning sticks to PoE1 for now.
 
 ```
