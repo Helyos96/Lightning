@@ -1835,6 +1835,7 @@ dependencies = [
  "serde_json",
  "strum",
  "thousands",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

@@ -87,12 +87,19 @@ fn get_config() -> config::Config {
 }
 
 fn set_vsync(surface: &Surface<WindowSurface>, context: &PossiblyCurrentContext, vsync: bool) {
-    if vsync {
-        if let Err(res) = surface.set_swap_interval(context, SwapInterval::Wait(NonZeroU32::new(1).unwrap())) {
-            eprintln!("Error enabling vsync: {res:?}");
-        }
-    } else if let Err(res) = surface.set_swap_interval(context, SwapInterval::DontWait) {
-        eprintln!("Error disabling vsync: {res:?}");
+    // On Windows we rely on DwmFlush() to handle vsync
+    #[cfg(target_os = "windows")]
+    let actual_interval = SwapInterval::DontWait;
+
+    #[cfg(not(target_os = "windows"))]
+    let actual_interval = if vsync {
+        SwapInterval::Wait(NonZeroU32::new(1).unwrap())
+    } else {
+        SwapInterval::DontWait
+    };
+
+    if let Err(res) = surface.set_swap_interval(context, actual_interval) {
+        eprintln!("Error setting vsync: {res:?}");
     }
 }
 
@@ -303,6 +310,14 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                 }
                 if let Err(err) = surface.swap_buffers(context) {
                     eprintln!("Failed to swap buffers: {err}");
+                }
+                #[cfg(target_os = "windows")]
+                {
+                    if vsync {
+                        unsafe {
+                            windows_sys::Win32::Graphics::Dwm::DwmFlush();
+                        }
+                    }
                 }
                 state.redraw_counter += 1;
                 state.last_instant = Instant::now();
