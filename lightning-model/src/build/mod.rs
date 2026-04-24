@@ -508,12 +508,22 @@ impl Build {
     }
 
     pub fn calc_buffs_auras(&self) -> Vec<Mod> {
-        let mut ret = vec![];
+        let mut best_gems: FxHashMap<&str, &Gem> = FxHashMap::default();
         for link in &self.gem_links {
             for active_gem in link.active_gems().filter(|gem| gem.enabled && (gem.data().active_skill.as_ref().unwrap().types.contains(&ActiveSkillType::Aura) || gem.data().active_skill.as_ref().unwrap().types.contains(&ActiveSkillType::Buff))) {
-                let mut mods = active_gem.calc_mods(true);
-                ret.append(&mut mods);
+                if let Some(existing_gem) = best_gems.get(active_gem.id.as_str()) {
+                    if existing_gem.level >= active_gem.level {
+                        continue;
+                    }
+                }
+                best_gems.insert(active_gem.id.as_str(), active_gem);
             }
+        }
+
+        let mut ret = vec![];
+        for gem in best_gems.values() {
+            let mut mods = gem.calc_mods(true);
+            ret.append(&mut mods);
         }
         ret
     }
