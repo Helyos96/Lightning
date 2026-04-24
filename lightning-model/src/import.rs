@@ -11,6 +11,7 @@ use crate::item;
 use serde::Deserialize;
 use rustc_hash::FxHashMap;
 use serde_with::{serde_as, DisplayFromStr};
+use std::cell::Cell;
 use std::error::Error;
 use std::io;
 use std::str::FromStr;
@@ -113,13 +114,7 @@ fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
             if let Some(qual_entry) = gem.properties.iter().find(|p| p.name == "Quality") {
                 qual = i32::from_str(&qual_entry.values[0].0.replace(['+', '%'], "")).unwrap_or(0);
             }
-            let new_gem = gem::Gem {
-                id: gem_id.to_string(),
-                enabled: true,
-                level,
-                qual,
-                alt_qual: 0,
-            };
+            let new_gem = gem::Gem::new(gem_id.to_string(), true, level, qual, 0);
             gemlink.gems.push(new_gem);
         } else if let Some(jewel) = conv_item(gem) {
             jewels.push(jewel);
@@ -149,6 +144,7 @@ fn conv_item(item: &Item) -> Option<item::Item> {
         corrupted: item.corrupted,
         item_level: item.ilvl.unwrap_or(0),
         base_percentile: 0,
+        ..Default::default()
     };
 
     let (armour, evasion, energy_shield) = (item.prop("Armour"), item.prop("Evasion Rating"), item.prop("Energy Shield"));

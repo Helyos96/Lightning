@@ -162,11 +162,22 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
     let mut damage = vec![];
 
     let mut mods = build.calc_mods(true);
-    mods.extend(active_gem.calc_mods(false));
+    mods.extend_from_slice(&active_gem.calc_mods(false));
+
+    let mut best_supports: FxHashMap<&str, &Gem> = FxHashMap::default();
     for support_gem in support_gems {
         if support_gem.can_support(active_gem) {
-            mods.extend(support_gem.calc_mods(false));
+            if let Some(existing_gem) = best_supports.get(support_gem.id.as_str()) {
+                if existing_gem.level >= support_gem.level {
+                    continue;
+                }
+            }
+            best_supports.insert(support_gem.id.as_str(), support_gem);
         }
+    }
+
+    for support_gem in best_supports.values() {
+        mods.extend_from_slice(&support_gem.calc_mods(false));
     }
 
     let stats = build.calc_stats(&mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff}));

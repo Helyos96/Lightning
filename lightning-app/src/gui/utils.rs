@@ -1,4 +1,4 @@
-use lightning_model::{data::{DAMAGE_GROUPS, base_item::Rarity, gem::{GemData, GemTag}}, item::Item, modifier::Source};
+use lightning_model::{data::{DAMAGE_GROUPS, base_item::Rarity, gem::{GemData}}, item::Item, modifier::Source};
 
 pub fn rarity_to_color(rarity: Rarity) -> egui::Color32 {
     match rarity {

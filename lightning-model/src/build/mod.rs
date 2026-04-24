@@ -522,8 +522,7 @@ impl Build {
 
         let mut ret = vec![];
         for gem in best_gems.values() {
-            let mut mods = gem.calc_mods(true);
-            ret.append(&mut mods);
+            ret.extend_from_slice(&gem.calc_mods(true));
         }
         ret
     }

@@ -8,6 +8,8 @@ use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use lazy_static::lazy_static;
+use std::cell::{Cell, RefCell};
+use std::rc::Rc;
 use std::str::FromStr;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -25,6 +27,14 @@ pub struct Item {
     pub item_level: i64,
     #[serde(default)]
     pub base_percentile: i64,
+    #[serde(skip)]
+    pub defence_cache: RefCell<Rc<DefenceCalc>>,
+    #[serde(skip, default = "default_cell_true")]
+    pub should_regen_defence_cache: Cell<bool>,
+}
+
+fn default_cell_true() -> Cell<bool> {
+    Cell::new(true)
 }
 
 struct LocalModMatch {
@@ -172,11 +182,12 @@ impl Item {
         min + ((max - min) * self.base_percentile) / 100
     }
 
-    pub fn calc_defence(&self) -> DefenceCalc {
+    pub fn regen_defence_cache(&self) {
         let mut ret = DefenceCalc::default();
         let base_item = self.data();
         if !base_item.tags.contains("armour") {
-            return ret;
+            *self.defence_cache.borrow_mut() = Rc::new(ret);
+            return;
         }
         let mods = self.calc_local_mods();
 
@@ -198,7 +209,16 @@ impl Item {
         ret.evasion.adjust_mod(&Mod { typ: Type::More, amount: self.quality, ..Default::default()});
         ret.block_chance.adjust_mod(&Mod { typ: Type::Base, amount: self.block_chance().unwrap_or(0), ..Default::default()});
 
-        return ret;
+        *self.defence_cache.borrow_mut() = Rc::new(ret);
+        self.should_regen_defence_cache.set(false);
+    }
+
+    pub fn calc_defence(&self) -> Rc<DefenceCalc> {
+        if self.should_regen_defence_cache.get() {
+            self.regen_defence_cache();
+        }
+
+        return self.defence_cache.borrow().clone();
     }
 
     /// Items can have a "base percentile" (affected by sacred orb) from 0-100% that affects base defences, ranging from prop.min to prop.max

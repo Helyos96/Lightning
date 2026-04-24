@@ -17,7 +17,6 @@ use panel::items::ItemsPanelState;
 use panel::skills::SkillsPanelState;
 use panel::bottom::BottomPanelState;
 use rustc_hash::FxHashMap;
-use utils::gem_name_richtext;
 use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::time::Instant;
@@ -267,13 +266,7 @@ impl State {
                 let mut vec = vec![];
                 let mut build_compare = self.build.clone();
                 for (i, (id, gem_data)) in GEMS.iter().enumerate() {
-                    let gem = Gem {
-                        id: id.clone(),
-                        enabled: true,
-                        level: 20,
-                        qual: 20,
-                        alt_qual: 0,
-                    };
+                    let gem = Gem::new(id.clone(), true, 20, 20, 0);
                     if i > 0 {
                         build_compare.gem_links[self.panel_skills.selected_gemlink].gems.pop();
                     }

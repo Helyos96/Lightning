@@ -1,4 +1,4 @@
-use std::ops::RangeInclusive;
+use std::{ops::RangeInclusive};
 
 use egui_extras::{Column, TableBuilder};
 use lightning_model::{data::{GEMS, gem::GemData}, gem::Gem};
@@ -106,13 +106,7 @@ enum Action {
 
 fn gem_from_display_name(display_name: &str) -> Gem {
     let gem_id = GEMS.iter().find_map(|(id, gem_data)| if gem_data.display_name() == display_name { Some(id) } else { None }).unwrap();
-    Gem {
-        id: gem_id.clone(),
-        enabled: true,
-        level: 20,
-        qual: 20,
-        alt_qual: 0,
-    }
+    Gem::new(gem_id.clone(), true, 20, 20, 0)
 }
 
 pub fn draw(ctx: &egui::Context, state: &mut State) {
@@ -200,13 +194,17 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                                             });
                                             // Level
                                             row.col(|ui| {
-                                                if ui.add(egui::DragValue::new(&mut socketed_gem.level).range(RangeInclusive::new(1, 40))).changed() {
+                                                let mut level = socketed_gem.level;
+                                                if ui.add(egui::DragValue::new(&mut level).range(RangeInclusive::new(1, 40))).changed() {
+                                                    socketed_gem.set_level(level);
                                                     state.request_recalc = true;
                                                 }
                                             });
                                             // Quality
                                             row.col(|ui| {
-                                                if ui.add(egui::DragValue::new(&mut socketed_gem.qual).range(RangeInclusive::new(1, 100))).changed() {
+                                                let mut qual = socketed_gem.qual;
+                                                if ui.add(egui::DragValue::new(&mut qual).range(RangeInclusive::new(1, 100))).changed() {
+                                                    socketed_gem.set_qual(qual);
                                                     state.request_recalc = true;
                                                 }
                                             });

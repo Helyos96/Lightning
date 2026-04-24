@@ -86,13 +86,13 @@ fn get_config() -> config::Config {
     config::Config::default()
 }
 
-fn set_vsync(surface: &Surface<WindowSurface>, context: &PossiblyCurrentContext, vsync: bool) {
+fn set_vsync(surface: &Surface<WindowSurface>, context: &PossiblyCurrentContext, _vsync: bool) {
     // On Windows we rely on DwmFlush() to handle vsync
     #[cfg(target_os = "windows")]
     let actual_interval = SwapInterval::DontWait;
 
     #[cfg(not(target_os = "windows"))]
-    let actual_interval = if vsync {
+    let actual_interval = if _vsync {
         SwapInterval::Wait(NonZeroU32::new(1).unwrap())
     } else {
         SwapInterval::DontWait

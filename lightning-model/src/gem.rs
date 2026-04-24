@@ -1,3 +1,6 @@
+use std::cell::{Cell, RefCell};
+use std::rc::Rc;
+
 use crate::build::stat::StatId;
 use crate::data::gem::{GemData, GemTag};
 use crate::data::{DamageType, GEMS};
@@ -16,9 +19,32 @@ pub struct Gem {
     pub level: u32,
     pub qual: i32,
     pub alt_qual: i32,
+    #[serde(skip)]
+    mod_cache: RefCell<Rc<Vec<Mod>>>,
+    #[serde(skip)]
+    mod_cache_auras: RefCell<Rc<Vec<Mod>>>,
+    #[serde(skip, default = "default_cell_true")]
+    should_regen_modcache: Cell<bool>,
+}
+
+fn default_cell_true() -> Cell<bool> {
+    Cell::new(true)
 }
 
 impl Gem {
+    pub fn new(id: String, enabled: bool, level: u32, qual: i32, alt_qual: i32) -> Gem {
+        Gem {
+            id,
+            enabled,
+            level,
+            qual,
+            alt_qual,
+            mod_cache: Default::default(),
+            mod_cache_auras: Default::default(),
+            should_regen_modcache: Cell::new(true),
+        }
+    }
+
     pub fn data(&self) -> &'static GemData {
         &GEMS[&self.id]
     }
@@ -39,7 +65,13 @@ impl Gem {
         true
     }
 
-    pub fn calc_mods(&self, as_aura_buff: bool) -> Vec<Mod> {
+    fn regen_modcache(&self) {
+        *self.mod_cache.borrow_mut() = Rc::new(self._calc_mods(false));
+        *self.mod_cache_auras.borrow_mut() = Rc::new(self._calc_mods(true));
+        self.should_regen_modcache.set(false);
+    }
+
+    pub fn _calc_mods(&self, as_aura_buff: bool) -> Vec<Mod> {
         let mut mods = vec![];
         let source = Source::Gem(self.data().display_name());
 
@@ -98,6 +130,27 @@ impl Gem {
         }
 
         mods
+    }
+
+    pub fn set_level(&mut self, level: u32) {
+        self.level = level;
+        self.should_regen_modcache.set(true);
+    }
+
+    pub fn set_qual(&mut self, qual: i32) {
+        self.qual = qual;
+        self.should_regen_modcache.set(true);
+    }
+
+    pub fn calc_mods(&self, as_aura_buff: bool) -> Rc<Vec<Mod>> {
+        if self.should_regen_modcache.get() {
+            self.regen_modcache();
+        }
+
+        match as_aura_buff {
+            true => self.mod_cache_auras.borrow().clone(),
+            false => self.mod_cache.borrow().clone(),
+        }
     }
 
     pub fn mana_cost_level(&self) -> Option<i64> {
