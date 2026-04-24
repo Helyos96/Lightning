@@ -1,4 +1,4 @@
-use lightning_model::{data::{base_item::Rarity, DAMAGE_GROUPS}, item::Item, modifier::Source};
+use lightning_model::{data::{DAMAGE_GROUPS, base_item::Rarity, gem::{GemData, GemTag}}, item::Item, modifier::Source};
 
 pub fn rarity_to_color(rarity: Rarity) -> egui::Color32 {
     match rarity {
@@ -7,6 +7,19 @@ pub fn rarity_to_color(rarity: Rarity) -> egui::Color32 {
         Rarity::Rare => egui::Color32::YELLOW,
         Rarity::Unique => egui::Color32::from_rgb(252, 132, 3),
     }
+}
+
+pub fn gem_colour(gem: &'static GemData) -> egui::Color32 {
+    match gem.color.as_str() {
+        "r" => egui::Color32::LIGHT_RED,
+        "g" => egui::Color32::LIGHT_GREEN,
+        "b" => egui::Color32::LIGHT_BLUE,
+        _ => egui::Color32::WHITE,
+    }
+}
+
+pub fn gem_name_richtext(gem: &'static GemData) -> egui::RichText {
+    egui::RichText::new(gem.display_name()).color(gem_colour(gem))
 }
 
 pub fn mod_to_richtext(mod_str: &str, source: Source, show_debug: bool) -> egui::text::LayoutJob {

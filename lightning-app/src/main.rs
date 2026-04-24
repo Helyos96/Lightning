@@ -124,7 +124,7 @@ impl GlowApp {
             egui_glow: None,
             state: State::new(get_config()),
             tree_gl: TreeGl::default(),
-            ui_zoom_factor: 10,
+            ui_zoom_factor: 100,
         }
     }
 }

@@ -333,13 +333,8 @@ pub fn calc_defence(build: &Build) -> (FxHashMap<&'static str, i64>, Stats) {
     ret.insert("Evasion", stats.val(StatId::EvasionRating));
     ret.insert("Energy Shield", stats.val(StatId::MaximumEnergyShield));
     ret.insert("Spell Suppression", stats.val(StatId::ChanceToSuppressSpellDamage));
-
-    if let Some(offhand) = build.get_equipped(Slot::Offhand) {
-        if offhand.data().item_class == ItemClass::Shield {
-            ret.insert("Block", stats.val(StatId::ChanceToBlockAttackDamage));
-            ret.insert("Spell Block", stats.val(StatId::ChanceToBlockSpellDamage));
-        }
-    }
+    ret.insert("Block", stats.val(StatId::ChanceToBlockAttackDamage));
+    ret.insert("Spell Block", stats.val(StatId::ChanceToBlockSpellDamage));
 
     let mut life_regen = stats.stat(StatId::LifeRegeneration).to_owned();
     life_regen.adjust(Type::Base, (stats.stat(StatId::LifeRegenerationPct).val() * max_life) / 100);

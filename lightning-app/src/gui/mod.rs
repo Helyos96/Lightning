@@ -17,6 +17,7 @@ use panel::items::ItemsPanelState;
 use panel::skills::SkillsPanelState;
 use panel::bottom::BottomPanelState;
 use rustc_hash::FxHashMap;
+use utils::gem_name_richtext;
 use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::time::Instant;
@@ -279,9 +280,9 @@ impl State {
                     build_compare.gem_links[self.panel_skills.selected_gemlink].gems.push(gem);
                     let compare = self.compare(&build_compare);
                     let delta_dps = compare.get("DPS").unwrap_or(&0);
-                    vec.push((*delta_dps, gem_data.display_name()));
+                    vec.push((*delta_dps, gem_data));
                 }
-                vec.sort_unstable_by(|a, b| if a.0 != b.0 { b.0.cmp(&a.0) } else { a.1.cmp(b.1) });
+                vec.sort_unstable_by(|a, b| if a.0 != b.0 { b.0.cmp(&a.0) } else { a.1.display_name().cmp(b.1.display_name()) });
                 self.panel_skills.computed_gems = Some(vec);
             }
         } else {

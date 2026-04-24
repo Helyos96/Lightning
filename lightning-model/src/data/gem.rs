@@ -319,6 +319,7 @@ pub struct GemData {
     pub weapon_restrictions: FxHashSet<ItemClass>,
     #[serde(default)]
     pub support_gem: Option<SupportGemData>,
+    pub color: String,
 }
 
 impl GemData {

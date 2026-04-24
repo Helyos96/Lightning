@@ -243,8 +243,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                     build_compare.equipment.remove(&slot);
                     let delta = state.compare(&build_compare);
                     if !delta.is_empty() {
-                        let name = format!("Remove from {}", format_slot(slot));
-                        state.panel_items.hovered_item_deltas.push((name, delta));
+                        state.panel_items.hovered_item_deltas.push(("Unequip".into(), delta));
                     }
                 }
 

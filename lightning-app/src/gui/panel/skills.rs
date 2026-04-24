@@ -1,9 +1,9 @@
 use std::ops::RangeInclusive;
 
 use egui_extras::{Column, TableBuilder};
-use lightning_model::{data::GEMS, gem::Gem};
+use lightning_model::{data::{GEMS, gem::GemData}, gem::Gem};
 use thousands::Separable;
-use crate::gui::State;
+use crate::gui::{State, utils::{gem_colour, gem_name_richtext}};
 use super::text_gemlink_cutoff;
 
 #[derive(Default)]
@@ -11,7 +11,7 @@ pub struct SkillsPanelState {
     pub selected_gemlink: usize,
     pub selected_gem: Option<usize>,
     selected_gem_text: String,
-    pub computed_gems: Option<Vec<(i64, &'static str)>>,
+    pub computed_gems: Option<Vec<(i64, &'static GemData)>>,
 }
 
 fn draw_skill_dropdown(ui: &mut egui::Ui, panel_skills: &mut SkillsPanelState, socketed_gem: Option<&mut Gem>, i: usize, request_recalc: &mut bool) -> Option<&'static str> {
@@ -23,16 +23,16 @@ fn draw_skill_dropdown(ui: &mut egui::Ui, panel_skills: &mut SkillsPanelState, s
             None => false
         }
     };
-    let name = {
+    let (name, color) = {
         if is_currently_selected {
-            &mut panel_skills.selected_gem_text
+            (&mut panel_skills.selected_gem_text, egui::Color32::WHITE)
         } else if let Some(socketed_gem) = socketed_gem.as_ref() {
-            &mut socketed_gem.data().display_name().to_owned()
+            (&mut socketed_gem.data().display_name().to_owned(), gem_colour(socketed_gem.data()))
         } else {
-            &mut panel_skills.selected_gem_text
+            (&mut panel_skills.selected_gem_text, egui::Color32::WHITE)
         }
     };
-    let mut edit = egui::TextEdit::singleline(name);
+    let mut edit = egui::TextEdit::singleline(name).text_color(color);
     if let Some(socketed_gem) = socketed_gem {
         edit = edit.hint_text(socketed_gem.data().display_name());
     }
@@ -67,12 +67,12 @@ fn draw_skill_dropdown(ui: &mut egui::Ui, panel_skills: &mut SkillsPanelState, s
                         .scroll_bar_visibility(egui::containers::scroll_area::ScrollBarVisibility::AlwaysVisible)
                         .max_scroll_height(400.0);
                     table.body(|body| {
-                        let computed_gems_filtered: Vec<(i64, &'static str)> =
-                            computed_gems.iter().filter(|v| name.is_empty() || v.1.to_lowercase().contains(&name.to_lowercase())).copied().collect();
+                        let computed_gems_filtered: Vec<(i64, &'static GemData)> =
+                            computed_gems.iter().filter(|v| name.is_empty() || v.1.display_name().to_lowercase().contains(&name.to_lowercase())).copied().collect();
                         body.rows(18.0, computed_gems_filtered.len(), |mut row| {
-                            let (dps, gem_name) = computed_gems_filtered[row.index()];
+                            let (dps, gem_data) = computed_gems_filtered[row.index()];
                             row.col(|ui| {
-                                ui.label(gem_name);
+                                ui.label(gem_name_richtext(gem_data));
                             });
                             row.col(|ui| {
                                 if dps > 0 {
@@ -82,7 +82,7 @@ fn draw_skill_dropdown(ui: &mut egui::Ui, panel_skills: &mut SkillsPanelState, s
                                 }
                             });
                             if row.response().clicked() {
-                                ret = Some(gem_name);
+                                ret = Some(gem_data.display_name());
                             }
                         });
                     });
@@ -119,106 +119,125 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
     let mut action: Option<Action> = None;
     egui::CentralPanel::default()
         .show(ctx, |ui| {
-            ui.columns(2, |uis| {
-                egui::Grid::new("grid_ui_gemlink").show(&mut uis[0], |ui| {
-                    if ui.button("New").clicked() {
-                        action = Some(Action::AddGemlink);
-                    }
-                    if ui.button("Delete").clicked() {
-                        action = Some(Action::RemoveSelectedGemlink);
-                    }
-                    ui.end_row();
-                });
-                egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(&mut uis[0], |ui| {
-                    for (i, gemlink) in state.build.gem_links.iter().enumerate() {
-                        if ui.selectable_label(i == state.panel_skills.selected_gemlink, text_gemlink_cutoff(gemlink, 40)).clicked() {
-                            if state.panel_skills.selected_gemlink != i {
-                                state.panel_skills.selected_gemlink = i;
-                                state.panel_skills.computed_gems = None;
-                            }
-                            state.panel_skills.selected_gem = None;
-                        }
-                    }
-                });
-                // Frame showing active/support gems in a gemlink
-                egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(&mut uis[1], |ui| {
-                    if let Some(gemlink) = state.build.gem_links.get_mut(state.panel_skills.selected_gemlink) {
-                        let table = TableBuilder::new(ui)
-                            .column(Column::auto())
-                            .column(Column::remainder())
-                            .column(Column::auto())
-                            .column(Column::auto())
-                            .column(Column::auto())
-                            .vscroll(false)
-                            .header(14.0, |mut header| {
-                                header.col(|_| {
-                                });
-                                header.col(|ui| {
-                                    ui.strong("Gem Name");
-                                });
-                                header.col(|ui| {
-                                    ui.strong("Level");
-                                });
-                                header.col(|ui| {
-                                    ui.strong("Quality");
-                                });
-                                header.col(|ui| {
-                                    ui.strong("Enabled");
-                                });
+            egui_flex::Flex::horizontal()
+                .wrap(true)
+                .align_items(egui_flex::FlexAlign::Start)
+                .show(ui, |flex| {
+                flex.add_ui(egui_flex::item(), |ui| {
+                    egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(ui, |ui| {
+                        egui::Grid::new("gemlinks_grid")
+                            .num_columns(1)
+                            .max_col_width(400.0)
+                            .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                if ui.button("New").clicked() {
+                                    action = Some(Action::AddGemlink);
+                                }
+                                if ui.button("Delete").clicked() {
+                                    action = Some(Action::RemoveSelectedGemlink);
+                                }
                             });
+                            ui.end_row();
 
-                        table.body(|mut body| {
-                            for (i, socketed_gem) in gemlink.gems.iter_mut().enumerate() {
-                                body.row(14.0, |mut row| {
-                                    row.col(|ui| {
-                                        if ui.button("x").clicked() {
-                                            action = Some(Action::RemoveGem(i));
+                            ui.with_layout(egui::Layout::top_down_justified(egui::Align::Min), |ui| {
+                                ui.separator();
+                                for (i, gemlink) in state.build.gem_links.iter().enumerate() {
+                                    if ui.selectable_label(i == state.panel_skills.selected_gemlink, text_gemlink_cutoff(gemlink, 50)).clicked() {
+                                        if state.panel_skills.selected_gemlink != i {
+                                            state.panel_skills.selected_gemlink = i;
+                                            state.panel_skills.computed_gems = None;
                                         }
+                                        state.panel_skills.selected_gem = None;
+                                    }
+                                }
+                            });
+                            ui.end_row();
+                        });
+                    });
+                });
+                flex.add_ui(egui_flex::item(), |ui| {
+                    // Frame showing active/support gems in a gemlink
+                    egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(ui, |ui| {
+                        ui.vertical(|ui| {
+                            if let Some(gemlink) = state.build.gem_links.get_mut(state.panel_skills.selected_gemlink) {
+                                let table = TableBuilder::new(ui)
+                                    .column(Column::auto())
+                                    .column(Column::exact(250.0))
+                                    .column(Column::auto().at_least(28.0))
+                                    .column(Column::auto())
+                                    .column(Column::auto())
+                                    .vscroll(false)
+                                    .header(14.0, |mut header| {
+                                        header.col(|_| {
+                                        });
+                                        header.col(|ui| {
+                                            ui.strong("Gem Name");
+                                        });
+                                        header.col(|ui| {
+                                            ui.strong("Level");
+                                        });
+                                        header.col(|ui| {
+                                            ui.strong("Quality");
+                                        });
+                                        header.col(|ui| {
+                                            ui.strong("Enabled");
+                                        });
                                     });
-                                    // Gem Name
-                                    row.col(|ui| {
-                                        if let Some(gem_name) = draw_skill_dropdown(ui, &mut state.panel_skills, Some(socketed_gem), i, &mut state.request_recalc) {
-                                            action = Some(Action::SwapGem(gem_name));
-                                        }
-                                    });
-                                    // Level
-                                    row.col(|ui| {
-                                        if ui.add(egui::DragValue::new(&mut socketed_gem.level).range(RangeInclusive::new(1, 40))).changed() {
-                                            state.request_recalc = true;
-                                        }
-                                    });
-                                    // Quality
-                                    row.col(|ui| {
-                                        if ui.add(egui::DragValue::new(&mut socketed_gem.qual).range(RangeInclusive::new(1, 100))).changed() {
-                                            state.request_recalc = true;
-                                        }
-                                    });
-                                    // Enabled
-                                    row.col(|ui| {
-                                        if ui.checkbox(&mut socketed_gem.enabled, "").clicked() {
-                                            state.request_recalc = true;
-                                        }
+
+                                table.body(|mut body| {
+                                    for (i, socketed_gem) in gemlink.gems.iter_mut().enumerate() {
+                                        body.row(22.0, |mut row| {
+                                            row.col(|ui| {
+                                                if ui.button("x").clicked() {
+                                                    action = Some(Action::RemoveGem(i));
+                                                }
+                                            });
+                                            // Gem Name
+                                            row.col(|ui| {
+                                                if let Some(gem_name) = draw_skill_dropdown(ui, &mut state.panel_skills, Some(socketed_gem), i, &mut state.request_recalc) {
+                                                    action = Some(Action::SwapGem(gem_name));
+                                                }
+                                            });
+                                            // Level
+                                            row.col(|ui| {
+                                                if ui.add(egui::DragValue::new(&mut socketed_gem.level).range(RangeInclusive::new(1, 40))).changed() {
+                                                    state.request_recalc = true;
+                                                }
+                                            });
+                                            // Quality
+                                            row.col(|ui| {
+                                                if ui.add(egui::DragValue::new(&mut socketed_gem.qual).range(RangeInclusive::new(1, 100))).changed() {
+                                                    state.request_recalc = true;
+                                                }
+                                            });
+                                            // Enabled
+                                            row.col(|ui| {
+                                                if ui.checkbox(&mut socketed_gem.enabled, "").clicked() {
+                                                    state.request_recalc = true;
+                                                }
+                                            });
+                                        });
+                                    }
+                                    // Show empty gem slot
+                                    body.row(22.0, |mut row| {
+                                        row.col(|_| {
+                                        });
+                                        row.col(|ui| {
+                                            if let Some(gem_name) = draw_skill_dropdown(ui, &mut state.panel_skills, None, gemlink.gems.len(), &mut state.request_recalc) {
+                                                action = Some(Action::AddGem(gem_name));
+                                            }
+                                        });
+                                        row.col(|_| {
+                                        });
+                                        row.col(|_| {
+                                        });
+                                        row.col(|_| {
+                                        });
                                     });
                                 });
                             }
-                            // Show empty gem slot
-                            body.row(14.0, |mut row| {
-                                row.col(|_| {
-                                });
-                                row.col(|ui| {
-                                    if let Some(gem_name) = draw_skill_dropdown(ui, &mut state.panel_skills, None, gemlink.gems.len(), &mut state.request_recalc) {
-                                        action = Some(Action::AddGem(gem_name));
-                                    }
-                                });
-                                row.col(|_| {
-                                });
-                                row.col(|_| {
-                                });
-                                row.col(|_| {
-                                });
-                            });
                         });
-                    }
+                    });
                 });
             });
         });
