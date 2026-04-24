@@ -689,6 +689,22 @@ impl Build {
         self.properties_int.get(&p).copied().unwrap_or(0).clamp(min, max)
     }
 
+    pub fn property_int_stats(&self, p: property::Int, stats: &Stats) -> i64 {
+        let min = match property::int_data(p).min {
+            property::Val::Val(i) => i,
+            property::Val::Stat(s) => stats.val(s),
+        };
+        let max = match property::int_data(p).max {
+            property::Val::Val(i) => i,
+            property::Val::Stat(s) => stats.val(s),
+        };
+
+        if self.is_property_int_maxed(p) {
+            return max;
+        }
+        self.property_int(p).clamp(min, max)
+    }
+
     pub fn property_bool(&self, p: property::Bool) -> bool {
         return self.properties_bool.get(&p).copied().unwrap_or(false);
     }

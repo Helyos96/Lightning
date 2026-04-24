@@ -34,13 +34,17 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                     egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(ui, |ui| {
                         egui::Grid::new("grid_ui_property_int").show(ui, |ui| {
                             for pint in PROPERTIES_INT.iter() {
-                                let mut property = state.build.property_int(pint.0);
+                                let is_max = state.build.is_property_int_maxed(pint.0);
+                                let mut property = match is_max {
+                                    true => state.build.property_int_stats(pint.0, &state.defence_stats),
+                                    false => state.build.property_int(pint.0),
+                                };
                                 ui.label(pint.1);
-                                if ui.add_enabled(!state.build.is_property_int_maxed(pint.0), egui::DragValue::new(&mut property)).changed() {
+                                if ui.add_enabled(!is_max, egui::DragValue::new(&mut property)).changed() {
                                     state.build.set_property_int(pint.0, property);
                                     state.request_recalc = true;
                                 }
-                                let mut checked = state.build.is_property_int_maxed(pint.0);
+                                let mut checked = is_max;
                                 if ui.checkbox(&mut checked, "").changed() {
                                     state.build.set_property_int_maxed(pint.0, checked);
                                     state.request_recalc = true;
