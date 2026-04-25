@@ -11,6 +11,8 @@ use crate::item::Item;
 use crate::modifier::{Mod, ModFlag, Source, Type};
 use enumflags2::{BitFlags, make_bitflags};
 use rustc_hash::FxHashMap;
+use rayon::slice::ParallelSlice;
+use rayon::iter::{ParallelIterator, IntoParallelRefIterator};
 
 enum DamageSource {
     Slot(Slot),
@@ -368,26 +370,32 @@ pub struct PowerReport {
 
 impl PowerReport {
     pub fn new_defence(build: &Build, delta_str: &str) -> PowerReport {
-        let mut nodes = FxHashMap::default();
-        let mut maximum = 1.0 as f32;
         let defence = calc_defence(build).0;
 
-        for node in build.tree.nodes_data.keys() {
-            if build.tree.nodes.contains(node) {
-                continue;
+        let nodes_compare: Vec<u32> = build.tree.nodes_data.keys()
+            .filter(|node_id| !build.tree.nodes.contains(node_id))
+            .copied()
+            .collect();
+
+        let results: Vec<(u32, f32)> = nodes_compare.par_iter().map_init(
+            || build.clone(),
+            |local_build, node_id| {
+
+                local_build.tree.nodes.push(*node_id);
+                local_build.tree.force_regen_modcache();
+
+                let calc = calc_defence(&*local_build).0;
+                let delta = *calc.get(delta_str).unwrap_or(&0) as f32 / *defence.get(delta_str).unwrap_or(&0) as f32;
+
+                local_build.tree.nodes.pop(); 
+
+                (*node_id, delta)
             }
-            let mut compare_build = build.clone();
-            compare_build.tree.nodes.push(*node);
-            compare_build.tree.force_regen_modcache();
-            let calc = calc_defence(&compare_build).0;
-            let delta = *calc.get(delta_str).unwrap_or(&0) as f32 / *defence.get(delta_str).unwrap_or(&0) as f32;
-            maximum = maximum.max(delta);
-            nodes.insert(*node, delta);
-        }
+        ).collect();
 
         PowerReport {
-            nodes_delta: nodes,
-            max: maximum,
+            nodes_delta: FxHashMap::from_iter(results.into_iter()),
+            max: 0.0,
         }
     }
 }

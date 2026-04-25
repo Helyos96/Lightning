@@ -4,6 +4,8 @@ use crate::data::base_item::{BaseItem, Rarity};
 use crate::data::tree::Node;
 use crate::data::{DAMAGE_GROUPS, DamageType, ITEMS, TREE};
 use crate::modifier::{self, parse_mod, Mod, Source, Type};
+use arc_swap::ArcSwap;
+use derivative::Derivative;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -11,8 +13,11 @@ use lazy_static::lazy_static;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::str::FromStr;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Derivative, Debug, Default, Serialize, Deserialize)]
+#[derivative(Clone)]
 pub struct Item {
     pub base_item: String,
     pub name: String,
@@ -28,15 +33,28 @@ pub struct Item {
     #[serde(default)]
     pub base_percentile: i64,
     #[serde(skip)]
-    pub defence_cache: RefCell<Rc<DefenceCalc>>,
+    #[derivative(Clone(clone_with = "clone_arc_swap"))]
+    pub defence_cache: ArcSwap<DefenceCalc>,
     #[serde(skip)]
-    pub local_modcache: RefCell<Rc<Vec<Mod>>>,
+    #[derivative(Clone(clone_with = "clone_arc_swap"))]
+    pub local_modcache: ArcSwap<Vec<Mod>>,
     #[serde(skip)]
-    pub non_local_modcache: RefCell<Rc<Vec<Mod>>>,
+    #[derivative(Clone(clone_with = "clone_arc_swap"))]
+    pub non_local_modcache: ArcSwap<Vec<Mod>>,
     #[serde(skip)]
-    pub is_defence_cache_fresh: Cell<bool>,
+    #[derivative(Clone(clone_with = "clone_atomic_bool"))]
+    pub is_defence_cache_fresh: AtomicBool,
     #[serde(skip)]
-    pub is_modcache_fresh: Cell<bool>,
+    #[derivative(Clone(clone_with = "clone_atomic_bool"))]
+    pub is_modcache_fresh: AtomicBool,
+}
+
+fn clone_arc_swap<T>(cache: &ArcSwap<T>) -> ArcSwap<T> {
+    ArcSwap::new(cache.load_full())
+}
+
+fn clone_atomic_bool(bool_ref: &AtomicBool) -> AtomicBool {
+    AtomicBool::new(bool_ref.load(Ordering::Relaxed))
 }
 
 struct LocalModMatch {
@@ -86,7 +104,7 @@ fn match_local(m: &Mod, match_table: &[LocalModMatch]) -> bool {
     false
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct DefenceCalc {
     pub armour: Stat,
     pub evasion: Stat,
@@ -188,7 +206,7 @@ impl Item {
         let mut ret = DefenceCalc::default();
         let base_item = self.data();
         if !base_item.tags.contains("armour") {
-            *self.defence_cache.borrow_mut() = Rc::new(ret);
+            self.defence_cache.store(Arc::new(ret));
             return;
         }
         let mods = self.calc_local_mods();
@@ -210,16 +228,16 @@ impl Item {
         ret.evasion.adjust_mod(&Mod { typ: Type::More, amount: self.quality, ..Default::default()});
         ret.block_chance.adjust_mod(&Mod { typ: Type::Base, amount: self.block_chance().unwrap_or(0), ..Default::default()});
 
-        *self.defence_cache.borrow_mut() = Rc::new(ret);
-        self.is_defence_cache_fresh.set(true);
+        self.defence_cache.store(Arc::new(ret));
+        self.is_defence_cache_fresh.store(true, Ordering::Relaxed);
     }
 
-    pub fn calc_defence(&self) -> Rc<DefenceCalc> {
-        if !self.is_defence_cache_fresh.get() {
+    pub fn calc_defence(&self) -> Arc<DefenceCalc> {
+        if !self.is_defence_cache_fresh.load(Ordering::Relaxed) {
             self.regen_defence_cache();
         }
 
-        return self.defence_cache.borrow().clone();
+        arc_swap::Guard::into_inner(self.defence_cache.load())
     }
 
     /// Items can have a "base percentile" (affected by sacred orb) from 0-100% that affects base defences, ranging from prop.min to prop.max
@@ -309,26 +327,26 @@ impl Item {
         mods
     }
 
-    fn calc_local_mods(&self) -> Rc<Vec<Mod>> {
-        if !self.is_modcache_fresh.get() {
+    fn calc_local_mods(&self) -> Arc<Vec<Mod>> {
+        if !self.is_modcache_fresh.load(Ordering::Relaxed) {
             self.regen_modcache();
         }
 
-        self.local_modcache.borrow().clone()
+        arc_swap::Guard::into_inner(self.local_modcache.load())
     }
 
     fn regen_modcache(&self) {
-        *self.local_modcache.borrow_mut() = Rc::new(self.calc_mods(true));
-        *self.non_local_modcache.borrow_mut() = Rc::new(self.calc_mods(false));
-        self.is_modcache_fresh.set(true);
+        self.local_modcache.store(Arc::new(self.calc_mods(true)));
+        self.non_local_modcache.store(Arc::new(self.calc_mods(false)));
+        self.is_modcache_fresh.store(true, Ordering::Relaxed);
     }
 
-    pub fn calc_nonlocal_mods(&self) -> Rc<Vec<Mod>> {
-        if !self.is_modcache_fresh.get() {
+    pub fn calc_nonlocal_mods(&self) -> Arc<Vec<Mod>> {
+        if !self.is_modcache_fresh.load(Ordering::Relaxed) {
             self.regen_modcache();
         }
 
-        self.non_local_modcache.borrow().clone()
+        arc_swap::Guard::into_inner(self.non_local_modcache.load())
     }
 
     // Parse an item from CTRL+C text

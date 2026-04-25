@@ -2,19 +2,24 @@ use crate::data::tree::{Ascendancy, Class, ClusterOrbitData, Node, NodeType, Tre
 use crate::data::TREE;
 use crate::item::ClusterData;
 use crate::modifier::{parse_mod, Mod, Source};
+use arc_swap::ArcSwap;
 use lazy_static::lazy_static;
 use pathfinding::directed::strongly_connected_components;
 use pathfinding::prelude::bfs;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
+use derivative::Derivative;
 use std::cell::{Cell, RefCell};
 use std::fmt;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::convert::AsRef;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Player tree used in Build
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Derivative, Debug, Serialize, Deserialize)]
+#[derivative(Clone)]
 pub struct PassiveTree {
     pub class: Class,
     pub ascendancy: Option<Ascendancy>,
@@ -29,9 +34,19 @@ pub struct PassiveTree {
     pub nodes_cluster: Vec<(u32, Node)>,
     pub masteries: FxHashMap<u32, u32>,
     #[serde(skip)]
-    mod_cache: RefCell<Rc<Vec<Mod>>>,
-    #[serde(skip, default = "default_cell_true")]
-    should_regen_modcache: Cell<bool>,
+    #[derivative(Clone(clone_with = "clone_arc_swap"))]
+    mod_cache: ArcSwap<Vec<Mod>>,
+    #[serde(skip)]
+    #[derivative(Clone(clone_with = "clone_atomic_bool"))]
+    is_modcache_fresh: AtomicBool,
+}
+
+fn clone_arc_swap<T>(cache: &ArcSwap<T>) -> ArcSwap<T> {
+    ArcSwap::new(cache.load_full())
+}
+
+fn clone_atomic_bool(bool_ref: &AtomicBool) -> AtomicBool {
+    AtomicBool::new(bool_ref.load(Ordering::Relaxed))
 }
 
 fn init_data() -> imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK> {
@@ -54,7 +69,7 @@ impl Default for PassiveTree {
             nodes_data: TREE.nodes.clone(),
             nodes_cluster: Default::default(),
             mod_cache: Default::default(),
-            should_regen_modcache: Cell::new(true),
+            is_modcache_fresh: Default::default(),
         };
         pt.nodes.push(get_class_node(pt.class));
         pt
@@ -242,11 +257,11 @@ impl PassiveTree {
             self.nodes.extend_from_slice(&path[0..path.len() - 1]);
         }
 
-        self.should_regen_modcache.set(true);
+        self.is_modcache_fresh.store(false, Ordering::Relaxed);
     }
 
     pub fn force_regen_modcache(&self) {
-        self.should_regen_modcache.set(true);
+        self.is_modcache_fresh.store(false, Ordering::Relaxed);
     }
 
     pub fn jewel_slots(&self) -> Vec<u32> {
@@ -327,16 +342,16 @@ impl PassiveTree {
             }
         }
 
-        *self.mod_cache.borrow_mut() = Rc::new(mods);
-        self.should_regen_modcache.set(false);
+        self.mod_cache.store(Arc::new(mods));
+        self.is_modcache_fresh.store(true, Ordering::Relaxed);
     }
 
-    pub fn calc_mods(&self) -> Rc<Vec<Mod>> {
-        if self.should_regen_modcache.get() {
+    pub fn calc_mods(&self) -> Arc<Vec<Mod>> {
+        if !self.is_modcache_fresh.load(Ordering::Relaxed) {
             self.regen_modcache();
         }
 
-        return self.mod_cache.borrow().clone();
+        arc_swap::Guard::into_inner(self.mod_cache.load())
     }
 
     fn _remove_jewel(&mut self, node_id: u32) {

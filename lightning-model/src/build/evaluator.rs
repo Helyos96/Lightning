@@ -3,6 +3,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{build::{Build, Defence, property, stat::{self, Stat, StatId}}, data::gem::GemTag, modifier::{Condition, Mod, ModFlag, Mutation}};
 
+/// Evaluate Stats from a collection of Mods
 pub struct Evaluator<'a> {
     build: &'a Build,
     pub mods_by_stat: FxHashMap<StatId, Vec<&'a Mod>>,

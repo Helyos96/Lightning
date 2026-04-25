@@ -1,6 +1,11 @@
 // todo: remove this once stable-ish
 #![allow(dead_code, unused_imports)]
 
+use mimalloc::MiMalloc;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
+
 #[macro_use]
 pub mod macros;
 pub mod build;

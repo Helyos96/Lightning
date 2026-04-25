@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{sync::Arc};
 
 use lightning_model::{build::Slot, item::Item, modifier::Source};
 use crate::gui::{State, utils::{draw_item, draw_item_window, draw_item_deltas, rarity_to_color}};
@@ -193,7 +193,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                         if ui.add_enabled(state.panel_items.can_save, egui::Button::new("Save")).clicked() {
                             state.panel_items.can_save = false;
                             state.request_recalc = true;
-                            state.build.inventory[state.panel_items.editing_item_idx.unwrap()] = Rc::new(state.panel_items.editing_item.as_ref().unwrap().to_owned());
+                            state.build.inventory[state.panel_items.editing_item_idx.unwrap()] = Arc::new(state.panel_items.editing_item.as_ref().unwrap().to_owned());
                         }
                         if ui.add_enabled(state.panel_items.editing_item_idx.is_some(), egui::Button::new("Delete")).clicked() {
                             state.build.remove_inventory(state.panel_items.editing_item_idx.unwrap());
@@ -204,7 +204,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                             state.request_recalc = true;
                         }
                         if ui.add_enabled(state.panel_items.editing_item.is_some() && state.panel_items.editing_item_idx.is_none(), egui::Button::new("Add to Build")).clicked() {
-                            state.build.inventory.push(Rc::new(state.panel_items.editing_item.as_ref().unwrap().to_owned()));
+                            state.build.inventory.push(Arc::new(state.panel_items.editing_item.as_ref().unwrap().to_owned()));
                             state.panel_items.editing_item_idx = Some(state.build.inventory.len() - 1);
                         }
                     });
@@ -331,7 +331,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                     let test_idx = if let Some(idx) = idx_opt {
                         idx
                     } else {
-                        build_compare.inventory.push(Rc::new(item.clone()));
+                        build_compare.inventory.push(Arc::new(item.clone()));
                         build_compare.inventory.len() - 1
                     };
 

@@ -10,12 +10,13 @@ use crate::tree::NOTHINGNESS_NODE_ID;
 use enumflags2::{make_bitflags as flags, BitFlags, bitflags};
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
+use dashmap::DashMap;
 use rustc_hash::FxHashMap;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::ops::Neg;
 use std::str::FromStr;
-use std::sync::Mutex;
+use std::sync::{Mutex, RwLock};
 
 lazy_static! {
     // Currently limited to one word,
@@ -643,7 +644,7 @@ fn parse_stat(input: &str) -> Option<Vec<(StatId, BitFlags<GemTag>, BitFlags<Ite
 }
 
 lazy_static! {
-    pub static ref CACHE: Mutex<FxHashMap<String, Option<Vec<Mod>>>> = Mutex::new(FxHashMap::default());
+    pub static ref CACHE: DashMap<String, Option<Vec<Mod>>> = DashMap::new();
 }
 
 /// Attempts to parse a modifier like "30℅ increased poison damage while focussed"
@@ -653,10 +654,8 @@ lazy_static! {
 ///    2.2. any amount of BEGINNINGS
 ///    2.3. a CORES
 pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
-    let mut cache = CACHE.lock().expect("Unable to lock CACHE");
-
-    if let Some(mods_opt) = cache.get(input) {
-        let mut mods_opt = mods_opt.to_owned();
+    if let Some(cached_mods) = CACHE.get(input) {
+        let mut mods_opt = cached_mods.to_owned();
         if let Some(mods) = &mut mods_opt {
             for m in mods {
                 m.source = source;
@@ -715,13 +714,13 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
                     modifier.source = source;
                     modifier.flags.insert(flags);
                 }
-                cache.insert(input.to_string(), Some(mods.clone()));
+                CACHE.insert(input.to_string(), Some(mods.clone()));
                 return Some(mods);
             }
         }
     }
 
-    cache.insert(input.to_string(), None);
+    CACHE.insert(input.to_string(), None);
     None
 }
 

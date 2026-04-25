@@ -3,6 +3,7 @@ pub mod stat;
 pub mod evaluator;
 
 use std::rc::Rc;
+use std::sync::Arc;
 use std::{fs, io};
 use std::path::Path;
 
@@ -453,7 +454,7 @@ pub struct Build {
     #[serde_as(as = "FxHashMap<serde_with::json::JsonString, _>")]
     // usize is index into inventory
     pub equipment: FxHashMap<Slot, usize>,
-    pub inventory: Vec<Rc<Item>>,
+    pub inventory: Vec<Arc<Item>>,
     pub tree: PassiveTree,
     #[serde(default)]
     pub bandit_choice: BanditChoice,

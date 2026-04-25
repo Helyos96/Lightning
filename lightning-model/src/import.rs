@@ -16,6 +16,7 @@ use std::error::Error;
 use std::io;
 use std::rc::Rc;
 use std::str::FromStr;
+use std::sync::Arc;
 
 #[derive(Deserialize)]
 struct Character {
@@ -215,14 +216,14 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
             let (gemlink, jewels) = extract_socketed(socketed_items);
             build.gem_links.push(gemlink);
             for jewel in jewels {
-                build.inventory.push(Rc::new(jewel));
+                build.inventory.push(Arc::new(jewel));
                 build.equipment.insert(Slot::AbyssalJewel(abyssal_jewel_idx), build.inventory.len() - 1);
                 abyssal_jewel_idx += 1;
             }
         }
         if let Some(inventory_id) = &item.inventoryId {
             if let Some(item_inv) = conv_item(item) {
-                build.inventory.push(Rc::new(item_inv));
+                build.inventory.push(Arc::new(item_inv));
                 if let Ok(slot) = Slot::try_from((inventory_id.as_str(), item.x.unwrap_or(0))) {
                     build.equipment.insert(slot, build.inventory.len() - 1);
                 }

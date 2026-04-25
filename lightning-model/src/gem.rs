@@ -1,5 +1,7 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::build::stat::StatId;
 use crate::data::gem::{GemData, GemTag};
@@ -8,11 +10,14 @@ use crate::gemstats;
 use crate::modifier::{Mod, ModFlag, Source, Type};
 use crate::{item, util};
 use crate::data;
+use arc_swap::ArcSwap;
+use derivative::Derivative;
 use enumflags2::make_bitflags;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Derivative, Serialize, Deserialize)]
+#[derivative(Clone)]
 pub struct Gem {
     pub id: String,
     pub enabled: bool,
@@ -20,15 +25,22 @@ pub struct Gem {
     pub qual: i32,
     pub alt_qual: i32,
     #[serde(skip)]
-    mod_cache: RefCell<Rc<Vec<Mod>>>,
+    #[derivative(Clone(clone_with = "clone_arc_swap"))]
+    mod_cache: ArcSwap<Vec<Mod>>,
     #[serde(skip)]
-    mod_cache_auras: RefCell<Rc<Vec<Mod>>>,
-    #[serde(skip, default = "default_cell_true")]
-    should_regen_modcache: Cell<bool>,
+    #[derivative(Clone(clone_with = "clone_arc_swap"))]
+    mod_cache_auras: ArcSwap<Vec<Mod>>,
+    #[serde(skip)]
+    #[derivative(Clone(clone_with = "clone_atomic_bool"))]
+    is_modcache_fresh: AtomicBool,
 }
 
-fn default_cell_true() -> Cell<bool> {
-    Cell::new(true)
+fn clone_arc_swap<T>(cache: &ArcSwap<T>) -> ArcSwap<T> {
+    ArcSwap::new(cache.load_full())
+}
+
+fn clone_atomic_bool(bool_ref: &AtomicBool) -> AtomicBool {
+    AtomicBool::new(bool_ref.load(Ordering::Relaxed))
 }
 
 impl Gem {
@@ -41,7 +53,7 @@ impl Gem {
             alt_qual,
             mod_cache: Default::default(),
             mod_cache_auras: Default::default(),
-            should_regen_modcache: Cell::new(true),
+            is_modcache_fresh: Default::default(),
         }
     }
 
@@ -66,9 +78,9 @@ impl Gem {
     }
 
     fn regen_modcache(&self) {
-        *self.mod_cache.borrow_mut() = Rc::new(self._calc_mods(false));
-        *self.mod_cache_auras.borrow_mut() = Rc::new(self._calc_mods(true));
-        self.should_regen_modcache.set(false);
+        self.mod_cache.store(Arc::new(self._calc_mods(false)));
+        self.mod_cache_auras.store(Arc::new(self._calc_mods(true)));
+        self.is_modcache_fresh.store(true, Ordering::Relaxed);
     }
 
     pub fn _calc_mods(&self, as_aura_buff: bool) -> Vec<Mod> {
@@ -134,22 +146,22 @@ impl Gem {
 
     pub fn set_level(&mut self, level: u32) {
         self.level = level;
-        self.should_regen_modcache.set(true);
+        self.is_modcache_fresh.store(false, Ordering::Relaxed);
     }
 
     pub fn set_qual(&mut self, qual: i32) {
         self.qual = qual;
-        self.should_regen_modcache.set(true);
+        self.is_modcache_fresh.store(false, Ordering::Relaxed);
     }
 
-    pub fn calc_mods(&self, as_aura_buff: bool) -> Rc<Vec<Mod>> {
-        if self.should_regen_modcache.get() {
+    pub fn calc_mods(&self, as_aura_buff: bool) -> Arc<Vec<Mod>> {
+        if !self.is_modcache_fresh.load(Ordering::Relaxed) {
             self.regen_modcache();
         }
 
         match as_aura_buff {
-            true => self.mod_cache_auras.borrow().clone(),
-            false => self.mod_cache.borrow().clone(),
+            true => arc_swap::Guard::into_inner(self.mod_cache_auras.load()),
+            false => arc_swap::Guard::into_inner(self.mod_cache.load()),
         }
     }
 

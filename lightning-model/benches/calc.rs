@@ -34,7 +34,7 @@ fn calc_mods_uncached(bencher: divan::Bencher) {
     let player = fetch().expect("Failed to get a build");
 
     bencher.bench_local(|| {
-        CACHE.lock().unwrap().clear();
+        CACHE.clear();
         player.tree.force_regen_modcache();
         player.calc_mods(true);
     });
@@ -65,15 +65,7 @@ fn calc_power_report_maxhp(bencher: divan::Bencher) {
     let _base_maxhp = calc::calc_defence(&player).0["Maximum Life"];
 
     bencher.bench_local(|| {
-        for node in player.tree.nodes_data.keys() {
-            if player.tree.nodes.contains(node) {
-                continue;
-            }
-            let mut compare_build = player.clone();
-            compare_build.tree.nodes.push(*node);
-            compare_build.tree.force_regen_modcache();
-            let _compare_maxhp = calc::calc_defence(&compare_build).0["Maximum Life"];
-        }
+        let _ = calc::PowerReport::new_defence(&player, "Maximum Life");
     });
 }
 
