@@ -11,7 +11,7 @@ use lightning_model::build::Build;
 use lightning_model::data::tree::Node;
 use lightning_model::data::GEMS;
 use lightning_model::gem::Gem;
-use lightning_model::calc;
+use lightning_model::calc::{self, PowerReport};
 use lightning_model::build::property;
 use panel::items::ItemsPanelState;
 use panel::skills::SkillsPanelState;
@@ -62,6 +62,7 @@ pub struct State {
     pub defence_stats: lightning_model::build::stat::Stats,
     pub delta_compare: FxHashMap<&'static str, i64>,
     pub delta_compare_single: FxHashMap<&'static str, i64>,
+    pub power_report: Option<PowerReport>,
     pub passives_count: usize,
     pub passives_max: i64,
     pub abyssal_sockets: u16,
@@ -123,6 +124,7 @@ impl State {
             defence_stats: Default::default(),
             delta_compare: FxHashMap::default(),
             delta_compare_single: FxHashMap::default(),
+            power_report: None,
             passives_count: 0,
             passives_max: 0,
             abyssal_sockets: 0,
@@ -280,6 +282,9 @@ impl State {
             }
         } else {
             self.panel_skills.computed_gems = None;
+        }
+        if self.panel_bottom.power_report_checkbox {
+            self.power_report = Some(PowerReport::new_defence(&self.build, "Maximum Life"));
         }
         self.request_recalc = false;
     }

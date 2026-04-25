@@ -131,7 +131,7 @@ impl<'a> Evaluator<'a> {
                 Condition::SlotLesserEqualStats((slot, amount, stat_ids)) => {
                     if let Some(item) = self.build.get_equipped(*slot) {
                         for stat_id in *stat_ids {
-                            let item_mods = item.calc_nonlocal_mods(*slot);
+                            let item_mods = item.calc_nonlocal_mods();
                             let stat = stat::calc_stat(*stat_id, &item_mods);
                             if stat.val() > *amount { return false; }
                         }

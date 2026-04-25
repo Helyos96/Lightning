@@ -5,6 +5,7 @@ use draw_data::*;
 use glow::HasContext;
 use image::{ImageReader, RgbaImage};
 use lightning_model::build::Build;
+use lightning_model::calc::PowerReport;
 use lightning_model::data::TREE;
 use rustc_hash::FxHashMap;
 
@@ -46,14 +47,17 @@ const VERTEX_SHADER_SOURCE: &str = r#"
 
 layout(location = 0) in vec2 vertexPosition_modelspace;
 layout(location = 1) in vec2 vertexUV;
+layout(location = 2) in vec4 vertexTint;
 
 out vec2 UV;
+out vec4 vertexTintOut;
 
 uniform mat4 MVP;
 
 void main() {
     gl_Position = MVP * vec4(vertexPosition_modelspace, 0, 1);
     UV = vertexUV;
+    vertexTintOut = vertexTint;
 }
 "#;
 
@@ -61,13 +65,14 @@ const FRAGMENT_SHADER_SOURCE: &str = r#"
 #version 330 core
 
 in vec2 UV;
+in vec4 vertexTintOut;
 out vec4 color;
 
 uniform sampler2D myTextureSampler;
 uniform vec4 tint;
 
 void main() {
-  color = (texture( myTextureSampler, UV ) * tint).rgba;
+  color = (texture( myTextureSampler, UV ) * tint * vertexTintOut).rgba;
 }
 "#;
 
@@ -76,6 +81,7 @@ pub struct GlDrawData {
     vao: Option<glow::VertexArray>,
     vbo: Option<glow::Buffer>,
     tbo: Option<glow::Buffer>,
+    cbo: Option<glow::Buffer>,
     idx: Option<glow::Buffer>,
     len: i32,
 }
@@ -85,6 +91,7 @@ impl Drop for GlDrawData {
         if self.vao.is_some() ||
            self.vbo.is_some() ||
            self.tbo.is_some() ||
+           self.cbo.is_some() ||
            self.idx.is_some() {
             eprintln!("Dropping GlDrawData while some data remains!");
         }
@@ -93,6 +100,9 @@ impl Drop for GlDrawData {
 
 impl GlDrawData {
     fn new(gl: &glow::Context, dd: &DrawData) -> Self {
+        assert_eq!(dd.vertices.len(), dd.tex_coords.len());
+        assert_eq!(dd.vertices.len(), dd.tints.len());
+
         unsafe {
             let vao = Some(gl.create_vertex_array().unwrap());
             gl.bind_vertex_array(vao);
@@ -119,6 +129,17 @@ impl GlDrawData {
             gl.vertex_attrib_pointer_f32(1, 2, glow::FLOAT, false, 0, 0);
             gl.enable_vertex_attrib_array(1);
 
+            // Per-vertex tints
+            let cbo = Some(gl.create_buffer().unwrap());
+            gl.bind_buffer(glow::ARRAY_BUFFER, cbo);
+            gl.buffer_data_u8_slice(
+                glow::ARRAY_BUFFER,
+                std::slice::from_raw_parts(dd.tints.as_ptr() as *const u8, dd.tints.len() * 16),
+                glow::STATIC_DRAW,
+            );
+            gl.vertex_attrib_pointer_f32(2, 4, glow::FLOAT, false, 0, 0);
+            gl.enable_vertex_attrib_array(2);
+
             // Index buffer
             let idx = Some(gl.create_buffer().unwrap());
             gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, idx);
@@ -132,6 +153,7 @@ impl GlDrawData {
                 vao,
                 vbo,
                 tbo,
+                cbo,
                 idx,
                 len: dd.indices.len() as i32,
             }
@@ -155,6 +177,10 @@ impl GlDrawData {
             if let Some(buffer) = self.idx {
                 gl.delete_buffer(buffer);
                 self.idx = None;
+            }
+            if let Some(buffer) = self.cbo {
+                gl.delete_buffer(buffer);
+                self.cbo = None;
             }
         }
     }
@@ -250,7 +276,7 @@ impl TreeGl {
         self.draw_data.clear();
     }
 
-    pub fn regen_nodes(&mut self, gl: &glow::Context, build: &Build) {
+    pub fn regen_nodes(&mut self, gl: &glow::Context, build: &Build, power_report: Option<&PowerReport>) {
         const REDRAW: &[&str] = &[
             "connectors",
             "nodes",
@@ -269,7 +295,7 @@ impl TreeGl {
         let data = connectors_gl_inactive(&build.tree.nodes_data);
         self.draw_data
             .insert("connectors".to_string(), GlDrawData::new(gl, &data));
-        let data = nodes_gl(&build.tree.nodes_data);
+        let data = nodes_gl(&build.tree.nodes_data, power_report);
         self.draw_data
             .insert("nodes".to_string(), GlDrawData::new(gl, &data[0]));
         self.draw_data

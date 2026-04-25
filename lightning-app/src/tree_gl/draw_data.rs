@@ -1,5 +1,6 @@
 use lazy_static::lazy_static;
 use lightning_model::build::{Build, Slot};
+use lightning_model::calc::PowerReport;
 use lightning_model::data::tree::{Ascendancy, Class, Node, NodeType, Rect, Sprite};
 use lightning_model::data::TREE;
 use std::collections::HashMap;
@@ -71,11 +72,12 @@ pub fn get_rect(node: &Node, active: bool) -> Option<(&'static Rect, &'static Sp
 pub struct DrawData {
     pub vertices: Vec<(f32, f32)>,
     pub tex_coords: Vec<(f32, f32)>,
+    pub tints: Vec<[f32; 4]>,
     pub indices: Vec<u32>,
 }
 
 impl DrawData {
-    pub fn append(&mut self, x: f32, y: f32, rect: &Rect, sprite: &Sprite, vflip: bool, scale: f32) {
+    pub fn append_tint(&mut self, x: f32, y: f32, rect: &Rect, sprite: &Sprite, vflip: bool, scale: f32, color: [f32; 4]) {
         self.vertices.extend([
             norm(x - (rect.w as f32 * scale) / 2.0, y - (rect.h as f32 * scale) / 2.0), // Bottom Left
             norm(x - (rect.w as f32 * scale) / 2.0, y + (rect.h as f32 * scale) / 2.0), // Top Left
@@ -103,9 +105,14 @@ impl DrawData {
             ]);
         }
 
+        self.tints.extend([color, color, color, color]);
         let start = self.vertices.len() as u32 - 4;
         self.indices
             .extend([start, start + 1, start + 2, start + 3, start, start + 2]);
+    }
+
+    pub fn append(&mut self, x: f32, y: f32, rect: &Rect, sprite: &Sprite, vflip: bool, scale: f32) {
+        self.append_tint(x, y, rect, sprite, vflip, scale, [1.0, 1.0, 1.0, 1.0]);
     }
 }
 
@@ -126,6 +133,8 @@ pub fn background_gl() -> DrawData {
         ((25000.0 / sprite.w as f32), (25000.0 / sprite.h as f32)), // bottom right
         ((25000.0 / sprite.w as f32), 0.0), // top right
     ]);
+
+    dd.tints.extend([[1.0, 1.0, 1.0, 1.0]; 4]);
 
     let start = dd.vertices.len() as u32 - 4;
     dd.indices
@@ -188,6 +197,8 @@ fn arc_connector_gl(
         let u = x_left + (x_right - x_left) * t;
         dd.tex_coords.push(norm_tex(u, y_bottom, sprite.w, sprite.h));
         dd.tex_coords.push(norm_tex(u, y_top, sprite.w, sprite.h));
+        dd.tints.push([1.0, 1.0, 1.0, 1.0]);
+        dd.tints.push([1.0, 1.0, 1.0, 1.0]);
     }
 
     for i in 0..segments as u32 {
@@ -222,6 +233,8 @@ fn connector_gl(x1: f32, y1: f32, x2: f32, y2: f32, w: f32, rect: &Rect, sprite:
         norm_tex(x_right, y_bottom, sprite.w, sprite.h), // bottom right
         norm_tex(x_right, y_top, sprite.w, sprite.h), // top right
     ]);
+
+    dd.tints.extend([[1.0, 1.0, 1.0, 1.0]; 4]);
 
     let start = dd.vertices.len() as u32 - 4;
     dd.indices
@@ -334,6 +347,7 @@ fn node_gl(
     dd_asc_frames: &mut DrawData,
     is_active: bool,
     is_hovered: bool,
+    tint: [f32; 4]
 ) {
     let (rect, sprite) = match get_rect(node, is_active) {
         None => {
@@ -367,7 +381,7 @@ fn node_gl(
         }
         NodeType::AscendancyNormal | NodeType::AscendancyNotable => {
             if !is_hovered {
-                dd_nodes.append(x, y, rect, sprite, false, SCALE);
+                dd_nodes.append_tint(x, y, rect, sprite, false, SCALE, tint);
             }
             let sprite = &TREE.sprites["ascendancy"];
             let rect = match node.node_type() {
@@ -375,16 +389,16 @@ fn node_gl(
                 NodeType::AscendancyNotable => &sprite.coords[icon_strings[1]],
                 _ => panic!("No frame"),
             };
-            dd_asc_frames.append(x, y, rect, sprite, false, SCALE);
+            dd_asc_frames.append_tint(x, y, rect, sprite, false, SCALE, tint);
         }
         NodeType::JewelSocket => {
             let sprite = &TREE.sprites["frame"];
             let rect = &sprite.coords[icon_strings[5]];
-            dd_frames.append(x, y, rect, sprite, false, SCALE);
+            dd_frames.append_tint(x, y, rect, sprite, false, SCALE, tint);
         }
         _ => {
             if !is_hovered {
-                dd_nodes.append(x, y, rect, sprite, false, SCALE);
+                dd_nodes.append_tint(x, y, rect, sprite, false, SCALE, tint);
             }
             let sprite = &TREE.sprites["frame"];
             let rect = match node.node_type() {
@@ -393,13 +407,13 @@ fn node_gl(
                 NodeType::Keystone => &sprite.coords[icon_strings[4]],
                 _ => panic!("No frame"),
             };
-            dd_frames.append(x, y, rect, sprite, false, SCALE);
+            dd_frames.append_tint(x, y, rect, sprite, false, SCALE, tint);
         }
     }
 }
 
 /// Unallocated Nodes, Frames and Masteries (the entire tree pretty much)
-pub fn nodes_gl(nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>) -> [DrawData; 4] {
+pub fn nodes_gl(nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>, power_report: Option<&PowerReport>) -> [DrawData; 4] {
     let mut dd_nodes = DrawData::default();
     let mut dd_frames = DrawData::default();
     let mut dd_masteries = DrawData::default();
@@ -409,14 +423,25 @@ pub fn nodes_gl(nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHashe
         .values()
         .filter(|n| n.group.is_some() && n.class_start_index.is_none() && !n.is_proxy && (n.skill >= u16::MAX as u32 || ((n.name != "Medium Jewel Socket") && (n.name != "Small Jewel Socket"))))
     {
+        let (tint, active) = if let Some(power_report) = power_report && let Some(power) = power_report.nodes_delta.get(&node.skill) {
+            if *power <= 1.0 {
+                ([0.0, 0.0, 0.0, 1.0], false)
+            } else {
+                let factor = ((*power - 1.0) * 10.0).clamp(0.25, 1.0);
+                ([factor, 0.0, 0.0, 1.0], true)
+            }
+        } else {
+            ([1.0, 1.0, 1.0, 1.0], false)
+        };
         node_gl(
             node,
             &mut dd_nodes,
             &mut dd_frames,
             &mut dd_masteries,
             &mut dd_asc_frames,
+            active,
             false,
-            false,
+            tint,
         );
     }
     [dd_nodes, dd_frames, dd_masteries, dd_asc_frames]
@@ -429,6 +454,7 @@ pub fn nodes_gl_active(nodes_id: &[u32], nodes: &imbl::GenericHashMap<u32, Node,
     let mut dd_masteries = DrawData::default();
     let mut dd_masteries_active = DrawData::default();
     let mut dd_asc_frames = DrawData::default();
+    let tint = [1.0, 1.0, 1.0, 1.0];
 
     for node in nodes_id
         .iter()
@@ -443,6 +469,7 @@ pub fn nodes_gl_active(nodes_id: &[u32], nodes: &imbl::GenericHashMap<u32, Node,
             &mut dd_asc_frames,
             true,
             false,
+            tint,
         );
     }
 
@@ -455,6 +482,7 @@ pub fn nodes_gl_active(nodes_id: &[u32], nodes: &imbl::GenericHashMap<u32, Node,
             &mut dd_asc_frames,
             nodes_id.contains(id),
             true,
+            tint,
         );
     }
 

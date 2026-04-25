@@ -359,3 +359,35 @@ pub fn calc_defence(build: &Build) -> (FxHashMap<&'static str, i64>, Stats) {
 
     (ret, stats)
 }
+
+#[derive(Debug)]
+pub struct PowerReport {
+    pub nodes_delta: FxHashMap<u32, f32>,
+    pub max: f32,
+}
+
+impl PowerReport {
+    pub fn new_defence(build: &Build, delta_str: &str) -> PowerReport {
+        let mut nodes = FxHashMap::default();
+        let mut maximum = 1.0 as f32;
+        let defence = calc_defence(build).0;
+
+        for node in build.tree.nodes_data.keys() {
+            if build.tree.nodes.contains(node) {
+                continue;
+            }
+            let mut compare_build = build.clone();
+            compare_build.tree.nodes.push(*node);
+            compare_build.tree.force_regen_modcache();
+            let calc = calc_defence(&compare_build).0;
+            let delta = *calc.get(delta_str).unwrap_or(&0) as f32 / *defence.get(delta_str).unwrap_or(&0) as f32;
+            maximum = maximum.max(delta);
+            nodes.insert(*node, delta);
+        }
+
+        PowerReport {
+            nodes_delta: nodes,
+            max: maximum,
+        }
+    }
+}

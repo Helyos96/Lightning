@@ -29,12 +29,14 @@ pub struct Item {
     pub base_percentile: i64,
     #[serde(skip)]
     pub defence_cache: RefCell<Rc<DefenceCalc>>,
-    #[serde(skip, default = "default_cell_true")]
-    pub should_regen_defence_cache: Cell<bool>,
-}
-
-fn default_cell_true() -> Cell<bool> {
-    Cell::new(true)
+    #[serde(skip)]
+    pub local_modcache: RefCell<Rc<Vec<Mod>>>,
+    #[serde(skip)]
+    pub non_local_modcache: RefCell<Rc<Vec<Mod>>>,
+    #[serde(skip)]
+    pub is_defence_cache_fresh: Cell<bool>,
+    #[serde(skip)]
+    pub is_modcache_fresh: Cell<bool>,
 }
 
 struct LocalModMatch {
@@ -111,7 +113,7 @@ impl Item {
             return None;
         }
 
-        let mods = self.calc_nonlocal_mods(Slot::Helm);
+        let mods = self.calc_nonlocal_mods();
         let small_passives_amount = calc_stat(StatId::AllocatesPassiveSkills, &mods).val() as u32;
         if small_passives_amount == 0 {
             return None;
@@ -191,7 +193,6 @@ impl Item {
         }
         let mods = self.calc_local_mods();
 
-        // TODO: sacred orb defence adjusting instead of average
         if let Some(armour_prop) = &base_item.properties.armour {
             ret.armour.adjust_mod(&Mod { typ: Type::Base, amount: self.defence_val(armour_prop.min as i64, armour_prop.max as i64), ..Default::default() });
         }
@@ -210,11 +211,11 @@ impl Item {
         ret.block_chance.adjust_mod(&Mod { typ: Type::Base, amount: self.block_chance().unwrap_or(0), ..Default::default()});
 
         *self.defence_cache.borrow_mut() = Rc::new(ret);
-        self.should_regen_defence_cache.set(false);
+        self.is_defence_cache_fresh.set(true);
     }
 
     pub fn calc_defence(&self) -> Rc<DefenceCalc> {
-        if self.should_regen_defence_cache.get() {
+        if !self.is_defence_cache_fresh.get() {
             self.regen_defence_cache();
         }
 
@@ -308,16 +309,26 @@ impl Item {
         mods
     }
 
-    fn calc_local_mods(&self) -> Vec<Mod> {
-        self.calc_mods(true)
+    fn calc_local_mods(&self) -> Rc<Vec<Mod>> {
+        if !self.is_modcache_fresh.get() {
+            self.regen_modcache();
+        }
+
+        self.local_modcache.borrow().clone()
     }
 
-    pub fn calc_nonlocal_mods(&self, slot: Slot) -> Vec<Mod> {
-        let mut mods = self.calc_mods(false);
-        for m in &mut mods {
-            m.source = Source::Item(slot);
+    fn regen_modcache(&self) {
+        *self.local_modcache.borrow_mut() = Rc::new(self.calc_mods(true));
+        *self.non_local_modcache.borrow_mut() = Rc::new(self.calc_mods(false));
+        self.is_modcache_fresh.set(true);
+    }
+
+    pub fn calc_nonlocal_mods(&self) -> Rc<Vec<Mod>> {
+        if !self.is_modcache_fresh.get() {
+            self.regen_modcache();
         }
-        mods
+
+        self.non_local_modcache.borrow().clone()
     }
 
     // Parse an item from CTRL+C text

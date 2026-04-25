@@ -216,7 +216,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                     state.request_regen_gl = false;
                 }
                 if state.request_regen_nodes_gl {
-                    tree_gl.regen_nodes(gl, &state.build);
+                    tree_gl.regen_nodes(gl, &state.build, state.power_report.as_ref());
                     state.regen_quadtree_hover();
                     state.request_regen_nodes_gl = false;
                 }

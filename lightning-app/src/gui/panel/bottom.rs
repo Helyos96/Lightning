@@ -1,3 +1,5 @@
+use lightning_model::calc::PowerReport;
+
 use crate::gui::State;
 
 pub const HEIGHT: f32 = 40.0;
@@ -6,6 +8,7 @@ pub const HEIGHT: f32 = 40.0;
 pub struct BottomPanelState {
     pub search: String,
     pub search_nodes: Vec<u32>,
+    pub power_report_checkbox: bool,
 }
 
 pub fn draw(ctx: &egui::Context, state: &mut State) {
@@ -14,7 +17,6 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
         .exact_height(HEIGHT)
         .show(ctx, |ui| {
             ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                //ui.label("Search:");
                 let search = egui::TextEdit::singleline(&mut state.panel_bottom.search).desired_width(120.0).hint_text("Search");
                 let response = search.show(ui).response;
                 if response.changed() {
@@ -43,6 +45,15 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                         }
                     }
                     state.request_regen_gl = true;
+                }
+                ui.label("Power Report:");
+                if ui.checkbox(&mut state.panel_bottom.power_report_checkbox, "").changed() {
+                    if state.panel_bottom.power_report_checkbox {
+                        state.power_report = Some(PowerReport::new_defence(&state.build, "Maximum Life"));
+                    } else {
+                        state.power_report = None;
+                    }
+                    state.request_regen_nodes_gl = true;
                 }
             });
         });

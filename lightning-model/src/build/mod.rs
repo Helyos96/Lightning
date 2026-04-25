@@ -2,6 +2,7 @@ pub mod property;
 pub mod stat;
 pub mod evaluator;
 
+use std::rc::Rc;
 use std::{fs, io};
 use std::path::Path;
 
@@ -452,7 +453,7 @@ pub struct Build {
     #[serde_as(as = "FxHashMap<serde_with::json::JsonString, _>")]
     // usize is index into inventory
     pub equipment: FxHashMap<Slot, usize>,
-    pub inventory: Vec<Item>,
+    pub inventory: Vec<Rc<Item>>,
     pub tree: PassiveTree,
     #[serde(default)]
     pub bandit_choice: BanditChoice,
@@ -484,9 +485,9 @@ impl Build {
             if matches!(slot, Slot::AbyssalJewel(_)) {
                 continue;
             }
-            let item_mods = self.inventory[idx].calc_nonlocal_mods(slot);
+            let item_mods = self.inventory[idx].calc_nonlocal_mods();
 
-            for m in item_mods {
+            for m in item_mods.iter() {
                 if m.stat == stat::StatId::AbyssalSockets {
                     max_abyssal_sockets += m.amount;
                 }
@@ -560,10 +561,18 @@ impl Build {
             let item = &self.inventory[*idx];
             if let Slot::TreeJewel(node_id) = slot {
                 if self.tree.nodes.contains(node_id) {
-                    mods.append(&mut item.calc_nonlocal_mods(*slot));
+                    for m in item.calc_nonlocal_mods().iter() {
+                        let mut new_mod = m.to_owned();
+                        new_mod.source = Source::Item(*slot);
+                        mods.push(new_mod);
+                    }
                 }
             } else {
-                mods.append(&mut item.calc_nonlocal_mods(*slot));
+                for m in item.calc_nonlocal_mods().iter() {
+                    let mut new_mod = m.to_owned();
+                    new_mod.source = Source::Item(*slot);
+                    mods.push(new_mod);
+                }
                 let defence = item.calc_defence();
                 if defence.armour.val() != 0 {
                     mods.push(Mod { stat: StatId::Armour, typ: Type::Base, amount: defence.armour.val(), source: Source::Item(*slot), ..Default::default() });
