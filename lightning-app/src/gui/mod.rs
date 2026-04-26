@@ -21,6 +21,7 @@ use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::time::Instant;
 use enumflags2::BitFlags;
+use rayon::iter::{ParallelIterator, IntoParallelRefIterator};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum MainState {
@@ -265,19 +266,28 @@ impl State {
         }
         if self.panel_skills.selected_gem.is_some() {
             if self.build.gem_links.len() > self.panel_skills.selected_gemlink {
-                let mut vec = vec![];
-                let mut build_compare = self.build.clone();
-                for (i, (id, gem_data)) in GEMS.iter().enumerate() {
-                    let gem = Gem::new(id.clone(), true, 20, 20, 0);
-                    if i > 0 {
-                        build_compare.gem_links[self.panel_skills.selected_gemlink].gems.pop();
+                let link_idx = self.panel_skills.selected_gemlink;
+
+                let mut vec: Vec<(_, _)> = GEMS.par_iter().map_init(
+                    || self.build.clone(),
+                    |local_build, (id, gem_data)| {
+                        let gem = Gem::new(id.clone(), true, 20, 20, 0);
+                        local_build.gem_links[link_idx].gems.push(gem);
+                        let compare = self.compare(&local_build);
+                        let delta_dps = *compare.get("DPS").unwrap_or(&0);
+                        local_build.gem_links[link_idx].gems.pop();
+                        (delta_dps, gem_data)
                     }
-                    build_compare.gem_links[self.panel_skills.selected_gemlink].gems.push(gem);
-                    let compare = self.compare(&build_compare);
-                    let delta_dps = compare.get("DPS").unwrap_or(&0);
-                    vec.push((*delta_dps, gem_data));
-                }
-                vec.sort_unstable_by(|a, b| if a.0 != b.0 { b.0.cmp(&a.0) } else { a.1.display_name().cmp(b.1.display_name()) });
+                ).collect();
+
+                vec.sort_unstable_by(|a, b| {
+                    if a.0 != b.0 {
+                        b.0.cmp(&a.0)
+                    } else {
+                        a.1.display_name().cmp(b.1.display_name())
+                    }
+                });
+
                 self.panel_skills.computed_gems = Some(vec);
             }
         } else {

@@ -1,5 +1,6 @@
 use enumflags2::BitFlags;
 use lightning_model::{build::Build, calc, gem::Gem, modifier::CACHE};
+use rayon::ThreadPoolBuilder;
 use std::fs;
 
 use lightning_model::import;
@@ -59,7 +60,7 @@ fn calc_clone_build(bencher: divan::Bencher) {
     });
 }
 
-#[divan::bench(sample_count = 25)]
+#[divan::bench]
 fn calc_power_report_maxhp(bencher: divan::Bencher) {
     let player = fetch().expect("Failed to get a build");
     let _base_maxhp = calc::calc_defence(&player).0["Maximum Life"];
@@ -94,5 +95,9 @@ fn calc_defence(bencher: divan::Bencher) {
 }
 
 fn main() {
+    let available_threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1);
+    let rayon_threads = (available_threads / 2).max(1);
+    ThreadPoolBuilder::new().num_threads(rayon_threads).build_global().expect("Failed to initialize Rayon thread pool");
+
     divan::main();
 }

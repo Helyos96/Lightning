@@ -58,8 +58,8 @@ impl Default for Config {
         Self {
             builds_dir: config_dir().join("builds/"),
             import_accounts: vec![],
-            framerate: 165,
-            vsync: false,
+            framerate: 60,
+            vsync: true,
             show_debug: false,
             ui_zoom_factor_pct: 100,
         }

@@ -427,7 +427,7 @@ pub fn nodes_gl(nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHashe
             if *power <= 1.0 {
                 ([0.0, 0.0, 0.0, 1.0], false)
             } else {
-                let factor = ((*power - 1.0) * 10.0).clamp(0.25, 1.0);
+                let factor = ((*power - 1.0) * 10.0).clamp(0.15, 1.0);
                 ([factor, 0.0, 0.0, 1.0], true)
             }
         } else {

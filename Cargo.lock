@@ -1904,6 +1904,7 @@ dependencies = [
  "lightning-model",
  "quadtree-f32",
  "raw-window-handle",
+ "rayon",
  "rustc-hash",
  "serde",
  "serde_json",

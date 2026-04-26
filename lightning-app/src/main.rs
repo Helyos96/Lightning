@@ -20,6 +20,7 @@ use glutin::surface::SwapInterval;
 use gui::{MainState, State, UiState};
 use lightning_model::data::TREE;
 use lightning_model::{build, util};
+use rayon::ThreadPoolBuilder;
 use std::error::Error;
 use std::fs;
 use std::sync::Arc;
@@ -483,6 +484,10 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
 }
 
 fn main() {
+    let available_threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1);
+    let rayon_threads = (available_threads / 2).max(1);
+    ThreadPoolBuilder::new().num_threads(rayon_threads).build_global().expect("Failed to initialize Rayon thread pool");
+
     let event_loop = EventLoop::new().unwrap();
     let mut app = GlowApp::new();
     event_loop.run_app(&mut app).expect("failed to run app");

@@ -1,6 +1,7 @@
 use lightning_model::build::Build;
 use lightning_model::calc::PowerReport;
 use lightning_model::import;
+use rayon::ThreadPoolBuilder;
 use std::fs;
 
 fn fetch() -> Result<Build, Box<dyn std::error::Error>> {
@@ -19,7 +20,11 @@ fn fetch() -> Result<Build, Box<dyn std::error::Error>> {
 
 fn main() {
     let build = fetch().expect("Failed to fetch build");
-    for _i in 0..100 {
+    let available_threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1);
+    let rayon_threads = (available_threads / 2).max(1);
+    ThreadPoolBuilder::new().num_threads(rayon_threads).build_global().expect("Failed to initialize Rayon thread pool");
+
+    for _i in 0..1000 {
         let _power_report = PowerReport::new_defence(&build, "Maximum Life");
     }
 }

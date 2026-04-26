@@ -10,11 +10,11 @@
 * ~~Abyss jewels~~
 	* Sorta done, but they're not tied to items yet
 * Skills GUI
-	* Color gems by str/dex/int in dropdown
+	* ~~Color gems by str/dex/int in dropdown~~
 	* Show gem popup
 	* Stats compare on hover enable checkbox
 	* Stats compare on hover skill in dropdown
-	* Default level/quality
+	* Default level/quality in config
 		* Check against gem's max level
 * Items GUI
 	* Unique items
@@ -35,5 +35,5 @@
 	* ~~Armour~~
 		* PDR
 	* Ward
-	* Block
+	* ~~Block~~
 * All the mods and gems
