@@ -144,6 +144,10 @@ impl Gem {
         mods
     }
 
+    pub fn force_regen_modcache(&self) {
+        self.is_modcache_fresh.store(false, Ordering::Relaxed);
+    }
+
     pub fn set_level(&mut self, level: u32) {
         self.level = level;
         self.is_modcache_fresh.store(false, Ordering::Relaxed);

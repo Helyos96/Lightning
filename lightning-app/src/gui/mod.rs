@@ -15,10 +15,11 @@ use lightning_model::calc::{self, PowerReport};
 use lightning_model::build::property;
 use panel::items::ItemsPanelState;
 use panel::skills::SkillsPanelState;
-use panel::bottom::BottomPanelState;
+use panel::bottom::{BottomPanelState, PowerReportType};
 use rustc_hash::FxHashMap;
 use std::collections::VecDeque;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Instant;
 use enumflags2::BitFlags;
 use rayon::iter::{ParallelIterator, IntoParallelRefIterator};
@@ -216,7 +217,7 @@ impl State {
         let mut delta = FxHashMap::default();
         if let Some(gem_link_compare) = build_compare.gem_links.get(self.gemlink_cur) {
             if let Some(active_gem_compare) = gem_link_compare.active_gems().nth(self.active_skill_cur) {
-                let supports: Vec<&Gem> = gem_link_compare.support_gems().filter(|g| g.enabled).collect();
+                let supports: Vec<&Gem> = gem_link_compare.support_gems().filter(|g| g.enabled).map(|arc_gem| arc_gem.as_ref()).collect();
                 let active_gem_compare_calc = calc::calc_gem(build_compare, &supports, active_gem_compare);
                 delta.extend(calc::compare(&self.active_skill_calc, &active_gem_compare_calc));
             }
@@ -257,7 +258,7 @@ impl State {
         self.active_skill_calc.clear();
         if let Some(gem_link) = self.build.gem_links.get(self.gemlink_cur) {
             if let Some(active_gem) = gem_link.active_gems().nth(self.active_skill_cur) {
-                let supports: Vec<&Gem> = gem_link.support_gems().filter(|g| g.enabled).collect();
+                let supports: Vec<&Gem> = gem_link.support_gems().filter(|g| g.enabled).map(|arc_gem| arc_gem.as_ref()).collect();
                 self.active_skill_calc = calc::calc_gem(&self.build, &supports, active_gem);
             }
         }
@@ -272,7 +273,7 @@ impl State {
                     || self.build.clone(),
                     |local_build, (id, gem_data)| {
                         let gem = Gem::new(id.clone(), true, 20, 20, 0);
-                        local_build.gem_links[link_idx].gems.push(gem);
+                        local_build.gem_links[link_idx].gems.push(Arc::new(gem));
                         let compare = self.compare(&local_build);
                         let delta_dps = *compare.get("DPS").unwrap_or(&0);
                         local_build.gem_links[link_idx].gems.pop();
@@ -294,7 +295,23 @@ impl State {
             self.panel_skills.computed_gems = None;
         }
         if self.panel_bottom.power_report_checkbox {
-            self.power_report = Some(PowerReport::new_defence(&self.build, "Maximum Life"));
+            let string = self.panel_bottom.power_report_selected.0;
+            self.power_report = match self.panel_bottom.power_report_selected.1 {
+                PowerReportType::Defence => Some(PowerReport::new_defence(&self.build, string)),
+                PowerReportType::Gem => {
+                    if let Some(gem_link) = self.build.gem_links.get(self.gemlink_cur) {
+                        if let Some(active_gem) = gem_link.active_gems().nth(self.active_skill_cur) {
+                            let supports: Vec<&Gem> = gem_link.support_gems().filter(|g| g.enabled).map(|arc_gem| arc_gem.as_ref()).collect();
+                            Some(PowerReport::new_gem(&self.build, string, &supports, active_gem))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                },
+            };
+            self.request_regen_nodes_gl = true;
         }
         self.request_recalc = false;
     }

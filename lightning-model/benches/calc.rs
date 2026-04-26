@@ -1,7 +1,7 @@
 use enumflags2::BitFlags;
 use lightning_model::{build::Build, calc, gem::Gem, modifier::CACHE};
 use rayon::ThreadPoolBuilder;
-use std::fs;
+use std::{fs, sync::atomic::Ordering};
 
 use lightning_model::import;
 
@@ -37,6 +37,15 @@ fn calc_mods_uncached(bencher: divan::Bencher) {
     bencher.bench_local(|| {
         CACHE.clear();
         player.tree.force_regen_modcache();
+        for item in &player.inventory {
+            item.is_modcache_fresh.store(false, Ordering::Relaxed);
+            item.is_modcache_fresh.store(false, Ordering::Relaxed);
+        }
+        for gemlink in &player.gem_links {
+            for gem in &gemlink.gems {
+                gem.force_regen_modcache();
+            }
+        }
         player.calc_mods(true);
     });
 }
@@ -75,7 +84,7 @@ fn calc_power_report_maxhp(bencher: divan::Bencher) {
 fn calc_gem(bencher: divan::Bencher) {
     let player = fetch().expect("Failed to get a build");
     let active_gem = player.gem_links[1].active_gems().nth(0).unwrap();
-    let support_gems: Vec<&Gem> = player.gem_links[1].support_gems().collect();
+    let support_gems: Vec<&Gem> = player.gem_links[1].support_gems().map(|arc_gem| arc_gem.as_ref()).collect();
 
     lightning_model::calc::calc_gem(&player, &support_gems, active_gem);
 

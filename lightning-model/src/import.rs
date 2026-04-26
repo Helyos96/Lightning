@@ -117,7 +117,7 @@ fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
                 qual = i32::from_str(&qual_entry.values[0].0.replace(['+', '%'], "")).unwrap_or(0);
             }
             let new_gem = gem::Gem::new(gem_id.to_string(), true, level, qual, 0);
-            gemlink.gems.push(new_gem);
+            gemlink.gems.push(Arc::new(new_gem));
         } else if let Some(jewel) = conv_item(gem) {
             jewels.push(jewel);
         } else {

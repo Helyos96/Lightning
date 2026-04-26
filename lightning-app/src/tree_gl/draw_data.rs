@@ -423,7 +423,7 @@ pub fn nodes_gl(nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHashe
         .values()
         .filter(|n| n.group.is_some() && n.class_start_index.is_none() && !n.is_proxy && (n.skill >= u16::MAX as u32 || ((n.name != "Medium Jewel Socket") && (n.name != "Small Jewel Socket"))))
     {
-        let (tint, active) = if let Some(power_report) = power_report && let Some(power) = power_report.nodes_delta.get(&node.skill) {
+        let (tint, mut active) = if let Some(power_report) = power_report && let Some(power) = power_report.nodes_delta.get(&node.skill) {
             if *power <= 1.0 {
                 ([0.0, 0.0, 0.0, 1.0], false)
             } else {
@@ -433,6 +433,9 @@ pub fn nodes_gl(nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHashe
         } else {
             ([1.0, 1.0, 1.0, 1.0], false)
         };
+        if node.is_mastery {
+            active = false;
+        }
         node_gl(
             node,
             &mut dd_nodes,

@@ -387,7 +387,37 @@ impl PowerReport {
                 let calc = calc_defence(&*local_build).0;
                 let delta = *calc.get(delta_str).unwrap_or(&0) as f32 / *defence.get(delta_str).unwrap_or(&0) as f32;
 
-                local_build.tree.nodes.pop(); 
+                local_build.tree.nodes.pop();
+
+                (*node_id, delta)
+            }
+        ).collect();
+
+        PowerReport {
+            nodes_delta: FxHashMap::from_iter(results.into_iter()),
+            max: 0.0,
+        }
+    }
+
+    pub fn new_gem(build: &Build, delta_str: &str, support_gems: &[&Gem], active_gem: &Gem) -> PowerReport {
+        let offence = calc_gem(build, support_gems, active_gem);
+
+        let nodes_compare: Vec<u32> = build.tree.nodes_data.keys()
+            .filter(|node_id| !build.tree.nodes.contains(node_id))
+            .copied()
+            .collect();
+
+        let results: Vec<(u32, f32)> = nodes_compare.par_iter().map_init(
+            || build.clone(),
+            |local_build, node_id| {
+
+                local_build.tree.nodes.push(*node_id);
+                local_build.tree.force_regen_modcache();
+
+                let calc = calc_gem(&*local_build, support_gems, active_gem);
+                let delta = *calc.get(delta_str).unwrap_or(&0) as f32 / *offence.get(delta_str).unwrap_or(&0) as f32;
+
+                local_build.tree.nodes.pop();
 
                 (*node_id, delta)
             }

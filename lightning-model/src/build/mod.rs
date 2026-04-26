@@ -101,15 +101,15 @@ pub enum Defence {
 pub struct GemLink {
     //pub active_gems: Vec<Gem>,
     //pub support_gems: Vec<Gem>,
-    pub gems: Vec<Gem>,
+    pub gems: Vec<Arc<Gem>>,
     pub slot: Slot,
 }
 
 impl GemLink {
-    pub fn active_gems(&self) -> impl Iterator<Item = &Gem> {
+    pub fn active_gems(&self) -> impl Iterator<Item = &Arc<Gem>> {
         self.gems.iter().filter(|g| g.data().active_skill.is_some())
     }
-    pub fn support_gems(&self) -> impl Iterator<Item = &Gem> {
+    pub fn support_gems(&self) -> impl Iterator<Item = &Arc<Gem>> {
         self.gems.iter().filter(|g| g.data().is_support)
     }
 }
