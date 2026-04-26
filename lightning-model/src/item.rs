@@ -207,6 +207,7 @@ impl Item {
         let base_item = self.data();
         if !base_item.tags.contains("armour") {
             self.defence_cache.store(Arc::new(ret));
+            self.is_defence_cache_fresh.store(true, Ordering::Relaxed);
             return;
         }
         let mods = self.calc_local_mods();
