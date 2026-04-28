@@ -508,7 +508,7 @@ pub fn jewels_gl(build: &Build, nodes: &imbl::GenericHashMap<u32, Node, rustc_ha
     let mut dd = DrawData::default();
     let sprite = &TREE.sprites["jewel"];
 
-    for slot in build.equipment.keys() {
+    for slot in build.equipment().keys() {
         if let Slot::TreeJewel(node) = slot {
             if let Some(sprite_name) = JEWELS_BASE_SPRITE.get(build.get_equipped(*slot).unwrap().base_item.as_str()) {
                 let rect = &sprite.coords[*sprite_name];

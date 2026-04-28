@@ -1,5 +1,6 @@
 use crate::gui::State;
-use lightning_model::build::stat::StatId;
+use lightning_model::data::base_item::Rarity;
+use lightning_model::{build::stat::StatId, modifier::Mutation};
 use lightning_model::modifier::Source;
 
 use egui::Color32;
@@ -106,7 +107,11 @@ fn draw_stat_breakdown(ui: &mut egui::Ui, state: &State, stat_id: StatId) {
                                 },
                                 Source::Item(slot) => {
                                     if let Some(item) = state.build.get_equipped(slot) {
-                                        egui::RichText::new(format!("{slot}")).color(crate::gui::utils::rarity_to_color(item.rarity))
+                                        if item.rarity == Rarity::Unique {
+                                            egui::RichText::new(format!("{}", item.name)).color(crate::gui::utils::rarity_to_color(item.rarity))
+                                        } else {
+                                            egui::RichText::new(format!("{slot}")).color(crate::gui::utils::rarity_to_color(item.rarity))
+                                        }
                                     } else {
                                         egui::RichText::new(format!("{:?}", slot))
                                     }
@@ -121,14 +126,14 @@ fn draw_stat_breakdown(ui: &mut egui::Ui, state: &State, stat_id: StatId) {
                             for (i, f) in m.mutations.iter().enumerate() {
                                 if i > 0 { mutations_str.push_str(", "); }
                                 match f {
-                                    lightning_model::modifier::Mutation::MultiplierStat((amt, stat)) => {
+                                    Mutation::MultiplierStat((amt, stat)) => {
                                         if *amt == 1 {
                                             mutations_str.push_str(&format!("{} per {}", m.amount, stat));
                                         } else {
                                             mutations_str.push_str(&format!("{} per {} {}", m.amount, amt, stat));
                                         }
                                     },
-                                    lightning_model::modifier::Mutation::MultiplierStatLowest((amt, stats)) => {
+                                    Mutation::MultiplierStatLowest((amt, stats)) => {
                                         let stats_str: Vec<String> = stats.iter().map(|s| s.to_string()).collect();
                                         if *amt == 1 {
                                             mutations_str.push_str(&format!("{} per lowest of {}", m.amount, stats_str.join(" and ")));
@@ -136,14 +141,17 @@ fn draw_stat_breakdown(ui: &mut egui::Ui, state: &State, stat_id: StatId) {
                                             mutations_str.push_str(&format!("{} per {} lowest of {}", m.amount, amt, stats_str.join(" and ")));
                                         }
                                     },
-                                    lightning_model::modifier::Mutation::MultiplierProperty((amt, prop)) => {
+                                    Mutation::MultiplierProperty((amt, prop)) => {
                                         if *amt == 1 {
                                             mutations_str.push_str(&format!("{} per {}", m.amount, prop));
                                         } else {
                                             mutations_str.push_str(&format!("{} per {} {}", m.amount, amt, prop));
                                         }
                                     },
-                                    lightning_model::modifier::Mutation::UpTo(amt) => {
+                                    Mutation::StatPct((pct, stat_id)) => {
+                                        mutations_str.push_str(&format!("{}% of {}", pct, stat_id.to_string()));
+                                    }
+                                    Mutation::UpTo(amt) => {
                                         mutations_str.push_str(&format!("up to {}", amt));
                                     }
                                 }

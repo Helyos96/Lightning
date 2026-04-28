@@ -5,7 +5,8 @@ use crate::data::gem::GemTag;
 use crate::gem::Gem;
 use crate::data::TREE;
 use crate::item::{self, Item};
-use crate::stackvec::StackVec;
+use crate::stackvec::{StackVec};
+use crate::stackvec;
 use crate::tree::NOTHINGNESS_NODE_ID;
 use enumflags2::{make_bitflags as flags, BitFlags, bitflags};
 use lazy_static::lazy_static;
@@ -103,6 +104,7 @@ const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>
     ("while on full energy shield", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::PropertyBool((true, property::Bool::OnFullEnergyShield))]),
     ("while on full life", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::PropertyBool((true, property::Bool::OnFullLife))]),
     ("while on low life", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::PropertyBool((true, property::Bool::OnLowLife))]),
+    ("when on low life", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::PropertyBool((true, property::Bool::OnLowLife))]),
     ("while holding a shield", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(flags!(ItemClass::Shield))]),
     ("while wielding a wand", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(flags!(ItemClass::Wand))]),
     ("while wielding a staff", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(ItemClass::STAVES)]),
@@ -122,6 +124,9 @@ const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>
     ("for bleeding", BitFlags::EMPTY, BitFlags::EMPTY, flags!(ModFlag::Bleed), &[]),
     ("with poison", BitFlags::EMPTY, BitFlags::EMPTY, flags!(ModFlag::Poison), &[]),
     ("for poison", BitFlags::EMPTY, BitFlags::EMPTY, flags!(ModFlag::Poison), &[]),
+    ("if you have at least 6 life masteries allocated", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[
+        Condition::GreaterEqualMasteryAllocated(("Life Mastery", 6)),
+    ]),
 ];
 
 // Order is important for overlapping stats
@@ -334,13 +339,21 @@ lazy_static! {
                 Some(vec![Mod { stat: stat_tags_1.0, typ: Type::Base, amount: parse_val100(&c[1])?, tags: stat_tags_1.1, ..Default::default() }])
             })
         ), (
+            regex!(r"^your ([a-z -]+) is equal to ([0-9]+)% of your ([a-z -]+)$"),
+            Box::new(|c| {
+                let stat_tags_1 = parse_stat_nomulti(&c[1])?;
+                let stat_tags_2 = parse_stat_nomulti(&c[3])?;
+                let pct = i64::from_str(&c[2]).unwrap();
+                Some(vec![Mod { stat: stat_tags_1.0, typ: Type::Override, tags: stat_tags_1.1, weapons: stat_tags_2.2, flags: stat_tags_1.3, mutations: stackvec!(Mutation::StatPct((pct, stat_tags_2.0))), ..Default::default() }])
+            })
+        ), (
             regex!(r"^grants ([0-9]+) ([a-z -]+)$"),
             Box::new(|c| {
                 let stat_tags_1 = parse_stat_nomulti(&c[2])?;
                 Some(vec![Mod { stat: stat_tags_1.0, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() }])
             })
         ), (
-            regex!(r"^allocates ([a-z -]+)$"),
+            regex!(r"^allocates ([a-z '-]+)$"),
             Box::new(|c| {
                 let (node, _) = TREE.nodes.iter().find(|(_, v)| {
                     v.name.to_lowercase() == &c[1]
@@ -427,6 +440,9 @@ lazy_static! {
         map.insert("removes all mana", vec![
             Mod { stat: StatId::MaximumMana, typ: Type::Override, amount: 0, ..Default::default()},
         ]);
+        map.insert("strength's damage bonus applies to all spell damage as well", vec![
+            Mod { stat: StatId::Damage, typ: Type::Inc, amount: 1, tags: GemTag::Spell.into(), mutations: stackvec!(Mutation::MultiplierStat((5, StatId::Strength))), ..Default::default()},
+        ]);
         map
     };
 
@@ -471,6 +487,7 @@ pub enum Mutation {
     MultiplierStat((i64, StatId)),
     MultiplierStatLowest((i64, &'static [StatId])),
     MultiplierProperty((i64, property::Int)),
+    StatPct((i64, StatId)),
     UpTo(i64),
 }
 
@@ -480,6 +497,7 @@ impl Mutation {
             Mutation::MultiplierStat(mutation) => mutation.0 = amount,
             Mutation::MultiplierProperty(mutation) => mutation.0 = amount,
             Mutation::MultiplierStatLowest(mutation) => mutation.0 = amount,
+            Mutation::StatPct(mutation) => mutation.0 = amount,
             Mutation::UpTo(mutation) => *mutation = amount,
         }
     }
@@ -495,6 +513,7 @@ pub enum Condition {
     WhileWielding(BitFlags<ItemClass>),
     SlotsHaveDefence((Defence, &'static [Slot])),
     SlotLesserEqualStats((Slot, i64, &'static [StatId])),
+    GreaterEqualMasteryAllocated((&'static str, u32)),
 }
 
 #[derive(Default, Debug, Clone, Copy)]

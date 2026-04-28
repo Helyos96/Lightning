@@ -205,7 +205,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                                             // Quality
                                             row.col(|ui| {
                                                 let mut qual = socketed_gem.qual;
-                                                if ui.add(egui::DragValue::new(&mut qual).range(RangeInclusive::new(1, 100))).changed() {
+                                                if ui.add(egui::DragValue::new(&mut qual).range(RangeInclusive::new(0, 23))).changed() {
                                                     let mut new_gem = (**socketed_gem).clone();
                                                     new_gem.set_qual(qual);
                                                     action = Some(Action::SwapGem((i, Arc::new(new_gem))));

@@ -296,7 +296,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                 }
 
                 egui_glow.paint(window);
-                if egui_glow.egui_ctx.has_requested_repaint() || state.request_recalc || state.request_regen_gl {
+                if egui_glow.egui_ctx.has_requested_repaint() || state.request_recalc || state.request_regen_gl || state.request_regen_nodes_gl {
                     window.request_redraw();
                 }
 

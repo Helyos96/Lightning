@@ -47,6 +47,8 @@ struct Item {
     enchantMods: Vec<String>,
     #[serde(default)]
     craftedMods: Vec<String>,
+    #[serde(default)]
+    mutatedMods: Vec<String>,
     socketedItems: Option<Vec<Item>>,
     inventoryId: Option<String>,
     #[serde(default)]
@@ -73,7 +75,7 @@ struct GroupImport {
 }
 
 #[derive(Deserialize)]
-struct PassiveTree {
+struct PassiveTreeImport {
     hashes: Vec<u32>,
     hashes_ex: Vec<u32>,
     items: Vec<Item>,
@@ -135,6 +137,7 @@ fn conv_item(item: &Item) -> Option<item::Item> {
     let mut mods_expl = item.explicitMods.clone();
     mods_expl.extend(item.craftedMods.clone());
     mods_expl.extend(item.fracturedMods.clone());
+    mods_expl.extend(item.mutatedMods.clone());
     let mut item_ret = item::Item {
         base_item: item.baseType.clone(),
         name: item.name.clone(),
@@ -171,26 +174,28 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
 
     // Passive Tree
     let url = format!("https://pathofexile.com/character-window/get-passive-skills?realm=pc&accountName={account}&character={character}").replace('#', "%23");
-    let tree = client.get(url).send()?.json::<PassiveTree>()?;
+    println!("{url}");
+    let tree_import = client.get(url).send()?.json::<PassiveTreeImport>()?;
 
     // Items, Skills, CharData
     let url = format!("https://pathofexile.com/character-window/get-items?realm=pc&accountName={account}&character={character}").replace('#', "%23");
-    let items = client.get(url).send()?.json::<ItemsSkillsChar>()?;
+    println!("{url}");
+    let items_import = client.get(url).send()?.json::<ItemsSkillsChar>()?;
 
     let mut build = Build::new_player();
     let mut abyssal_jewel_idx = 0;
     build.name = character.to_string();
-    build.set_property_int(crate::build::property::Int::Level, items.character.level);
-    build.tree.nodes = tree.hashes;
-    if let Ok(class) = Class::from_str(&items.character.class_or_ascendancy) {
+    build.set_property_int(crate::build::property::Int::Level, items_import.character.level);
+    build.tree.nodes = tree_import.hashes;
+    if let Ok(class) = Class::from_str(&items_import.character.class_or_ascendancy) {
         build.tree.set_class(class);
-    } else if let Ok(ascendancy) = Ascendancy::from_str(&items.character.class_or_ascendancy) {
+    } else if let Ok(ascendancy) = Ascendancy::from_str(&items_import.character.class_or_ascendancy) {
         build.tree.set_ascendancy(Some(ascendancy));
     } else {
         return Err(Box::new(ParseError));
     }
 
-    if let Some(alternate_ascendancy) = tree.alternate_ascendancy {
+    if let Some(alternate_ascendancy) = tree_import.alternate_ascendancy {
         if let Some(aa) = TREE.alternate_ascendancies.get((alternate_ascendancy - 1) as usize) {
             let bloodline_str = &aa.id;
             if let Ok(bloodline) = Ascendancy::from_str(bloodline_str) {
@@ -203,7 +208,7 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
         }
     }
 
-    for (mastery, selected) in &tree.mastery_effects {
+    for (mastery, selected) in &tree_import.mastery_effects {
         if let Ok(mastery) = u32::from_str(mastery) {
             build.tree.masteries.insert(mastery as u32, *selected as u32);
         } else {
@@ -211,13 +216,13 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
         }
     }
 
-    for item in tree.items.iter().chain(items.items.iter()) {
+    for item in tree_import.items.iter().chain(items_import.items.iter()) {
         if let Some(socketed_items) = &item.socketedItems {
             let (gemlink, jewels) = extract_socketed(socketed_items);
             build.gem_links.push(gemlink);
             for jewel in jewels {
                 build.inventory.push(Arc::new(jewel));
-                build.equipment.insert(Slot::AbyssalJewel(abyssal_jewel_idx), build.inventory.len() - 1);
+                build.equip(Slot::AbyssalJewel(abyssal_jewel_idx), build.inventory.len() - 1);
                 abyssal_jewel_idx += 1;
             }
         }
@@ -225,16 +230,16 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
             if let Some(item_inv) = conv_item(item) {
                 build.inventory.push(Arc::new(item_inv));
                 if let Ok(slot) = Slot::try_from((inventory_id.as_str(), item.x.unwrap_or(0))) {
-                    build.equipment.insert(slot, build.inventory.len() - 1);
+                    build.equip(slot, build.inventory.len() - 1);
                 }
             }
         }
     }
 
     build.import_account = Some((account.to_string(), character.to_string()));
-    build.campaign_choice = if items.character.level >= 67 {
+    build.campaign_choice = if items_import.character.level >= 67 {
         build::CampaignChoice::ActTen
-    } else if items.character.level >= 45 {
+    } else if items_import.character.level >= 45 {
         build::CampaignChoice::ActFive
     } else {
         build::CampaignChoice::Beach

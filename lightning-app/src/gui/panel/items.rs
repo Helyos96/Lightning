@@ -66,7 +66,7 @@ const COMBO_WIDTH: f32 = 300.0;
 fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<usize> {
     let mut ret = None;
     let mut hovered_idx = None;
-    let idx = state.build.equipment.get(&slot);
+    let idx = state.build.equipment().get(&slot);
     let selected_text = match state.build.get_equipped(slot) {
         Some(item) => item_to_richtext(item),
         None => egui::RichText::new("<No Item>"),
@@ -113,7 +113,7 @@ fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<u
             let old_nodes_nb = state.build.tree.nodes_data.len();
             state.build.equip(slot, i);
             state.request_recalc = true;
-            if matches!(slot, Slot::TreeJewel(_)) {
+            if matches!(slot, Slot::TreeJewel(_)) || state.build.inventory[i].allocates_nodes() {
                 state.request_regen_gl = true;
             }
             if old_nodes_nb != state.build.tree.nodes_data.len() {
@@ -121,13 +121,17 @@ fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<u
             }
         },
         Some(None) => {
-            state.build.unequip(slot);
+            if let Some(item) = state.build.get_equipped(slot) &&
+               item.allocates_nodes() {
+                state.request_regen_gl = true;
+            }
             state.request_recalc = true;
             if matches!(slot, Slot::TreeJewel(_)) {
                 // In case we removed a cluster jewel, regen all opengl stuff
                 state.request_regen_gl = true;
                 state.request_regen_nodes_gl = true;
             }
+            state.build.unequip(slot);
         },
         None => {},
     }
@@ -236,13 +240,13 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
             let item = state.build.inventory.get(idx).cloned();
             if let Some(item) = item {
                 // 1. Calculate removal deltas
-                let equipped_in: Vec<Slot> = state.build.equipment.iter()
+                let equipped_in: Vec<Slot> = state.build.equipment().iter()
                     .filter_map(|(s, i)| if *i == idx { Some(*s) } else { None })
                     .collect();
 
                 for slot in equipped_in {
                     let mut build_compare = state.build.clone();
-                    build_compare.equipment.remove(&slot);
+                    build_compare.unequip(slot);
                     let delta = state.compare(&build_compare);
                     if !delta.is_empty() {
                         state.panel_items.hovered_item_deltas.push(("Unequip".into(), delta));
@@ -262,14 +266,14 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 for slot in potential_slots {
                     if item.data().item_class.allowed_slots().iter().any(|&s| s.compatible(slot)) {
                         // Skip if already equipped in this exact slot
-                        if state.build.equipment.get(&slot) == Some(&idx) {
+                        if state.build.equipment().contains_key(&slot) {
                             continue;
                         }
                         let mut build_compare = state.build.clone();
-                        build_compare.equipment.insert(slot, idx);
+                        build_compare.equip(slot, idx);
                         let delta = state.compare(&build_compare);
                         if !delta.is_empty() {
-                            let action = if state.build.equipment.contains_key(&slot) {
+                            let action = if state.build.equipment().contains_key(&slot) {
                                 "Replace"
                             } else {
                                 "Equip in"
@@ -293,13 +297,13 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
 
             if let Some(idx) = idx_opt {
                 // 1. Calculate removal deltas
-                let equipped_in: Vec<Slot> = state.build.equipment.iter()
+                let equipped_in: Vec<Slot> = state.build.equipment().iter()
                     .filter_map(|(s, i)| if *i == idx { Some(*s) } else { None })
                     .collect();
 
                 for slot in equipped_in {
                     let mut build_compare = state.build.clone();
-                    build_compare.equipment.remove(&slot);
+                    build_compare.unequip(slot);
                     let delta = state.compare(&build_compare);
                     if !delta.is_empty() {
                         let name = format!("Remove from {}", format_slot(slot));
@@ -321,7 +325,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
             for slot in potential_slots {
                 if item.data().item_class.allowed_slots().iter().any(|&s| s.compatible(slot)) {
                     if let Some(idx) = idx_opt {
-                        if state.build.equipment.get(&slot) == Some(&idx) {
+                        if state.build.equipment().get(&slot) == Some(&idx) {
                             continue;
                         }
                     }
@@ -335,10 +339,10 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                         build_compare.inventory.len() - 1
                     };
 
-                    build_compare.equipment.insert(slot, test_idx);
+                    build_compare.equip(slot, test_idx);
                     let delta = state.compare(&build_compare);
                     if !delta.is_empty() {
-                        let action = if state.build.equipment.contains_key(&slot) {
+                        let action = if state.build.equipment().contains_key(&slot) {
                             "Replace"
                         } else {
                             "Equip in"

@@ -138,6 +138,14 @@ impl<'a> Evaluator<'a> {
                         }
                     }
                 },
+                Condition::GreaterEqualMasteryAllocated((mastery_str, count)) => {
+                    let count_tree = self.build.tree.masteries.keys().filter(|node_id| {
+                        &self.build.tree.nodes_data[node_id].name == *mastery_str
+                    }).count() as u32;
+                    if count_tree < *count {
+                        return false;
+                    }
+                }
             }
         }
         true
@@ -164,6 +172,9 @@ impl<'a> Evaluator<'a> {
                     }
                     amount = lowest.map_or(0, |l| (amount * l) / mutation.0);
                 },
+                Mutation::StatPct((pct, stat_id)) => {
+                    amount = (self.get_stat_val(*stat_id) * pct) / 100;
+                }
                 Mutation::UpTo(mutation) => {
                     up_to = *mutation;
                 },

@@ -453,7 +453,7 @@ pub struct Build {
     pub gem_links: Vec<GemLink>,
     #[serde_as(as = "FxHashMap<serde_with::json::JsonString, _>")]
     // usize is index into inventory
-    pub equipment: FxHashMap<Slot, usize>,
+    equipment: FxHashMap<Slot, usize>,
     pub inventory: Vec<Arc<Item>>,
     pub tree: PassiveTree,
     #[serde(default)]
@@ -639,23 +639,39 @@ impl Build {
         self.inventory.remove(idx_remove);
     }
 
+    pub fn equipment(&self) -> &FxHashMap<Slot, usize> {
+        &self.equipment
+    }
+
     pub fn equip(&mut self, slot: Slot, item_idx: usize) -> Option<usize> {
         assert!(item_idx < self.inventory.len());
         let old_item = self.equipment.remove(&slot);
         self.equipment.insert(slot, item_idx);
-        let item = &self.inventory[item_idx];
+
+        if self.inventory[item_idx].allocates_nodes() {
+            self.update_item_allocations();
+        }
 
         if let Slot::TreeJewel(jewel_node_id) = slot &&
-           let Some(orbit_data) = get_cluster_orbit_data(&item.base_item) &&
+           let Some(orbit_data) = get_cluster_orbit_data(&self.inventory[item_idx].base_item) &&
            let Some(cluster_data) = self.inventory[item_idx].get_cluster()
         {
-            self.tree.add_cluster(cluster_data, orbit_data, jewel_node_id, &item.base_item);
+            self.tree.add_cluster(cluster_data, orbit_data, jewel_node_id, &self.inventory[item_idx].base_item);
         }
         old_item
     }
 
     pub fn unequip(&mut self, slot: Slot) {
+        if !self.equipment.contains_key(&slot) {
+            return;
+        }
+
+        let item_idx = self.equipment[&slot];
         self.equipment.remove(&slot);
+        if self.inventory[item_idx].allocates_nodes() {
+            self.update_item_allocations();
+        }
+
         if let Slot::TreeJewel(node_id) = slot {
             self.tree.remove_jewel(node_id);
             self.equipment.retain(|k, _| {

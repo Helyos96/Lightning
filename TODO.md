@@ -30,7 +30,8 @@
 * Trigger
 * Leech
 * Warcries / Exert
-* Auras / Buffs
+* ~~Auras / Buffs~~
+	* Halfway done though
 * Defences
 	* ~~Armour~~
 		* PDR

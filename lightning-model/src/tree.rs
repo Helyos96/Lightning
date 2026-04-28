@@ -26,7 +26,7 @@ pub struct PassiveTree {
     pub bloodline: Option<Ascendancy>,
     pub nodes: Vec<u32>,
     // Additional nodes come mostly from "Allocates <xxx>" mods
-    #[serde(skip)]
+    #[serde(default)]
     pub nodes_additional: Vec<u32>,
     #[serde(skip, default = "init_data")]
     pub nodes_data: imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>,

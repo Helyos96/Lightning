@@ -308,6 +308,10 @@ impl Item {
         None
     }
 
+    pub fn allocates_nodes(&self) -> bool {
+        self.calc_nonlocal_mods().iter().find(|m| m.allocates.is_some()).is_some()
+    }
+
     fn calc_mods(&self, local: bool) -> Vec<Mod> {
         let mut mods = Vec::with_capacity(12);
         let mut match_table: &[LocalModMatch] = &[];
