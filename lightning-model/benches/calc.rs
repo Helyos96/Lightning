@@ -36,7 +36,7 @@ fn calc_mods_uncached(bencher: divan::Bencher) {
 
     bencher.bench_local(|| {
         CACHE.clear();
-        player.tree.force_regen_modcache();
+        player.tree.invalidate_modcache();
         for item in &player.inventory {
             item.is_modcache_fresh.store(false, Ordering::Relaxed);
             item.is_modcache_fresh.store(false, Ordering::Relaxed);

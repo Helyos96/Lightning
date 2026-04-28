@@ -266,7 +266,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 for slot in potential_slots {
                     if item.data().item_class.allowed_slots().iter().any(|&s| s.compatible(slot)) {
                         // Skip if already equipped in this exact slot
-                        if state.build.equipment().contains_key(&slot) {
+                        if state.build.equipment().get(&slot) == Some(&idx) {
                             continue;
                         }
                         let mut build_compare = state.build.clone();

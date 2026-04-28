@@ -382,7 +382,7 @@ impl PowerReport {
             |local_build, node_id| {
 
                 local_build.tree.nodes.push(*node_id);
-                local_build.tree.force_regen_modcache();
+                local_build.tree.invalidate_modcache();
 
                 let calc = calc_defence(&*local_build).0;
                 let delta = *calc.get(delta_str).unwrap_or(&0) as f32 / *defence.get(delta_str).unwrap_or(&0) as f32;
@@ -412,7 +412,7 @@ impl PowerReport {
             |local_build, node_id| {
 
                 local_build.tree.nodes.push(*node_id);
-                local_build.tree.force_regen_modcache();
+                local_build.tree.invalidate_modcache();
 
                 let calc = calc_gem(&*local_build, support_gems, active_gem);
                 let delta = *calc.get(delta_str).unwrap_or(&0) as f32 / *offence.get(delta_str).unwrap_or(&0) as f32;

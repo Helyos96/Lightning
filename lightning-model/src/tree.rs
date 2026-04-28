@@ -260,7 +260,7 @@ impl PassiveTree {
         self.is_modcache_fresh.store(false, Ordering::Relaxed);
     }
 
-    pub fn force_regen_modcache(&self) {
+    pub fn invalidate_modcache(&self) {
         self.is_modcache_fresh.store(false, Ordering::Relaxed);
     }
 

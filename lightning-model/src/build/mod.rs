@@ -479,7 +479,7 @@ impl Build {
 
     pub fn update_item_allocations(&mut self) {
         self.tree.nodes_additional.clear();
-        self.tree.force_regen_modcache();
+        self.tree.invalidate_modcache();
         let mut max_abyssal_sockets = 0;
         let equipment_slots: Vec<(Slot, usize)> = self.equipment.iter().map(|(k, v)| (*k, *v)).collect();
         for (slot, idx) in equipment_slots {
