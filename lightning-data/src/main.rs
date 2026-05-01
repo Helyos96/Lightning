@@ -7,9 +7,11 @@ use argh::FromArgs;
 use csd::parse_csd;
 use dat_schema::{DatSchema, Table};
 use datc64::{dump, ForeignRow, Val};
-use lightning_model::data::poe2::tree;
+use lightning_model::data::{poe2::tree, tattoo::{TattooData, TattooType}};
 use psg::parse_psg;
 use rustc_hash::{FxHashMap, FxHashSet};
+
+use crate::csd::Translations;
 
 mod dat_schema;
 mod psg;
@@ -101,6 +103,96 @@ fn get_foreign_val(dats: &FxHashMap<String, Vec<FxHashMap<String, Val>>>, foreig
         }
     }
     None
+}
+
+pub fn dump_tattoos(dats: &FxHashMap<String, Vec<FxHashMap<String, Val>>>, translations: &Translations) -> Option<FxHashMap<String, TattooData>> {
+    let pso = dats.get("PassiveSkillOverrides")?;
+
+    let mut results = FxHashMap::default();
+
+    for override_row in pso {
+        let mut tattoo_type = TattooType::Node;
+        if let Some(Val::ForeignRow(type_fr)) = override_row.get("Type") {
+            if let Some(Val::String(type_id)) = get_foreign_val(dats, type_fr, Some("Id")) {
+                match type_id.as_str() {
+                    "KeystoneTattoo" => tattoo_type = TattooType::Keystone,
+                    "AlternateMastery" => tattoo_type = TattooType::Mastery,
+                    _ => tattoo_type = TattooType::Node,
+                }
+            }
+        }
+
+        let mut name = String::new();
+        let mut icon = String::new();
+        if tattoo_type == TattooType::Keystone {
+            if let Some(Val::ForeignRow(passive_fr)) = override_row.get("AllocatedPassiveSkill") {
+                if let Some(Val::String(passive_name)) = get_foreign_val(dats, passive_fr, Some("Name")) {
+                    name = passive_name.to_string();
+                }
+                if let Some(Val::String(passive_icon)) = get_foreign_val(dats, passive_fr, Some("Icon_DDSFile")) {
+                    icon = passive_icon.replace(".dds", ".png");
+                }
+            }
+        } else {
+            name = override_row.get("Name").map(|v| v.string()).unwrap_or("").to_string();
+            icon = override_row.get("NodeIcon").map(|v| v.string().replace(".dds", ".png")).unwrap_or_default();
+        }
+
+        if name.is_empty() || name.contains("DNT") || name.contains("of the Test") {
+            continue;
+        }
+
+        let mut parsed_stats = Vec::new();
+
+        if tattoo_type == TattooType::Keystone {
+            if let Some(Val::ForeignRow(passive_fr)) = override_row.get("AllocatedPassiveSkill") &&
+               let Some(passive_table) = dats.get(&passive_fr.dat_file) &&
+               let Some(passive_row) = passive_table.get(passive_fr.rowid as usize) &&
+               let Some(Val::Array(stats_arr)) = passive_row.get("Stats")
+            {
+                let mut stat_idx = 1;
+
+                for stat_val in stats_arr {
+                    if let Val::ForeignRow(stat_fr) = stat_val &&
+                       let Some(Val::String(stat_id)) = get_foreign_val(dats, stat_fr, Some("Id"))
+                    {
+                        let val_key = format!("Stat{}Value", stat_idx);
+                        let stat_num = passive_row.get(&val_key)
+                            .map(|v| v.integer())
+                            .unwrap_or(0);
+
+                        if let Some(stat_text) = translations.format(&stat_id, &[stat_num]) {
+                            parsed_stats.push(stat_text);
+                        } else {
+                            parsed_stats.push(format!("{} ({})", stat_id, stat_num));
+                        }
+                    }
+                    stat_idx += 1;
+                }
+            }
+        } else {
+            if let (Some(Val::Array(stats_arr)), Some(Val::Array(values_arr))) =
+                (override_row.get("Stats"), override_row.get("StatValues"))
+            {
+                for (stat_val, stat_num) in stats_arr.iter().zip(values_arr.iter()) {
+                    if let Val::ForeignRow(stat_fr) = stat_val &&
+                       let Some(Val::String(stat_id)) = get_foreign_val(dats, stat_fr, Some("Id"))
+                    {
+                        let val = stat_num.integer();
+                        if let Some(stat_text) = translations.format(&stat_id, &[val]) {
+                            parsed_stats.push(stat_text);
+                        } else {
+                            parsed_stats.push(format!("{} ({})", stat_id, val));
+                        }
+                    }
+                }
+            }
+        }
+
+        results.insert(name, TattooData { stats: parsed_stats, tattoo_type, icon });
+    }
+
+    Some(results)
 }
 
 fn extract_tree_ui_art(poe_dir: &str, dat_schema: &DatSchema, extract_dds: bool) -> Option<tree::Sprite> {
@@ -288,12 +380,12 @@ fn main() {
     if args.extract_dat {
         println!("Extracting all datc64/psg/csd files..");
         Command::new("bun_extract_file")
-            .args(["extract-files", "--regex", &format!("{poe_dir}/Content.ggpk"), &format!("{poe_dir}/out"), "data/.*", "metadata/.*psg", "metadata/.*csd"])
+            .args(["extract-files", "--regex", &format!("{poe_dir}/Content.ggpk"), &format!("{poe_dir}/out"), "data/.*", "metadata/.*psg", "metadata/.*csd", "metadata/statdescriptions/.*txt"])
             .output()
             .expect("failed to execute bun_extract_file");
     }
 
-    let tables: Vec<Table> = dat_schema.tables.iter().filter(|t| t.valid_for >= 2).cloned().collect();
+    let tables: Vec<Table> = dat_schema.tables.iter().filter(|t| t.valid_for == 1 || t.valid_for == 3).cloned().collect();
     let mut datc64_dumps = FxHashMap::default();
     let mut success = 0;
     for table in &tables {
@@ -307,6 +399,11 @@ fn main() {
     }
     println!("Success datc64 parses: {success}/{}", tables.len());
 
-    extract_tree(poe_dir, &dat_schema, &datc64_dumps, &args);
+    let mut translations = parse_csd(format!("{poe_dir}/out/metadata/statdescriptions/passive_skill_stat_descriptions.txt").as_str()).unwrap();
+    translations.0.extend(parse_csd(format!("{poe_dir}/out/metadata/statdescriptions/stat_descriptions.txt").as_str()).unwrap().0);
+
+    serde_json::to_writer(std::fs::File::create("tattoos.json").unwrap(), &dump_tattoos(&datc64_dumps, &translations));
+
+    //extract_tree(poe_dir, &dat_schema, &datc64_dumps, &args);
 
 }

@@ -153,12 +153,21 @@ impl Translations {
                 format!("{}", param)
             };
 
+            let signed_param = if param.starts_with('-') {
+                param.clone()
+            } else {
+                format!("+{}", param)
+            };
+
             if i == 0 {
                 ret = ret.replace("{}", &param);
+                ret = ret.replace("{:d}", &param);
+                ret = ret.replace("{:+d}", &signed_param);
             }
+
             ret = ret.replace(&format!("{{{}}}", i), &param);
             ret = ret.replace(&format!("{{{}:d}}", i), &param);
-            ret = ret.replace(&format!("{{{}:+d}}", i), &format!("+{}", &param));
+            ret = ret.replace(&format!("{{{}:+d}}", i), &signed_param);
         }
 
         // Takes care of stuff like "[HitDamage|Hits]"

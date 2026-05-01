@@ -11,7 +11,6 @@ lazy_static! {
         (property::Int::Fortification, "Fortification"),
     ];
     static ref PROPERTIES_BOOL: Vec<(property::Bool, &'static str)> = vec![
-        (property::Bool::Fortified, "Are you Fortified?"),
         (property::Bool::Blinded, "Are you Blind?"),
         (property::Bool::Onslaught, "Do you have Onslaught?"),
         (property::Bool::DealtCritRecently, "Dealt a Crit Recently?"),

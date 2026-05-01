@@ -67,7 +67,7 @@ const PATTERN_VAR_DATA: [u8; 8] = [0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xB
 const PATTERN_VAR_END: [u8; 4] = [0x00, 0x00, 0x00, 0x00];
 
 fn make_foreign_row(column: &Column, rid: u64) -> Option<Val> {
-    if rid == 0xfefefefefefefefe || rid == 0x100000000000000 {
+    if rid == 0xfefefefefefefefe || rid == 0xfefefefe || rid == 0x100000000000000 {
         return None;
     }
     if let Some(references) = &column.references {
@@ -109,8 +109,8 @@ fn get_val(column: &Column, cursor: &mut Cursor<&Vec<u8>>, strict: bool) -> io::
             }
         },
         Type::enumrow => {
-            cursor.read_u32::<LittleEndian>()?;
-            None
+            let er = cursor.read_u32::<LittleEndian>()?;
+            Some(Val::Integer(er as i64))
         },
         Type::row => {
             let rid = cursor.read_u64::<LittleEndian>()?;
@@ -141,67 +141,67 @@ fn get_val(column: &Column, cursor: &mut Cursor<&Vec<u8>>, strict: bool) -> io::
 }
 
 pub fn dump(poe_dir: &str, dat_schema: &DatSchema, name: &str, strict: bool) -> io::Result<Vec<FxHashMap<String, Val>>> {
-    if let Some(table) = dat_schema.tables.iter().find(|t| t.valid_for >= 2 && t.name == name) {
+    if let Some(table) = dat_schema.tables.iter().find(|t| (t.valid_for == 1 || t.valid_for == 3) && t.name == name) {
         let buf = read_file(&format!("{poe_dir}/out/data/{}.datc64", name.to_lowercase()))?;
-        if let Some(var_offset) = find_pattern(&buf, &PATTERN_VAR_DATA) {
-            let mut ret = vec![];
-            let mut cursor = Cursor::new(&buf);
-            let nb_rows = cursor.read_u32::<LittleEndian>()?;
-            let row_len = (var_offset - 4) / nb_rows as usize;
-            for row in 0..nb_rows {
-                cursor.set_position(4 + (row as u64 * row_len as u64));
-                let mut col_data = FxHashMap::default();
-                for column in &table.columns {
-                    if column.array {
-                        let length = cursor.read_i64::<LittleEndian>()?;
-                        let offset = cursor.read_u64::<LittleEndian>()?;
-                        let mut cursor = cursor.clone();
-                        if cursor.seek(io::SeekFrom::Start(var_offset as u64 + offset)).is_ok() {
-                            if length <= 0 || length > 100000 {
-                                continue;
-                            }
-                            let mut array = vec![];
-                            for _ in 0..length {
-                                let val = get_val(column, &mut cursor, strict);
-                                if let Ok(Some(val)) = val {
-                                    array.push(val);
-                                } else {
-                                    break;
-                                }
-                            }
-                            if let Some(name) = &column.name {
-                                col_data.insert(name.clone(), Val::Array(array));
+        let var_offset = find_pattern(&buf, &PATTERN_VAR_DATA).unwrap_or(buf.len());
+        let mut ret = vec![];
+        let mut cursor = Cursor::new(&buf);
+        let nb_rows = cursor.read_u32::<LittleEndian>()?;
+        if nb_rows == 0 {
+            return Ok(vec![]);
+        }
+        let row_len = (var_offset - 4) / nb_rows as usize;
+        for row in 0..nb_rows {
+            cursor.set_position(4 + (row as u64 * row_len as u64));
+            let mut col_data = FxHashMap::default();
+            for column in &table.columns {
+                if column.array {
+                    let length = cursor.read_u64::<LittleEndian>()?;
+                    let offset = cursor.read_u64::<LittleEndian>()?;
+                    let mut cursor = cursor.clone();
+                    if cursor.seek(io::SeekFrom::Start(var_offset as u64 + offset)).is_ok() {
+                        if length == 0 || length > 100000 {
+                            continue;
+                        }
+                        let mut array = vec![];
+                        for _ in 0..length {
+                            let val = get_val(column, &mut cursor, strict);
+                            if let Ok(Some(val)) = val {
+                                array.push(val);
+                            } else {
+                                break;
                             }
                         }
-                    } else if column.r#type.is_var_data() {
-                        let mut new_cursor = cursor.clone();
-                        let offset = column.r#type.var_offset(&mut cursor)?;
-                        if new_cursor.seek(io::SeekFrom::Start(var_offset as u64 + offset)).is_ok() {
-                            if let Some(name) = &column.name {
-                                let val = get_val(column, &mut new_cursor, false);
-                                if let Ok(Some(val)) = val {
-                                    col_data.insert(name.clone(), val);
-                                }
-                            }
-                        }
-                    } else {
-                        let val = get_val(column, &mut cursor, false)?;
                         if let Some(name) = &column.name {
-                            if let Some(val) = val {
+                            col_data.insert(name.clone(), Val::Array(array));
+                        }
+                    }
+                } else if column.r#type.is_var_data() {
+                    let mut new_cursor = cursor.clone();
+                    let offset = column.r#type.var_offset(&mut cursor)?;
+                    if new_cursor.seek(io::SeekFrom::Start(var_offset as u64 + offset)).is_ok() {
+                        if let Some(name) = &column.name {
+                            let val = get_val(column, &mut new_cursor, false);
+                            if let Ok(Some(val)) = val {
                                 col_data.insert(name.clone(), val);
                             }
                         }
                     }
+                } else {
+                    let val = get_val(column, &mut cursor, false)?;
+                    if let Some(name) = &column.name {
+                        if let Some(val) = val {
+                            col_data.insert(name.clone(), val);
+                        }
+                    }
                 }
-                if row == 0 && cursor.position() != (4 + ((row + 1) as u64 * row_len as u64)) {
-                    println!("Warning: {}.datc64: Bad cursor: {}, expected {}", name.to_lowercase(), cursor.position(), (4 + ((row + 1) as u64 * row_len as u64)));
-                }
-                ret.push(col_data);
             }
-            return Ok(ret);
-        } else {
-            return Err(io::Error::other("couldn't find var pattern"));
+            if row == 0 && cursor.position() != (4 + ((row + 1) as u64 * row_len as u64)) {
+                println!("Warning: {}.datc64: Bad cursor: {}, expected {}", name.to_lowercase(), cursor.position(), (4 + ((row + 1) as u64 * row_len as u64)));
+            }
+            ret.push(col_data);
         }
+        return Ok(ret);
     } else {
         return Err(io::Error::other(format!("No dat schema for {name}")));
     }

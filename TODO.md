@@ -6,7 +6,8 @@
 		* With radius shown
 		* ~~Cluster jewels~~
 			* Correct orbit_index for all positions
-	* Calc functions (highest dps unallocated etc.)
+	* ~~Power report (highest dps unallocated etc.)~~
+		* Add table output to list nodes
 * ~~Abyss jewels~~
 	* Sorta done, but they're not tied to items yet
 * Skills GUI
@@ -23,6 +24,10 @@
 	* More defence stats
 	* Better layout
 * Tatoos
+	* ~~Extract, parse and import~~
+	* Display with correct icons (+ effect)
+	* Add selection on right click
+	* Fix Masteries
 * Minions
 * Impale
 * Ailments
@@ -30,6 +35,7 @@
 * Trigger
 * Leech
 * Warcries / Exert
+* Damage conversion
 * ~~Auras / Buffs~~
 	* Halfway done though
 * Defences

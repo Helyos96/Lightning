@@ -75,6 +75,11 @@ struct GroupImport {
 }
 
 #[derive(Deserialize)]
+struct SkillOverride {
+    name: String,
+}
+
+#[derive(Deserialize)]
 struct PassiveTreeImport {
     hashes: Vec<u32>,
     hashes_ex: Vec<u32>,
@@ -82,6 +87,8 @@ struct PassiveTreeImport {
     #[serde(default)]
     mastery_effects: FxHashMap<String, u32>,
     alternate_ascendancy: Option<i32>,
+    #[serde(default)]
+    skill_overrides: FxHashMap<u32, SkillOverride>,
 }
 
 impl Item {
@@ -187,12 +194,25 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
     build.name = character.to_string();
     build.set_property_int(crate::build::property::Int::Level, items_import.character.level);
     build.tree.nodes = tree_import.hashes;
+
     if let Ok(class) = Class::from_str(&items_import.character.class_or_ascendancy) {
         build.tree.set_class(class);
     } else if let Ok(ascendancy) = Ascendancy::from_str(&items_import.character.class_or_ascendancy) {
         build.tree.set_ascendancy(Some(ascendancy));
     } else {
         return Err(Box::new(ParseError));
+    }
+
+    for (mastery, selected) in &tree_import.mastery_effects {
+        if let Ok(mastery) = u32::from_str(mastery) {
+            build.tree.masteries.insert(mastery as u32, *selected as u32);
+        } else {
+            eprintln!("Couldn't parse mastery effect id: {mastery}");
+        }
+    }
+
+    for (node_id, data) in tree_import.skill_overrides {
+        build.tree.set_tattoo(node_id, Some(&data.name));
     }
 
     if let Some(alternate_ascendancy) = tree_import.alternate_ascendancy {
@@ -205,14 +225,6 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
             }
         } else {
             eprintln!("Failed to find alternate ascendancy index {}", alternate_ascendancy - 1);
-        }
-    }
-
-    for (mastery, selected) in &tree_import.mastery_effects {
-        if let Ok(mastery) = u32::from_str(mastery) {
-            build.tree.masteries.insert(mastery as u32, *selected as u32);
-        } else {
-            eprintln!("Couldn't parse mastery effect id: {mastery}");
         }
     }
 

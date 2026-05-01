@@ -1,5 +1,5 @@
 use crate::data::tree::{Ascendancy, Class, ClusterOrbitData, Node, NodeType, TreeData};
-use crate::data::TREE;
+use crate::data::{TATTOOS, TREE};
 use crate::item::ClusterData;
 use crate::modifier::{parse_mod, Mod, Source};
 use arc_swap::ArcSwap;
@@ -32,7 +32,10 @@ pub struct PassiveTree {
     pub nodes_data: imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>,
     #[serde(default)]
     pub nodes_cluster: Vec<(u32, Node)>,
+    // <node_id, effect_id>
     pub masteries: FxHashMap<u32, u32>,
+    #[serde(default)]
+    pub tattoos: FxHashMap<u32, String>,
     #[serde(skip)]
     #[derivative(Clone(clone_with = "clone_arc_swap"))]
     mod_cache: ArcSwap<Vec<Mod>>,
@@ -70,6 +73,7 @@ impl Default for PassiveTree {
             nodes_cluster: Default::default(),
             mod_cache: Default::default(),
             is_modcache_fresh: Default::default(),
+            tattoos: Default::default(),
         };
         pt.nodes.push(get_class_node(pt.class));
         pt
@@ -216,6 +220,10 @@ impl PassiveTree {
     pub fn init(&mut self) {
         for (_, node) in &self.nodes_cluster {
             self.nodes_data.insert(node.skill, node.clone());
+        }
+        let tattoos = self.tattoos.clone();
+        for (node_id, tattoo_str) in tattoos {
+            self.set_tattoo(node_id, Some(&tattoo_str));
         }
     }
 
@@ -492,6 +500,29 @@ impl PassiveTree {
                 self.nodes_data.insert(node.skill, node);
             }
         }
+    }
+
+    pub fn set_tattoo(&mut self, node_id: u32, tattoo_str: Option<&str>) {
+        if let Some(tattoo_str) = tattoo_str {
+           if let Some(tattoo_data) = TATTOOS.get(tattoo_str) &&
+              let Some(mut original_node) = self.nodes_data.get(&node_id).cloned()
+            {
+                original_node.stats = tattoo_data.stats.clone();
+                original_node.name = tattoo_str.to_owned();
+                original_node.icon = tattoo_data.icon.to_owned();
+                self.nodes_data.insert(node_id, original_node);
+                self.tattoos.insert(node_id, tattoo_str.to_owned());
+            } else {
+                eprintln!("Failed to add tattoo {node_id} / {tattoo_str}");
+            }
+        } else {
+            if let Some(original_node) = TREE.nodes.get(&node_id) {
+                self.nodes_data.insert(node_id, original_node.to_owned());
+                self.tattoos.remove(&node_id);
+            }
+        }
+        self.masteries.remove(&node_id);
+        self.invalidate_modcache();
     }
 
     pub fn get_proxy_group(&self, cluster_jewel_node_id: u32) -> Option<u16> {

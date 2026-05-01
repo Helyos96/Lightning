@@ -35,6 +35,7 @@ lazy_static! {
         map.insert("minion", GemTag::Minion);
         map.insert("totem", GemTag::Totem);
         map.insert("area", GemTag::Area);
+        map.insert("warcry", GemTag::Warcry);
         map
     };
 }
@@ -96,7 +97,7 @@ const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>
     ("with wands", BitFlags::EMPTY, flags!(ItemClass::Wand), BitFlags::EMPTY, &[]),
     ("with daggers", BitFlags::EMPTY, ItemClass::DAGGERS, BitFlags::EMPTY, &[]),
     ("with maces or sceptres", BitFlags::EMPTY, flags!(ItemClass::{OneHandMace | TwoHandMace | Sceptre}), BitFlags::EMPTY, &[]),
-    ("while fortified", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::PropertyBool((true, property::Bool::Fortified))]),
+    ("while fortified", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::GreaterEqualProperty((1, property::Int::Fortification))]),
     ("if you've dealt a critical strike recently", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::PropertyBool((true, property::Bool::DealtCritRecently))]),
     ("if you've blocked recently", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::PropertyBool((true, property::Bool::BlockedRecently))]),
     ("while leeching", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::PropertyBool((true, property::Bool::Leeching))]),
@@ -106,12 +107,15 @@ const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>
     ("while on low life", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::PropertyBool((true, property::Bool::OnLowLife))]),
     ("when on low life", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::PropertyBool((true, property::Bool::OnLowLife))]),
     ("while holding a shield", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(flags!(ItemClass::Shield))]),
+    ("while holding a staff or shield", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(ItemClass::STAVES.union_c(flags!(ItemClass::Shield)))]),
     ("while wielding a wand", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(flags!(ItemClass::Wand))]),
     ("while wielding a staff", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(ItemClass::STAVES)]),
     ("while wielding a sword", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(ItemClass::SWORDS)]),
     ("while wielding a dagger", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(ItemClass::DAGGERS)]),
     ("while wielding a mace or sceptre", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(flags!(ItemClass::{OneHandMace | TwoHandMace | Sceptre}))]),
     ("while wielding a claw or dagger", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(flags!(ItemClass::{Dagger | RuneDagger | Claw}))]),
+    ("while dual wielding", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileDualWielding]),
+    ("while dual wielding or holding a shield", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileDualWielding, Condition::WhileWielding(flags!(ItemClass::Shield))]),
     ("if equipped helmet, body armour, gloves, and boots all have armour", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[
         Condition::SlotsHaveDefence((Defence::Armour, &[Slot::Helm, Slot::BodyArmour, Slot::Gloves, Slot::Boots])),
     ]),
@@ -141,6 +145,7 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("cast speed", StatId::CastSpeed, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("warcry speed", StatId::WarcrySpeed, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("cooldown recovery speed", StatId::CooldownRecoverySpeed, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("cooldown recovery rate", StatId::CooldownRecoverySpeed, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("projectile speed", StatId::ProjectileSpeed, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("trap throwing speed", StatId::TrapThrowingSpeed, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("chance to block attack damage", StatId::ChanceToBlockAttackDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
@@ -511,6 +516,7 @@ pub enum Condition {
     LesserEqualStat((i64, StatId)),
     PropertyBool((bool, property::Bool)),
     WhileWielding(BitFlags<ItemClass>),
+    WhileDualWielding,
     SlotsHaveDefence((Defence, &'static [Slot])),
     SlotLesserEqualStats((Slot, i64, &'static [StatId])),
     GreaterEqualMasteryAllocated((&'static str, u32)),
@@ -540,7 +546,7 @@ pub enum ModFlag {
 }
 
 const MUTATIONS_COUNT: usize = 2;
-const CONDITIONS_COUNT: usize = 1;
+const CONDITIONS_COUNT: usize = 2;
 
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Mod {
@@ -764,11 +770,14 @@ fn count_tree_parses() {
 
     let mut nb_mods = 0;
     let mut nb_mods_success = 0;
+    let mut failed_mods: FxHashMap<String, usize> = Default::default();
 
     let mut func = |stat| {
         nb_mods += 1;
         if parse_mod(stat, Source::Innate).is_some() {
             nb_mods_success += 1;
+        } else {
+            *failed_mods.entry(stat.to_owned()).or_default() += 1;
         }
     };
 
@@ -789,4 +798,9 @@ fn count_tree_parses() {
         }
     }
     println!("Tree mods parsed: {}/{}", nb_mods_success, nb_mods);
+    let mut sorted_failed_mods: Vec<(&String, &usize)> = failed_mods.iter().collect();
+    sorted_failed_mods.sort_by(|a, b| b.1.cmp(a.1));
+    for (stat, count) in sorted_failed_mods {
+        println!("{}: {}", stat, count);
+    }
 }

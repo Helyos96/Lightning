@@ -1,7 +1,7 @@
 use enumflags2::BitFlags;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{build::{Build, Defence, property, stat::{self, Stat, StatId}}, data::gem::GemTag, modifier::{Condition, Mod, ModFlag, Mutation}};
+use crate::{build::{Build, Defence, Slot, property, stat::{self, Stat, StatId}}, data::gem::GemTag, modifier::{Condition, Mod, ModFlag, Mutation}};
 
 /// Evaluate Stats from a collection of Mods
 pub struct Evaluator<'a> {
@@ -55,7 +55,8 @@ impl<'a> Evaluator<'a> {
         for m in mods_to_process {
             let mut m = m.to_owned();
 
-            if !self.check_conditions(&m) {
+            let passes_conditions_bor = m.conditions.is_empty() || m.conditions.iter().any(|c| self.check_condition(c));
+            if !passes_conditions_bor {
                 continue;
             }
 
@@ -93,58 +94,66 @@ impl<'a> Evaluator<'a> {
         self.build.property_int(p).clamp(min, max)
     }
 
-    fn check_conditions(&mut self, m: &Mod) -> bool {
-        for c in &m.conditions {
-            match c {
-                Condition::GreaterEqualProperty(mutation) => {
-                    if self.property_int_stats(mutation.1) < mutation.0 { return false; }
-                },
-                Condition::LesserEqualProperty(mutation) => {
-                    if self.property_int_stats(mutation.1) > mutation.0 { return false; }
-                },
-                Condition::GreaterEqualStat(mutation) => {
-                    if self.get_stat_val(mutation.1) < mutation.0 { return false; }
-                },
-                Condition::LesserEqualStat(mutation) => {
-                    if self.get_stat_val(mutation.1) > mutation.0 { return false; }
-                },
-                Condition::PropertyBool(mutation) => {
-                    if self.build.property_bool(mutation.1) != mutation.0 { return false; }
-                },
-                Condition::WhileWielding(weapons) => {
-                    if !self.build.is_holding(weapons) { return false; }
-                },
-                Condition::SlotsHaveDefence((defence, slots)) => {
-                    for slot in *slots {
-                        if let Some(item) = self.build.get_equipped(*slot) {
-                            let calc_defence = item.calc_defence();
-                            let val = match defence {
-                                Defence::Armour => calc_defence.armour.val(),
-                                Defence::Evasion => calc_defence.evasion.val(),
-                                Defence::EnergyShield => calc_defence.energy_shield.val(),
-                            };
-                            if val == 0 { return false; }
-                        } else {
-                            return false;
-                        }
-                    }
-                },
-                Condition::SlotLesserEqualStats((slot, amount, stat_ids)) => {
+    fn check_condition(&mut self, c: &Condition) -> bool {
+        match c {
+            Condition::GreaterEqualProperty(mutation) => {
+                if self.property_int_stats(mutation.1) < mutation.0 { return false; }
+            },
+            Condition::LesserEqualProperty(mutation) => {
+                if self.property_int_stats(mutation.1) > mutation.0 { return false; }
+            },
+            Condition::GreaterEqualStat(mutation) => {
+                if self.get_stat_val(mutation.1) < mutation.0 { return false; }
+            },
+            Condition::LesserEqualStat(mutation) => {
+                if self.get_stat_val(mutation.1) > mutation.0 { return false; }
+            },
+            Condition::PropertyBool(mutation) => {
+                if self.build.property_bool(mutation.1) != mutation.0 { return false; }
+            },
+            Condition::WhileWielding(weapons) => {
+                if !self.build.is_holding(weapons) { return false; }
+            },
+            Condition::SlotsHaveDefence((defence, slots)) => {
+                for slot in *slots {
                     if let Some(item) = self.build.get_equipped(*slot) {
-                        for stat_id in *stat_ids {
-                            let item_mods = item.calc_nonlocal_mods();
-                            let stat = stat::calc_stat(*stat_id, &item_mods);
-                            if stat.val() > *amount { return false; }
-                        }
-                    }
-                },
-                Condition::GreaterEqualMasteryAllocated((mastery_str, count)) => {
-                    let count_tree = self.build.tree.masteries.keys().filter(|node_id| {
-                        &self.build.tree.nodes_data[node_id].name == *mastery_str
-                    }).count() as u32;
-                    if count_tree < *count {
+                        let calc_defence = item.calc_defence();
+                        let val = match defence {
+                            Defence::Armour => calc_defence.armour.val(),
+                            Defence::Evasion => calc_defence.evasion.val(),
+                            Defence::EnergyShield => calc_defence.energy_shield.val(),
+                        };
+                        if val == 0 { return false; }
+                    } else {
                         return false;
                     }
+                }
+            },
+            Condition::SlotLesserEqualStats((slot, amount, stat_ids)) => {
+                if let Some(item) = self.build.get_equipped(*slot) {
+                    for stat_id in *stat_ids {
+                        let item_mods = item.calc_nonlocal_mods();
+                        let stat = stat::calc_stat(*stat_id, &item_mods);
+                        if stat.val() > *amount { return false; }
+                    }
+                }
+            },
+            Condition::GreaterEqualMasteryAllocated((mastery_str, count)) => {
+                let count_tree = self.build.tree.masteries.keys().filter(|node_id| {
+                    &self.build.tree.nodes_data[node_id].name == *mastery_str
+                }).count() as u32;
+                if count_tree < *count {
+                    return false;
+                }
+            }
+            Condition::WhileDualWielding => {
+                if let Some(mainhand) = self.build.get_equipped(Slot::Weapon) &&
+                   let Some(offhand) = self.build.get_equipped(Slot::Offhand) {
+                    if !mainhand.data().tags.contains("weapon") || !offhand.data().tags.contains("weapon") {
+                        return false;
+                    }
+                } else {
+                    return false;
                 }
             }
         }

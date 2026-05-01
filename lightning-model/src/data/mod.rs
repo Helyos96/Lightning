@@ -3,6 +3,7 @@ pub mod default_monster_stats;
 pub mod gem;
 pub mod tree;
 pub mod poe2;
+pub mod tattoo;
 
 use base_item::BaseItem;
 use default_monster_stats::MonsterStats;
@@ -16,6 +17,7 @@ use std::fs;
 use std::io;
 use serde::{Deserialize, Serialize};
 use crate::build::stat::StatId;
+use crate::data::tattoo::TattooData;
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy, IntoStaticStr)]
 pub enum DamageType {
@@ -69,4 +71,6 @@ lazy_static! {
         bincode::deserialize(include_bytes!("../../data/tree.bc")).expect("Failed to deserialize tree");
     pub static ref MONSTER_STATS: FxHashMap<i64, MonsterStats> =
         bincode::deserialize(include_bytes!("../../data/default_monster_stats.bc")).expect("Failed to deserialize default monster stats");
+    pub static ref TATTOOS: FxHashMap<String, TattooData> =
+        bincode::deserialize(include_bytes!("../../data/tattoos.bc")).expect("Failed to deserialize tattoos");
 }

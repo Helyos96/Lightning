@@ -1,5 +1,3 @@
-use lightning_model::calc::PowerReport;
-
 use crate::gui::State;
 
 pub const HEIGHT: f32 = 40.0;

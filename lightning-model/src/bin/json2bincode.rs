@@ -1,6 +1,7 @@
 use lightning_model::data::base_item::BaseItem;
 use lightning_model::data::default_monster_stats::MonsterStats;
 use lightning_model::data::gem::GemData;
+use lightning_model::data::tattoo::TattooData;
 use lightning_model::data::tree::TreeData;
 use rustc_hash::FxHashMap;
 use std::fs;
@@ -19,6 +20,9 @@ fn main() {
     let monster_stats: FxHashMap<i64, MonsterStats> = {
         serde_json::from_slice(include_bytes!("../../data/default_monster_stats.json")).expect("Failed to deserialize default monster stats")
     };
+    let tattoos: FxHashMap<String, TattooData> = {
+        serde_json::from_slice(include_bytes!("../../data/tattoos.json")).expect("Failed to deserialize tattoos")
+    };
 
     let mut f = io::BufWriter::new(fs::File::create("data/gems.bc").unwrap());
     bincode::serialize_into(&mut f, &gems).expect("Failed to ser gems");
@@ -28,4 +32,6 @@ fn main() {
     bincode::serialize_into(&mut f, &tree).expect("Failed to ser tree");
     let mut f = io::BufWriter::new(fs::File::create("data/default_monster_stats.bc").unwrap());
     bincode::serialize_into(&mut f, &monster_stats).expect("Failed to ser default monster stats");
+    let mut f = io::BufWriter::new(fs::File::create("data/tattoos.bc").unwrap());
+    bincode::serialize_into(&mut f, &tattoos).expect("Failed to ser tattoos");
 }

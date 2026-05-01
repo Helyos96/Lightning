@@ -29,7 +29,6 @@ pub struct IntData {
 pub enum Bool {
     Blinded,
     Onslaught,
-    Fortified,
     DealtCritRecently,
     BlockedRecently,
     Leeching,
