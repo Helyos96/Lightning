@@ -316,6 +316,7 @@ impl TreeGl {
             "masteries_active",
             "masteries_active_selected",
             "ascendancy_frames_active",
+            "mastery_active_effects",
             "connectors_active",
             "connectors_hovered",
             "class_start",
@@ -350,6 +351,8 @@ impl TreeGl {
             .insert("masteries_active_selected".to_string(), GlDrawData::new(gl, &data[3]));
         self.draw_data
             .insert("ascendancy_frames_active".to_string(), GlDrawData::new(gl, &data[4]));
+        self.draw_data
+            .insert("mastery_active_effects".to_string(), GlDrawData::new(gl, &data[5]));
         self.draw_data
             .insert("connectors_active".to_string(), GlDrawData::new(gl, &connectors_gl(&build.tree.nodes, &build.tree.nodes_data, &TREE.sprites["line"].coords["LineConnectorActive"], 20.0)));
         self.draw_data
@@ -410,6 +413,7 @@ impl TreeGl {
             ("bloodlines_inactive_background", "bloodline-3.webp", [0.40, 0.40, 0.40, 1.0]),
             ("bloodlines_active_background", "bloodline-3.webp", [1.0, 1.0, 1.0, 1.0]),
             ("tattoo_active_effects", "tattoo-active-effect-3.png", [1.0, 1.0, 1.0, 1.0]),
+            ("mastery_active_effects", "mastery-active-effect-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("connectors", "line-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("connectors_active", "line-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("connectors_hovered", "line-3.png", [1.0, 1.0, 1.0, 1.0]),

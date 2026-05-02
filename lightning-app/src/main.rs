@@ -383,7 +383,9 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                             state.path_red = None;
                                             state.path_hovered = state.build.tree.find_path(node_id);
                                         } else {
-                                            if state.build.tree.nodes_data.get(&node_id).unwrap().is_mastery {
+                                            if state.build.tree.nodes_data.get(&node_id).unwrap().is_mastery &&
+                                               !state.build.tree.nodes_data.get(&node_id).unwrap().is_tattoo
+                                            {
                                                 state.ui_state = UiState::Main(MainState::ChooseMastery(node_id));
                                             }
                                             state.path_hovered = None;

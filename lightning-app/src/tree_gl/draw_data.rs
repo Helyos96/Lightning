@@ -346,7 +346,8 @@ fn node_gl(
     dd_frames: &mut DrawData,
     dd_masteries: &mut DrawData,
     dd_asc_frames: &mut DrawData,
-    dd_active_effects: &mut DrawData,
+    dd_tattoo_active_effects: &mut DrawData,
+    dd_mastery_active_effects: &mut DrawData,
     is_active: bool,
     is_hovered: bool,
     tint: [f32; 4]
@@ -380,6 +381,13 @@ fn node_gl(
     match node.node_type() {
         NodeType::Mastery => {
             dd_masteries.append(x, y, rect, sprite, false, SCALE);
+            if is_active &&
+               let Some(active_effect) = &node.active_effect_image &&
+               let Some(sprite) = TREE.sprites.get("masteryActiveEffect") &&
+               let Some(rect) = sprite.coords.get(active_effect)
+            {
+                dd_mastery_active_effects.append(x, y, rect, sprite, false, SCALE);
+            }
         }
         NodeType::AscendancyNormal | NodeType::AscendancyNotable => {
             if !is_hovered {
@@ -415,7 +423,7 @@ fn node_gl(
                let Some(sprite) = TREE.sprites.get("tattooActiveEffect") &&
                let Some(rect) = sprite.coords.get(active_effect)
             {
-                dd_active_effects.append(x, y, rect, sprite, false, SCALE);
+                dd_tattoo_active_effects.append(x, y, rect, sprite, false, SCALE);
             }
         }
     }
@@ -427,7 +435,8 @@ pub fn nodes_gl(nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHashe
     let mut dd_frames = DrawData::default();
     let mut dd_masteries = DrawData::default();
     let mut dd_asc_frames = DrawData::default();
-    let mut dd_active_effects = DrawData::default();
+    let mut dd_tattoo_active_effects = DrawData::default();
+    let mut dd_mastery_active_effects = DrawData::default();
 
     for node in nodes
         .values()
@@ -452,23 +461,25 @@ pub fn nodes_gl(nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHashe
             &mut dd_frames,
             &mut dd_masteries,
             &mut dd_asc_frames,
-            &mut dd_active_effects,
+            &mut dd_tattoo_active_effects,
+            &mut dd_mastery_active_effects,
             active,
             false,
             tint,
         );
     }
-    [dd_nodes, dd_frames, dd_masteries, dd_asc_frames, dd_active_effects]
+    [dd_nodes, dd_frames, dd_masteries, dd_asc_frames, dd_tattoo_active_effects]
 }
 
 /// Allocated & hovered Nodes, Frames and Masteries
-pub fn nodes_gl_active(nodes_id: &[u32], nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>, hovered: Option<&u32>) -> [DrawData; 5] {
+pub fn nodes_gl_active(nodes_id: &[u32], nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>, hovered: Option<&u32>) -> [DrawData; 6] {
     let mut dd_nodes = DrawData::default();
     let mut dd_frames = DrawData::default();
     let mut dd_masteries = DrawData::default();
     let mut dd_masteries_active = DrawData::default();
     let mut dd_asc_frames = DrawData::default();
-    let mut dd_active_effects = DrawData::default();
+    let mut dd_tattoo_active_effects = DrawData::default();
+    let mut dd_mastery_active_effects = DrawData::default();
     let tint = [1.0, 1.0, 1.0, 1.0];
 
     for node in nodes_id
@@ -482,7 +493,8 @@ pub fn nodes_gl_active(nodes_id: &[u32], nodes: &imbl::GenericHashMap<u32, Node,
             &mut dd_frames,
             &mut dd_masteries_active,
             &mut dd_asc_frames,
-            &mut dd_active_effects,
+            &mut dd_tattoo_active_effects,
+            &mut dd_mastery_active_effects,
             true,
             false,
             tint,
@@ -496,14 +508,15 @@ pub fn nodes_gl_active(nodes_id: &[u32], nodes: &imbl::GenericHashMap<u32, Node,
             &mut dd_frames,
             &mut dd_masteries,
             &mut dd_asc_frames,
-            &mut dd_active_effects,
+            &mut dd_tattoo_active_effects,
+            &mut dd_mastery_active_effects,
             nodes_id.contains(id),
             true,
             tint,
         );
     }
 
-    [dd_nodes, dd_frames, dd_masteries, dd_masteries_active, dd_asc_frames]
+    [dd_nodes, dd_frames, dd_masteries, dd_masteries_active, dd_asc_frames, dd_mastery_active_effects]
 }
 
 lazy_static! {
