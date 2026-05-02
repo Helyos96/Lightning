@@ -143,6 +143,10 @@ pub fn dump_tattoos(dats: &FxHashMap<String, Vec<FxHashMap<String, Val>>>, trans
         }
 
         let mut parsed_stats = Vec::new();
+        let active_effect_image = override_row
+            .get("PassiveBG")
+            .map(|v| format!("{}.png", v.string()))
+            .unwrap_or_default();
 
         if tattoo_type == TattooType::Keystone {
             if let Some(Val::ForeignRow(passive_fr)) = override_row.get("AllocatedPassiveSkill") &&
@@ -189,7 +193,7 @@ pub fn dump_tattoos(dats: &FxHashMap<String, Vec<FxHashMap<String, Val>>>, trans
             }
         }
 
-        results.insert(name, TattooData { stats: parsed_stats, tattoo_type, icon });
+        results.insert(name, TattooData { stats: parsed_stats, tattoo_type, icon, active_effect_image });
     }
 
     Some(results)

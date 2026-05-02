@@ -12,4 +12,5 @@ pub struct TattooData {
     pub stats: Vec<String>,
     pub tattoo_type: TattooType,
     pub icon: String,
+    pub active_effect_image: String,
 }

@@ -194,6 +194,7 @@ pub struct Node {
     pub name: String,
     pub active_icon: Option<String>,
     pub inactive_icon: Option<String>,
+    pub active_effect_image: Option<String>,
     #[serde(default)]
     pub is_mastery: bool,
     #[serde(default)]
@@ -208,6 +209,8 @@ pub struct Node {
     pub is_proxy: bool,
     #[serde(default)]
     pub is_bloodline: bool,
+    #[serde(default)]
+    pub is_tattoo: bool,
     #[serde(rename = "ascendancyName")]
     pub ascendancy: Option<Ascendancy>,
     pub class_start_index: Option<i32>,

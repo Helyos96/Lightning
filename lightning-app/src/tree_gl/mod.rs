@@ -282,7 +282,8 @@ impl TreeGl {
             "nodes",
             "frames",
             "masteries",
-            "ascendancy_frames"
+            "ascendancy_frames",
+            "tattoo_active_effects",
         ];
 
         for &s in REDRAW {
@@ -304,6 +305,8 @@ impl TreeGl {
             .insert("masteries".to_string(), GlDrawData::new(gl, &data[2]));
         self.draw_data
             .insert("ascendancy_frames".to_string(), GlDrawData::new(gl, &data[3]));
+        self.draw_data
+            .insert("tattoo_active_effects".to_string(), GlDrawData::new(gl, &data[4]));
     }
 
     pub fn regen_active(&mut self, gl: &glow::Context, build: &Build, path_hovered: &Option<Vec<u32>>, path_red: &Option<Vec<u32>>, hovered_node_id: Option<u32>, search_highlights: &[u32]) {
@@ -406,6 +409,7 @@ impl TreeGl {
             ("ascendancy_active_background", "ascendancy-3.webp", [1.0, 1.0, 1.0, 1.0]),
             ("bloodlines_inactive_background", "bloodline-3.webp", [0.40, 0.40, 0.40, 1.0]),
             ("bloodlines_active_background", "bloodline-3.webp", [1.0, 1.0, 1.0, 1.0]),
+            ("tattoo_active_effects", "tattoo-active-effect-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("connectors", "line-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("connectors_active", "line-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("connectors_hovered", "line-3.png", [1.0, 1.0, 1.0, 1.0]),

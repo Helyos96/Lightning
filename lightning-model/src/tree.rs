@@ -510,6 +510,8 @@ impl PassiveTree {
                 original_node.stats = tattoo_data.stats.clone();
                 original_node.name = tattoo_str.to_owned();
                 original_node.icon = tattoo_data.icon.to_owned();
+                original_node.active_effect_image = Some(tattoo_data.active_effect_image.to_owned());
+                original_node.is_tattoo = true;
                 self.nodes_data.insert(node_id, original_node);
                 self.tattoos.insert(node_id, tattoo_str.to_owned());
             } else {

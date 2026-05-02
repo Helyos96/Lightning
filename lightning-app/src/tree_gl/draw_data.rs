@@ -56,10 +56,11 @@ pub fn get_rect(node: &Node, active: bool) -> Option<(&'static Rect, &'static Sp
         NodeType::Notable | NodeType::AscendancyNotable => ("notableInactive", &node.icon),
         NodeType::Keystone => ("keystoneInactive", &node.icon),
         NodeType::Mastery => {
-            if active {
-                ("masteryActiveSelected", node.active_icon.as_ref().unwrap())
-            } else {
-                ("masteryConnected", node.inactive_icon.as_ref().unwrap())
+            match (node.is_tattoo, active) {
+                (true, true) => ("masteryActiveSelected", &node.icon),
+                (true, false) => ("masteryConnected", &node.icon),
+                (false, true) =>("masteryActiveSelected", node.active_icon.as_ref().unwrap()),
+                (false, false) => ("masteryConnected", node.inactive_icon.as_ref().unwrap()),
             }
         },
     };
@@ -345,6 +346,7 @@ fn node_gl(
     dd_frames: &mut DrawData,
     dd_masteries: &mut DrawData,
     dd_asc_frames: &mut DrawData,
+    dd_active_effects: &mut DrawData,
     is_active: bool,
     is_hovered: bool,
     tint: [f32; 4]
@@ -408,16 +410,24 @@ fn node_gl(
                 _ => panic!("No frame"),
             };
             dd_frames.append_tint(x, y, rect, sprite, false, SCALE, tint);
+            if (is_active || node.is_tattoo) &&
+               let Some(active_effect) = &node.active_effect_image &&
+               let Some(sprite) = TREE.sprites.get("tattooActiveEffect") &&
+               let Some(rect) = sprite.coords.get(active_effect)
+            {
+                dd_active_effects.append(x, y, rect, sprite, false, SCALE);
+            }
         }
     }
 }
 
 /// Unallocated Nodes, Frames and Masteries (the entire tree pretty much)
-pub fn nodes_gl(nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>, power_report: Option<&PowerReport>) -> [DrawData; 4] {
+pub fn nodes_gl(nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>, power_report: Option<&PowerReport>) -> [DrawData; 5] {
     let mut dd_nodes = DrawData::default();
     let mut dd_frames = DrawData::default();
     let mut dd_masteries = DrawData::default();
     let mut dd_asc_frames = DrawData::default();
+    let mut dd_active_effects = DrawData::default();
 
     for node in nodes
         .values()
@@ -442,12 +452,13 @@ pub fn nodes_gl(nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHashe
             &mut dd_frames,
             &mut dd_masteries,
             &mut dd_asc_frames,
+            &mut dd_active_effects,
             active,
             false,
             tint,
         );
     }
-    [dd_nodes, dd_frames, dd_masteries, dd_asc_frames]
+    [dd_nodes, dd_frames, dd_masteries, dd_asc_frames, dd_active_effects]
 }
 
 /// Allocated & hovered Nodes, Frames and Masteries
@@ -457,6 +468,7 @@ pub fn nodes_gl_active(nodes_id: &[u32], nodes: &imbl::GenericHashMap<u32, Node,
     let mut dd_masteries = DrawData::default();
     let mut dd_masteries_active = DrawData::default();
     let mut dd_asc_frames = DrawData::default();
+    let mut dd_active_effects = DrawData::default();
     let tint = [1.0, 1.0, 1.0, 1.0];
 
     for node in nodes_id
@@ -470,6 +482,7 @@ pub fn nodes_gl_active(nodes_id: &[u32], nodes: &imbl::GenericHashMap<u32, Node,
             &mut dd_frames,
             &mut dd_masteries_active,
             &mut dd_asc_frames,
+            &mut dd_active_effects,
             true,
             false,
             tint,
@@ -483,6 +496,7 @@ pub fn nodes_gl_active(nodes_id: &[u32], nodes: &imbl::GenericHashMap<u32, Node,
             &mut dd_frames,
             &mut dd_masteries,
             &mut dd_asc_frames,
+            &mut dd_active_effects,
             nodes_id.contains(id),
             true,
             tint,
