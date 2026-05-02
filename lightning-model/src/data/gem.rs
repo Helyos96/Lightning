@@ -55,6 +55,8 @@ pub struct Level {
     pub damage_effectiveness: Option<i64>,
     pub damage_multiplier: Option<i64>,
     pub cost_multiplier: Option<i64>,
+    #[serde(default)]
+    pub stat_text: Option<FxHashMap<String, String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -89,6 +91,8 @@ pub struct Static {
     pub attack_speed_multiplier: Option<i32>,
     pub stats: Option<Vec<Option<GemStat>>>,
     pub quality_stats: Vec<QualityStat>,
+    #[serde(default)]
+    pub stat_text: Option<FxHashMap<String, String>>,
 }
 
 impl Static {
@@ -238,7 +242,7 @@ pub enum ActiveSkillType {
 
 #[bitflags]
 #[repr(u64)]
-#[derive(Debug, Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq, strum_macros::IntoStaticStr)]
 #[serde(rename_all = "lowercase")]
 #[allow(non_camel_case_types)]
 pub enum GemTag {
@@ -303,6 +307,7 @@ pub struct SupportGemData {
     pub allowed_types: Option<FxHashSet<ActiveSkillType>>,
     #[serde(default)]
     pub excluded_types: Option<FxHashSet<ActiveSkillType>>,
+    pub support_text: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -317,6 +322,8 @@ pub struct GemData {
     pub tags: FxHashSet<GemTag>,
     #[serde(default)]
     pub weapon_restrictions: FxHashSet<ItemClass>,
+    #[serde(default)]
+    pub tooltip_order: Vec<String>,
     #[serde(default)]
     pub support_gem: Option<SupportGemData>,
     pub color: String,
@@ -336,5 +343,29 @@ impl GemData {
             return max_level;
         }
         return 20;
+    }
+
+    pub fn stat_text(&'static self, stat: &str, level: u32) -> Option<&'static str> {
+        if let Some(level) = self.per_level.get(&level) &&
+           let Some(stat_text) = &level.stat_text &&
+           let Some(text) = stat_text.get(stat)
+        {
+            return Some(text);
+        }
+        if let Some(stat_text) = &self.r#static.stat_text &&
+           let Some(text) = stat_text.get(stat)
+        {
+            return Some(text);
+        }
+        None
+    }
+
+    pub fn description(&'static self) -> Option<&'static str> {
+        if let Some(active_skill) = &self.active_skill {
+            return Some(&active_skill.description);
+        } else if let Some(support_data) = &self.support_gem {
+            return Some(&support_data.support_text);
+        }
+        None
     }
 }

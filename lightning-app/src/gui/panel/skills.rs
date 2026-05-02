@@ -3,7 +3,7 @@ use std::{ops::RangeInclusive, sync::Arc};
 use egui_extras::{Column, TableBuilder};
 use lightning_model::{data::{GEMS, gem::GemData}, gem::Gem};
 use thousands::Separable;
-use crate::gui::{State, utils::{gem_colour, gem_name_richtext}};
+use crate::gui::{State, utils::{COLOR_DESC, draw_gem, gem_colour, gem_name_richtext}};
 use super::text_gemlink_cutoff;
 
 #[derive(Default)]
@@ -44,6 +44,24 @@ fn draw_skill_dropdown(ui: &mut egui::Ui, panel_skills: &mut SkillsPanelState, s
         name.clear();
         if panel_skills.computed_gems.is_none() {
             *request_recalc = true;
+        }
+    } else if r.hovered() {
+        if let Some(gem) = socketed_gem.as_ref() {
+            let popup_pos = r.rect.right_top() + egui::vec2(5.0, 0.0);
+            let window_id = egui::Id::new("Hover Gem").with(gem.data().display_name());
+            let custom_frame = egui::Frame::window(&ui.ctx().style())
+                .stroke(egui::Stroke::new(3.0, COLOR_DESC))
+                .corner_radius(egui::CornerRadius::ZERO);
+            egui::Window::new("Hover Gem")
+                .id(window_id)
+                .frame(custom_frame)
+                .fixed_pos(popup_pos)
+                .title_bar(false)
+                .resizable(false)
+                .collapsible(false)
+                .show(ui.ctx(), |ui| {
+                    draw_gem(ui, gem);
+                });
         }
     }
     if ui.memory(|m| m.is_popup_open(popup_id)) {
@@ -112,8 +130,8 @@ fn gem_from_display_name(display_name: &str) -> Gem {
 
 pub fn draw(ctx: &egui::Context, state: &mut State) {
     let mut action: Option<Action> = None;
-    egui::CentralPanel::default()
-        .show(ctx, |ui| {
+    egui::CentralPanel::default().show(ctx, |ui| {
+        egui::ScrollArea::vertical().show(ui, |ui| {
             egui_flex::Flex::horizontal()
                 .wrap(true)
                 .align_items(egui_flex::FlexAlign::Start)
@@ -245,6 +263,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 });
             });
         });
+    });
     if let Some(action) = action {
         match action {
             Action::RemoveGem(i) => {

@@ -1,4 +1,9 @@
-use lightning_model::{data::{DAMAGE_GROUPS, base_item::Rarity, gem::{GemData}}, item::Item, modifier::Source};
+use lightning_model::{data::{DAMAGE_GROUPS, base_item::Rarity, gem::{GemData, GemTag}}, item::Item, modifier::Source};
+use lightning_model::gem::Gem;
+
+pub const COLOR_INT: egui::Color32 = egui::Color32::from_rgb(0x67, 0x67, 0xEA);
+pub const COLOR_MOD: egui::Color32 = egui::Color32::from_rgb(0x88, 0x88, 0xFF);
+pub const COLOR_DESC: egui::Color32 = egui::Color32::from_rgb(0x1A, 0xA2, 0x9B);
 
 pub fn rarity_to_color(rarity: Rarity) -> egui::Color32 {
     match rarity {
@@ -60,6 +65,40 @@ pub fn mod_to_richtext(mod_str: &str, source: Source, show_debug: bool) -> egui:
         }
     }
     ret
+}
+
+pub fn draw_gem(ui: &mut egui::Ui, gem: &Gem) {
+    ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+        ui.style_mut().override_font_id = Some(egui::FontId::new(
+            14.0,
+            egui::FontFamily::Name("SmallCaps".into())
+        ));
+        let gem_data = gem.data();
+        ui.label(egui::RichText::new(gem_data.display_name()).color(COLOR_DESC).size(20.0));
+        ui.separator();
+        let mut tags_text = String::new();
+        for (i, tag) in gem_data.tags.iter().filter(|t| **t != GemTag::Grants_Active_Skill).enumerate() {
+            if i > 0 {
+                tags_text += ", ";
+            }
+            tags_text += tag.into();
+        }
+        ui.label(egui::RichText::new(tags_text));
+        ui.label(egui::RichText::new(format!("Level: {}", gem.level)));
+        if gem.qual > 0 {
+            ui.label(egui::RichText::new(format!("Quality: +{}%", gem.qual)));
+        }
+        if let Some(description) = gem_data.description() {
+            ui.separator();
+            ui.label(egui::RichText::new(description).color(COLOR_DESC));
+        }
+        ui.separator();
+        for stat in &gem_data.tooltip_order {
+            if let Some(text) = gem_data.stat_text(stat, gem.level) {
+                ui.add(egui::Label::new(egui::RichText::new(text).color(COLOR_MOD)).wrap_mode(egui::TextWrapMode::Extend));
+            }
+        }
+    });
 }
 
 pub fn draw_item(ui: &mut egui::Ui, item: &Item, source: Source, show_debug: bool) {

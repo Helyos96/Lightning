@@ -25,9 +25,9 @@
 	* Better layout
 * Tatoos
 	* ~~Extract, parse and import~~
-	* Display with correct icons (+ effect)
+	* ~~Display with correct icons (+ effect)~~
 	* Add selection on right click
-	* Fix Masteries
+	* ~~Fix Masteries~~
 * Minions
 * Impale
 * Ailments
@@ -36,6 +36,7 @@
 * Leech
 * Warcries / Exert
 * Damage conversion
+* Vaal Gems
 * ~~Auras / Buffs~~
 	* Halfway done though
 * Defences

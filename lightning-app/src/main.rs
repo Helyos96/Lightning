@@ -158,6 +158,16 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
             style.text_styles.get_mut(&egui::TextStyle::Body).unwrap().size = 14.0;
             style.text_styles.get_mut(&egui::TextStyle::Button).unwrap().size = 14.0;
         });
+        let mut fonts = egui::FontDefinitions::default();
+        fonts.font_data.insert(
+            "FontinSmallCaps".to_owned(),
+            Arc::new(egui::FontData::from_static(include_bytes!("../assets/Fontin-SmallCaps.ttf"))),
+        );
+        fonts.families.insert(
+            egui::FontFamily::Name("SmallCaps".into()),
+            vec!["FontinSmallCaps".to_owned()]
+        );
+        egui_glow.egui_ctx.set_fonts(fonts);
 
         set_vsync(&surface, &context, self.state.config.vsync);
 
