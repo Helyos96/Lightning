@@ -308,6 +308,7 @@ pub struct ClusterOrbitData {
     pub orbit: u16,
 }
 
+// TODO: most of these orbit data is wrong
 const ORBIT_DATA_SMALL: ClusterOrbitData = ClusterOrbitData{
     passives: &[0, 3, 5],
     notable: &[5],
@@ -321,7 +322,7 @@ const ORBIT_DATA_MEDIUM: ClusterOrbitData = ClusterOrbitData{
 };
 
 const ORBIT_DATA_LARGE: ClusterOrbitData = ClusterOrbitData{
-    passives: &[9, 3, 0, 13, 5, 11, 1, 7, 12],
+    passives: &[9, 3, 0, 13, 5, 11, 0, 0, 0, 1, 7, 12],
     notable: &[1, 7, 12],
     orbit: 3,
 };

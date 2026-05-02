@@ -1,3 +1,4 @@
+use enumflags2::{BitFlags, make_bitflags};
 use lightning_model::{data::{DAMAGE_GROUPS, base_item::Rarity, gem::{GemData, GemTag}}, item::Item, modifier::Source};
 use lightning_model::gem::Gem;
 
@@ -77,7 +78,8 @@ pub fn draw_gem(ui: &mut egui::Ui, gem: &Gem) {
         ui.label(egui::RichText::new(gem_data.display_name()).color(COLOR_DESC).size(20.0));
         ui.separator();
         let mut tags_text = String::new();
-        for (i, tag) in gem_data.tags.iter().filter(|t| **t != GemTag::Grants_Active_Skill).enumerate() {
+        const TAG_BLACKLIST: BitFlags<GemTag> = make_bitflags!(GemTag::{Strength | Intelligence | Dexterity | Grants_Active_Skill | Low_Max_Level});
+        for (i, tag) in gem_data.tags.iter().filter(|t| !TAG_BLACKLIST.contains(**t)).enumerate() {
             if i > 0 {
                 tags_text += ", ";
             }
