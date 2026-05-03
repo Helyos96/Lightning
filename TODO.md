@@ -4,15 +4,14 @@
 	* Jewels
 		* ~~Basic jewels~~
 		* With radius shown
-		* ~~Cluster jewels~~
-			* Correct orbit_index for all positions
 	* ~~Power report (highest dps unallocated etc.)~~
 		* Add table output to list nodes
 * ~~Abyss jewels~~
 	* Sorta done, but they're not tied to items yet
 * Skills GUI
 	* ~~Color gems by str/dex/int in dropdown~~
-	* Show gem popup
+	* ~~Show gem popup~~
+		* Missing quality stat -> annoying due to stat formatting
 	* Stats compare on hover enable checkbox
 	* Stats compare on hover skill in dropdown
 	* Default level/quality in config

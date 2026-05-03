@@ -371,21 +371,6 @@ lazy_static! {
                 Some(vec![Mod { stat: StatId::AllocatesPassiveSkills, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() }])
             })
         ), (
-            regex!(r"^added small passive skills grant: (.*)$"),
-            Box::new(|c| {
-                let node_id = TREE.nodes.values().find_map(|n| {
-                    if n.group.is_some() {
-                        return None;
-                    }
-                    if n.stats.get(0)?.to_lowercase() == c[1] {
-                        Some(n.skill)
-                    } else {
-                        None
-                    }
-                })?;
-                Some(vec![Mod { stat: StatId::AddedPassiveSkillsGrantNode, typ: Type::Base, amount: node_id as i64, ..Default::default() }])
-            })
-        ), (
             regex!(r"^([0-9]+) added passive skills? (are|is a) jewel sockets?$"),
             Box::new(|c| {
                 Some(vec![Mod { stat: StatId::AddedPassivesAreJewelSockets, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() }])

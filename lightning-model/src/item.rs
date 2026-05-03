@@ -112,6 +112,7 @@ pub struct DefenceCalc {
     pub block_chance: Stat,
 }
 
+#[derive(Debug)]
 pub struct ClusterData<'a> {
     pub small_passives_amount: u32,
     pub small_passives_node_id: u32,
@@ -125,6 +126,28 @@ impl Item {
         &ITEMS[&self.base_item]
     }
 
+    fn get_small_passive_grant(&self) -> Option<u32> {
+        let r = regex!(r"^added small passive skills grant: (.*)$");
+        for m in self.mods_enchant.iter().chain(&self.mods_impl).chain(&self.mods_expl) {
+            if let Some(caps) = r.captures(&m.to_lowercase()) {
+                if let Some(node_id) = TREE.nodes.values().find_map(|n| {
+                    if n.group.is_some() {
+                        return None;
+                    }
+                    if n.stats.get(0)?.to_lowercase() == caps[1] {
+                        Some(n.skill)
+                    } else {
+                        None
+                    }
+                })
+                {
+                    return Some(node_id);
+                }
+            }
+        }
+        None
+    }
+
     // Attempt to parse a cluster jewel
     pub fn get_cluster(&self) -> Option<ClusterData<'_>> {
         if !self.data().name.ends_with("Cluster Jewel") {
@@ -136,7 +159,8 @@ impl Item {
         if small_passives_amount == 0 {
             return None;
         }
-        let small_passives_node_id = calc_stat(StatId::AddedPassiveSkillsGrantNode, &mods).val() as u32;
+
+        let small_passives_node_id = self.get_small_passive_grant().unwrap_or(calc_stat(StatId::AddedPassiveSkillsGrantNode, &mods).val() as u32);
         if small_passives_node_id == 0 {
             return None;
         }
