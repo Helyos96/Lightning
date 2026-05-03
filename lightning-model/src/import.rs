@@ -228,6 +228,7 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
         }
     }
 
+    let mut to_equip = vec![];
     for item in tree_import.items.iter().chain(items_import.items.iter()) {
         if let Some(socketed_items) = &item.socketedItems {
             let (gemlink, jewels) = extract_socketed(socketed_items);
@@ -242,10 +243,36 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
             if let Some(item_inv) = conv_item(item) {
                 build.inventory.push(Arc::new(item_inv));
                 if let Ok(slot) = Slot::try_from((inventory_id.as_str(), item.x.unwrap_or(0))) {
-                    build.equip(slot, build.inventory.len() - 1);
+                    to_equip.push((slot, build.inventory.len() - 1));
                 }
             }
         }
+    }
+
+    // Make sure the cluster jewels are equipped in order large->medium->small
+    // to prevent bad connections / node generation
+    to_equip.sort_unstable_by(|(_, inv_id_a),(_, inv_id_b)| {
+        let item_a_base = &build.inventory[*inv_id_a].data().name;
+        let item_b_base = &build.inventory[*inv_id_b].data().name;
+
+        if item_a_base == item_b_base {
+            return std::cmp::Ordering::Equal;
+        }
+
+        if item_a_base == "Large Cluster Jewel" {
+            std::cmp::Ordering::Less
+        } else if item_b_base == "Large Cluster Jewel" {
+            std::cmp::Ordering::Greater
+        } else if item_a_base == "Medium Cluster Jewel" {
+            std::cmp::Ordering::Less
+        } else if item_b_base == "Medium Cluster Jewel" {
+            std::cmp::Ordering::Greater
+        } else {
+            std::cmp::Ordering::Equal
+        }
+    });
+    for (slot, inv_id) in to_equip {
+        build.equip(slot, inv_id);
     }
 
     build.import_account = Some((account.to_string(), character.to_string()));

@@ -110,13 +110,12 @@ fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<u
 
     match ret {
         Some(Some(i)) => {
-            let old_nodes_nb = state.build.tree.nodes_data.len();
             state.build.equip(slot, i);
             state.request_recalc = true;
             if matches!(slot, Slot::TreeJewel(_)) || state.build.inventory[i].allocates_nodes() {
                 state.request_regen_gl = true;
             }
-            if old_nodes_nb != state.build.tree.nodes_data.len() {
+            if state.build.inventory[i].data().name.ends_with("Cluster Jewel") {
                 state.request_regen_nodes_gl = true;
             }
         },
@@ -266,7 +265,8 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 for slot in potential_slots {
                     if item.data().item_class.allowed_slots().iter().any(|&s| s.compatible(slot)) {
                         // Skip if already equipped in this exact slot
-                        if state.build.equipment().get(&slot) == Some(&idx) {
+                        if state.build.equipment().get(&slot) == Some(&idx) ||
+                           item.data().name.ends_with("Cluster Jewel") {
                             continue;
                         }
                         let mut build_compare = state.build.clone();

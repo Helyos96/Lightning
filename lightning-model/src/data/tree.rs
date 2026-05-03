@@ -307,31 +307,3 @@ pub struct ClusterOrbitData {
     pub notable: &'static [u16],
     pub orbit: u16,
 }
-
-// TODO: most of these orbit data is wrong
-const ORBIT_DATA_SMALL: ClusterOrbitData = ClusterOrbitData{
-    passives: &[0, 3, 5],
-    notable: &[5],
-    orbit: 1,
-};
-
-const ORBIT_DATA_MEDIUM: ClusterOrbitData = ClusterOrbitData{
-    passives: &[7, 12, 1, 13, 9, 4],
-    notable: &[9, 4],
-    orbit: 2,
-};
-
-const ORBIT_DATA_LARGE: ClusterOrbitData = ClusterOrbitData{
-    passives: &[9, 3, 0, 13, 5, 11, 0, 0, 0, 1, 7, 12],
-    notable: &[1, 7, 12],
-    orbit: 3,
-};
-
-pub fn get_cluster_orbit_data(base_type: &str) -> Option<&ClusterOrbitData> {
-    match base_type {
-        "Small Cluster Jewel" => Some(&ORBIT_DATA_SMALL),
-        "Medium Cluster Jewel" => Some(&ORBIT_DATA_MEDIUM),
-        "Large Cluster Jewel" => Some(&ORBIT_DATA_LARGE),
-        _ => None
-    }
-}

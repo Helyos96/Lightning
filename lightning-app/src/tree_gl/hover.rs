@@ -8,7 +8,7 @@ impl QuadTreeHover {
     pub fn build(nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>) -> QuadTreeHover {
         let items = nodes
         .values()
-        .filter(|n| n.group.is_some() && n.class_start_index.is_none() && !n.is_ascendancy_start && !n.is_proxy && (n.skill >= u16::MAX as u32 || ((n.name != "Medium Jewel Socket") && (n.name != "Small Jewel Socket"))))
+        .filter(|n| n.group.is_some() && n.class_start_index.is_none() && !n.is_ascendancy_start && !n.is_proxy)
         .map(|n| {
             let (x,y) = node_pos(n);
             let (rect, _) = get_rect(n, true).unwrap();

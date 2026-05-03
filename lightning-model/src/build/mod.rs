@@ -10,7 +10,6 @@ use std::path::Path;
 use crate::build::evaluator::Evaluator;
 use crate::data::base_item::ItemClass;
 use crate::data::gem::{ActiveSkillType, GemTag};
-use crate::data::tree::get_cluster_orbit_data;
 use crate::data::{MONSTER_STATS, TREE};
 use crate::gem::Gem;
 use crate::item::Item;
@@ -653,10 +652,9 @@ impl Build {
         }
 
         if let Slot::TreeJewel(jewel_node_id) = slot &&
-           let Some(orbit_data) = get_cluster_orbit_data(&self.inventory[item_idx].base_item) &&
            let Some(cluster_data) = self.inventory[item_idx].get_cluster()
         {
-            self.tree.add_cluster(cluster_data, orbit_data, jewel_node_id, &self.inventory[item_idx].base_item);
+            self.tree.add_cluster(cluster_data, jewel_node_id, &self.inventory[item_idx].base_item);
         }
         old_item
     }
@@ -673,7 +671,10 @@ impl Build {
         }
 
         if let Slot::TreeJewel(node_id) = slot {
-            self.tree.remove_jewel(node_id);
+            let removed_sockets = self.tree.remove_jewel(node_id);
+            for socket in removed_sockets {
+                self.unequip(Slot::TreeJewel(socket));
+            }
             self.equipment.retain(|k, _| {
                 if let Slot::TreeJewel(node_id) = k && !self.tree.nodes_data.contains_key(node_id) {
                     false
