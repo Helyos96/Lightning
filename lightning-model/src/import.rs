@@ -66,6 +66,25 @@ struct ItemsSkillsChar {
 }
 
 #[derive(Deserialize)]
+struct JewelDataImport {
+    subgraph: Option<SubgraphImport>,
+}
+
+#[derive(Deserialize)]
+struct SubgraphImport {
+    groups: FxHashMap<String, GroupImport>,
+    nodes: FxHashMap<String, NodeImport>,
+}
+
+#[derive(Deserialize)]
+struct NodeImport {
+    group: String,
+    orbit: u16,
+    #[serde(rename = "orbitIndex")]
+    orbit_index: u16,
+}
+
+#[derive(Deserialize)]
 struct GroupImport {
     proxy: String,
     nodes: Vec<String>,
@@ -89,6 +108,8 @@ struct PassiveTreeImport {
     alternate_ascendancy: Option<i32>,
     #[serde(default)]
     skill_overrides: FxHashMap<u32, SkillOverride>,
+    #[serde(default)]
+    jewel_data: FxHashMap<String, JewelDataImport>,
 }
 
 impl Item {
@@ -273,6 +294,38 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
     });
     for (slot, inv_id) in to_equip {
         build.equip(slot, inv_id);
+    }
+
+    // Map hashes_ex to our tree for allocated cluster nodes
+    let mut ex_node_lookup = FxHashMap::default();
+    for jewel_data in tree_import.jewel_data.values() {
+        if let Some(subgraph) = &jewel_data.subgraph {
+            for (node_id_str, node) in &subgraph.nodes {
+                if let Ok(node_id) = u32::from_str(node_id_str) &&
+                   let Some(group) = subgraph.groups.get(&node.group) &&
+                   let Ok(proxy_id) = u32::from_str(&group.proxy)
+                {
+                    ex_node_lookup.insert(node_id, (proxy_id, node.orbit, node.orbit_index));
+                }
+            }
+        }
+    }
+    for hash_ex in &tree_import.hashes_ex {
+        if let Some((proxy_id, orbit, orbit_index)) = ex_node_lookup.get(hash_ex) {
+            if let Some(proxy_node) = TREE.nodes.get(proxy_id) {
+                if let Some(group_id) = proxy_node.group {
+                    for (_, generated_node) in &build.tree.nodes_cluster {
+                        if generated_node.group == Some(group_id) &&
+                           generated_node.orbit == Some(*orbit) &&
+                           generated_node.orbit_index == Some(*orbit_index)
+                        {
+                            build.tree.nodes.push(generated_node.skill);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     build.import_account = Some((account.to_string(), character.to_string()));

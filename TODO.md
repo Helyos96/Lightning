@@ -8,6 +8,7 @@
 		* Add table output to list nodes
 	* ~~Cluster Jewels~~
 		* Extract orbit offsets from game files
+		* ~~Import allocated cluster nodes from hashes_ex~~
 * ~~Abyss jewels~~
 	* Sorta done, but they're not tied to items yet
 * Skills GUI

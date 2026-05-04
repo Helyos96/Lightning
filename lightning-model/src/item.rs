@@ -127,7 +127,7 @@ impl Item {
     }
 
     fn get_small_passive_grant(&self) -> Option<u32> {
-        let r = regex!(r"^added small passive skills grant: (.*)$");
+        let r = regex!(r"^added small passive skills grant: (.*)(\\n)?");
         for m in self.mods_enchant.iter().chain(&self.mods_impl).chain(&self.mods_expl) {
             if let Some(caps) = r.captures(&m.to_lowercase()) {
                 if let Some(node_id) = TREE.nodes.values().find_map(|n| {
