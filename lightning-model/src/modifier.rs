@@ -405,6 +405,7 @@ lazy_static! {
     static ref ENDINGS_MUTATIONS: Vec<(Regex, Mutation)> = vec![
         (regex!(",? ?up to(?: a maximum of)? ([0-9]+)%?$"), Mutation::UpTo(1)),
         (regex!("per ([0-9]+) of your lowest attribute$"), Mutation::MultiplierStatLowest((1, &[StatId::Strength, StatId::Dexterity, StatId::Intelligence]))),
+        (regex!("per ([0-9]+) maximum energy shield on shield$"), Mutation::MultiplierSlotDefence((1, Slot::Offhand, Defence::EnergyShield))),
         (regex!("per level$"), Mutation::MultiplierProperty((1, property::Int::Level))),
         (regex!("per frenzy charge$"), Mutation::MultiplierProperty((1, property::Int::FrenzyCharges))),
         (regex!("per power charge$"), Mutation::MultiplierProperty((1, property::Int::PowerCharges))),
@@ -478,6 +479,7 @@ pub enum Mutation {
     MultiplierStatLowest((i64, &'static [StatId])),
     MultiplierProperty((i64, property::Int)),
     StatPct((i64, StatId)),
+    MultiplierSlotDefence((i64, Slot, Defence)),
     UpTo(i64),
 }
 
@@ -488,6 +490,7 @@ impl Mutation {
             Mutation::MultiplierProperty(mutation) => mutation.0 = amount,
             Mutation::MultiplierStatLowest(mutation) => mutation.0 = amount,
             Mutation::StatPct(mutation) => mutation.0 = amount,
+            Mutation::MultiplierSlotDefence(mutation) => mutation.0 = amount,
             Mutation::UpTo(mutation) => *mutation = amount,
         }
     }

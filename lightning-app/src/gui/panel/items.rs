@@ -91,6 +91,17 @@ fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<u
                 ret = Some(None);
             }
             for (i, item) in state.build.inventory.iter().enumerate().filter(|(_, it)| it.data().item_class.allowed_slots().iter().any(|&s| s.compatible(slot))) {
+                // Don't allow bigger cluster jewels into smaller jewel sockets
+                if let Slot::TreeJewel(node_id) = slot &&
+                   let Some(node) = state.build.tree.nodes_data.get(&node_id)
+                {
+                    if node.name == "Medium Jewel Socket" && item.data().name == "Large Cluster Jewel" {
+                        continue;
+                    }
+                    if node.name == "Small Jewel Socket" && (item.data().name == "Large Cluster Jewel" || item.data().name == "Medium Cluster Jewel") {
+                        continue;
+                    }
+                }
                 let response = ui.selectable_label(idx.is_some() && *idx.unwrap() == i, item_to_richtext(item));
                 if response.clicked() {
                     ret = Some(Some(i));

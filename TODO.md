@@ -6,11 +6,14 @@
 		* With radius shown
 	* ~~Power report (highest dps unallocated etc.)~~
 		* Add table output to list nodes
+	* ~~Cluster Jewels~~
+		* Extract orbit offsets from game files
 * ~~Abyss jewels~~
 	* Sorta done, but they're not tied to items yet
 * Skills GUI
 	* ~~Color gems by str/dex/int in dropdown~~
 	* ~~Show gem popup~~
+		* Also show it when hovering the table while adding a new gem
 		* Missing quality stat -> annoying due to stat formatting
 	* Stats compare on hover enable checkbox
 	* Stats compare on hover skill in dropdown
@@ -29,7 +32,15 @@
 	* ~~Fix Masteries~~
 * Minions
 * Impale
-* Ailments
+* Damaging Ailments
+	* ~~Bleed~~
+	* Ignite
+	* Poison
+* Non-damaging ailments
+	* Shock
+	* Chill
+	* Freeze
+	* Delirium ones
 * Spectres
 * Trigger
 * Leech

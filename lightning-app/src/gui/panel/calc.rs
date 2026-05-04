@@ -154,6 +154,7 @@ fn draw_stat_breakdown(ui: &mut egui::Ui, state: &State, stat_id: StatId) {
                                     Mutation::UpTo(amt) => {
                                         mutations_str.push_str(&format!("up to {}", amt));
                                     }
+                                    _ => {}
                                 }
                             }
                             ui.add(egui::Label::new(mutations_str).wrap_mode(egui::TextWrapMode::Extend));
