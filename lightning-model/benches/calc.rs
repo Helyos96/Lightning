@@ -9,7 +9,8 @@ fn fetch() -> Result<Build, Box<dyn std::error::Error>> {
     const BUILD_PATH: &str = "build.json";
 
     if let Ok(data) = fs::read_to_string(BUILD_PATH) {
-        if let Ok(player) = serde_json::from_str(&data) {
+        if let Ok(mut player) = serde_json::from_str::<Build>(&data) {
+            player.tree.init();
             return Ok(player);
         }
     }
