@@ -46,7 +46,7 @@
 * Trigger
 * Leech
 * Warcries / Exert
-* Damage conversion
+* ~~Damage conversion~~
 * Vaal Gems
 * ~~Auras / Buffs~~
 	* Halfway done though

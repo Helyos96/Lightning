@@ -18,14 +18,29 @@ use std::io;
 use serde::{Deserialize, Serialize};
 use crate::build::stat::StatId;
 use crate::data::tattoo::TattooData;
+use enumflags2::{BitFlags, bitflags};
 
+#[bitflags]
+#[repr(u8)]
 #[derive(PartialEq, Eq, Hash, Clone, Copy, IntoStaticStr)]
 pub enum DamageType {
-    Physical,
-    Cold,
-    Fire,
-    Lightning,
-    Chaos,
+    Physical  = 1 << 0,
+    Fire      = 1 << 1,
+    Cold      = 1 << 2,
+    Lightning = 1 << 3,
+    Chaos     = 1 << 4,
+}
+
+impl DamageType {
+    pub const fn as_index(self) -> usize {
+        match self {
+            DamageType::Physical => 0,
+            DamageType::Fire => 1,
+            DamageType::Cold => 2,
+            DamageType::Lightning => 3,
+            DamageType::Chaos => 4,
+        }
+    }
 }
 
 pub struct DamageGroup {
@@ -54,6 +69,7 @@ impl DamageGroup {
     }
 }
 
+// Make sure this is the same order as DamageType
 pub const DAMAGE_GROUPS: [DamageGroup; 5] = [
     DamageGroup::new(StatId::PhysicalDamage, StatId::AddedMinPhysicalDamage, StatId::AddedMaxPhysicalDamage, StatId::BaseMinPhysicalDamage, StatId::BaseMaxPhysicalDamage, StatId::MinPhysicalDamage, StatId::MaxPhysicalDamage, DamageType::Physical),
     DamageGroup::new(StatId::FireDamage, StatId::AddedMinFireDamage, StatId::AddedMaxFireDamage, StatId::BaseMinFireDamage, StatId::BaseMaxFireDamage, StatId::MinFireDamage, StatId::MaxFireDamage, DamageType::Fire),

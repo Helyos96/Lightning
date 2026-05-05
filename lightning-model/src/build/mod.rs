@@ -634,7 +634,7 @@ impl Build {
         // Remove slots where the item is equipped 
         let equipped_slots: Vec<Slot> = self.equipment.iter().filter(|(_, v)| **v == idx_remove).map(|(k, _)| k).copied().collect();
         for slot in equipped_slots {
-            self.equipment.remove(&slot);
+            self.unequip(slot);
         }
         // Adjust slot idx in remaining equipment
         for idx in self.equipment.values_mut() {

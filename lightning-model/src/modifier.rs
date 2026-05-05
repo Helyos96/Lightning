@@ -406,6 +406,12 @@ lazy_static! {
             Box::new(|c| {
                 Some(vec![Mod { stat: StatId::SmallPassiveIncreasedEffect, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() }])
             })
+        ), (
+            regex!(r"^([0-9]+)% of (physical|cold|fire|lightning|chaos) damage converted to (fire|cold|lightning|chaos) damage$"),
+            Box::new(|c| {
+                let stat = CONVERSIONS.get(&(c[2].to_string(), c[3].to_string()))?;
+                Some(vec![Mod { stat: *stat, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() }])
+            })
         ),
     ];
 
@@ -467,6 +473,21 @@ lazy_static! {
         for entry in STATS.iter() {
             map.insert(entry.0, (entry.1, entry.2, entry.3, entry.4));
         }
+        map
+    };
+
+    static ref CONVERSIONS: FxHashMap<(String, String), StatId> = {
+        let mut map = FxHashMap::default();
+        map.insert(("physical".into(), "lightning".into()), StatId::PhysicalToLightningConversion);
+        map.insert(("physical".into(), "cold".into()), StatId::PhysicalToColdConversion);
+        map.insert(("physical".into(), "fire".into()), StatId::PhysicalToFireConversion);
+        map.insert(("physical".into(), "chaos".into()), StatId::PhysicalToChaosConversion);
+        map.insert(("lightning".into(), "cold".into()), StatId::LightningToColdConversion);
+        map.insert(("lightning".into(), "fire".into()), StatId::LightningToFireConversion);
+        map.insert(("lightning".into(), "chaos".into()), StatId::LightningToChaosConversion);
+        map.insert(("cold".into(), "fire".into()), StatId::ColdToFireConversion);
+        map.insert(("cold".into(), "chaos".into()), StatId::ColdToChaosConversion);
+        map.insert(("fire".into(), "chaos".into()), StatId::FireToChaosConversion);
         map
     };
 }
@@ -763,6 +784,11 @@ fn test_parse() {
     assert!(parse_mod("-5% fire resistance", Source::Innate).is_some());
     assert!(parse_mod("50% increased melee physical damage", Source::Innate).is_some());
     assert!(parse_mod("50% increased melee physical damage per level", Source::Innate).is_some());
+    assert!(parse_mod("40% of physical damage converted to fire damage", Source::Innate).is_some());
+    assert!(parse_mod("50% of lightning damage converted to cold damage", Source::Innate).is_some());
+    assert!(parse_mod("100% of fire damage converted to chaos damage", Source::Innate).is_some());
+    // Invalid conversion direction (chaos can't convert to physical)
+    assert!(parse_mod("40% of chaos damage converted to physical damage", Source::Innate).is_none());
 }
 
 #[test]

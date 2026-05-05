@@ -1,9 +1,6 @@
-use std::ops::Neg;
-
 use crate::build::stat::{Stat, StatId, Stats};
 use crate::build::{self, property, Build, Slot};
 use crate::data::base_item::ItemClass;
-use crate::data::default_monster_stats::MonsterStats;
 use crate::data::gem::GemTag;
 use crate::data::{DamageGroup, DamageType, DAMAGE_GROUPS};
 use crate::gem::Gem;
@@ -29,6 +26,122 @@ struct DamageInstanceType {
 struct DamageInstance {
     source: DamageSource,
     instance_type: Vec<DamageInstanceType>,
+}
+
+#[derive(Clone)]
+struct DamagePortion {
+    amount: i64,
+    source_types: BitFlags<DamageType>,
+}
+
+const CONVERSION_ORDER: [DamageType; 4] = [
+    DamageType::Physical,
+    DamageType::Lightning,
+    DamageType::Cold,
+    DamageType::Fire,
+];
+
+fn conversion_stat_id(from_dt: DamageType, to_dt: DamageType) -> Option<StatId> {
+    match (from_dt, to_dt) {
+        (DamageType::Physical, DamageType::Lightning) => Some(StatId::PhysicalToLightningConversion),
+        (DamageType::Physical, DamageType::Cold)      => Some(StatId::PhysicalToColdConversion),
+        (DamageType::Physical, DamageType::Fire)      => Some(StatId::PhysicalToFireConversion),
+        (DamageType::Physical, DamageType::Chaos)     => Some(StatId::PhysicalToChaosConversion),
+        (DamageType::Lightning, DamageType::Cold)     => Some(StatId::LightningToColdConversion),
+        (DamageType::Lightning, DamageType::Fire)     => Some(StatId::LightningToFireConversion),
+        (DamageType::Lightning, DamageType::Chaos)    => Some(StatId::LightningToChaosConversion),
+        (DamageType::Cold, DamageType::Fire)          => Some(StatId::ColdToFireConversion),
+        (DamageType::Cold, DamageType::Chaos)         => Some(StatId::ColdToChaosConversion),
+        (DamageType::Fire, DamageType::Chaos)         => Some(StatId::FireToChaosConversion),
+        _ => None,
+    }
+}
+
+fn conversion_targets(from_dt: DamageType) -> &'static [DamageType] {
+    match from_dt {
+        DamageType::Physical  => &[DamageType::Lightning, DamageType::Cold, DamageType::Fire, DamageType::Chaos],
+        DamageType::Lightning => &[DamageType::Cold, DamageType::Fire, DamageType::Chaos],
+        DamageType::Cold      => &[DamageType::Fire, DamageType::Chaos],
+        DamageType::Fire      => &[DamageType::Chaos],
+        _ => &[],
+    }
+}
+
+/// Apply the damage conversion chain, tracking which source types contributed
+/// to each portion.
+fn apply_conversion(stats: &Stats, base_damages: &[i64; 5]) -> [Vec<DamagePortion>; 5] {
+    let mut portions: [Vec<DamagePortion>; 5] = Default::default();
+
+    for i in 0..5 {
+        if base_damages[i] > 0 {
+            portions[i].push(DamagePortion { amount: base_damages[i], source_types: BitFlags::from(DAMAGE_GROUPS[i].damage_type) });
+        }
+    }
+
+    for &from_dt in &CONVERSION_ORDER {
+        let targets = conversion_targets(from_dt);
+        let from_idx = from_dt.as_index();
+        let total_conv: i64 = targets.iter().filter_map(|&to_dt| {
+            conversion_stat_id(from_dt, to_dt).map(|sid| stats.val(sid))
+        }).sum();
+
+        if total_conv == 0 { continue; }
+
+        let remaining_pct = (100 - total_conv.min(100)).max(0);
+        let current_portions = std::mem::take(&mut portions[from_idx]);
+
+        for portion in &current_portions {
+            if remaining_pct > 0 {
+                portions[from_idx].push(DamagePortion {
+                    amount: (portion.amount * remaining_pct) / 100,
+                    source_types: portion.source_types,
+                });
+            }
+            for &to_dt in targets {
+                let to_idx = to_dt.as_index();
+                if let Some(stat_id) = conversion_stat_id(from_dt, to_dt) {
+                    let mut conv_pct = stats.val(stat_id);
+                    if total_conv > 100 {
+                        conv_pct = (conv_pct * 100) / total_conv;
+                    }
+                    if conv_pct > 0 {
+                        portions[to_idx].push(DamagePortion {
+                            amount: (portion.amount * conv_pct) / 100,
+                            source_types: portion.source_types | DAMAGE_GROUPS[to_idx].damage_type,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    portions
+}
+
+/// Apply inc/more modifiers to converted damage portions.
+/// Each portion gets modifiers from all damage types in its conversion path.
+fn apply_damage_mods_portions(portions: &[Vec<DamagePortion>; 5], stats: &Stats, weapon: Option<ItemClass>) -> [i64; 5] {
+    let mut result = [0i64; 5];
+    let generic = stats.stat(StatId::Damage).with_weapon(weapon);
+
+    for (dg_idx, dg_portions) in portions.iter().enumerate() {
+        for portion in dg_portions {
+            let mut inc = generic.inc;
+            let mut more = generic.more;
+
+            for type_idx in 0..5 {
+                if portion.source_types.contains(DAMAGE_GROUPS[type_idx].damage_type) {
+                    let type_stat = stats.stat(DAMAGE_GROUPS[type_idx].stat_id).with_weapon(weapon);
+                    inc += type_stat.inc;
+                    more = (more * type_stat.more) / 100;
+                }
+            }
+
+            result[dg_idx] += (portion.amount * (100 + inc) * more) / 10000;
+        }
+    }
+
+    result
 }
 
 pub fn compare(a: &FxHashMap<&'static str, i64>, b: &FxHashMap<&'static str, i64>) -> FxHashMap<&'static str, i64> {
@@ -76,20 +189,6 @@ fn calc_average_dmg(stats: &Stats, active_gem: &Gem, base_min: i64, base_max: i6
     (min + max) / 2
 }
 
-fn calc_weapon_average_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &DamageGroup) -> Option<Stat> {
-    if let Some((min_item, max_item)) = weapon.calc_dmg(dg.damage_type) {
-        let item_class = Some(weapon.data().item_class);
-        let added_min_stat = stats.stat(dg.added_min_id).with_weapon(item_class);
-        let added_max_stat = stats.stat(dg.added_max_id).with_weapon(item_class);
-        let average = calc_average_dmg(stats, active_gem, min_item, max_item, added_min_stat.val(), added_max_stat.val(), dg);
-        let dmg_stat_dt = stats.stat(dg.stat_id).with_weapon(item_class);
-        let mut dmg_stat = stats.stat(StatId::Damage).with_weapon(item_class);
-        dmg_stat.assimilate(&dmg_stat_dt);
-        dmg_stat.adjust(Type::Base, average);
-        return Some(dmg_stat);
-    }
-    None
-}
 
 fn calc_weapon_max_base_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &DamageGroup) -> Option<Stat> {
     if let Some((_, max_item)) = weapon.calc_dmg(dg.damage_type) {
@@ -116,20 +215,6 @@ fn calc_weapon_bleed_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &Da
     0
 }
 
-fn calc_spell_average_dmg(stats: &Stats, active_gem: &Gem, dg: &DamageGroup) -> i64 {
-    // e.g Added Fire Damage
-    let added_min_stat = stats.stat(dg.added_min_id).with_weapon(None);
-    let added_max_stat = stats.stat(dg.added_max_id).with_weapon(None);
-    // Base damage usually from spells
-    let base_min_stat = stats.stat(dg.base_min_id).with_weapon(None);
-    let base_max_stat = stats.stat(dg.base_max_id).with_weapon(None);
-    let average = calc_average_dmg(stats, active_gem, base_min_stat.val(), base_max_stat.val(), added_min_stat.val(), added_max_stat.val(), dg);
-    let dmg_stat_dt = stats.stat(dg.stat_id).with_weapon(None);
-    let mut dmg_stat = stats.stat(StatId::Damage).with_weapon(None);
-    dmg_stat.assimilate(&dmg_stat_dt);
-    dmg_stat.adjust(Type::Base, average);
-    return dmg_stat.val();
-}
 
 fn calc_crit_chance(stats: &Stats, crit_chance: Option<i64>) -> i64 {
     let mut crit_chance_stat = stats.stat(StatId::CriticalStrikeChance).to_owned();
@@ -215,33 +300,50 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
                     }
                 }
 
+                let item_class = Some(weapon.data().item_class);
+
+                let mut base_damages = [0i64; 5];
+                for (i, dg) in DAMAGE_GROUPS.iter().enumerate() {
+                    if let Some((min_item, max_item)) = weapon.calc_dmg(dg.damage_type) {
+                        let added_min = stats.stat(dg.added_min_id).with_weapon(item_class).val();
+                        let added_max = stats.stat(dg.added_max_id).with_weapon(item_class).val();
+                        base_damages[i] = calc_average_dmg(&stats, active_gem, min_item, max_item, added_min, added_max, dg);
+                    }
+                }
+
+                let portions = apply_conversion(&stats, &base_damages);
+                let final_damages = apply_damage_mods_portions(&portions, &stats, item_class);
+
                 let mut dmg_inst = DamageInstance {
                     source: DamageSource::Slot(slot),
                     instance_type: vec![],
                 };
-                for dg in &DAMAGE_GROUPS {
-                    if let Some(mut avg_damage_stat) = calc_weapon_average_dmg(&stats, weapon, active_gem, dg) {
-                        if dg.damage_type == DamageType::Physical {
-                            let pdr = physical_damage_reduction_armour(avg_damage_stat.val(), monster_stats.val(StatId::Armour), 0);
-                            avg_damage_stat.adjust_mod(&Mod { stat: StatId::PhysicalDamage, typ: Type::More, amount: pdr.neg(), source: Source::Custom("Phys DR"), ..Default::default() });
-                        }
-                        let avg_damage = avg_damage_stat.val();
-                        dmg_inst.instance_type.push(DamageInstanceType {
-                            typ: dg.damage_type,
-                            amount: avg_damage,
-                            chance_to_hit,
-                            crit_chance,
-                        });
-                        damage.push(calc_dmg_crit_accuracy(avg_damage, crit_chance, crit_multi, chance_to_hit));
+                for (i, dg) in DAMAGE_GROUPS.iter().enumerate() {
+                    let mut avg_damage = final_damages[i];
+                    if avg_damage <= 0 { continue; }
+
+                    if dg.damage_type == DamageType::Physical {
+                        let pdr = physical_damage_reduction_armour(avg_damage, monster_stats.val(StatId::Armour), 0);
+                        avg_damage = (avg_damage * (100 - pdr)) / 100;
                     }
-                    if dg.damage_type == DamageType::Physical && bleed_chance > 0 {
-                        let local_bleed_dps = calc_weapon_bleed_dmg(&stats_bleed, weapon, active_gem, dg);
-                        if local_bleed_dps > bleed_dps {
-                            bleed_dps = local_bleed_dps;
-                        }
-                    }
+
+                    dmg_inst.instance_type.push(DamageInstanceType {
+                        typ: dg.damage_type,
+                        amount: avg_damage,
+                        chance_to_hit,
+                        crit_chance,
+                    });
+                    damage.push(calc_dmg_crit_accuracy(avg_damage, crit_chance, crit_multi, chance_to_hit));
                 }
                 damage_instances.push(dmg_inst);
+
+                if bleed_chance > 0 {
+                    let physical_dg = &DAMAGE_GROUPS[0];
+                    let local_bleed_dps = calc_weapon_bleed_dmg(&stats_bleed, weapon, active_gem, physical_dg);
+                    if local_bleed_dps > bleed_dps {
+                        bleed_dps = local_bleed_dps;
+                    }
+                }
             }
         }
     } else if tags.contains(GemTag::Spell) {
@@ -249,20 +351,32 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
         if crit_chance > 0 {
             ret.insert("Crit Chance", crit_chance);
         }
+
+        let mut base_damages = [0i64; 5];
+        for (i, dg) in DAMAGE_GROUPS.iter().enumerate() {
+            let added_min = stats.stat(dg.added_min_id).with_weapon(None).val();
+            let added_max = stats.stat(dg.added_max_id).with_weapon(None).val();
+            let base_min = stats.stat(dg.base_min_id).with_weapon(None).val();
+            let base_max = stats.stat(dg.base_max_id).with_weapon(None).val();
+            base_damages[i] = calc_average_dmg(&stats, active_gem, base_min, base_max, added_min, added_max, dg);
+        }
+
+        let portions = apply_conversion(&stats, &base_damages);
+        let final_damages = apply_damage_mods_portions(&portions, &stats, None);
+
         let mut dmg_inst = DamageInstance {
             source: DamageSource::Gem,
             instance_type: vec![],
         };
-        for dg in &DAMAGE_GROUPS {
-            let avg_damage = calc_spell_average_dmg(&stats, active_gem, dg);
-            if avg_damage > 0 {
+        for (i, dg) in DAMAGE_GROUPS.iter().enumerate() {
+            if final_damages[i] > 0 {
                 dmg_inst.instance_type.push(DamageInstanceType {
                     typ: dg.damage_type,
-                    amount: avg_damage,
+                    amount: final_damages[i],
                     chance_to_hit: 100,
                     crit_chance,
                 });
-                damage.push(calc_dmg_crit_accuracy(avg_damage, crit_chance, crit_multi, 100));
+                damage.push(calc_dmg_crit_accuracy(final_damages[i], crit_chance, crit_multi, 100));
             }
         }
     }
