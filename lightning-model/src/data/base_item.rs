@@ -57,6 +57,7 @@ impl ItemClass {
     pub const MACES: BitFlags<ItemClass> = flags!(ItemClass::{OneHandMace | TwoHandMace});
     pub const ONE_HANDED_MELEE: BitFlags<ItemClass> = flags!(ItemClass::{OneHandSword | OneHandMace | OneHandAxe | ThrustingOneHandSword | Sceptre | Claw});
     pub const TWO_HANDED_MELEE: BitFlags<ItemClass> = flags!(ItemClass::{TwoHandSword | TwoHandMace | TwoHandAxe | Warstaff | Staff});
+    pub const TWO_HANDED: BitFlags<ItemClass> = ItemClass::TWO_HANDED_MELEE.union_c(flags!(ItemClass::Bow));
     pub const ONE_HANDED: BitFlags<ItemClass> = ItemClass::ONE_HANDED_MELEE.union_c(flags!(ItemClass::Wand));
     pub const MELEE: BitFlags<ItemClass> = ItemClass::ONE_HANDED_MELEE.union_c(ItemClass::TWO_HANDED_MELEE);
     pub const STAVES: BitFlags<ItemClass> = flags!(ItemClass::{Staff | Warstaff});
@@ -65,8 +66,8 @@ impl ItemClass {
     pub fn allowed_slots(&self) -> &'static [Slot] {
         use ItemClass::*;
         match self {
+            OneHandAxe|OneHandMace|OneHandSword|RuneDagger|Sceptre|ThrustingOneHandSword|Wand|Claw => &[Slot::Weapon, Slot::Offhand],
             TwoHandSword|TwoHandAxe|TwoHandMace|Warstaff|Staff|Bow => &[Slot::Weapon],
-            OneHandAxe|OneHandMace|OneHandSword|RuneDagger|Sceptre|ThrustingOneHandSword|Wand => &[Slot::Weapon, Slot::Offhand],
             Quiver|Shield => &[Slot::Offhand],
             Helmet => &[Slot::Helm],
             Amulet => &[Slot::Amulet],

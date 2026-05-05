@@ -649,13 +649,24 @@ impl Build {
         &self.equipment
     }
 
-    pub fn equip(&mut self, slot: Slot, item_idx: usize) -> Option<usize> {
+    pub fn equip(&mut self, slot: Slot, item_idx: usize) {
         assert!(item_idx < self.inventory.len());
-        let old_item = self.equipment.remove(&slot);
+        self.unequip(slot);
         self.equipment.insert(slot, item_idx);
 
         if self.inventory[item_idx].allocates_nodes() {
             self.update_item_allocations();
+        }
+
+        if slot == Slot::Weapon && ItemClass::TWO_HANDED.contains(self.inventory[item_idx].data().item_class) {
+            self.unequip(Slot::Offhand);
+        }
+
+        if slot == Slot::Offhand &&
+           let Some(item) = self.get_equipped(Slot::Weapon) &&
+           ItemClass::TWO_HANDED.contains(item.data().item_class)
+        {
+            self.unequip(Slot::Weapon);
         }
 
         if let Slot::TreeJewel(jewel_node_id) = slot &&
@@ -663,7 +674,6 @@ impl Build {
         {
             self.tree.add_cluster(cluster_data, jewel_node_id, &self.inventory[item_idx].base_item);
         }
-        old_item
     }
 
     pub fn unequip(&mut self, slot: Slot) {
