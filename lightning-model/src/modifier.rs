@@ -58,6 +58,7 @@ const BEGINNINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, &[Condition])]
     ("dagger attacks deal", flags!(GemTag::Attack), ItemClass::DAGGERS, &[]),
     ("claw attacks deal", flags!(GemTag::Attack), flags!(ItemClass::Claw), &[]),
     ("attacks with two handed melee weapons deal", flags!(GemTag::Attack), ItemClass::TWO_HANDED_MELEE, &[]),
+    ("attacks with one handed weapons deal", flags!(GemTag::Attack), ItemClass::ONE_HANDED, &[]),
     ("attacks with melee weapons deal", flags!(GemTag::Attack), ItemClass::MELEE, &[]),
     ("attack skills deal", flags!(GemTag::Attack), BitFlags::EMPTY, &[]),
     ("attacks have", flags!(GemTag::Attack), BitFlags::EMPTY, &[]),
@@ -232,6 +233,8 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("chance to poison on hit", StatId::ChanceToPoison, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("poison duration", StatId::PoisonDuration, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("effect of non-curse auras from your skills", StatId::AuraEffect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("life", StatId::MaximumLife, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("mana", StatId::MaximumMana, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
 ];
 
 lazy_static! {
@@ -398,6 +401,11 @@ lazy_static! {
             Box::new(|c| {
                 Some(vec![Mod { stat: StatId::AbyssalSockets, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() }])
             })
+        ), (
+            regex!(r"^added small passive skills have ([0-9]+)% increased effect$"),
+            Box::new(|c| {
+                Some(vec![Mod { stat: StatId::SmallPassiveIncreasedEffect, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() }])
+            })
         ),
     ];
 
@@ -433,6 +441,9 @@ lazy_static! {
         ]);
         map.insert("strength's damage bonus applies to all spell damage as well", vec![
             Mod { stat: StatId::Damage, typ: Type::Inc, amount: 1, tags: GemTag::Spell.into(), mutations: stackvec!(Mutation::MultiplierStat((5, StatId::Strength))), ..Default::default()},
+        ]);
+        map.insert("removes all energy shield", vec![
+            Mod { stat: StatId::MaximumEnergyShield, typ: Type::Override, amount: 0, ..Default::default()},
         ]);
         map
     };
@@ -481,6 +492,7 @@ pub enum Mutation {
     StatPct((i64, StatId)),
     MultiplierSlotDefence((i64, Slot, Defence)),
     UpTo(i64),
+    IncreasedEffect(i64),
 }
 
 impl Mutation {
@@ -492,6 +504,7 @@ impl Mutation {
             Mutation::StatPct(mutation) => mutation.0 = amount,
             Mutation::MultiplierSlotDefence(mutation) => mutation.0 = amount,
             Mutation::UpTo(mutation) => *mutation = amount,
+            Mutation::IncreasedEffect(mutation) => *mutation = amount,
         }
     }
 }

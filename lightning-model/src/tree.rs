@@ -1,7 +1,8 @@
+use crate::build::stat::{self, StatId};
 use crate::data::tree::{Ascendancy, Class, ClusterOrbitData, Node, NodeType, TreeData};
 use crate::data::{TATTOOS, TREE};
-use crate::item::ClusterData;
-use crate::modifier::{parse_mod, Mod, Source};
+use crate::item::{ClusterData, Item};
+use crate::modifier::{Mod, Mutation, Source, parse_mod};
 use arc_swap::ArcSwap;
 use lazy_static::lazy_static;
 use pathfinding::directed::strongly_connected_components;
@@ -408,14 +409,30 @@ impl PassiveTree {
         }
     }
 
-    pub fn regen_modcache(&self) {
+    pub fn regen_modcache(&self, jewels: &FxHashMap<u32, Arc<Item>>) {
         let mut mods = Vec::with_capacity(300);
 
         let extra_nodes = self.nodes_additional.iter().filter(|n| !self.nodes.contains(n));
         for node_id in self.nodes.iter().chain(extra_nodes) {
             for mod_lines in &self.nodes_data[node_id].stats {
                 for mod_str in mod_lines.split('\n') {
-                    if let Some(modifiers) = parse_mod(mod_str, Source::Node(*node_id)) {
+                    if let Some(mut modifiers) = parse_mod(mod_str, Source::Node(*node_id)) {
+                        if let Some(cluster_jewel_node_id) = self.nodes_cluster.iter().find_map(|(jewel_id, node)| {
+                            if jewel_id == node_id {
+                                return None;
+                            }
+                            if node.skill == *node_id {
+                                return Some(jewel_id);
+                            }
+                            None
+                        }) {
+                            let stat = stat::calc_stat(StatId::SmallPassiveIncreasedEffect, &jewels[cluster_jewel_node_id].calc_nonlocal_mods()).val();
+                            if stat != 0 {
+                                for m in &mut modifiers {
+                                    m.mutations.push(Mutation::IncreasedEffect(stat));
+                                }
+                            }
+                        }
                         mods.extend(modifiers);
                     }
                 }
@@ -440,9 +457,9 @@ impl PassiveTree {
         self.is_modcache_fresh.store(true, Ordering::Relaxed);
     }
 
-    pub fn calc_mods(&self) -> Arc<Vec<Mod>> {
+    pub fn calc_mods(&self, jewels: &FxHashMap<u32, Arc<Item>>) -> Arc<Vec<Mod>> {
         if !self.is_modcache_fresh.load(Ordering::Relaxed) {
-            self.regen_modcache();
+            self.regen_modcache(jewels);
         }
 
         arc_swap::Guard::into_inner(self.mod_cache.load())

@@ -150,10 +150,13 @@ fn draw_stat_breakdown(ui: &mut egui::Ui, state: &State, stat_id: StatId) {
                                     },
                                     Mutation::StatPct((pct, stat_id)) => {
                                         mutations_str.push_str(&format!("{}% of {}", pct, stat_id.to_string()));
-                                    }
+                                    },
                                     Mutation::UpTo(amt) => {
                                         mutations_str.push_str(&format!("up to {}", amt));
-                                    }
+                                    },
+                                    Mutation::IncreasedEffect(amt) => {
+                                        mutations_str.push_str(&format!("{}% inc effect", amt));
+                                    },
                                     _ => {}
                                 }
                             }

@@ -134,6 +134,7 @@ pub enum StatId {
     ChanceToFreeze,
     PoisonDuration,
     AuraEffect,
+    SmallPassiveIncreasedEffect,
 }
 
 impl StatId {

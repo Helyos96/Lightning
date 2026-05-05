@@ -200,6 +200,9 @@ impl<'a> Evaluator<'a> {
                 Mutation::UpTo(mutation) => {
                     up_to = *mutation;
                 },
+                Mutation::IncreasedEffect(effect) => {
+                    amount = (amount * (100 + effect)) / 100;
+                },
             }
         }
         m.revised_amount = Some(amount.min(up_to));
