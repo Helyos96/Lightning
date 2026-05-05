@@ -187,6 +187,18 @@ pub fn calc_stat(stat_id: StatId, mods: &[Mod]) -> Stat {
     stat
 }
 
+/// Computes stats from a mod list
+/// WARNING: doesn't take into account mutations, conditions or tags
+pub fn calc_stats(mods: &[Mod]) -> Stats {
+    let mut stats: FxHashMap<StatId, Stat> = FxHashMap::default();
+
+    for m in mods {
+        stats.entry(m.stat).or_default().adjust_mod(m);
+    }
+
+    Stats { stats }
+}
+
 impl Default for Stat {
     fn default() -> Self {
         Self {

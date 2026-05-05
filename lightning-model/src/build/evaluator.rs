@@ -39,43 +39,41 @@ impl<'a> Evaluator<'a> {
         self.eval_stat(stat_id).mult()
     }
 
-    pub fn eval_stat(&mut self, stat_id: StatId) -> Stat {
-        if let Some(stat) = self.resolved_stats.get(&stat_id) {
-            return stat.clone();
-        }
-
-        if !self.evaluating.insert(stat_id) {
-            eprintln!("Warning: Circular dependency detected for stat: {:?}", stat_id);
-            return Stat::default();
-        }
-
-        let mut current_stat = Stat::default();
-        let mods_to_process = self.mods_by_stat.get(&stat_id).cloned().unwrap_or_default();
-
-        for m in mods_to_process {
-            let mut m = m.to_owned();
-
-            let passes_conditions_bor = m.conditions.is_empty() || m.conditions.iter().any(|c| self.check_condition(c));
-            if !passes_conditions_bor {
-                continue;
+    pub fn eval_stat(&mut self, stat_id: StatId) -> &Stat {
+        if !self.resolved_stats.contains_key(&stat_id) {
+            if !self.evaluating.insert(stat_id) {
+                eprintln!("Warning: Circular dependency detected for stat: {:?}", stat_id);
+                self.resolved_stats.insert(stat_id, Stat::default());
+                return self.resolved_stats.get(&stat_id).unwrap();
             }
 
-            if !m.mutations.is_empty() {
-                self.apply_mutations(&mut m);
+            let mut current_stat = Stat::default();
+            let mods_to_process = self.mods_by_stat.remove(&stat_id).unwrap_or_default();
+
+            for m in mods_to_process {
+                let passes_conditions_bor = m.conditions.is_empty() || m.conditions.iter().any(|c| self.check_condition(c));
+                if !passes_conditions_bor {
+                    continue;
+                }
+
+                let mut m = m.to_owned();
+                if !m.mutations.is_empty() {
+                    self.apply_mutations(&mut m);
+                }
+
+                if m.flags.contains(ModFlag::Aura) {
+                    let mult = self.get_stat_mult(StatId::AuraEffect);
+                    m.revised_amount = Some((m.final_amount() * mult) / 10000);
+                }
+
+                current_stat.adjust_mod_move(m);
             }
 
-            if m.flags.contains(ModFlag::Aura) {
-                let mult = self.get_stat_mult(StatId::AuraEffect);
-                m.revised_amount = Some((m.final_amount() * mult) / 10000);
-            }
-
-            current_stat.adjust_mod_move(m);
+            self.evaluating.remove(&stat_id);
+            self.resolved_stats.insert(stat_id, current_stat);
         }
 
-        self.evaluating.remove(&stat_id);
-        self.resolved_stats.insert(stat_id, current_stat.clone());
-
-        current_stat
+        self.resolved_stats.get(&stat_id).unwrap()
     }
 
     fn property_int_stats(&mut self, p: property::Int) -> i64 {

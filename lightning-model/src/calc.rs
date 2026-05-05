@@ -185,9 +185,8 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
     let stats = build.calc_stats(&mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff}));
     let stats_bleed = build.calc_stats(&mods, tags, make_bitflags!(ModFlag::{Ailment | Bleed | Aura | Buff}));
 
-    let monster_build = Build::new_player();
-    let monster_mods = monster_build.calc_mods_monster(build.property_int(property::Int::Level).min(83));
-    let monster_stats = monster_build.calc_stats(&monster_mods, BitFlags::empty(), BitFlags::EMPTY);
+    let monster_mods = Build::calc_mods_monster(build.property_int(property::Int::Level).min(83));
+    let monster_stats = build::stat::calc_stats(&monster_mods);
 
     let crit_multi = stats.val(StatId::CriticalStrikeMultiplier);
 

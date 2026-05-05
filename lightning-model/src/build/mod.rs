@@ -601,7 +601,7 @@ impl Build {
         mods
     }
 
-    pub fn calc_mods_monster(&self, level: i64) -> Vec<Mod> {
+    pub fn calc_mods_monster(level: i64) -> Vec<Mod> {
         let default_stats = MONSTER_STATS.get(&level).unwrap();
         let mods = vec![
             Mod {
@@ -779,7 +779,7 @@ impl Build {
     pub fn calc_stat(&self, stat_id: StatId, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>) -> Stat {
         let mut evaluator = Evaluator::new(self, mods, tags, flags);
 
-        evaluator.eval_stat(stat_id)
+        evaluator.eval_stat(stat_id).clone()
     }
 
     pub fn save(&self, dir: &Path) -> io::Result<()> {
