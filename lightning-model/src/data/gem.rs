@@ -78,7 +78,7 @@ pub struct GemStat {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct QualityStat {
-    stat: String,
+    pub stat: String,
     pub stats: FxHashMap<String, i32>,
 }
 

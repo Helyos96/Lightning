@@ -43,6 +43,12 @@ fn clone_atomic_bool(bool_ref: &AtomicBool) -> AtomicBool {
     AtomicBool::new(bool_ref.load(Ordering::Relaxed))
 }
 
+fn extract_bracket_content(input: &str) -> Option<&str> {
+    let (_, after_open) = input.split_once('{')?;
+    let (inside, _) = after_open.split_once('}')?;
+    Some(inside)
+}
+
 impl Gem {
     pub fn new(id: String, enabled: bool, level: u32, qual: i32, alt_qual: i32) -> Gem {
         Gem {
@@ -75,6 +81,19 @@ impl Gem {
             }
         }
         true
+    }
+
+    pub fn format_quality_stats(&self) -> Vec<String> {
+        let mut ret = vec![];
+        for quality_stat in &self.data().r#static.quality_stats {
+            if let Some(inside_brackets) = extract_bracket_content(&quality_stat.stat) &&
+               let Some(val) = quality_stat.stats.get(inside_brackets)
+            {
+                let stat = quality_stat.stat.replace(&format!("{{{}}}", inside_brackets), &((val * self.qual) / 1000).to_string());
+                ret.push(stat);
+            }
+        }
+        ret
     }
 
     fn regen_modcache(&self) {

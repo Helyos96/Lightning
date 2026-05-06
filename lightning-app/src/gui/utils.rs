@@ -100,6 +100,9 @@ pub fn draw_gem(ui: &mut egui::Ui, gem: &Gem) {
                 ui.add(egui::Label::new(egui::RichText::new(text).color(COLOR_MOD)).wrap_mode(egui::TextWrapMode::Extend));
             }
         }
+        for quality_stat in gem.format_quality_stats() {
+            ui.add(egui::Label::new(egui::RichText::new(quality_stat).color(COLOR_MOD)).wrap_mode(egui::TextWrapMode::Extend));
+        }
     });
 }
 

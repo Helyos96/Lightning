@@ -15,7 +15,10 @@
 	* ~~Color gems by str/dex/int in dropdown~~
 	* ~~Show gem popup~~
 		* Also show it when hovering the table while adding a new gem
-		* Missing quality stat -> annoying due to stat formatting
+		* ~~Missing quality stat~~
+			* Account for quality stat boosting an existing stat
+			* Account for multi-stat quality stats like "Supported Skills have {mine_laying_speed_+%}% increased Mine Throwing Speed\nSupported Skills have {trap_throwing_speed_+%}% increased Trap Throwing Speed"
+			* Account for formatted quality stats like "Base duration is {base_skill_effect_duration/milliseconds_to_seconds_2dp} seconds"
 	* Stats compare on hover enable checkbox
 	* Stats compare on hover skill in dropdown
 	* Default level/quality in config
