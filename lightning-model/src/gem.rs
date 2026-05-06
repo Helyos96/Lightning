@@ -89,7 +89,11 @@ impl Gem {
             if let Some(inside_brackets) = extract_bracket_content(&quality_stat.stat) &&
                let Some(val) = quality_stat.stats.get(inside_brackets)
             {
-                let stat = quality_stat.stat.replace(&format!("{{{}}}", inside_brackets), &((val * self.qual) / 1000).to_string());
+                let val = (val * self.qual) / 1000;
+                if val == 0 {
+                    continue;
+                }
+                let stat = quality_stat.stat.replace(&format!("{{{}}}", inside_brackets), &(val).to_string());
                 ret.push(stat);
             }
         }
