@@ -135,20 +135,17 @@ pub enum StatId {
     PoisonDuration,
     AuraEffect,
     SmallPassiveIncreasedEffect,
-    // Damage conversions (Physical → ...)
     PhysicalToLightningConversion,
     PhysicalToColdConversion,
     PhysicalToFireConversion,
     PhysicalToChaosConversion,
-    // Lightning → ...
     LightningToColdConversion,
     LightningToFireConversion,
     LightningToChaosConversion,
-    // Cold → ...
     ColdToFireConversion,
     ColdToChaosConversion,
-    // Fire → ...
     FireToChaosConversion,
+    FasterIgnite,
 }
 
 impl StatId {
