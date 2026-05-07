@@ -86,16 +86,16 @@ fn draw_stat_breakdown(ui: &mut egui::Ui, state: &State, stat_id: StatId) {
                 header.col(|ui| { ui.label(egui::RichText::new("Mutations").strong()); });
             })
             .body(|mut body| {
-                for m in &stat.mods {
+                for (mstat, source) in stat.mods.iter().filter_map(|m| m.as_stat().map(|s| (s, m.source))) {
                     body.row(20.0, |mut row| {
                         row.col(|ui| {
-                            ui.add(egui::Label::new(m.final_amount().to_string()).wrap_mode(egui::TextWrapMode::Extend));
+                            ui.add(egui::Label::new(mstat.final_amount().to_string()).wrap_mode(egui::TextWrapMode::Extend));
                         });
                         row.col(|ui| {
-                            ui.add(egui::Label::new(format!("{:?}", m.typ)).wrap_mode(egui::TextWrapMode::Extend));
+                            ui.add(egui::Label::new(format!("{:?}", mstat.typ)).wrap_mode(egui::TextWrapMode::Extend));
                         });
                         row.col(|ui| {
-                            let source_text = match m.source {
+                            let source_text = match source {
                                 Source::Innate => egui::RichText::new("Innate"),
                                 Source::Node(id) => {
                                     let name = state.build.tree.nodes_data.get(&id).map(|n| n.name.clone()).unwrap_or_else(|| format!("Node {:?}", id));
@@ -123,29 +123,29 @@ fn draw_stat_breakdown(ui: &mut egui::Ui, state: &State, stat_id: StatId) {
                         });
                         row.col(|ui| {
                             let mut mutations_str = String::new();
-                            for (i, f) in m.mutations.iter().enumerate() {
+                            for (i, f) in mstat.mutations.iter().enumerate() {
                                 if i > 0 { mutations_str.push_str(", "); }
                                 match f {
                                     Mutation::MultiplierStat((amt, stat)) => {
                                         if *amt == 1 {
-                                            mutations_str.push_str(&format!("{} per {}", m.amount, stat));
+                                            mutations_str.push_str(&format!("{} per {}", mstat.amount, stat));
                                         } else {
-                                            mutations_str.push_str(&format!("{} per {} {}", m.amount, amt, stat));
+                                            mutations_str.push_str(&format!("{} per {} {}", mstat.amount, amt, stat));
                                         }
                                     },
                                     Mutation::MultiplierStatLowest((amt, stats)) => {
                                         let stats_str: Vec<String> = stats.iter().map(|s| s.to_string()).collect();
                                         if *amt == 1 {
-                                            mutations_str.push_str(&format!("{} per lowest of {}", m.amount, stats_str.join(" and ")));
+                                            mutations_str.push_str(&format!("{} per lowest of {}", mstat.amount, stats_str.join(" and ")));
                                         } else {
-                                            mutations_str.push_str(&format!("{} per {} lowest of {}", m.amount, amt, stats_str.join(" and ")));
+                                            mutations_str.push_str(&format!("{} per {} lowest of {}", mstat.amount, amt, stats_str.join(" and ")));
                                         }
                                     },
                                     Mutation::MultiplierProperty((amt, prop)) => {
                                         if *amt == 1 {
-                                            mutations_str.push_str(&format!("{} per {}", m.amount, prop));
+                                            mutations_str.push_str(&format!("{} per {}", mstat.amount, prop));
                                         } else {
-                                            mutations_str.push_str(&format!("{} per {} {}", m.amount, amt, prop));
+                                            mutations_str.push_str(&format!("{} per {} {}", mstat.amount, amt, prop));
                                         }
                                     },
                                     Mutation::StatPct((pct, stat_id)) => {

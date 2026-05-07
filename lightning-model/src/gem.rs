@@ -118,8 +118,10 @@ impl Gem {
                             if as_aura_buff != modifier.flags.intersects(make_bitflags!(ModFlag::{Aura | Buff})) {
                                 continue;
                             }
-                            if modifier.amount == 0 {
-                                modifier.amount = self.stat_value(id).unwrap_or(0);
+                            if let Some(stat) = modifier.as_stat_mut() {
+                                if stat.amount == 0 {
+                                    stat.amount = self.stat_value(id).unwrap_or(0);
+                                }
                             }
                             modifier.source = source;
                             mods.push(modifier);
@@ -138,8 +140,10 @@ impl Gem {
                         if as_aura_buff != modifier.flags.intersects(make_bitflags!(ModFlag::{Aura | Buff})) {
                             continue;
                         }
-                        if modifier.amount == 0 {
-                            modifier.amount = (*val as i64 * self.qual as i64) / 1000;
+                        if let Some(stat) = modifier.as_stat_mut() {
+                            if stat.amount == 0 {
+                                stat.amount = (*val as i64 * self.qual as i64) / 1000;
+                            }
                         }
                         modifier.source = source;
                         mods.push(modifier);
@@ -152,15 +156,15 @@ impl Gem {
 
         if !as_aura_buff {
             if let Some(speed_multiplier) = &self.data().r#static.attack_speed_multiplier {
-                mods.push(Mod {stat: StatId::AttackSpeed, typ: Type::More, amount: *speed_multiplier as i64, source, ..Default::default()});
+                mods.push(Mod::stat(StatId::AttackSpeed, Type::More, *speed_multiplier as i64).with_source(source));
             }
 
             if let Some(base_mana_cost) = self.mana_cost_level() {
-                mods.push(Mod {stat: StatId::ManaCost, typ: Type::Base, amount: base_mana_cost, source, ..Default::default()});
+                mods.push(Mod::stat(StatId::ManaCost, Type::Base, base_mana_cost).with_source(source));
             }
 
             if let Some(cost_multiplier) = self.cost_multiplier_level() {
-                mods.push(Mod {stat: StatId::Cost, typ: Type::More, amount: cost_multiplier, source, ..Default::default()});
+                mods.push(Mod::stat(StatId::Cost, Type::More, cost_multiplier).with_source(source));
             }
         }
 

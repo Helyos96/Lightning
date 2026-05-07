@@ -7,126 +7,126 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 
 lazy_static! {
-    // Order is important, end-of-string match is performed in-order
+// Order is important, end-of-string match is performed in-order
     static ref GEMSTATS_GENERIC: Vec<(&'static str, Vec<Mod>)> = vec![
         ("spell_minimum_base_fire_damage", vec![
-            Mod { stat: StatId::BaseMinFireDamage, tags: flags!(GemTag::Spell), ..Default::default() },
+            Mod::stat(StatId::BaseMinFireDamage, Type::Base, 0).with_tags(GemTag::Spell),
         ]),
         ("spell_maximum_base_fire_damage", vec![
-            Mod { stat: StatId::BaseMaxFireDamage, tags: flags!(GemTag::Spell), ..Default::default() },
+            Mod::stat(StatId::BaseMaxFireDamage, Type::Base, 0).with_tags(GemTag::Spell),
         ]),
         ("spell_minimum_base_lightning_damage", vec![
-            Mod { stat: StatId::BaseMinLightningDamage, tags: flags!(GemTag::Spell), ..Default::default() },
+            Mod::stat(StatId::BaseMinLightningDamage, Type::Base, 0).with_tags(GemTag::Spell),
         ]),
         ("spell_maximum_base_lightning_damage", vec![
-            Mod { stat: StatId::BaseMaxLightningDamage, tags: flags!(GemTag::Spell), ..Default::default() },
+            Mod::stat(StatId::BaseMaxLightningDamage, Type::Base, 0).with_tags(GemTag::Spell),
         ]),
         ("spell_minimum_base_cold_damage", vec![
-            Mod { stat: StatId::BaseMinColdDamage, tags: flags!(GemTag::Spell), ..Default::default() },
+            Mod::stat(StatId::BaseMinColdDamage, Type::Base, 0).with_tags(GemTag::Spell),
         ]),
         ("spell_maximum_base_cold_damage", vec![
-            Mod { stat: StatId::BaseMaxColdDamage, tags: flags!(GemTag::Spell), ..Default::default() },
+            Mod::stat(StatId::BaseMaxColdDamage, Type::Base, 0).with_tags(GemTag::Spell),
         ]),
         ("spell_minimum_base_chaos_damage", vec![
-            Mod { stat: StatId::BaseMinChaosDamage, tags: flags!(GemTag::Spell), ..Default::default() },
+            Mod::stat(StatId::BaseMinChaosDamage, Type::Base, 0).with_tags(GemTag::Spell),
         ]),
         ("spell_maximum_base_chaos_damage", vec![
-            Mod { stat: StatId::BaseMaxChaosDamage, tags: flags!(GemTag::Spell), ..Default::default() },
+            Mod::stat(StatId::BaseMaxChaosDamage, Type::Base, 0).with_tags(GemTag::Spell),
         ]),
         ("minimum_added_fire_damage", vec![
-            Mod { stat: StatId::AddedMinFireDamage, ..Default::default() },
+            Mod::stat(StatId::AddedMinFireDamage, Type::Base, 0),
         ]),
         ("maximum_added_fire_damage", vec![
-            Mod { stat: StatId::AddedMaxFireDamage, ..Default::default() },
+            Mod::stat(StatId::AddedMaxFireDamage, Type::Base, 0),
         ]),
         ("minimum_added_lightning_damage", vec![
-            Mod { stat: StatId::AddedMinLightningDamage, ..Default::default() },
+            Mod::stat(StatId::AddedMinLightningDamage, Type::Base, 0),
         ]),
         ("maximum_added_lightning_damage", vec![
-            Mod { stat: StatId::AddedMaxLightningDamage, ..Default::default() },
+            Mod::stat(StatId::AddedMaxLightningDamage, Type::Base, 0),
         ]),
         ("minimum_added_cold_damage", vec![
-            Mod { stat: StatId::AddedMinColdDamage, ..Default::default() },
+            Mod::stat(StatId::AddedMinColdDamage, Type::Base, 0),
         ]),
         ("maximum_added_cold_damage", vec![
-            Mod { stat: StatId::AddedMaxColdDamage, ..Default::default() },
+            Mod::stat(StatId::AddedMaxColdDamage, Type::Base, 0),
         ]),
         ("minimum_added_chaos_damage", vec![
-            Mod { stat: StatId::AddedMinChaosDamage, ..Default::default() },
+            Mod::stat(StatId::AddedMinChaosDamage, Type::Base, 0),
         ]),
         ("maximum_added_chaos_damage", vec![
-            Mod { stat: StatId::AddedMaxChaosDamage, ..Default::default() },
+            Mod::stat(StatId::AddedMaxChaosDamage, Type::Base, 0),
         ]),
         ("poison_and_bleeding_damage", vec![
-            Mod { stat: StatId::Damage, flags: flags!(ModFlag::{Bleed | Poison}), ..Default::default() },
+            Mod::stat(StatId::Damage, Type::Base, 0).with_flags(flags!(ModFlag::{Bleed | Poison})),
         ]),
         ("melee_physical_damage", vec![
-            Mod { stat: StatId::PhysicalDamage, tags: flags!(GemTag::Melee), flags: flags!(ModFlag::Hit), ..Default::default() },
+            Mod::stat(StatId::PhysicalDamage, Type::Base, 0).with_tags(GemTag::Melee).with_flags(ModFlag::Hit),
         ]),
         ("herald_of_purity_physical_damage", vec![
-            Mod { stat: StatId::PhysicalDamage, flags: flags!(ModFlag::Buff), ..Default::default() },
+            Mod::stat(StatId::PhysicalDamage, Type::Base, 0).with_flags(ModFlag::Buff),
         ]),
         ("physical_damage", vec![
-            Mod { stat: StatId::PhysicalDamage, ..Default::default() },
+            Mod::stat(StatId::PhysicalDamage, Type::Base, 0),
         ]),
         ("fire_damage", vec![
-            Mod { stat: StatId::FireDamage, ..Default::default() },
+            Mod::stat(StatId::FireDamage, Type::Base, 0),
         ]),
         ("lightning_damage", vec![
-            Mod { stat: StatId::LightningDamage, ..Default::default() },
+            Mod::stat(StatId::LightningDamage, Type::Base, 0),
         ]),
         ("cold_damage", vec![
-            Mod { stat: StatId::ColdDamage, ..Default::default() },
+            Mod::stat(StatId::ColdDamage, Type::Base, 0),
         ]),
         ("chaos_damage", vec![
-            Mod { stat: StatId::ChaosDamage, ..Default::default() },
+            Mod::stat(StatId::ChaosDamage, Type::Base, 0),
         ]),
         ("melee_area_damage", vec![
-            Mod { stat: StatId::Damage, tags: flags!(GemTag::{Melee | Area}), flags: flags!(ModFlag::Hit), ..Default::default() },
+            Mod::stat(StatId::Damage, Type::Base, 0).with_tags(flags!(GemTag::{Melee | Area})).with_flags(ModFlag::Hit),
         ]),
         ("melee_damage", vec![
-            Mod { stat: StatId::Damage, tags: flags!(GemTag::Melee), ..Default::default() },
+            Mod::stat(StatId::Damage, Type::Base, 0).with_tags(GemTag::Melee),
         ]),
         ("area_damage", vec![
-            Mod { stat: StatId::Damage, tags: flags!(GemTag::Area), ..Default::default() },
+            Mod::stat(StatId::Damage, Type::Base, 0).with_tags(GemTag::Area),
         ]),
         ("deal_no_elemental_damage", vec![
-            Mod { stat: StatId::FireDamage, typ: Type::More, amount: -100, ..Default::default() },
-            Mod { stat: StatId::ColdDamage, typ: Type::More, amount: -100, ..Default::default() },
-            Mod { stat: StatId::LightningDamage, typ: Type::More, amount: -100, ..Default::default() },
+            Mod::stat(StatId::FireDamage, Type::More, -100),
+            Mod::stat(StatId::ColdDamage, Type::More, -100),
+            Mod::stat(StatId::LightningDamage, Type::More, -100),
         ]),
         ("deal_no_chaos_damage", vec![
-            Mod { stat: StatId::ChaosDamage, typ: Type::More, amount: -100, ..Default::default() },
+            Mod::stat(StatId::ChaosDamage, Type::More, -100),
         ]),
         ("attack_speed", vec![
-            Mod { stat: StatId::AttackSpeed, tags: flags!(GemTag::Attack), ..Default::default() },
+            Mod::stat(StatId::AttackSpeed, Type::Base, 0).with_tags(GemTag::Attack),
         ]),
         ("base_cast_speed", vec![
-            Mod { stat: StatId::CastSpeed, tags: flags!(GemTag::Spell), ..Default::default() },
+            Mod::stat(StatId::CastSpeed, Type::Base, 0).with_tags(GemTag::Spell),
         ]),
         ("skill_area_of_effect", vec![
-            Mod { stat: StatId::AreaOfEffect, ..Default::default() },
+            Mod::stat(StatId::AreaOfEffect, Type::Base, 0),
         ]),
         ("shock_as_though_damage", vec![
-            Mod { stat: StatId::ShockAsThoughDamage, ..Default::default() },
+            Mod::stat(StatId::ShockAsThoughDamage, Type::Base, 0),
         ]),
         ("additional_weapon_base_attack_time_ms", vec![
-            Mod { stat: StatId::AddedAttackTime, ..Default::default() },
+            Mod::stat(StatId::AddedAttackTime, Type::Base, 0),
         ]),
         ("accuracy_rating", vec![
-            Mod { stat: StatId::AccuracyRating, typ: Type::Base, ..Default::default() },
+            Mod::stat(StatId::AccuracyRating, Type::Base, 0),
         ]),
         ("skill_buff_grants_critical_strike_chance", vec![
-            Mod { stat: StatId::CriticalStrikeChance, flags: flags!(ModFlag::Aura), ..Default::default() },
+            Mod::stat(StatId::CriticalStrikeChance, Type::Base, 0).with_flags(ModFlag::Aura),
         ]),
         ("critical_strike_chance", vec![
-            Mod { stat: StatId::CriticalStrikeChance, ..Default::default() },
+            Mod::stat(StatId::CriticalStrikeChance, Type::Base, 0),
         ]),
         ("base_fire_damage_resistance", vec![
-            Mod { stat: StatId::FireResistance, ..Default::default() },
+            Mod::stat(StatId::FireResistance, Type::Base, 0),
         ]),
         ("damage", vec![
-            Mod { stat: StatId::Damage, ..Default::default() },
+            Mod::stat(StatId::Damage, Type::Base, 0),
         ]),
     ];
 
@@ -136,110 +136,110 @@ lazy_static! {
         // Gem name = GemData::base_item::display_name
         ("Precision", [
             ("additional_accuracy", vec![
-                Mod { stat: StatId::AccuracyRating, typ: Type::Base, flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::AccuracyRating, Type::Base, 0).with_flags(ModFlag::Aura),
             ]),
         ].into_iter().collect()),
         ("Haste", [
             ("attack_speed", vec![
-                Mod { stat: StatId::AttackSpeed, typ: Type::Inc, flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::AttackSpeed, Type::Inc, 0).with_flags(ModFlag::Aura),
             ]),
             ("cast_speed", vec![
-                Mod { stat: StatId::CastSpeed, typ: Type::Inc, flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::CastSpeed, Type::Inc, 0).with_flags(ModFlag::Aura),
             ]),
             ("base_movement_velocity", vec![
-                Mod { stat: StatId::MovementSpeed, typ: Type::Inc, flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::MovementSpeed, Type::Inc, 0).with_flags(ModFlag::Aura),
             ]),
         ].into_iter().collect()),
         ("Anger", [
             ("attack_minimum_added_fire_damage", vec![
-                Mod { stat: StatId::AddedMinFireDamage, tags: flags!(GemTag::Attack), flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::AddedMinFireDamage, Type::Base, 0).with_tags(GemTag::Attack).with_flags(ModFlag::Aura),
             ]),
             ("attack_maximum_added_fire_damage", vec![
-                Mod { stat: StatId::AddedMaxFireDamage, tags: flags!(GemTag::Attack), flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::AddedMaxFireDamage, Type::Base, 0).with_tags(GemTag::Attack).with_flags(ModFlag::Aura),
             ]),
             ("spell_minimum_added_fire_damage", vec![
-                Mod { stat: StatId::AddedMinFireDamage, tags: flags!(GemTag::Spell), flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::AddedMinFireDamage, Type::Base, 0).with_tags(GemTag::Spell).with_flags(ModFlag::Aura),
             ]),
             ("spell_maximum_added_fire_damage", vec![
-                Mod { stat: StatId::AddedMaxFireDamage, tags: flags!(GemTag::Spell), flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::AddedMaxFireDamage, Type::Base, 0).with_tags(GemTag::Spell).with_flags(ModFlag::Aura),
             ]),
         ].into_iter().collect()),
         ("Wrath", [
             ("attack_minimum_added_lightning_damage", vec![
-                Mod { stat: StatId::AddedMinLightningDamage, tags: flags!(GemTag::Attack), flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::AddedMinLightningDamage, Type::Base, 0).with_tags(GemTag::Attack).with_flags(ModFlag::Aura),
             ]),
             ("attack_maximum_added_lightning_damage", vec![
-                Mod { stat: StatId::AddedMaxLightningDamage, tags: flags!(GemTag::Attack), flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::AddedMaxLightningDamage, Type::Base, 0).with_tags(GemTag::Attack).with_flags(ModFlag::Aura),
             ]),
             ("wrath_aura_spell_lightning_damage", vec![
-                Mod { stat: StatId::LightningDamage, tags: flags!(GemTag::Spell), flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::LightningDamage, Type::Base, 0).with_tags(GemTag::Spell).with_flags(ModFlag::Aura),
             ]),
         ].into_iter().collect()),
         ("Tempest Shield", [
             ("shield_spell_block", vec![
-                Mod { stat: StatId::ChanceToBlockSpellDamage, flags: flags!(ModFlag::Buff), ..Default::default() },
+                Mod::stat(StatId::ChanceToBlockSpellDamage, Type::Base, 0).with_flags(ModFlag::Buff),
             ]),
         ].into_iter().collect()),
         ("Blood Rage", [
             ("attack_speed", vec![
-                Mod { stat: StatId::AttackSpeed, flags: flags!(ModFlag::Buff), ..Default::default() },
+                Mod::stat(StatId::AttackSpeed, Type::Base, 0).with_flags(ModFlag::Buff),
             ]),
         ].into_iter().collect()),
         ("Purity of Fire", [
             ("base_fire_damage_resistance", vec![
-                Mod { stat: StatId::FireResistance, flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::FireResistance, Type::Base, 0).with_flags(ModFlag::Aura),
             ]),
             ("base_maximum_fire_damage_resistance", vec![
-                Mod { stat: StatId::MaximumFireResistance, flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::MaximumFireResistance, Type::Base, 0).with_flags(ModFlag::Aura),
             ]),
         ].into_iter().collect()),
-        ("Purity of Fire", [
+        ("Purity of Cold", [ // Fixed copy-paste typo from "Purity of Fire"
             ("base_cold_damage_resistance", vec![
-                Mod { stat: StatId::ColdResistance, flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::ColdResistance, Type::Base, 0).with_flags(ModFlag::Aura),
             ]),
             ("base_maximum_cold_damage_resistance", vec![
-                Mod { stat: StatId::MaximumColdResistance, flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::MaximumColdResistance, Type::Base, 0).with_flags(ModFlag::Aura),
             ]),
         ].into_iter().collect()),
         ("Purity of Lightning", [
             ("base_lightning_damage_resistance", vec![
-                Mod { stat: StatId::LightningResistance, flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::LightningResistance, Type::Base, 0).with_flags(ModFlag::Aura),
             ]),
             ("base_maximum_lightning_damage_resistance", vec![
-                Mod { stat: StatId::MaximumLightningResistance, flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::MaximumLightningResistance, Type::Base, 0).with_flags(ModFlag::Aura),
             ]),
         ].into_iter().collect()),
         ("Discipline", [
             ("base_maximum_energy_shield", vec![
-                Mod { stat: StatId::MaximumEnergyShield, flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::MaximumEnergyShield, Type::Base, 0).with_flags(ModFlag::Aura),
             ]),
         ].into_iter().collect()),
         /*("Clarity", [
             ("base_mana_regeneration_rate_per_minute", vec![
                 // Should be per minute
-                Mod { stat: StatId::ManaRegeneration, flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::ManaRegeneration, Type::Base, 0).with_flags(ModFlag::Aura),
             ]),
         ].into_iter().collect()),*/
         ("Zealotry", [
             ("spell_damage_aura_spell_damage", vec![
-                Mod { stat: StatId::Damage, tags: flags!(GemTag::Spell), flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::Damage, Type::Base, 0).with_tags(GemTag::Spell).with_flags(ModFlag::Aura),
             ]),
             ("spell_critical_strike_chance", vec![
-                Mod { stat: StatId::CriticalStrikeChance, tags: flags!(GemTag::Spell), flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::CriticalStrikeChance, Type::Base, 0).with_tags(GemTag::Spell).with_flags(ModFlag::Aura),
             ]),
         ].into_iter().collect()),
         ("Determination", [
             ("determination_aura_armour", vec![
-                Mod { stat: StatId::Armour, flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::Armour, Type::Base, 0).with_flags(ModFlag::Aura),
             ]),
             ("base_physical_damage_reduction_rating", vec![
-                Mod { stat: StatId::Armour, flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::Armour, Type::Base, 0).with_flags(ModFlag::Aura),
             ]),
         ].into_iter().collect()),
        /* ("Vitality", [
             // Should be per minute
             ("base_life_regeneration_rate_per_minute", vec![
-                Mod { stat: StatId::LifeRegeneration, flags: flags!(ModFlag::Aura), ..Default::default() },
+                Mod::stat(StatId::LifeRegeneration, Type::Base, 0).with_flags(ModFlag::Aura),
             ]),
         ].into_iter().collect()),*/
     ].into_iter().collect();
@@ -288,7 +288,9 @@ pub fn match_gemstat(gem_basename: &str, mut stat: &str) -> Option<Vec<Mod>> {
 
     if let Some(typ_override) = typ_override {
         for m in &mut mods {
-            m.typ = typ_override;
+            if let Some(stat) = m.as_stat_mut() {
+                stat.typ = typ_override;
+            }
         }
     }
 

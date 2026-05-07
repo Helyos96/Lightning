@@ -1,7 +1,7 @@
 use enumflags2::BitFlags;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{build::{Build, Defence, Slot, property, stat::{self, Stat, StatId}}, data::gem::GemTag, modifier::{Condition, Mod, ModFlag, Mutation}};
+use crate::{build::{Build, Defence, Slot, property, stat::{self, Stat, StatId}}, data::gem::GemTag, modifier::{Condition, Mod, ModEffect, ModFlag, ModStat, Mutation}};
 
 /// Evaluate Stats from a collection of Mods
 pub struct Evaluator<'a> {
@@ -20,7 +20,9 @@ impl<'a> Evaluator<'a> {
             (m.flags.is_empty() || flags.intersects(m.flags)) &&
             (m.weapons.is_empty() || build.is_holding(&m.weapons))
         }) {
-            mods_by_stat.entry(m.stat).or_default().push(m);
+            if let Some(mstat) = m.as_stat() {
+                mods_by_stat.entry(mstat.stat).or_default().push(m);
+            }
         }
 
         Self {
@@ -57,13 +59,16 @@ impl<'a> Evaluator<'a> {
                 }
 
                 let mut m = m.to_owned();
-                if !m.mutations.is_empty() {
-                    self.apply_mutations(&mut m);
+                if let Some(stat) = m.as_stat_mut() &&
+                   !stat.mutations.is_empty()
+                {
+                    self.apply_mutations(stat);
                 }
 
-                if m.flags.contains(ModFlag::Aura) {
+                if m.flags.contains(ModFlag::Aura) && let Some(stat) = m.as_stat_mut() {
                     let mult = self.get_stat_mult(StatId::AuraEffect);
-                    m.revised_amount = Some((m.final_amount() * mult) / 10000);
+                    let new_amount = (stat.final_amount() * mult) / 10000;
+                    stat.revised_amount = Some(new_amount);
                 }
 
                 current_stat.adjust_mod_move(m);
@@ -158,7 +163,7 @@ impl<'a> Evaluator<'a> {
         true
     }
 
-    fn apply_mutations(&mut self, m: &mut Mod) {
+    fn apply_mutations(&mut self, m: &mut ModStat) {
         let mut amount = m.amount;
         let mut up_to = i64::MAX;
         for f in &m.mutations {
@@ -203,6 +208,7 @@ impl<'a> Evaluator<'a> {
                 },
             }
         }
+
         m.revised_amount = Some(amount.min(up_to));
     }
 }

@@ -429,7 +429,9 @@ impl PassiveTree {
                             let stat = stat::calc_stat(StatId::SmallPassiveIncreasedEffect, &jewels[cluster_jewel_node_id].calc_nonlocal_mods()).val();
                             if stat != 0 {
                                 for m in &mut modifiers {
-                                    m.mutations.push(Mutation::IncreasedEffect(stat));
+                                    if let Some(mstat) = m.as_stat_mut() {
+                                        mstat.mutations.push(Mutation::IncreasedEffect(stat));
+                                    }
                                 }
                             }
                         }

@@ -243,12 +243,18 @@ impl State {
                     lightning_model::modifier::Type::Inc => 1,
                     lightning_model::modifier::Type::More => 0,
                 };
-                let a_score = type_score(a.typ);
-                let b_score = type_score(b.typ);
+
+                let a_stat = a.as_stat();
+                let b_stat = b.as_stat();
+                let a_score = a_stat.map(|s| type_score(s.typ)).unwrap_or(-1);
+                let b_score = b_stat.map(|s| type_score(s.typ)).unwrap_or(-1);
+
                 if a_score != b_score {
                     b_score.cmp(&a_score)
                 } else {
-                    b.final_amount().cmp(&a.final_amount())
+                    let a_amount = a_stat.map(|s| s.final_amount()).unwrap_or(0);
+                    let b_amount = b_stat.map(|s| s.final_amount()).unwrap_or(0);
+                    b_amount.cmp(&a_amount)
                 }
             });
         }

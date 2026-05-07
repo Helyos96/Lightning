@@ -131,51 +131,21 @@ pub enum CampaignChoice {
 }
 
 lazy_static! {
-    pub static ref BANDIT_STATS: FxHashMap<BanditChoice, Vec<Mod>> = {
+pub static ref BANDIT_STATS: FxHashMap<BanditChoice, Vec<Mod>> = {
         let mut ret = FxHashMap::default();
         ret.insert(BanditChoice::Alira, vec![
-            Mod {
-                stat: StatId::FireResistance,
-                typ: Type::Base,
-                amount: 15,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::ColdResistance,
-                typ: Type::Base,
-                amount: 15,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::LightningResistance,
-                typ: Type::Base,
-                amount: 15,
-                ..Default::default()
-            },
+            Mod::stat(StatId::FireResistance, Type::Base, 15),
+            Mod::stat(StatId::ColdResistance, Type::Base, 15),
+            Mod::stat(StatId::LightningResistance, Type::Base, 15),
         ]);
         ret.insert(BanditChoice::Kraityn, vec![
-            Mod {
-                stat: StatId::MovementSpeed,
-                typ: Type::Inc,
-                amount: 8,
-                ..Default::default()
-            },
+            Mod::stat(StatId::MovementSpeed, Type::Inc, 8),
         ]);
         ret.insert(BanditChoice::Oak, vec![
-            Mod {
-                stat: StatId::MaximumLife,
-                typ: Type::Base,
-                amount: 40,
-                ..Default::default()
-            },
+            Mod::stat(StatId::MaximumLife, Type::Base, 40),
         ]);
         ret.insert(BanditChoice::KillAll, vec![
-            Mod {
-                stat: StatId::PassiveSkillPoints,
-                typ: Type::Base,
-                amount: 1,
-                ..Default::default()
-            },
+            Mod::stat(StatId::PassiveSkillPoints, Type::Base, 1),
         ]);
         ret
     };
@@ -184,264 +154,55 @@ lazy_static! {
         let mut ret = FxHashMap::default();
         ret.insert(CampaignChoice::Beach, vec![]);
         ret.insert(CampaignChoice::ActFive, vec![
-            Mod {
-                stat: StatId::FireResistance,
-                typ: Type::Base,
-                amount: -30,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::ColdResistance,
-                typ: Type::Base,
-                amount: -30,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::LightningResistance,
-                typ: Type::Base,
-                amount: -30,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::ChaosResistance,
-                typ: Type::Base,
-                amount: -30,
-                ..Default::default()
-            },
+            Mod::stat(StatId::FireResistance, Type::Base, -30),
+            Mod::stat(StatId::ColdResistance, Type::Base, -30),
+            Mod::stat(StatId::LightningResistance, Type::Base, -30),
+            Mod::stat(StatId::ChaosResistance, Type::Base, -30),
         ]);
         ret.insert(CampaignChoice::ActTen, vec![
-            Mod {
-                stat: StatId::FireResistance,
-                typ: Type::Base,
-                amount: -60,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::ColdResistance,
-                typ: Type::Base,
-                amount: -60,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::LightningResistance,
-                typ: Type::Base,
-                amount: -60,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::ChaosResistance,
-                typ: Type::Base,
-                amount: -60,
-                ..Default::default()
-            },
+            Mod::stat(StatId::FireResistance, Type::Base, -60),
+            Mod::stat(StatId::ColdResistance, Type::Base, -60),
+            Mod::stat(StatId::LightningResistance, Type::Base, -60),
+            Mod::stat(StatId::ChaosResistance, Type::Base, -60),
         ]);
         ret
     };
 
     static ref BASE_MODES: Vec<Mod> = vec![
-        Mod {
-            stat: StatId::MaximumLife,
-            typ: Type::Base,
-            amount: 12,
-            mutations: stackvec![Mutation::MultiplierProperty((1, property::Int::Level))],
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::MaximumLife,
-            typ: Type::Base,
-            amount: 38,
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::MaximumLife,
-            typ: Type::Base,
-            amount: 1,
-            mutations: stackvec![Mutation::MultiplierStat((2, StatId::Strength))],
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::MaximumEnergyShield,
-            typ: Type::Inc,
-            amount: 1,
-            mutations: stackvec![Mutation::MultiplierStat((10, StatId::Intelligence))],
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::MaximumMana,
-            typ: Type::Base,
-            amount: 6,
-            mutations: stackvec![Mutation::MultiplierProperty((1, property::Int::Level))],
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::MaximumMana,
-            typ: Type::Base,
-            amount: 34,
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::MaximumMana,
-            typ: Type::Base,
-            amount: 1,
-            mutations: stackvec![Mutation::MultiplierStat((2, StatId::Intelligence))],
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::ManaRegenerationPct,
-            typ: Type::Base,
-            amount: 180,
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::MaximumFrenzyCharges,
-            typ: Type::Base,
-            amount: 3,
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::MaximumPowerCharges,
-            typ: Type::Base,
-            amount: 3,
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::MaximumEnduranceCharges,
-            typ: Type::Base,
-            amount: 3,
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::MaximumRage,
-            typ: Type::Base,
-            amount: 30,
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::Damage,
-            typ: Type::More,
-            amount: 1,
-            mutations: stackvec![
-                Mutation::MultiplierProperty((1, property::Int::Rage)),
-            ],
-            tags: GemTag::Attack.into(),
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::PassiveSkillPoints,
-            typ: Type::Base,
-            amount: 1,
-            mutations: stackvec![
-                Mutation::MultiplierProperty((1, property::Int::Level)),
-            ],
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::PassiveSkillPoints,
-            typ: Type::Base,
-            amount: 22, // 23 from quests -1 for level 1
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::PhysicalDamage,
-            typ: Type::Inc,
-            amount: 1,
-            mutations: stackvec![Mutation::MultiplierStat((5, StatId::Strength))],
-            tags: GemTag::Melee.into(),
-            flags: ModFlag::Hit.into(),
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::Damage,
-            typ: Type::More,
-            amount: 4,
-            mutations: stackvec![
-                Mutation::MultiplierProperty((1, property::Int::FrenzyCharges)),
-            ],
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::AttackSpeed,
-            typ: Type::Inc,
-            amount: 4,
-            mutations: stackvec![
-                Mutation::MultiplierProperty((1, property::Int::FrenzyCharges)),
-            ],
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::CastSpeed,
-            typ: Type::Inc,
-            amount: 4,
-            mutations: stackvec![
-                Mutation::MultiplierProperty((1, property::Int::FrenzyCharges)),
-            ],
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::CriticalStrikeChance,
-            typ: Type::Inc,
-            amount: 50,
-            mutations: stackvec![
-                Mutation::MultiplierProperty((1, property::Int::PowerCharges)),
-            ],
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::MaximumFireResistance,
-            typ: Type::Base,
-            amount: 75,
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::MaximumColdResistance,
-            typ: Type::Base,
-            amount: 75,
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::MaximumLightningResistance,
-            typ: Type::Base,
-            amount: 75,
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::MaximumChaosResistance,
-            typ: Type::Base,
-            amount: 75,
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::AccuracyRating,
-            typ: Type::Base,
-            amount: 2,
-            mutations: stackvec![Mutation::MultiplierStat((1, StatId::Dexterity))],
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::AccuracyRating,
-            typ: Type::Base,
-            amount: 2,
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::AccuracyRating,
-            typ: Type::Base,
-            amount: 2,
-            mutations: stackvec![Mutation::MultiplierProperty((1, property::Int::Level))],
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::CriticalStrikeMultiplier,
-            typ: Type::Base,
-            amount: 150,
-            ..Default::default()
-        },
-        Mod {
-            stat: StatId::MaximumFortification,
-            typ: Type::Base,
-            amount: 20,
-            ..Default::default()
-        },
+        Mod::stat(StatId::MaximumLife, Type::Base, 12).with_mutations(stackvec![Mutation::MultiplierProperty((1, property::Int::Level))]),
+        Mod::stat(StatId::MaximumLife, Type::Base, 38),
+        Mod::stat(StatId::MaximumLife, Type::Base, 1).with_mutations(stackvec![Mutation::MultiplierStat((2, StatId::Strength))]),
+        Mod::stat(StatId::MaximumEnergyShield, Type::Inc, 1).with_mutations(stackvec![Mutation::MultiplierStat((10, StatId::Intelligence))]),
+        Mod::stat(StatId::MaximumMana, Type::Base, 6).with_mutations(stackvec![Mutation::MultiplierProperty((1, property::Int::Level))]),
+        Mod::stat(StatId::MaximumMana, Type::Base, 34),
+        Mod::stat(StatId::MaximumMana, Type::Base, 1).with_mutations(stackvec![Mutation::MultiplierStat((2, StatId::Intelligence))]),
+        Mod::stat(StatId::ManaRegenerationPct, Type::Base, 180),
+        Mod::stat(StatId::MaximumFrenzyCharges, Type::Base, 3),
+        Mod::stat(StatId::MaximumPowerCharges, Type::Base, 3),
+        Mod::stat(StatId::MaximumEnduranceCharges, Type::Base, 3),
+        Mod::stat(StatId::MaximumRage, Type::Base, 30),
+        Mod::stat(StatId::Damage, Type::More, 1)
+            .with_mutations(stackvec![Mutation::MultiplierProperty((1, property::Int::Rage))])
+            .with_tags(GemTag::Attack),
+        Mod::stat(StatId::PassiveSkillPoints, Type::Base, 1).with_mutations(stackvec![Mutation::MultiplierProperty((1, property::Int::Level))]),
+        Mod::stat(StatId::PassiveSkillPoints, Type::Base, 22), // 23 from quests -1 for level 1
+        Mod::stat(StatId::PhysicalDamage, Type::Inc, 1)
+            .with_mutations(stackvec![Mutation::MultiplierStat((5, StatId::Strength))])
+            .with_tags(GemTag::Melee)
+            .with_flags(ModFlag::Hit),
+        Mod::stat(StatId::Damage, Type::More, 4).with_mutations(stackvec![Mutation::MultiplierProperty((1, property::Int::FrenzyCharges))]),
+        Mod::stat(StatId::AttackSpeed, Type::Inc, 4).with_mutations(stackvec![Mutation::MultiplierProperty((1, property::Int::FrenzyCharges))]),
+        Mod::stat(StatId::CastSpeed, Type::Inc, 4).with_mutations(stackvec![Mutation::MultiplierProperty((1, property::Int::FrenzyCharges))]),
+        Mod::stat(StatId::CriticalStrikeChance, Type::Inc, 50).with_mutations(stackvec![Mutation::MultiplierProperty((1, property::Int::PowerCharges))]),
+        Mod::stat(StatId::MaximumFireResistance, Type::Base, 75),
+        Mod::stat(StatId::MaximumColdResistance, Type::Base, 75),
+        Mod::stat(StatId::MaximumLightningResistance, Type::Base, 75),
+        Mod::stat(StatId::MaximumChaosResistance, Type::Base, 75),
+        Mod::stat(StatId::AccuracyRating, Type::Base, 2).with_mutations(stackvec![Mutation::MultiplierStat((1, StatId::Dexterity))]),
+        Mod::stat(StatId::AccuracyRating, Type::Base, 2),
+        Mod::stat(StatId::AccuracyRating, Type::Base, 2).with_mutations(stackvec![Mutation::MultiplierProperty((1, property::Int::Level))]),
+        Mod::stat(StatId::CriticalStrikeMultiplier, Type::Base, 150),
+        Mod::stat(StatId::MaximumFortification, Type::Base, 20),
     ];
 }
 
@@ -488,10 +249,12 @@ impl Build {
             let item_mods = self.inventory[idx].calc_nonlocal_mods();
 
             for m in item_mods.iter() {
-                if m.stat == stat::StatId::AbyssalSockets {
-                    max_abyssal_sockets += m.amount;
+                if let Some(stat) = m.as_stat() &&
+                   stat.stat == stat::StatId::AbyssalSockets
+                {
+                    max_abyssal_sockets += stat.amount;
                 }
-                if let Some(n) = m.allocates {
+                if let Some(n) = m.as_allocate() {
                     if !self.tree.nodes_additional.contains(&n) {
                         self.tree.nodes_additional.push(n);
                     }
@@ -535,24 +298,9 @@ impl Build {
         let mut mods = Vec::with_capacity(600);
         mods.extend_from_slice(&BASE_MODES);
         mods.extend_from_slice(&[
-            Mod {
-                stat: StatId::Strength,
-                typ: Type::Base,
-                amount: class_data.base_str,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::Dexterity,
-                typ: Type::Base,
-                amount: class_data.base_dex,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::Intelligence,
-                typ: Type::Base,
-                amount: class_data.base_int,
-                ..Default::default()
-            },
+            Mod::stat(StatId::Strength, Type::Base, class_data.base_str),
+            Mod::stat(StatId::Dexterity, Type::Base, class_data.base_dex),
+            Mod::stat(StatId::Intelligence, Type::Base, class_data.base_int),
         ]);
         mods.append(&mut BANDIT_STATS.get(&self.bandit_choice).unwrap().clone());
         mods.append(&mut CAMPAIGN_STATS.get(&self.campaign_choice).unwrap().clone());
@@ -582,16 +330,16 @@ impl Build {
                 }
                 let defence = item.calc_defence();
                 if defence.armour.val() != 0 {
-                    mods.push(Mod { stat: StatId::Armour, typ: Type::Base, amount: defence.armour.val(), source: Source::Item(*slot), ..Default::default() });
+                    mods.push(Mod::stat(StatId::Armour, Type::Base, defence.armour.val()).with_source(Source::Item(*slot)));
                 }
                 if defence.energy_shield.val() != 0 {
-                    mods.push(Mod { stat: StatId::MaximumEnergyShield, typ: Type::Base, amount: defence.energy_shield.val(), source: Source::Item(*slot), ..Default::default() });
+                    mods.push(Mod::stat(StatId::MaximumEnergyShield, Type::Base, defence.energy_shield.val()).with_source(Source::Item(*slot)));
                 }
                 if defence.evasion.val() != 0 {
-                    mods.push(Mod { stat: StatId::EvasionRating, typ: Type::Base, amount: defence.evasion.val(), source: Source::Item(*slot), ..Default::default() });
+                    mods.push(Mod::stat(StatId::EvasionRating, Type::Base, defence.evasion.val()).with_source(Source::Item(*slot)));
                 }
                 if defence.block_chance.val() != 0 {
-                    mods.push(Mod { stat: StatId::ChanceToBlockAttackDamage, typ: Type::Base, amount: defence.block_chance.val(), source: Source::Item(*slot), ..Default::default() });
+                    mods.push(Mod::stat(StatId::ChanceToBlockAttackDamage, Type::Base, defence.block_chance.val()).with_source(Source::Item(*slot)));
                 }
             }
         }
@@ -604,24 +352,9 @@ impl Build {
     pub fn calc_mods_monster(level: i64) -> Vec<Mod> {
         let default_stats = MONSTER_STATS.get(&level).unwrap();
         let mods = vec![
-            Mod {
-                stat: StatId::MaximumLife,
-                typ: Type::Base,
-                amount: default_stats.life,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::EvasionRating,
-                typ: Type::Base,
-                amount: default_stats.evasion,
-                ..Default::default()
-            },
-            Mod {
-                stat: StatId::Armour,
-                typ: Type::Base,
-                amount: default_stats.armour,
-                ..Default::default()
-            },
+            Mod::stat(StatId::MaximumLife, Type::Base, default_stats.life),
+            Mod::stat(StatId::EvasionRating, Type::Base, default_stats.evasion),
+            Mod::stat(StatId::Armour, Type::Base, default_stats.armour),
         ];
         mods
     }

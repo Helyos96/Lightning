@@ -178,8 +178,8 @@ fn calc_min_max_dmg(stats: &Stats, active_gem: &Gem, mut base_min: i64, mut base
     // These stats are like "10% more maximum physical attack damage"
     let mut stat_min_dt = stats.stat(dg.min_id).clone();
     let mut stat_max_dt = stats.stat(dg.max_id).clone();
-    stat_min_dt.adjust_mod(&Mod { typ: Type::Base, amount: base_min + added_min, ..Default::default() });
-    stat_max_dt.adjust_mod(&Mod { typ: Type::Base, amount: base_max + added_max, ..Default::default() });
+    stat_min_dt.adjust(Type::Base, base_min + added_min);
+    stat_max_dt.adjust(Type::Base, base_max + added_max);
 
     (stat_min_dt.val(), stat_max_dt.val())
 }
@@ -208,8 +208,8 @@ fn calc_weapon_bleed_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &Da
     if let Some(mut max_dmg) = calc_weapon_max_base_dmg(stats, weapon, active_gem, dg) {
         let mut dot_multi = stats.stat(StatId::DotMultiplier).to_owned();
         dot_multi.assimilate(stats.stat(StatId::PhysicalDotMultiplier));
-        max_dmg.adjust_mod(&Mod { typ: Type::More, amount: -30, source: Source::Custom("Bleeds deal 70%"), ..Default::default() });
-        max_dmg.adjust_mod(&Mod { typ: Type::More, amount: dot_multi.val(), source: Source::Custom("Bleed Multi"), ..Default::default() });
+        max_dmg.adjust_mod(&Mod::stat(StatId::Damage, Type::More, -30).with_source(Source::Custom("Bleeds deal 70%")));
+        max_dmg.adjust_mod(&Mod::stat(StatId::Damage, Type::More, dot_multi.val()).with_source(Source::Custom("Bleed Multi")));
         return max_dmg.val();
     }
     0
@@ -219,7 +219,7 @@ fn calc_weapon_bleed_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &Da
 fn calc_crit_chance(stats: &Stats, crit_chance: Option<i64>) -> i64 {
     let mut crit_chance_stat = stats.stat(StatId::CriticalStrikeChance).to_owned();
     if let Some(crit_chance) = crit_chance {
-        crit_chance_stat.adjust_mod(&Mod { typ: Type::Base, amount: crit_chance, ..Default::default() });
+        crit_chance_stat.adjust(Type::Base, crit_chance);
     }
     crit_chance_stat.val()
 }
@@ -231,7 +231,7 @@ fn calc_chance_hit_weapon(stats: &Stats, monster_stats: &Stats, weapon: &Item) -
     let accuracy = accuracy_stat.val() as f32;
     let monster_evasion = monster_stats.val(StatId::EvasionRating) as f32;
     let chance_to_hit_from_accuracy = ((((1.25 * accuracy) / (accuracy + (monster_evasion * 0.2).powf(0.9))) * 100.0) as i64).clamp(0, 100);
-    chance_to_hit_stat.adjust_mod(&Mod { amount: chance_to_hit_from_accuracy, typ: Type::Base, ..Default::default()});
+    chance_to_hit_stat.adjust(Type::Base, chance_to_hit_from_accuracy);
     chance_to_hit_stat.val()
 }
 

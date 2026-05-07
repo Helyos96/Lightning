@@ -135,20 +135,17 @@ pub enum StatId {
     PoisonDuration,
     AuraEffect,
     SmallPassiveIncreasedEffect,
-    // Damage conversions (Physical → ...)
     PhysicalToLightningConversion,
     PhysicalToColdConversion,
     PhysicalToFireConversion,
     PhysicalToChaosConversion,
-    // Lightning → ...
     LightningToColdConversion,
     LightningToFireConversion,
     LightningToChaosConversion,
-    // Cold → ...
     ColdToFireConversion,
     ColdToChaosConversion,
-    // Fire → ...
     FireToChaosConversion,
+    FasterIgnite,
 }
 
 impl StatId {
@@ -194,7 +191,7 @@ pub struct Stat {
 pub fn calc_stat(stat_id: StatId, mods: &[Mod]) -> Stat {
     let mut stat = Stat::default();
 
-    for m in mods.iter().filter(|m| m.stat == stat_id) {
+    for m in mods.iter().filter(|m| if let Some(stat) = m.as_stat() && stat.stat == stat_id { true } else { false }) {
         stat.adjust_mod(m);
     }
 
@@ -207,7 +204,9 @@ pub fn calc_stats(mods: &[Mod]) -> Stats {
     let mut stats: FxHashMap<StatId, Stat> = FxHashMap::default();
 
     for m in mods {
-        stats.entry(m.stat).or_default().adjust_mod(m);
+        if let Some(stat) = m.as_stat() {
+            stats.entry(stat.stat).or_default().adjust_mod(m);
+        }
     }
 
     Stats { stats }
@@ -227,12 +226,20 @@ impl Default for Stat {
 
 impl Stat {
     pub fn adjust_mod(&mut self, m: &Mod) {
-        self.adjust(m.typ, m.final_amount());
+        if let Some(stat) = m.as_stat() {
+            self.adjust(stat.typ, stat.final_amount());
+        } else {
+            eprintln!("Trying to adjust stat with non-stat mod");
+        }
         self.mods.push(m.to_owned());
     }
 
     pub fn adjust_mod_move(&mut self, m: Mod) {
-        self.adjust(m.typ, m.final_amount());
+        if let Some(stat) = m.as_stat() {
+            self.adjust(stat.typ, stat.final_amount());
+        } else {
+            eprintln!("Trying to adjust stat with non-stat mod");
+        }
         self.mods.push(m);
     }
 

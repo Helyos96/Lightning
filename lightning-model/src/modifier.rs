@@ -250,7 +250,7 @@ lazy_static! {
                     _ => panic!(),
                 };
                 Some(stat_tags.iter().map(|s| {
-                    Mod { stat: s.0, typ: Type::Inc, amount, tags: s.1, weapons: s.2, flags: s.3, ..Default::default() }
+                    Mod::stat(s.0, Type::Inc, amount).with_tags(s.1).with_weapons(s.2).with_flags(s.3)
                 }).collect())
             })
         ), (
@@ -259,7 +259,7 @@ lazy_static! {
                 let stat_tags = parse_stat(&c[2])?;
                 let amount = i64::from_str(&c[1]).unwrap();
                 Some(stat_tags.iter().map(|s| {
-                    Mod { stat: s.0, typ: Type::Base, amount, tags: s.1, weapons: s.2, flags: s.3, ..Default::default() }
+                    Mod::stat(s.0, Type::Base, amount).with_tags(s.1).with_weapons(s.2).with_flags(s.3)
                 }).collect())
             })
         ), (
@@ -274,10 +274,10 @@ lazy_static! {
                     _ => panic!(),
                 };
                 let mut ret: Vec<Mod> = stat_tags_1.iter().map(|s| {
-                    Mod { stat: s.0, typ: Type::Inc, amount, tags: s.1, weapons: s.2, flags: s.3, ..Default::default() }
+                    Mod::stat(s.0, Type::Inc, amount).with_tags(s.1).with_weapons(s.2).with_flags(s.3)
                 }).collect();
                 ret.extend(stat_tags_2.iter().map(|s| {
-                    Mod { stat: s.0, typ: Type::Inc, amount, tags: s.1, weapons: s.2, flags: s.3, ..Default::default() }
+                    Mod::stat(s.0, Type::Inc, amount).with_tags(s.1).with_weapons(s.2).with_flags(s.3)
                 }));
                 Some(ret)
             })
@@ -286,7 +286,7 @@ lazy_static! {
             Box::new(|c| {
                 let stat_tags = parse_stat(&c[2])?;
                 Some(stat_tags.iter().map(|s| {
-                    Mod { stat: s.0, typ: Type::More, amount: i64::from_str(&c[1]).unwrap(), tags: s.1, weapons: s.2, flags: s.3, ..Default::default() }
+                    Mod::stat(s.0, Type::More, i64::from_str(&c[1]).unwrap()).with_tags(s.1).with_weapons(s.2).with_flags(s.3)
                 }).collect())
             })
         ), (
@@ -294,7 +294,7 @@ lazy_static! {
             Box::new(|c| {
                 let stat_tags = parse_stat(&c[2])?;
                 Some(stat_tags.iter().map(|s| {
-                    Mod { stat: s.0, typ: Type::More, amount: i64::from_str(&c[1]).unwrap().neg(), tags: s.1, weapons: s.2, flags: s.3, ..Default::default() }
+                    Mod::stat(s.0, Type::More, i64::from_str(&c[1]).unwrap().neg()).with_tags(s.1).with_weapons(s.2).with_flags(s.3)
                 }).collect())
             })
         ), (
@@ -303,8 +303,8 @@ lazy_static! {
                 let stat_tags_1 = parse_stat_nomulti(&c[2])?;
                 let stat_tags_2 = parse_stat_nomulti(&c[3])?;
                 Some(vec![
-                    Mod { stat: stat_tags_1.0, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), tags: stat_tags_1.1, weapons: stat_tags_1.2, ..Default::default() },
-                    Mod { stat: stat_tags_2.0, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), tags: stat_tags_2.1, weapons: stat_tags_2.2, ..Default::default() },
+                    Mod::stat(stat_tags_1.0, Type::Base, i64::from_str(&c[1]).unwrap()).with_tags(stat_tags_1.1).with_weapons(stat_tags_1.2),
+                    Mod::stat(stat_tags_2.0, Type::Base, i64::from_str(&c[1]).unwrap()).with_tags(stat_tags_2.1).with_weapons(stat_tags_2.2),
                 ])
             })
         ), (
@@ -313,8 +313,8 @@ lazy_static! {
                 let stat_tags_1 = STATS_MAP.get(format!("{} resistance", &c[2]).as_str()).cloned()?;
                 let stat_tags_2 = STATS_MAP.get(format!("{} resistance", &c[3]).as_str()).cloned()?;
                 Some(vec![
-                    Mod { stat: stat_tags_1.0, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), tags: stat_tags_1.1, ..Default::default() },
-                    Mod { stat: stat_tags_2.0, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), tags: stat_tags_2.1, ..Default::default() },
+                    Mod::stat(stat_tags_1.0, Type::Base, i64::from_str(&c[1]).unwrap()).with_tags(stat_tags_1.1),
+                    Mod::stat(stat_tags_2.0, Type::Base, i64::from_str(&c[1]).unwrap()).with_tags(stat_tags_2.1),
                 ])
             })
         ), (
@@ -323,8 +323,8 @@ lazy_static! {
                 let stat_tags_1 = STATS_MAP.get(format!("added minimum {}", &c[3]).as_str()).cloned()?;
                 let stat_tags_2 = STATS_MAP.get(format!("added maximum {}", &c[3]).as_str()).cloned()?;
                 Some(vec![
-                    Mod { stat: stat_tags_1.0, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), tags: stat_tags_1.1, weapons: stat_tags_1.2, ..Default::default() },
-                    Mod { stat: stat_tags_2.0, typ: Type::Base, amount: i64::from_str(&c[2]).unwrap(), tags: stat_tags_2.1, weapons: stat_tags_2.2, ..Default::default() },
+                    Mod::stat(stat_tags_1.0, Type::Base, i64::from_str(&c[1]).unwrap()).with_tags(stat_tags_1.1).with_weapons(stat_tags_1.2),
+                    Mod::stat(stat_tags_2.0, Type::Base, i64::from_str(&c[2]).unwrap()).with_tags(stat_tags_2.1).with_weapons(stat_tags_2.2),
                 ])
             })
         ), (
@@ -338,13 +338,13 @@ lazy_static! {
                     _ => panic!(),
                 };
 
-                Some(vec![Mod { stat, typ: Type::Base, amount: parse_val100(&c[1])?, ..Default::default() }])
+                Some(vec![Mod::stat(stat, Type::Base, parse_val100(&c[1])?)])
             })
         ), (
             regex!(r"^damage penetrates ([0-9]+)% ([a-z]+) resistance$"),
             Box::new(|c| {
                 let stat_tags_1 = STATS_MAP.get(format!("{} damage penetration", &c[2]).as_str()).cloned()?;
-                Some(vec![Mod { stat: stat_tags_1.0, typ: Type::Base, amount: parse_val100(&c[1])?, tags: stat_tags_1.1, ..Default::default() }])
+                Some(vec![Mod::stat(stat_tags_1.0, Type::Base, parse_val100(&c[1])?).with_tags(stat_tags_1.1)])
             })
         ), (
             regex!(r"^your ([a-z -]+) is equal to ([0-9]+)% of your ([a-z -]+)$"),
@@ -352,13 +352,13 @@ lazy_static! {
                 let stat_tags_1 = parse_stat_nomulti(&c[1])?;
                 let stat_tags_2 = parse_stat_nomulti(&c[3])?;
                 let pct = i64::from_str(&c[2]).unwrap();
-                Some(vec![Mod { stat: stat_tags_1.0, typ: Type::Override, tags: stat_tags_1.1, weapons: stat_tags_2.2, flags: stat_tags_1.3, mutations: stackvec!(Mutation::StatPct((pct, stat_tags_2.0))), ..Default::default() }])
+                Some(vec![Mod::stat(stat_tags_1.0, Type::Override, 0).with_tags(stat_tags_1.1).with_weapons(stat_tags_2.2).with_flags(stat_tags_1.3).with_mutations(stackvec!(Mutation::StatPct((pct, stat_tags_2.0))))])
             })
         ), (
             regex!(r"^grants ([0-9]+) ([a-z -]+)$"),
             Box::new(|c| {
                 let stat_tags_1 = parse_stat_nomulti(&c[2])?;
-                Some(vec![Mod { stat: stat_tags_1.0, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() }])
+                Some(vec![Mod::stat(stat_tags_1.0, Type::Base, i64::from_str(&c[1]).unwrap())])
             })
         ), (
             regex!(r"^allocates ([a-z '-]+)$"),
@@ -366,51 +366,56 @@ lazy_static! {
                 let (node, _) = TREE.nodes.iter().find(|(_, v)| {
                     v.name.to_lowercase() == &c[1]
                 })?;
-                Some(vec![Mod { allocates: Some(*node), ..Default::default() }])
+                Some(vec![Mod::allocate(*node)])
             })
         ), (
             regex!(r"^adds ([0-9]+) passive skills$"),
             Box::new(|c| {
-                Some(vec![Mod { stat: StatId::AllocatesPassiveSkills, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() }])
+                Some(vec![Mod::stat(StatId::AllocatesPassiveSkills, Type::Base, i64::from_str(&c[1]).unwrap())])
             })
         ), (
             regex!(r"^([0-9]+) added passive skills? (are|is a) jewel sockets?$"),
             Box::new(|c| {
-                Some(vec![Mod { stat: StatId::AddedPassivesAreJewelSockets, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() }])
+                Some(vec![Mod::stat(StatId::AddedPassivesAreJewelSockets, Type::Base, i64::from_str(&c[1]).unwrap())])
             })
         ), (
             regex!(r"^adds ([0-9]+) jewel socket passive skills$"),
             Box::new(|c| {
-                Some(vec![Mod { stat: StatId::AddedPassivesAreJewelSockets, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() }])
+                Some(vec![Mod::stat(StatId::AddedPassivesAreJewelSockets, Type::Base, i64::from_str(&c[1]).unwrap())])
             })
         ), (
             regex!(r"^adds ([0-9]+) small passive skills which grant nothing$"),
             Box::new(|c| {
                 Some(vec![
-                    Mod { stat: StatId::AllocatesPassiveSkills, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() },
-                    Mod { stat: StatId::AddedPassiveSkillsGrantNode, typ: Type::Base, amount: NOTHINGNESS_NODE_ID as i64, ..Default::default() },
+                    Mod::stat(StatId::AllocatesPassiveSkills, Type::Base, i64::from_str(&c[1]).unwrap()),
+                    Mod::stat(StatId::AddedPassiveSkillsGrantNode, Type::Base, NOTHINGNESS_NODE_ID as i64),
                 ])
             })
         ), (
             regex!(r"^has ([0-9]+) abyssal sockets?$"),
             Box::new(|c| {
-                Some(vec![Mod { stat: StatId::AbyssalSockets, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() }])
+                Some(vec![Mod::stat(StatId::AbyssalSockets, Type::Base, i64::from_str(&c[1]).unwrap())])
             })
         ), (
             regex!(r"^attacks have ([0-9]+) abyssal sockets?$"),
             Box::new(|c| {
-                Some(vec![Mod { stat: StatId::AbyssalSockets, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() }])
+                Some(vec![Mod::stat(StatId::AbyssalSockets, Type::Base, i64::from_str(&c[1]).unwrap())])
             })
         ), (
             regex!(r"^added small passive skills have ([0-9]+)% increased effect$"),
             Box::new(|c| {
-                Some(vec![Mod { stat: StatId::SmallPassiveIncreasedEffect, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() }])
+                Some(vec![Mod::stat(StatId::SmallPassiveIncreasedEffect, Type::Base, i64::from_str(&c[1]).unwrap())])
             })
         ), (
             regex!(r"^([0-9]+)% of (physical|cold|fire|lightning|chaos) damage converted to (fire|cold|lightning|chaos) damage$"),
             Box::new(|c| {
                 let stat = CONVERSIONS.get(&(c[2].to_string(), c[3].to_string()))?;
-                Some(vec![Mod { stat: *stat, typ: Type::Base, amount: i64::from_str(&c[1]).unwrap(), ..Default::default() }])
+                Some(vec![Mod::stat(*stat, Type::Base, i64::from_str(&c[1]).unwrap())])
+            })
+        ), (
+            regex!(r"^ignites you inflict deal damage ([0-9]+)% faster$"),
+            Box::new(|c| {
+                Some(vec![Mod::stat(StatId::FasterIgnite, Type::Base, i64::from_str(&c[1]).unwrap())])
             })
         ),
     ];
@@ -432,24 +437,24 @@ lazy_static! {
     static ref ONESHOTS: FxHashMap<&'static str, Vec<Mod>> = {
         let mut map = FxHashMap::default();
         map.insert("maximum life becomes 1, immune to chaos damage", vec![
-            Mod { stat: StatId::MaximumLife, typ: Type::Override, amount: 1, ..Default::default()},
-            Mod { stat: StatId::ChaosResistance, typ: Type::Override, amount: 100, ..Default::default()},
-            Mod { stat: StatId::MaximumChaosResistance, typ: Type::Override, amount: 100, ..Default::default()},
+            Mod::stat(StatId::MaximumLife, Type::Override, 1),
+            Mod::stat(StatId::ChaosResistance, Type::Override, 100),
+            Mod::stat(StatId::MaximumChaosResistance, Type::Override, 100),
         ]);
         map.insert("never deal critical strikes", vec![
-            Mod { stat: StatId::CriticalStrikeChance, typ: Type::Override, amount: 0, ..Default::default()},
+            Mod::stat(StatId::CriticalStrikeChance, Type::Override, 0),
         ]);
         map.insert("your hits can't be evaded", vec![
-            Mod { stat: StatId::ChanceToHit, typ: Type::Override, amount: 100, ..Default::default()},
+            Mod::stat(StatId::ChanceToHit, Type::Override, 100),
         ]);
         map.insert("removes all mana", vec![
-            Mod { stat: StatId::MaximumMana, typ: Type::Override, amount: 0, ..Default::default()},
+            Mod::stat(StatId::MaximumMana, Type::Override, 0),
         ]);
         map.insert("strength's damage bonus applies to all spell damage as well", vec![
-            Mod { stat: StatId::Damage, typ: Type::Inc, amount: 1, tags: GemTag::Spell.into(), mutations: stackvec!(Mutation::MultiplierStat((5, StatId::Strength))), ..Default::default()},
+            Mod::stat(StatId::Damage, Type::Inc, 1).with_tags(GemTag::Spell).with_mutations(stackvec!(Mutation::MultiplierStat((5, StatId::Strength)))),
         ]);
         map.insert("removes all energy shield", vec![
-            Mod { stat: StatId::MaximumEnergyShield, typ: Type::Override, amount: 0, ..Default::default()},
+            Mod::stat(StatId::MaximumEnergyShield, Type::Override, 0),
         ]);
         map
     };
@@ -562,6 +567,7 @@ pub enum ModFlag {
     Hit,
     Ailment,
     Bleed,
+    Ignite,
     Poison,
     Aura,
     Buff,
@@ -570,27 +576,118 @@ pub enum ModFlag {
 const MUTATIONS_COUNT: usize = 2;
 const CONDITIONS_COUNT: usize = 2;
 
-#[derive(Default, Debug, Clone, Copy)]
-pub struct Mod {
+#[derive(Debug, Clone, Copy)]
+pub struct ModStat {
     pub stat: StatId,
     pub typ: Type,
     pub amount: i64,
-    pub revised_amount: Option<i64>, // After mutations or other amount-modifying functions
+    pub revised_amount: Option<i64>,
     pub mutations: StackVec<Mutation, MUTATIONS_COUNT>,
+}
+
+impl ModStat {
+    pub fn final_amount(&self) -> i64 {
+        self.revised_amount.unwrap_or(self.amount)
+    }
+}
+
+impl Default for ModStat {
+    fn default() -> Self {
+        ModStat { stat: StatId::Strength, typ: Type::Base, amount: 0, revised_amount: None, mutations: stackvec![] }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ModEffect {
+    Stat(ModStat),
+    Allocate(u32),
+    ForceBool(property::Bool, bool),
+}
+
+impl Default for ModEffect {
+    fn default() -> Self {
+        ModEffect::Stat(ModStat::default())
+    }
+}
+
+#[derive(Default, Debug, Clone, Copy)]
+pub struct Mod {
+    pub effect: ModEffect,
     pub conditions: StackVec<Condition, CONDITIONS_COUNT>,
     pub tags: BitFlags<GemTag>,
     pub source: Source,
     pub weapons: BitFlags<ItemClass>,
     pub flags: BitFlags<ModFlag>,
-    pub allocates: Option<u32>,
 }
 
 impl Mod {
-    pub fn final_amount(&self) -> i64 {
-        if let Some(revised_amount) = self.revised_amount {
-            revised_amount
+    pub fn stat(stat: StatId, typ: Type, amount: i64) -> Self {
+        Self {
+            effect: ModEffect::Stat(ModStat {
+                stat, typ, amount, revised_amount: None, mutations: stackvec![]
+            }),
+            ..Default::default()
+        }
+    }
+
+    pub fn allocate(node: u32) -> Self {
+        Self { effect: ModEffect::Allocate(node), ..Default::default() }
+    }
+
+    pub fn force_bool(prop: property::Bool, val: bool) -> Self {
+        Self { effect: ModEffect::ForceBool(prop, val), ..Default::default() }
+    }
+
+    pub fn with_mutations(mut self, mutations: StackVec<Mutation, MUTATIONS_COUNT>) -> Self {
+        if let Some(stat) = self.as_stat_mut() {
+            stat.mutations.extend(mutations);
         } else {
-            self.amount
+            eprintln!("Trying to add mutations to non-stat Mod");
+        }
+        self
+    }
+
+    pub fn with_tags(mut self, tags: impl Into<BitFlags<GemTag>>) -> Self {
+        self.tags.insert(tags);
+        self
+    }
+
+    pub fn with_flags(mut self, flags: impl Into<BitFlags<ModFlag>>) -> Self {
+        self.flags.insert(flags);
+        self
+    }
+
+    pub fn with_weapons(mut self, weapons: impl Into<BitFlags<ItemClass>>) -> Self {
+        self.weapons.insert(weapons);
+        self
+    }
+
+    pub fn with_source(mut self, source: Source) -> Self {
+        self.source = source;
+        self
+    }
+
+    pub fn as_stat(&self) -> Option<&ModStat> {
+        if let ModEffect::Stat(stat) = &self.effect {
+            Some(stat)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_stat_mut(&mut self) -> Option<&mut ModStat> {
+        if let ModEffect::Stat(stat) = &mut self.effect {
+            Some(stat)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_allocate(&self) -> Option<u32> {
+        if let ModEffect::Allocate(id) = &self.effect {
+            Some(*id)
+        } else {
+            None
         }
     }
 }
@@ -618,7 +715,7 @@ fn parse_ending(m: &str) -> Option<(usize, Mod)> {
             if let Some(amount) = cap.get(1) {
                 mutation.set_amount(i64::from_str(amount.as_str()).unwrap());
             }
-            ret.mutations.push(mutation);
+            ret = ret.with_mutations(stackvec![mutation]);
             return Some((cap.get_match().len(), ret));
         }
     }
@@ -629,7 +726,7 @@ fn parse_ending(m: &str) -> Option<(usize, Mod)> {
                 Some(amount_str) => i64::from_str(amount_str.as_str()).unwrap(),
                 None => 1,
             };
-            ret.mutations.push(Mutation::MultiplierStat((amount, stat.0)));
+            ret = ret.with_mutations(stackvec![Mutation::MultiplierStat((amount, stat.0))]);
             return Some((cap.get_match().len(), ret));
         }
     }
@@ -734,7 +831,9 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
             m = &m[0..m.len() - 1];
         }
 
-        mutations.extend_from_slice(&modifier.mutations);
+        if let Some(stat) = modifier.as_stat() {
+            mutations.extend_from_slice(&stat.mutations);
+        }
         tags.insert(modifier.tags);
         weapons.insert(modifier.weapons);
         flags.insert(modifier.flags);
@@ -743,7 +842,9 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
 
     while let Some((size, modifier)) = parse_beginning(&m) {
         m = &m[size + 1..m.len()];
-        mutations.extend_from_slice(&modifier.mutations);
+        if let Some(stat) = modifier.as_stat() {
+            mutations.extend_from_slice(&stat.mutations);
+        }
         tags.insert(modifier.tags);
         weapons.insert(modifier.weapons);
         flags.insert(modifier.flags);
@@ -754,8 +855,10 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
         if let Some(cap) = begin.0.captures(&m) {
             if let Some(mut mods) = begin.1(&cap) {
                 for modifier in &mut mods {
+                    if let Some(stat) = modifier.as_stat_mut() {
+                        stat.mutations.extend_from_slice(&mutations);
+                    }
                     modifier.tags.insert(tags);
-                    modifier.mutations.extend_from_slice(&mutations);
                     modifier.weapons.insert(weapons);
                     modifier.conditions.extend_from_slice(&conditions);
                     modifier.source = source;

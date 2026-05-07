@@ -3,7 +3,7 @@ use crate::build::Slot;
 use crate::data::base_item::{BaseItem, Rarity};
 use crate::data::tree::Node;
 use crate::data::{DAMAGE_GROUPS, DamageType, ITEMS, TREE};
-use crate::modifier::{self, parse_mod, Mod, Source, Type};
+use crate::modifier::{self, Mod, ModStat, Source, Type, parse_mod};
 use arc_swap::ArcSwap;
 use derivative::Derivative;
 use regex::Regex;
@@ -63,7 +63,7 @@ struct LocalModMatch {
 }
 
 impl LocalModMatch {
-    fn matches(&self, m: &Mod) -> bool {
+    fn matches(&self, m: &ModStat) -> bool {
         if m.stat == self.stat && m.typ == self.typ {
             return true;
         }
@@ -93,12 +93,14 @@ const LOCAL_MODS_ARMOUR: &[LocalModMatch] = &[
 ];
 
 fn match_local(m: &Mod, match_table: &[LocalModMatch]) -> bool {
-    if !m.conditions.is_empty() || !m.mutations.is_empty() {
-        return false;
-    }
-    for local_mod_match in match_table {
-        if local_mod_match.matches(m) {
-            return true;
+    if let Some(stat) = m.as_stat() {
+        if !m.conditions.is_empty() || !stat.mutations.is_empty() {
+            return false;
+        }
+        for local_mod_match in match_table {
+            if local_mod_match.matches(stat) {
+                return true;
+            }
         }
     }
     false
@@ -237,21 +239,22 @@ impl Item {
         let mods = self.calc_local_mods();
 
         if let Some(armour_prop) = &base_item.properties.armour {
-            ret.armour.adjust_mod(&Mod { typ: Type::Base, amount: self.defence_val(armour_prop.min as i64, armour_prop.max as i64), ..Default::default() });
+            ret.armour.adjust_mod(&Mod::stat(StatId::Armour, Type::Base, self.defence_val(armour_prop.min as i64, armour_prop.max as i64)));
         }
         if let Some(energy_shield) = base_item.properties.energy_shield {
-            ret.energy_shield.adjust_mod(&Mod { typ: Type::Base, amount: self.defence_val(energy_shield.min as i64, energy_shield.max as i64), ..Default::default() });
+            ret.energy_shield.adjust_mod(&Mod::stat(StatId::MaximumEnergyShield, Type::Base, self.defence_val(energy_shield.min as i64, energy_shield.max as i64)));
         }
         if let Some(evasion) = base_item.properties.evasion {
-            ret.evasion.adjust_mod(&Mod { typ: Type::Base, amount: self.defence_val(evasion.min as i64, evasion.max as i64), ..Default::default() });
+            ret.evasion.adjust_mod(&Mod::stat(StatId::EvasionRating, Type::Base, self.defence_val(evasion.min as i64, evasion.max as i64)));
         }
+
         ret.armour.assimilate(&calc_stat(StatId::Armour, &mods));
         ret.energy_shield.assimilate(&calc_stat(StatId::MaximumEnergyShield, &mods));
         ret.evasion.assimilate(&calc_stat(StatId::EvasionRating, &mods));
-        ret.armour.adjust_mod(&Mod { typ: Type::More, amount: self.quality, ..Default::default()});
-        ret.energy_shield.adjust_mod(&Mod { typ: Type::More, amount: self.quality, ..Default::default()});
-        ret.evasion.adjust_mod(&Mod { typ: Type::More, amount: self.quality, ..Default::default()});
-        ret.block_chance.adjust_mod(&Mod { typ: Type::Base, amount: self.block_chance().unwrap_or(0), ..Default::default()});
+        ret.armour.adjust_mod(&Mod::stat(StatId::Armour, Type::More, self.quality));
+        ret.energy_shield.adjust_mod(&Mod::stat(StatId::MaximumEnergyShield, Type::More, self.quality));
+        ret.evasion.adjust_mod(&Mod::stat(StatId::EvasionRating, Type::More, self.quality));
+        ret.block_chance.adjust_mod(&Mod::stat(StatId::ChanceToBlockAttackDamage, Type::Base, self.block_chance().unwrap_or(0)));
 
         self.defence_cache.store(Arc::new(ret));
         self.is_defence_cache_fresh.store(true, Ordering::Relaxed);
@@ -274,11 +277,7 @@ impl Item {
 
         let mut calc = |target: i64, id: StatId, min: u32, max: u32| {
             let mut stat = calc_stat(id, &mods);
-            stat.adjust_mod(&Mod {
-                typ: Type::More,
-                amount: self.quality,
-                ..Default::default()
-            });
+            stat.adjust_mod(&Mod::stat(id, Type::More, self.quality));
 
             let m = stat.mult();
             if m == 0 { return; }
@@ -316,7 +315,7 @@ impl Item {
         if let Some(crit_chance) = self.data().properties.critical_strike_chance {
             let mods = self.calc_local_mods();
             let mut stat_crit_chance = calc_stat(StatId::CriticalStrikeChance, &mods);
-            stat_crit_chance.adjust_mod(&Mod { typ: Type::Base, amount: crit_chance, ..Default::default() });
+            stat_crit_chance.adjust_mod(&Mod::stat(StatId::CriticalStrikeChance, Type::Base, crit_chance));
             return Some(stat_crit_chance.val());
         }
         None
@@ -326,14 +325,14 @@ impl Item {
         if let Some(block_chance) = self.data().properties.block {
             let mods = self.calc_local_mods();
             let mut stat_block_chance = calc_stat(StatId::ChanceToBlockAttackDamage, &mods);
-            stat_block_chance.adjust_mod(&Mod { typ: Type::Base, amount: block_chance, ..Default::default() });
+            stat_block_chance.adjust_mod(&Mod::stat(StatId::ChanceToBlockAttackDamage, Type::Base, block_chance));
             return Some(stat_block_chance.val());
         }
         None
     }
 
     pub fn allocates_nodes(&self) -> bool {
-        self.calc_nonlocal_mods().iter().find(|m| m.allocates.is_some()).is_some()
+        self.calc_nonlocal_mods().iter().find(|m| m.as_allocate().is_some()).is_some()
     }
 
     fn calc_mods(&self, local: bool) -> Vec<Mod> {
