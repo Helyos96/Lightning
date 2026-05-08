@@ -406,7 +406,7 @@ fn main() {
     let mut translations = parse_csd(format!("{poe_dir}/out/metadata/statdescriptions/passive_skill_stat_descriptions.txt").as_str()).unwrap();
     translations.0.extend(parse_csd(format!("{poe_dir}/out/metadata/statdescriptions/stat_descriptions.txt").as_str()).unwrap().0);
 
-    serde_json::to_writer(std::fs::File::create("tattoos.json").unwrap(), &dump_tattoos(&datc64_dumps, &translations));
+    serde_json::to_writer(std::fs::File::create("tattoos.json").unwrap(), &dump_tattoos(&datc64_dumps, &translations)).expect("Failed to write tattoos.json");
 
     //extract_tree(poe_dir, &dat_schema, &datc64_dumps, &args);
 
