@@ -593,7 +593,7 @@ impl ModStat {
 
 impl Default for ModStat {
     fn default() -> Self {
-        ModStat { stat: StatId::Strength, typ: Type::Base, amount: 0, revised_amount: None, mutations: stackvec![] }
+        ModStat { stat: StatId::Strength, typ: Type::Base, amount: 0, revised_amount: None, mutations: StackVec::default() }
     }
 }
 
@@ -624,7 +624,7 @@ impl Mod {
     pub fn stat(stat: StatId, typ: Type, amount: i64) -> Self {
         Self {
             effect: ModEffect::Stat(ModStat {
-                stat, typ, amount, revised_amount: None, mutations: stackvec![]
+                stat, typ, amount, revised_amount: None, mutations: StackVec::default()
             }),
             ..Default::default()
         }
