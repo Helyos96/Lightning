@@ -94,7 +94,7 @@ impl<'a> Evaluator<'a> {
         if self.build.is_property_int_maxed(p) {
             return max;
         }
-        self.build.property_int(p).clamp(min, max)
+        self.build.property_int(p).clamp(min, max.max(min))
     }
 
     fn check_condition(&mut self, c: &Condition) -> bool {
