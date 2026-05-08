@@ -25,6 +25,7 @@ arc-swap = "1.9"
 derivative = "2.2"
 mimalloc = "0.1"
 dashmap = "6.1"
+include-bytes-zstd = "0.1"
 
 [features]
 default = ["import"]

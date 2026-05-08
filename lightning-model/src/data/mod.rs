@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use crate::build::stat::StatId;
 use crate::data::tattoo::TattooData;
 use enumflags2::{BitFlags, bitflags};
+use include_bytes_zstd::include_bytes_zstd;
 
 #[bitflags]
 #[repr(u8)]
@@ -78,6 +79,7 @@ pub const DAMAGE_GROUPS: [DamageGroup; 5] = [
     DamageGroup::new(StatId::ChaosDamage, StatId::AddedMinChaosDamage, StatId::AddedMaxChaosDamage, StatId::BaseMinChaosDamage, StatId::BaseMaxChaosDamage, StatId::MinChaosDamage, StatId::MaxChaosDamage, DamageType::Chaos),
 ];
 
+#[cfg(debug_assertions)]
 lazy_static! {
     pub static ref GEMS: FxHashMap<String, GemData> =
         bincode::deserialize(include_bytes!("../../data/gems.bc")).expect("Failed to deserialize GEMS");
@@ -89,4 +91,19 @@ lazy_static! {
         bincode::deserialize(include_bytes!("../../data/default_monster_stats.bc")).expect("Failed to deserialize default monster stats");
     pub static ref TATTOOS: FxHashMap<String, TattooData> =
         bincode::deserialize(include_bytes!("../../data/tattoos.bc")).expect("Failed to deserialize tattoos");
+}
+
+// Use zstd-compressed files for release
+#[cfg(not(debug_assertions))]
+lazy_static! {
+    pub static ref GEMS: FxHashMap<String, GemData> =
+        bincode::deserialize(&include_bytes_zstd!("data/gems.bc", 9)).expect("Failed to deserialize GEMS");
+    pub static ref ITEMS: FxHashMap<String, BaseItem> =
+        bincode::deserialize(&include_bytes_zstd!("data/base_items.bc", 9)).expect("Failed to deserialize base items");
+    pub static ref TREE: TreeData =
+        bincode::deserialize(&include_bytes_zstd!("data/tree.bc", 9)).expect("Failed to deserialize tree");
+    pub static ref MONSTER_STATS: FxHashMap<i64, MonsterStats> =
+        bincode::deserialize(&include_bytes_zstd!("data/default_monster_stats.bc", 9)).expect("Failed to deserialize default monster stats");
+    pub static ref TATTOOS: FxHashMap<String, TattooData> =
+        bincode::deserialize(&include_bytes_zstd!("data/tattoos.bc", 9)).expect("Failed to deserialize tattoos");
 }
