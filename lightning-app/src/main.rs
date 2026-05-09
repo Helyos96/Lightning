@@ -345,10 +345,13 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                 if !egui_event_result.consumed {
                     match event {
                         WindowEvent::MouseWheel {
-                            delta: event::MouseScrollDelta::LineDelta(_h, v),
-                            phase: event::TouchPhase::Moved,
+                            delta,
                             ..
                         } => {
+                            let v = match delta {
+                                event::MouseScrollDelta::LineDelta(_h, v) => v,
+                                event::MouseScrollDelta::PixelDelta(pos) => (pos.y / 50.0) as f32,
+                            };
                             if state.ui_state == UiState::Main(MainState::Tree) && gui::is_over_tree(&state.mouse_pos) {
                                 let old_zoom = state.zoom;
                                 state.zoom_tmp = (state.zoom_tmp + v).clamp(1.0, 10.0);
