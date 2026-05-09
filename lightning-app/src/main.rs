@@ -299,12 +299,6 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                         state.ui_state = UiState::ChooseBuild;
                     }
                 };
-                if let Err(err) = process_state(state) {
-                    eprintln!("State Error: {:?}: {}", state.ui_state, err);
-                    if state.ui_state == UiState::ImportBuild {
-                        state.ui_state = UiState::ChooseBuild;
-                    }
-                }
 
                 egui_glow.paint(window);
                 if egui_glow.egui_ctx.has_requested_repaint() || state.request_recalc || state.request_regen_gl || state.request_regen_nodes_gl {
@@ -330,6 +324,17 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                             windows_sys::Win32::Graphics::Dwm::DwmFlush();
                         }
                     }
+                }
+
+                let old_ui_state = state.ui_state.clone();
+                if let Err(err) = process_state(state) {
+                    eprintln!("State Error: {:?}: {}", state.ui_state, err);
+                    if state.ui_state == UiState::ImportBuild {
+                        state.import_error = Some(err.to_string());
+                        state.ui_state = UiState::ChooseBuild;
+                    }
+                } else if old_ui_state == UiState::ImportBuild {
+                    state.import_error = None;
                 }
                 state.redraw_counter += 1;
                 state.last_instant = Instant::now();

@@ -36,13 +36,17 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 ui.separator();
                 ui.label("From pathofexile.com");
                 ui.add(egui::TextEdit::singleline(&mut state.import_account).hint_text("Account#1234"));
-                ui.add(egui::TextEdit::singleline(&mut state.import_character).hint_text("Character"));
+                let r = ui.add(egui::TextEdit::singleline(&mut state.import_character).hint_text("Character"));
 
-                if ui.button("Import").clicked() {
+                if ui.button("Import").clicked() ||
+                   (r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)))
+                {
                     state.ui_state = UiState::ImportBuild;
                 }
                 if state.ui_state == UiState::ImportBuild {
                     ui.label("Importing..");
+                } else if let Some(error) = &state.import_error {
+                    ui.label(egui::RichText::new(error).color(egui::Color32::RED));
                 }
             }
 

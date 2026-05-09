@@ -86,6 +86,7 @@ pub struct State {
     framerate_settings: u64,
     pub level: i64,
     can_save: bool,
+    pub import_error: Option<String>,
 
     // OpenGL stuff
     pub dimensions: (u32, u32),
@@ -146,6 +147,7 @@ impl State {
             framerate_settings: config.framerate,
             level: 1,
             can_save: true,
+            import_error: Default::default(),
             config: config, // needs to be after fields that depend on config
 
             dimensions: (1280, 720),
