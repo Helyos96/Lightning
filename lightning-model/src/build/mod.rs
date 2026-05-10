@@ -13,7 +13,7 @@ use crate::data::gem::{ActiveSkillType, GemTag};
 use crate::data::{MONSTER_STATS, TREE};
 use crate::gem::Gem;
 use crate::item::Item;
-use crate::modifier::{Condition, Mod, ModFlag, Mutation, Source, Type};
+use crate::modifier::{Condition, Mod, ModFlag, Mutation, Source, Type, parse_mod};
 use crate::stackvec;
 use crate::tree::PassiveTree;
 use enumflags2::BitFlags;
@@ -225,6 +225,8 @@ pub struct Build {
     #[serde(default)]
     properties_always_max: FxHashSet<property::Int>,
     pub import_account: Option<(String, String)>,
+    #[serde(default)]
+    pub custom_mods: Arc<Vec<String>>,
 }
 
 impl Build {
@@ -235,6 +237,10 @@ impl Build {
         };
         ret.set_property_int(property::Int::Level, 1);
         ret
+    }
+
+    pub fn set_custom_mods(&mut self, mods: Vec<String>) {
+        self.custom_mods = Arc::new(mods);
     }
 
     pub fn update_item_allocations(&mut self) {
@@ -341,6 +347,11 @@ impl Build {
                 if defence.block_chance.val() != 0 {
                     mods.push(Mod::stat(StatId::ChanceToBlockAttackDamage, Type::Base, defence.block_chance.val()).with_source(Source::Item(*slot)));
                 }
+            }
+        }
+        for mod_str in self.custom_mods.iter() {
+            if let Some(mut config_mods) = parse_mod(mod_str, Source::Custom("Config")) {
+                mods.append(&mut config_mods);
             }
         }
         if include_global {

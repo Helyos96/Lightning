@@ -68,6 +68,18 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                         });
                     });
                 });
+                flex.add_ui(egui_flex::item(), |ui| {
+                    egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(ui, |ui| {
+                        ui.vertical(|ui| {
+                            ui.label("Custom mods:");
+                            if egui::TextEdit::multiline(&mut state.custom_mods).show(ui).response.changed() {
+                                let custom_mods: Vec<String> = state.custom_mods.split('\n').map(String::from).collect();
+                                state.build.set_custom_mods(custom_mods);
+                                state.request_recalc = true;
+                            }
+                        });
+                    });
+                });
             });
         });
 }

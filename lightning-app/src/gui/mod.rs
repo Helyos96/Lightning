@@ -87,6 +87,7 @@ pub struct State {
     pub level: i64,
     can_save: bool,
     pub import_error: Option<String>,
+    pub custom_mods: String,
 
     // OpenGL stuff
     pub dimensions: (u32, u32),
@@ -148,6 +149,7 @@ impl State {
             level: 1,
             can_save: true,
             import_error: Default::default(),
+            custom_mods: Default::default(),
             config: config, // needs to be after fields that depend on config
 
             dimensions: (1280, 720),
@@ -181,6 +183,7 @@ impl State {
         self.panel_items.editing_item = None;
         self.panel_skills.selected_gemlink = 0;
         self.panel_skills.selected_gem = None;
+        self.custom_mods = self.build.custom_mods.join("\n");
     }
 
     pub fn snapshot(&mut self) {
