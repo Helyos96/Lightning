@@ -1,7 +1,12 @@
+use std::ops::Neg;
+
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumString, IntoStaticStr, EnumIter};
 use serde_with::{serde_as, DisplayFromStr};
+use lazy_static::lazy_static;
+
+use crate::data::TREE;
 
 #[derive(Default, Clone, Copy, Hash, Eq, PartialEq, Debug, Serialize, Deserialize, EnumString, AsRefStr)]
 pub enum Class {
@@ -251,6 +256,14 @@ impl Node {
             NodeType::Normal
         }
     }
+
+    pub fn distance_squared(&self, node: &Node) -> f32 {
+        let (x1, y1) = node_pos(self);
+        let (x2, y2) = node_pos(node);
+        let dx = (x1 - x2).abs();
+        let dy = (y1 - y2).abs();
+        (dx * dx) + (dy * dy)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -306,4 +319,38 @@ pub struct ClusterOrbitData {
     pub passives: &'static [u16],
     pub notable: &'static [u16],
     pub orbit: u16,
+}
+
+fn calc_angles() -> Vec<Vec<f32>> {
+    let mut ret = vec![];
+    for skills in &TREE.constants.skills_per_orbit {
+        ret.push({
+            let angles = match skills {
+                16 => vec![0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 240, 270, 300, 315, 330],
+                40 => vec![
+                    0, 10, 20, 30, 40, 45, 50, 60, 70, 80, 90, 100, 110, 120, 130, 135, 140, 150, 160, 170, 180, 190,
+                    200, 210, 220, 225, 230, 240, 250, 260, 270, 280, 290, 300, 310, 315, 320, 330, 340, 350,
+                ],
+                n => (0..*n).map(|i| (360 * i) / n).collect(),
+            };
+            angles.into_iter().map(|a| (a as f32).to_radians()).collect()
+        });
+    }
+    ret
+}
+
+lazy_static! {
+    pub static ref ORBIT_ANGLES: Vec<Vec<f32>> = calc_angles();
+}
+
+pub fn node_pos(node: &Node) -> (f32, f32) {
+    let group = node.group.unwrap();
+    let orbit = node.orbit.unwrap() as usize;
+    let angle = ORBIT_ANGLES[orbit][node.orbit_index.unwrap() as usize];
+    let orbit_radius = TREE.constants.orbit_radii[orbit];
+
+    (
+        TREE.groups[&group].x + (angle.sin() * orbit_radius as f32),
+        TREE.groups[&group].y.neg() + (angle.cos() * orbit_radius as f32),
+    )
 }

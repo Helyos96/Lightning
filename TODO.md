@@ -48,6 +48,7 @@
 * Spectres
 * Trigger
 * Leech
+* Curses
 * Warcries / Exert
 * ~~Damage conversion~~
 * Vaal Gems

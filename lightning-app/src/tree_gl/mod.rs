@@ -4,9 +4,10 @@ pub mod hover;
 use draw_data::*;
 use glow::HasContext;
 use image::{ImageReader, RgbaImage};
-use lightning_model::build::Build;
+use lightning_model::build::{Build, Slot};
 use lightning_model::calc::PowerReport;
 use lightning_model::data::TREE;
+use lightning_model::item::JewelRadiusData;
 use rustc_hash::FxHashMap;
 
 fn load_texture(img: &RgbaImage, gl: &glow::Context) -> glow::Texture {
@@ -330,6 +331,7 @@ impl TreeGl {
             "ascendancy_active_background",
             "bloodlines_inactive_background",
             "bloodlines_active_background",
+            "jewel_radius",
         ];
 
         for &s in REDRAW {
@@ -396,6 +398,20 @@ impl TreeGl {
         let data = bloodlines_background_active_gl(build.tree.bloodline);
         self.draw_data
             .insert("bloodlines_active_background".to_string(), GlDrawData::new(gl, &data));
+        let jewel_radius: Vec<(u32, JewelRadiusData)> = build.equipment().iter().filter_map(|(slot, item_idx)| {
+            if let Slot::TreeJewel(node_id) = slot &&
+               build.tree.nodes.contains(node_id) &&
+               let Some(item) = build.inventory.get(*item_idx) &&
+               let Some(radius_data) = item.radius_data()
+            {
+                Some((*node_id, radius_data))
+            } else {
+                None
+            }
+        }).collect();
+        let data = jewel_radius_gl(&jewel_radius);
+        self.draw_data
+            .insert("jewel_radius".to_string(), GlDrawData::new(gl, &data));
     }
 
     pub fn draw(
@@ -431,6 +447,7 @@ impl TreeGl {
             ("masteries_active", "mastery-connected-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("masteries_active_selected", "mastery-active-selected-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("search_highlights", "frame-3.png", [1.0, 0.0, 0.0, 1.0]),
+            ("jewel_radius", "jewel-radius.png", [1.0, 1.0, 1.0, 1.0]),
         ];
 
         unsafe {

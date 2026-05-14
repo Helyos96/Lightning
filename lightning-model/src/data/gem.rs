@@ -1,6 +1,8 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use enumflags2::{BitFlags, bitflags};
+use crate::modifier::{Mod, Source, parse_mod};
+
 use super::base_item::ItemClass;
 
 #[derive(Debug, Serialize, Deserialize)]

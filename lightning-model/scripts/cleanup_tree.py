@@ -25,9 +25,13 @@ tree['classes'] = classes
 sprites = {}
 for (k,v) in tree['sprites'].items():
     # Only keep best quality assets (0.3835 = highest zoom level)
-    if '0.3835' not in v:
+    if '0.3835' not in v and k != "jewelRadius":
         continue
-    sprites[k] = v["0.3835"]
+
+    if '0.3835' in v:
+        sprites[k] = v["0.3835"]
+    else:
+        sprites[k] = v["1"]
     # Remove URL, ?XXXXX and extension
     new_filename = sprites[k]['filename'].split('/')[-1].split('?')[0]#.split('.')[0]
     sprites[k]['filename'] = new_filename# + ".dds"

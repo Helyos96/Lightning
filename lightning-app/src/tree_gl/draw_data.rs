@@ -3,6 +3,7 @@ use lightning_model::build::{Build, Slot};
 use lightning_model::calc::PowerReport;
 use lightning_model::data::tree::{Ascendancy, Class, Node, NodeType, Rect, Sprite};
 use lightning_model::data::TREE;
+use lightning_model::item::JewelRadiusData;
 use std::collections::HashMap;
 use std::ops::Neg;
 
@@ -209,6 +210,27 @@ fn arc_connector_gl(
             base + 1, base + 3, base + 2
         ]);
     }
+}
+
+pub fn jewel_radius_gl(jewels: &[(u32, JewelRadiusData)]) -> DrawData {
+    let sprite = &TREE.sprites["jewelRadius"];
+    let rect = &sprite.coords["JewelCircle1"];
+    let mut dd = DrawData::default();
+
+    for (node_id, radius_data) in jewels {
+        if let Some(node) = TREE.nodes.get(node_id) {
+            let (x, y) = node_pos(node);
+            let outer_scale = (radius_data.outer * 2.0) / rect.w as f32;
+            dd.append(x, y, rect, sprite, false, outer_scale);
+            if radius_data.inner > 0.0 {
+                let rect_inversed = &sprite.coords["JewelCircle1Inverse"];
+                let inner_scale = (radius_data.inner * 2.0) / rect_inversed.w as f32;
+                dd.append(x, y, rect_inversed, sprite, false, inner_scale);
+            }
+        }
+    }
+
+    dd
 }
 
 /// Very simple straight connector.

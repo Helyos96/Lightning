@@ -1,8 +1,9 @@
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde::{Serialize, Deserialize};
 use crate::{data::{base_item::ItemClass, gem::GemTag}, modifier::{Mod, Type}};
 use lazy_static::lazy_static;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, strum_macros::Display, strum_macros::EnumCount)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default, strum_macros::Display, strum_macros::EnumCount)]
 pub enum StatId {
     #[default]
     Strength,

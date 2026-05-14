@@ -7,7 +7,7 @@ use crate::data::base_item::{self, Rarity};
 use crate::data::tree::{Ascendancy, Class, ExpansionJewel};
 use crate::data::{GEMS, ITEMS, TREE};
 use crate::gem;
-use crate::item;
+use crate::item::{self, JewelRadius};
 use serde::Deserialize;
 use rustc_hash::FxHashMap;
 use serde_with::{serde_as, DisplayFromStr};
@@ -120,6 +120,14 @@ impl Item {
         }
         i64::from_str(&prop.values[0].0.replace(['+', '%'], "")).ok()
     }
+
+    pub fn prop_str(&self, name: &str) -> Option<&str> {
+        let prop = self.properties.iter().find(|p| p.name == name)?;
+        if prop.values.is_empty() {
+            return None;
+        }
+        Some(&prop.values[0].0)
+    }
 }
 
 fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
@@ -179,6 +187,10 @@ fn conv_item(item: &Item) -> Option<item::Item> {
         base_percentile: 0,
         ..Default::default()
     };
+
+    if let Some(radius) = item.prop_str("Radius") {
+        item_ret.radius = JewelRadius::from_str(radius);
+    }
 
     let (armour, evasion, energy_shield) = (item.prop("Armour"), item.prop("Evasion Rating"), item.prop("Energy Shield"));
     if armour.is_some() || evasion.is_some() || energy_shield.is_some() {
@@ -311,18 +323,17 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
         }
     }
     for hash_ex in &tree_import.hashes_ex {
-        if let Some((proxy_id, orbit, orbit_index)) = ex_node_lookup.get(hash_ex) {
-            if let Some(proxy_node) = TREE.nodes.get(proxy_id) {
-                if let Some(group_id) = proxy_node.group {
-                    for (_, generated_node) in &build.tree.nodes_cluster {
-                        if generated_node.group == Some(group_id) &&
-                           generated_node.orbit == Some(*orbit) &&
-                           generated_node.orbit_index == Some(*orbit_index)
-                        {
-                            build.tree.nodes.push(generated_node.skill);
-                            break;
-                        }
-                    }
+        if let Some((proxy_id, orbit, orbit_index)) = ex_node_lookup.get(hash_ex) &&
+           let Some(proxy_node) = TREE.nodes.get(proxy_id) &&
+           let Some(group_id) = proxy_node.group
+        {
+            for (_, generated_node) in &build.tree.nodes_cluster {
+                if generated_node.group == Some(group_id) &&
+                   generated_node.orbit == Some(*orbit) &&
+                   generated_node.orbit_index == Some(*orbit_index)
+                {
+                    build.tree.nodes.push(generated_node.skill);
+                    break;
                 }
             }
         }
