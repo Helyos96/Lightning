@@ -32,6 +32,8 @@ pub struct Item {
     pub item_level: i64,
     #[serde(default)]
     pub base_percentile: i64,
+    #[serde(default)]
+    pub radius: Option<JewelRadius>,
     #[serde(skip)]
     #[derivative(Clone(clone_with = "clone_arc_swap"))]
     pub defence_cache: ArcSwap<DefenceCalc>,
@@ -47,6 +49,36 @@ pub struct Item {
     #[serde(skip)]
     #[derivative(Clone(clone_with = "clone_atomic_bool"))]
     pub is_modcache_fresh: AtomicBool,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum JewelRadius {
+    Small,
+    Medium,
+    Large,
+    VeryLarge,
+    Massive,
+    Variable,
+}
+
+impl JewelRadius {
+    pub fn from_str(from: &str) -> Option<Self> {
+        use JewelRadius::*;
+        match from {
+            "Small" => Some(Small),
+            "Medium" => Some(Medium),
+            "Large" => Some(Large),
+            "Very Large" => Some(VeryLarge),
+            "Massive" => Some(Massive),
+            "Variable" => Some(Variable),
+            _ => None
+        }
+    }
+}
+
+pub struct JewelRadiusData {
+    pub inner: f32,
+    pub outer: f32,
 }
 
 fn clone_arc_swap<T>(cache: &ArcSwap<T>) -> ArcSwap<T> {
@@ -184,6 +216,21 @@ impl Item {
             notables,
             added_stats,
         })
+    }
+
+    pub fn radius_data(&self) -> Option<JewelRadiusData> {
+        if let Some(radius) = self.radius {
+            match radius {
+                JewelRadius::Small => Some(JewelRadiusData { inner: 0.0, outer: 960.0}),
+                JewelRadius::Medium => Some(JewelRadiusData { inner: 0.0, outer: 1440.0}),
+                JewelRadius::Large => Some(JewelRadiusData { inner: 0.0, outer: 1800.0}),
+                JewelRadius::VeryLarge => Some(JewelRadiusData { inner: 0.0, outer: 2400.0}),
+                JewelRadius::Massive => Some(JewelRadiusData { inner: 0.0, outer: 2880.0}),
+                JewelRadius::Variable => None, // TODO
+            }
+        } else {
+            None
+        }
     }
 
     pub fn name(&self) -> &str {
@@ -426,6 +473,10 @@ impl Item {
             }
             if let Some(energy_shield_str) = line.strip_prefix("Energy Shield: ") {
                 energy_shield = i64::from_str(energy_shield_str).ok();
+                continue;
+            }
+            if let Some(r) = line.strip_prefix("Radius: ") {
+                item.radius = JewelRadius::from_str(r);
                 continue;
             }
             if line == "Requirements:" || line.starts_with("Level:") || line.starts_with("Str:") ||

@@ -7,7 +7,7 @@ use crate::data::TREE;
 use crate::item::{self, Item};
 use crate::stackvec::{StackVec};
 use crate::stackvec;
-use crate::tree::NOTHINGNESS_NODE_ID;
+use crate::tree::{NodeMutation, NOTHINGNESS_NODE_ID};
 use enumflags2::{make_bitflags as flags, BitFlags, bitflags};
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
@@ -417,6 +417,13 @@ lazy_static! {
             Box::new(|c| {
                 Some(vec![Mod::stat(StatId::FasterIgnite, Type::Base, i64::from_str(&c[1]).unwrap())])
             })
+        ), (
+            regex!(r"^([a-z -]+) from passives in radius is transformed to ([a-z -]+)$"),
+            Box::new(|c| {
+                let stat_1 = parse_stat_nomulti(&c[1])?;
+                let stat_2 = parse_stat_nomulti(&c[2])?;
+                Some(vec![Mod::mutate_node(NodeMutation::TransformStat(stat_1.0, stat_2.0))])
+            })
         ),
     ];
 
@@ -602,6 +609,7 @@ pub enum ModEffect {
     Stat(ModStat),
     Allocate(u32),
     ForceBool(property::Bool, bool),
+    MutateNode(NodeMutation),
 }
 
 impl Default for ModEffect {
@@ -632,6 +640,10 @@ impl Mod {
 
     pub fn allocate(node: u32) -> Self {
         Self { effect: ModEffect::Allocate(node), ..Default::default() }
+    }
+
+    pub fn mutate_node(node_mutation: NodeMutation) -> Self {
+        Self { effect: ModEffect::MutateNode(node_mutation), ..Default::default() }
     }
 
     pub fn force_bool(prop: property::Bool, val: bool) -> Self {
@@ -685,6 +697,14 @@ impl Mod {
 
     pub fn as_allocate(&self) -> Option<u32> {
         if let ModEffect::Allocate(id) = &self.effect {
+            Some(*id)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_node_mutation(&self) -> Option<NodeMutation> {
+        if let ModEffect::MutateNode(id) = &self.effect {
             Some(*id)
         } else {
             None

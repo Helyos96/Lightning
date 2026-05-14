@@ -107345,6 +107345,97 @@
           "h": 18
         }
       }
+    },
+    "jewelRadius": {
+      "filename": "jewel-radius.png",
+      "w": 2252,
+      "h": 2201,
+      "coords": {
+        "VaalJewelCircle2": {
+          "x": 0,
+          "y": 0,
+          "w": 563,
+          "h": 563
+        },
+        "VaalJewelCircle1": {
+          "x": 563,
+          "y": 0,
+          "w": 563,
+          "h": 563
+        },
+        "TemplarJewelCircle2": {
+          "x": 0,
+          "y": 563,
+          "w": 563,
+          "h": 563
+        },
+        "TemplarJewelCircle1": {
+          "x": 563,
+          "y": 563,
+          "w": 563,
+          "h": 563
+        },
+        "MarakethJewelCircle2": {
+          "x": 1126,
+          "y": 0,
+          "w": 563,
+          "h": 563
+        },
+        "MarakethJewelCircle1": {
+          "x": 1126,
+          "y": 563,
+          "w": 563,
+          "h": 563
+        },
+        "KaruiJewelCircle2": {
+          "x": 0,
+          "y": 1126,
+          "w": 563,
+          "h": 563
+        },
+        "KaruiJewelCircle1": {
+          "x": 563,
+          "y": 1126,
+          "w": 563,
+          "h": 563
+        },
+        "KalguurJewelCircle2": {
+          "x": 1126,
+          "y": 1126,
+          "w": 563,
+          "h": 563
+        },
+        "KalguurJewelCircle1": {
+          "x": 1689,
+          "y": 0,
+          "w": 563,
+          "h": 563
+        },
+        "EternalEmpireJewelCircle2": {
+          "x": 1689,
+          "y": 563,
+          "w": 563,
+          "h": 563
+        },
+        "EternalEmpireJewelCircle1": {
+          "x": 1689,
+          "y": 1126,
+          "w": 563,
+          "h": 563
+        },
+        "JewelCircle1Inverse": {
+          "x": 0,
+          "y": 1689,
+          "w": 512,
+          "h": 512
+        },
+        "JewelCircle1": {
+          "x": 512,
+          "y": 1689,
+          "w": 512,
+          "h": 512
+        }
+      }
     }
   },
   "imageZoomLevels": [

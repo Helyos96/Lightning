@@ -114,6 +114,11 @@ pub fn draw_item(ui: &mut egui::Ui, item: &Item, source: Source, show_debug: boo
         ui.label(egui::RichText::new(&item.base_item).color(rarity_to_color(item.rarity)).size(20.0));
         ui.separator();
 
+        if let Some(radius) = item.radius {
+            ui.label(format!("Radius: {:?}", radius));
+            ui.separator();
+        }
+
         let defences = item.calc_defence();
         let armour = defences.armour.val();
         let evasion = defences.evasion.val();

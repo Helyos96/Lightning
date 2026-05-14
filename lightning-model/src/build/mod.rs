@@ -413,10 +413,8 @@ impl Build {
             self.unequip(Slot::Weapon);
         }
 
-        if let Slot::TreeJewel(jewel_node_id) = slot &&
-           let Some(cluster_data) = self.inventory[item_idx].get_cluster()
-        {
-            self.tree.add_cluster(cluster_data, jewel_node_id, &self.inventory[item_idx].base_item);
+        if let Slot::TreeJewel(jewel_node_id) = slot {
+            self.tree.add_jewel(jewel_node_id, &self.inventory[item_idx]);
         }
     }
 
@@ -432,7 +430,7 @@ impl Build {
         }
 
         if let Slot::TreeJewel(node_id) = slot {
-            let removed_sockets = self.tree.remove_jewel(node_id);
+            let removed_sockets = self.tree.remove_jewel(node_id, &self.inventory[item_idx]);
             for socket in removed_sockets {
                 self.unequip(Slot::TreeJewel(socket));
             }
