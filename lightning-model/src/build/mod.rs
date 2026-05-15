@@ -393,6 +393,24 @@ impl Build {
         &self.equipment
     }
 
+    pub fn swap_item_inventory(&mut self, item_idx: usize, item: Arc<Item>) {
+        assert!(item_idx < self.inventory.len());
+        let to_reequip: Vec<Slot> = self.equipment.iter().filter_map(|(slot, idx)| {
+            if *idx == item_idx {
+                Some(*slot)
+            } else {
+                None
+            }
+        }).collect();
+
+        self.inventory[item_idx] = item;
+
+        for slot in to_reequip {
+            self.unequip(slot);
+            self.equip(slot, item_idx);
+        }
+    }
+
     pub fn equip(&mut self, slot: Slot, item_idx: usize) {
         assert!(item_idx < self.inventory.len());
         self.unequip(slot);

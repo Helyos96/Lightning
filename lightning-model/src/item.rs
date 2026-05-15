@@ -74,6 +74,18 @@ impl JewelRadius {
             _ => None
         }
     }
+
+    pub fn to_string(&self) -> &'static str {
+        use JewelRadius::*;
+        match self {
+            Small => "Small",
+            Medium => "Medium",
+            Large => "Large",
+            VeryLarge => "Very Large",
+            Massive => "Massive",
+            Variable => "Variable",
+        }
+    }
 }
 
 pub struct JewelRadiusData {
@@ -543,6 +555,11 @@ impl Item {
         }
         output += format!("{}\n", self.data().name).as_str();
         output += "--------\n";
+
+        if let Some(radius) = self.radius {
+            output += format!("Radius: {}\n", radius.to_string()).as_str();
+            output += "--------\n";
+        }
 
         if self.quality > 0 {
             output += format!("Quality: +{}%\n", self.quality).as_str();
