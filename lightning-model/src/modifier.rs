@@ -2,9 +2,10 @@ use crate::build::stat::StatId;
 use crate::build::{Defence, Slot, property};
 use crate::data::base_item::ItemClass;
 use crate::data::gem::GemTag;
+use crate::data::tree::NodeType;
 use crate::gem::Gem;
 use crate::data::TREE;
-use crate::item::{self, Item};
+use crate::item::{self, Item, JewelRadius};
 use crate::stackvec::{StackVec};
 use crate::stackvec;
 use crate::tree::{NodeMutation, NOTHINGNESS_NODE_ID};
@@ -422,7 +423,13 @@ lazy_static! {
             Box::new(|c| {
                 let stat_1 = parse_stat_nomulti(&c[1])?;
                 let stat_2 = parse_stat_nomulti(&c[2])?;
-                Some(vec![Mod::mutate_node(NodeMutation::TransformStat(stat_1.0, stat_2.0))])
+                Some(vec![Mod::mutate_node(NodeMutation::TransformStat(stat_1.0, stat_2.0), flags!(NodeType::{Normal | Notable}))])
+            })
+        ), (
+            regex!(r"^only affects passives in ([a-z ]+) ring$"),
+            Box::new(|c| {
+                let size = JewelRadius::from_str(&c[1])?;
+                Some(vec![Mod::ring_size(size)])
             })
         ),
     ];
@@ -462,6 +469,9 @@ lazy_static! {
         ]);
         map.insert("removes all energy shield", vec![
             Mod::stat(StatId::MaximumEnergyShield, Type::Override, 0),
+        ]);
+        map.insert("passive skills in radius can be allocated without being connected to your tree", vec![
+            Mod::mutate_node(NodeMutation::AllocNoPath, flags!(NodeType::{Normal | Notable})),
         ]);
         map
     };
@@ -609,7 +619,8 @@ pub enum ModEffect {
     Stat(ModStat),
     Allocate(u32),
     ForceBool(property::Bool, bool),
-    MutateNode(NodeMutation),
+    MutateNode(NodeMutation, BitFlags<NodeType>),
+    RingSize(JewelRadius),
 }
 
 impl Default for ModEffect {
@@ -642,8 +653,12 @@ impl Mod {
         Self { effect: ModEffect::Allocate(node), ..Default::default() }
     }
 
-    pub fn mutate_node(node_mutation: NodeMutation) -> Self {
-        Self { effect: ModEffect::MutateNode(node_mutation), ..Default::default() }
+    pub fn ring_size(size: JewelRadius) -> Self {
+        Self { effect: ModEffect::RingSize(size), ..Default::default() }
+    }
+
+    pub fn mutate_node(node_mutation: NodeMutation, allowed_types: BitFlags<NodeType>) -> Self {
+        Self { effect: ModEffect::MutateNode(node_mutation, allowed_types), ..Default::default() }
     }
 
     pub fn force_bool(prop: property::Bool, val: bool) -> Self {
@@ -687,6 +702,14 @@ impl Mod {
         }
     }
 
+    pub fn as_ring_size(&self) -> Option<&JewelRadius> {
+        if let ModEffect::RingSize(size) = &self.effect {
+            Some(size)
+        } else {
+            None
+        }
+    }
+
     pub fn as_stat_mut(&mut self) -> Option<&mut ModStat> {
         if let ModEffect::Stat(stat) = &mut self.effect {
             Some(stat)
@@ -703,9 +726,9 @@ impl Mod {
         }
     }
 
-    pub fn as_node_mutation(&self) -> Option<NodeMutation> {
-        if let ModEffect::MutateNode(id) = &self.effect {
-            Some(*id)
+    pub fn as_node_mutation(&self) -> Option<(NodeMutation, BitFlags<NodeType>)> {
+        if let ModEffect::MutateNode(mutation, allowed_types) = &self.effect {
+            Some((*mutation, *allowed_types))
         } else {
             None
         }

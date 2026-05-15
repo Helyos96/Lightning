@@ -341,8 +341,8 @@ impl TreeGl {
             self.draw_data.remove(s);
         }
 
-        let last_node = path_hovered.as_ref().map(|path| path.first().unwrap());
-        let data = nodes_gl_active(&build.tree.nodes.iter().chain(&build.tree.nodes_additional).copied().collect::<Vec<_>>(), &build.tree.nodes_data, last_node);
+        //let last_node = path_hovered.as_ref().map(|path| path.first().unwrap());
+        let data = nodes_gl_active(&build.tree.nodes.iter().chain(&build.tree.nodes_additional).copied().collect::<Vec<_>>(), &build.tree.nodes_data, hovered_node_id.as_ref());
         self.draw_data
             .insert("nodes_active".to_string(), GlDrawData::new(gl, &data[0]));
         self.draw_data
@@ -447,7 +447,7 @@ impl TreeGl {
             ("masteries_active", "mastery-connected-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("masteries_active_selected", "mastery-active-selected-3.png", [1.0, 1.0, 1.0, 1.0]),
             ("search_highlights", "frame-3.png", [1.0, 0.0, 0.0, 1.0]),
-            ("jewel_radius", "jewel-radius.png", [1.0, 1.0, 1.0, 1.0]),
+            ("jewel_radius", "jewel-radius.png", [1.0, 1.0, 1.0, 0.75]),
         ];
 
         unsafe {

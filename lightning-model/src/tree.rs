@@ -4,6 +4,7 @@ use crate::data::{TATTOOS, TREE};
 use crate::item::{ClusterData, Item, JewelRadiusData};
 use crate::modifier::{Mod, Mutation, Source, parse_mod};
 use arc_swap::ArcSwap;
+use enumflags2::BitFlags;
 use lazy_static::lazy_static;
 use pathfinding::directed::strongly_connected_components;
 use pathfinding::prelude::bfs;
@@ -250,7 +251,7 @@ lazy_static! {
 }
 
 struct FindDisconnectedNodes<'a> {
-    pub nodes_search_remove: Vec<u32>,
+    pub nodes_search_remove: &'a [u32],
     class: Class,
     bloodline: Option<Ascendancy>,
     nodes_data: &'a imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>,
@@ -258,7 +259,7 @@ struct FindDisconnectedNodes<'a> {
 
 impl<'a> FindDisconnectedNodes<'a> {
     fn new(
-        nodes_search_remove: Vec<u32>,
+        nodes_search_remove: &'a [u32],
         class: Class,
         bloodline: Option<Ascendancy>,
         nodes_data: &'a imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>,
@@ -368,17 +369,25 @@ impl PassiveTree {
     /// Find the shortest path to link a node to
     /// the rest of the tree. Using Breadth-First-Search.
     pub fn find_path(&self, node: u32) -> Option<Vec<u32>> {
-        bfs(&node, |p| self.successors(*p), |p| self.nodes.contains(p))
+        bfs(&node, |p| self.successors(*p), |p| self.nodes.contains(p) && !self.is_node_alloc_nopath(*p, &self.nodes))
     }
 
     /// Find a group of nodes to remove when a single node gets deallocated
     pub fn find_path_remove(&self, node: u32) -> Vec<u32> {
         let mut nodes = self.nodes.clone();
         nodes.retain(|&x| x != node);
-        let fdn = FindDisconnectedNodes::new(nodes, self.class, self.bloodline, &self.nodes_data);
+        let fdn = FindDisconnectedNodes::new(&nodes, self.class, self.bloodline, &self.nodes_data);
         let mut to_remove = fdn.find_nodes_remove();
+        to_remove.retain(|id| !self.is_node_alloc_nopath(*id, &nodes));
         to_remove.push(node);
         to_remove
+    }
+
+    /// Clean up the tree from orphaned nodes, typically after removing a passage jewel
+    pub fn remove_orphan_nodes(&mut self) {
+        let fdn = FindDisconnectedNodes::new(&self.nodes, self.class, self.bloodline, &self.nodes_data);
+        let to_remove = fdn.find_nodes_remove();
+        self.nodes.retain(|id| !to_remove.contains(id));
     }
 
     /// Flip a node status (allocated <-> non-allocated)
@@ -390,16 +399,14 @@ impl PassiveTree {
                     self.masteries.remove(node_remove);
                 }
             }
-            self.nodes = self
-                .nodes
-                .iter().copied()
-                .filter(|id| !to_remove.contains(id))
-                .collect();
+            self.nodes.retain(|id| !to_remove.contains(id));
+        } else if self.is_node_alloc_nopath(node, &self.nodes) {
+            self.nodes.push(node);
         } else if let Some(path) = self.find_path(node) {
             self.nodes.extend_from_slice(&path[0..path.len() - 1]);
         }
 
-        self.is_modcache_fresh.store(false, Ordering::Relaxed);
+        self.invalidate_modcache();
     }
 
     pub fn invalidate_modcache(&self) {
@@ -456,6 +463,20 @@ impl PassiveTree {
         }
     }
 
+    pub fn node_mutations(&self, node_id: u32, nodes: &[u32]) -> Option<&Vec<NodeMutation>> {
+        if let Some((mutations, jewel_id)) = self.node_mutations.get(&node_id) && nodes.contains(jewel_id) {
+            return Some(mutations);
+        }
+        None
+    }
+
+    pub fn is_node_alloc_nopath(&self, node_id: u32, nodes: &[u32]) -> bool {
+        if let Some(mutations) = self.node_mutations(node_id, nodes) {
+            return mutations.iter().find(|m| matches!(m, NodeMutation::AllocNoPath)).is_some();
+        }
+        false
+    }
+
     pub fn regen_modcache(&self, jewels: &FxHashMap<u32, Arc<Item>>) {
         let mut mods = Vec::with_capacity(300);
 
@@ -482,9 +503,7 @@ impl PassiveTree {
                                 }
                             }
                         }
-                        if let Some((mutations, jewel_node_id)) = self.node_mutations.get(node_id) &&
-                           self.nodes.contains(jewel_node_id)
-                        {
+                        if let Some(mutations) = self.node_mutations(*node_id, &self.nodes) {
                             for modifier in &mut modifiers {
                                 for mutation in mutations {
                                     match mutation {
@@ -572,6 +591,7 @@ impl PassiveTree {
             for n in self.nodes_in_radius(node_id, &radius_data) {
                 self.node_mutations.remove(&n);
             }
+            self.remove_orphan_nodes();
             self.invalidate_modcache();
         }
         removed_sockets
@@ -579,11 +599,21 @@ impl PassiveTree {
 
     pub fn add_jewel(&mut self, node_id: u32, jewel: &Item) {
         if let Some(radius_data) = jewel.radius_data() {
-            let nodes = self.nodes_in_radius(node_id, &radius_data);
+            let node_ids = self.nodes_in_radius(node_id, &radius_data);
             let mods = jewel.calc_nonlocal_mods();
-            let node_mutations: Vec<NodeMutation> = mods.iter().filter_map(|m| m.as_node_mutation()).collect();
-            for n in &nodes {
-                self.node_mutations.insert(*n, (node_mutations.clone(), node_id));
+            let node_mutations: Vec<(NodeMutation, BitFlags<NodeType>)> = mods.iter().filter_map(|m| m.as_node_mutation()).collect();
+            for n in &node_ids {
+                let mut mutations = vec![];
+                for (mutation, allowed_types) in &node_mutations {
+                    if let Some(node) = self.nodes_data.get(n) &&
+                       allowed_types.contains(node.node_type())
+                    {
+                        mutations.push(*mutation);
+                    }
+                }
+                if !mutations.is_empty() {
+                    self.node_mutations.insert(*n, (mutations, node_id));
+                }
             }
             self.invalidate_modcache();
         }

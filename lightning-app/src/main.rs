@@ -399,7 +399,9 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                         state.snapshot();
                                         if !state.build.tree.nodes.contains(&node_id) {
                                             state.path_red = None;
-                                            state.path_hovered = state.build.tree.find_path(node_id);
+                                            if !state.build.tree.is_node_alloc_nopath(node_id, &state.build.tree.nodes) {
+                                                state.path_hovered = state.build.tree.find_path(node_id);
+                                            }
                                         } else {
                                             if state.build.tree.nodes_data.get(&node_id).unwrap().is_mastery &&
                                                !state.build.tree.nodes_data.get(&node_id).unwrap().is_tattoo
@@ -470,7 +472,9 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                             state.delta_compare_single = state.compare(&build_compare_single);
 
                                             if !state.build.tree.nodes.contains(&node.skill) {
-                                                state.path_hovered = state.build.tree.find_path(node.skill);
+                                                if !state.build.tree.is_node_alloc_nopath(node.skill, &state.build.tree.nodes) {
+                                                    state.path_hovered = state.build.tree.find_path(node.skill);
+                                                }
                                                 state.path_red = None;
                                             } else {
                                                 state.path_red = Some(state.build.tree.find_path_remove(node.skill));

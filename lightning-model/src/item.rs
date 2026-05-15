@@ -3,7 +3,7 @@ use crate::build::Slot;
 use crate::data::base_item::{BaseItem, Rarity};
 use crate::data::tree::Node;
 use crate::data::{DAMAGE_GROUPS, DamageType, ITEMS, TREE};
-use crate::modifier::{self, Mod, ModStat, Source, Type, parse_mod};
+use crate::modifier::{self, Mod, ModEffect, ModStat, Source, Type, parse_mod};
 use arc_swap::ArcSwap;
 use derivative::Derivative;
 use regex::Regex;
@@ -64,13 +64,13 @@ pub enum JewelRadius {
 impl JewelRadius {
     pub fn from_str(from: &str) -> Option<Self> {
         use JewelRadius::*;
-        match from {
-            "Small" => Some(Small),
-            "Medium" => Some(Medium),
-            "Large" => Some(Large),
-            "Very Large" => Some(VeryLarge),
-            "Massive" => Some(Massive),
-            "Variable" => Some(Variable),
+        match from.to_lowercase().as_str() {
+            "small" => Some(Small),
+            "medium" => Some(Medium),
+            "large" => Some(Large),
+            "very large" => Some(VeryLarge),
+            "massive" => Some(Massive),
+            "variable" => Some(Variable),
             _ => None
         }
     }
@@ -226,7 +226,27 @@ impl Item {
                 JewelRadius::Large => Some(JewelRadiusData { inner: 0.0, outer: 1800.0}),
                 JewelRadius::VeryLarge => Some(JewelRadiusData { inner: 0.0, outer: 2400.0}),
                 JewelRadius::Massive => Some(JewelRadiusData { inner: 0.0, outer: 2880.0}),
-                JewelRadius::Variable => None, // TODO
+                JewelRadius::Variable => {
+                    if let Some(ring_radius) = self.calc_nonlocal_mods().iter().find_map(|m| {
+                        if let Some(size) = m.as_ring_size() {
+                            Some(size)
+                        } else {
+                            None
+                        }
+                    })
+                    {
+                        match ring_radius {
+                            JewelRadius::Small => Some(JewelRadiusData { inner: 960.0, outer: 1320.0}),
+                            JewelRadius::Medium => Some(JewelRadiusData { inner: 1320.0, outer: 1680.0}),
+                            JewelRadius::Large => Some(JewelRadiusData { inner: 1680.0, outer: 2040.0}),
+                            JewelRadius::VeryLarge => Some(JewelRadiusData { inner: 2040.0, outer: 2400.0}),
+                            JewelRadius::Massive => Some(JewelRadiusData { inner: 2400.0, outer: 2880.0}),
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    }
+                },
             }
         } else {
             None

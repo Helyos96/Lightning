@@ -224,7 +224,10 @@ pub fn jewel_radius_gl(jewels: &[(u32, JewelRadiusData)]) -> DrawData {
             dd.append(x, y, rect, sprite, false, outer_scale);
             if radius_data.inner > 0.0 {
                 let rect_inversed = &sprite.coords["JewelCircle1Inverse"];
-                let inner_scale = (radius_data.inner * 2.0) / rect_inversed.w as f32;
+                // There are ~14 extra decorative pixels that extend outward from the "barrier" of the inner circle
+                let padding_pixels = 14.0;
+                let hole_diameter_pixels = rect_inversed.w as f32 - (padding_pixels * 2.0);
+                let inner_scale = (radius_data.inner * 2.0) / hole_diameter_pixels;
                 dd.append(x, y, rect_inversed, sprite, false, inner_scale);
             }
         }

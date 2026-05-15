@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumString, IntoStaticStr, EnumIter};
 use serde_with::{serde_as, DisplayFromStr};
 use lazy_static::lazy_static;
+use enumflags2::bitflags;
 
 use crate::data::TREE;
 
@@ -166,7 +167,9 @@ pub struct MasteryEffect {
     pub stats: Vec<String>,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[bitflags]
+#[repr(u16)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum NodeType {
     Normal,
     Notable,
