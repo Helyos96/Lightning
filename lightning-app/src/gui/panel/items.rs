@@ -205,9 +205,10 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                             state.panel_items.custom_text.clear();
                         }
                         if ui.add_enabled(state.panel_items.can_save, egui::Button::new("Save")).clicked() {
+                            state.build.swap_item_inventory(state.panel_items.editing_item_idx.unwrap(), Arc::new(state.panel_items.editing_item.as_ref().unwrap().to_owned()));
                             state.panel_items.can_save = false;
                             state.request_recalc = true;
-                            state.build.swap_item_inventory(state.panel_items.editing_item_idx.unwrap(), Arc::new(state.panel_items.editing_item.as_ref().unwrap().to_owned()));
+                            state.request_regen_gl = true;
                         }
                         if ui.add_enabled(state.panel_items.editing_item_idx.is_some(), egui::Button::new("Delete")).clicked() {
                             state.build.remove_inventory(state.panel_items.editing_item_idx.unwrap());

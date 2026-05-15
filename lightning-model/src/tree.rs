@@ -400,6 +400,7 @@ impl PassiveTree {
                 }
             }
             self.nodes.retain(|id| !to_remove.contains(id));
+            self.remove_orphan_nodes();
         } else if self.is_node_alloc_nopath(node, &self.nodes) {
             self.nodes.push(node);
         } else if let Some(path) = self.find_path(node) {
