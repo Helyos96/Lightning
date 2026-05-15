@@ -588,7 +588,7 @@ impl PassiveTree {
         let mut removed_sockets = vec![];
         self._remove_jewel(node_id, &mut removed_sockets);
         if let Some(radius_data) = jewel.radius_data() {
-            for n in self.nodes_in_radius(node_id, &radius_data) {
+            for n in self.nodes_in_radius(node_id, &radius_data, true) {
                 self.node_mutations.remove(&n);
             }
             self.remove_orphan_nodes();
@@ -599,7 +599,7 @@ impl PassiveTree {
 
     pub fn add_jewel(&mut self, node_id: u32, jewel: &Item) {
         if let Some(radius_data) = jewel.radius_data() {
-            let node_ids = self.nodes_in_radius(node_id, &radius_data);
+            let node_ids = self.nodes_in_radius(node_id, &radius_data, false);
             let mods = jewel.calc_nonlocal_mods();
             let node_mutations: Vec<(NodeMutation, BitFlags<NodeType>)> = mods.iter().filter_map(|m| m.as_node_mutation()).collect();
             for n in &node_ids {
@@ -623,11 +623,11 @@ impl PassiveTree {
     }
 
     /// Returns nodes in radius (or ring) of a node
-    pub fn nodes_in_radius(&self, center_id: u32, radius_data: &JewelRadiusData) -> Vec<u32> {
+    pub fn nodes_in_radius(&self, center_id: u32, radius_data: &JewelRadiusData, include_blighted: bool) -> Vec<u32> {
         let center_node = &self.nodes_data[&center_id];
         let (inner_squared, outer_squared) = (radius_data.inner * radius_data.inner, radius_data.outer * radius_data.outer);
         self.nodes_data.values().filter(|n| {
-            if n.group.is_none() {
+            if n.group.is_none() || n.skill >= u16::MAX as u32 || (!include_blighted && n.is_blighted) {
                 return false;
             }
             let distance = center_node.distance_squared(n);

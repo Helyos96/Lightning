@@ -1,9 +1,6 @@
 * build.rs for automating cleanups/json2bincode/putting every target file in the right place
 * Remember selected skill in saved build
 * Tree view
-	* Jewels
-		* ~~Basic jewels~~
-		* With radius shown
 	* ~~Power report (highest dps unallocated etc.)~~
 		* Add table output to list nodes
 	* ~~Cluster Jewels~~

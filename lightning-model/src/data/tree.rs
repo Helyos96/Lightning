@@ -219,6 +219,8 @@ pub struct Node {
     pub is_bloodline: bool,
     #[serde(default)]
     pub is_tattoo: bool,
+    #[serde(default)]
+    pub is_blighted: bool,
     #[serde(rename = "ascendancyName")]
     pub ascendancy: Option<Ascendancy>,
     pub class_start_index: Option<i32>,

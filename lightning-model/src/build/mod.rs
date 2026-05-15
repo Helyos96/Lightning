@@ -403,10 +403,13 @@ impl Build {
             }
         }).collect();
 
+        for slot in &to_reequip {
+            self.unequip(*slot);
+        }
+
         self.inventory[item_idx] = item;
 
         for slot in to_reequip {
-            self.unequip(slot);
             self.equip(slot, item_idx);
         }
     }
