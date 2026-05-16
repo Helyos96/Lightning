@@ -58,6 +58,33 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                         });
                     });
                 });
+
+                flex.add_ui(egui_flex::item(), |ui| {
+                    egui::Frame::group(ui.style()).show(ui, |ui| {
+                        ui.vertical(|ui| {
+                            ui.label(egui::RichText::new("Strength").size(18.0).color(Color32::LIGHT_RED));
+                            draw_stat_breakdown(ui, state, StatId::Strength);
+                        });
+                    });
+                });
+
+                flex.add_ui(egui_flex::item(), |ui| {
+                    egui::Frame::group(ui.style()).show(ui, |ui| {
+                        ui.vertical(|ui| {
+                            ui.label(egui::RichText::new("Dexterity").size(18.0).color(Color32::GREEN));
+                            draw_stat_breakdown(ui, state, StatId::Dexterity);
+                        });
+                    });
+                });
+
+                flex.add_ui(egui_flex::item(), |ui| {
+                    egui::Frame::group(ui.style()).show(ui, |ui| {
+                        ui.vertical(|ui| {
+                            ui.label(egui::RichText::new("Intelligence").size(18.0).color(Color32::LIGHT_BLUE));
+                            draw_stat_breakdown(ui, state, StatId::Intelligence);
+                        });
+                    });
+                });
             });
         });
     });

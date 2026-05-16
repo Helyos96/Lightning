@@ -34,6 +34,9 @@ pub struct Item {
     pub base_percentile: i64,
     #[serde(default)]
     pub radius: Option<JewelRadius>,
+    #[serde(default)]
+    pub inc_effect: i64,
+
     #[serde(skip)]
     #[derivative(Clone(clone_with = "clone_arc_swap"))]
     pub defence_cache: ArcSwap<DefenceCalc>,
@@ -228,6 +231,15 @@ impl Item {
             notables,
             added_stats,
         })
+    }
+
+    pub fn jewel_effect_distance_class(&self) -> Option<i64> {
+        let mods = self.calc_nonlocal_mods();
+        let effect = crate::build::stat::calc_stat(StatId::ItemEffectDistanceClass, &mods).val();
+        if effect == 0 {
+            return None;
+        }
+        Some(effect)
     }
 
     pub fn radius_data(&self) -> Option<JewelRadiusData> {
@@ -426,7 +438,7 @@ impl Item {
         }
 
         for m in self.mods_impl.iter().chain(&self.mods_expl).chain(&self.mods_enchant) {
-            if let Some(modifiers) = parse_mod(m, Source::Innate) {
+            if let Some(modifiers) = parse_mod(&m, Source::Innate) {
                 mods.extend(modifiers.into_iter().filter(|m| (local && match_local(m, match_table)) || (!local && !match_local(m, match_table))));
             }
         }

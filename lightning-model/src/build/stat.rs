@@ -147,6 +147,7 @@ pub enum StatId {
     ColdToChaosConversion,
     FireToChaosConversion,
     FasterIgnite,
+    ItemEffectDistanceClass,
 }
 
 impl StatId {
@@ -264,6 +265,10 @@ impl Stat {
 
     pub fn mult(&self) -> i64 {
         (100 + self.inc) * self.more
+    }
+
+    pub fn mult_amount(&self, amount: i64) -> i64 {
+        (amount * self.mult()) / 10000
     }
 
     fn val100(&self) -> i64 {

@@ -170,10 +170,11 @@ fn conv_item(item: &Item) -> Option<item::Item> {
     if !ITEMS.contains_key(&item.baseType) {
         return None;
     }
-    let mut mods_expl = item.explicitMods.clone();
-    mods_expl.extend(item.craftedMods.clone());
-    mods_expl.extend(item.fracturedMods.clone());
-    mods_expl.extend(item.mutatedMods.clone());
+
+    let mods_expl: Vec<String> = item.explicitMods.iter().chain(&item.craftedMods).chain(&item.fracturedMods).chain(&item.mutatedMods).map(|string| {
+        string.replace('\n', " ")
+    }).collect();
+
     let mut item_ret = item::Item {
         base_item: item.baseType.clone(),
         name: item.name.clone(),

@@ -431,6 +431,11 @@ lazy_static! {
                 let size = JewelRadius::from_str(&c[1])?;
                 Some(vec![Mod::ring_size(size)])
             })
+        ), (
+            regex!(r"^this jewel's socket has ([0-9]+)% increased effect per allocated passive skill between it and your class' starting location$"),
+            Box::new(|c| {
+                Some(vec![Mod::stat(StatId::ItemEffectDistanceClass, Type::Base, i64::from_str(&c[1]).unwrap())])
+            })
         ),
     ];
 

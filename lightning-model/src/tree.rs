@@ -351,6 +351,29 @@ impl PassiveTree {
         v
     }
 
+    fn successors_allocated(&self, node: u32) -> Vec<u32> {
+        let mut v: Vec<u32> = self.nodes_data[&node]
+            .out
+            .as_ref()
+            .unwrap()
+            .iter()
+            .filter(|id| self.nodes.contains(id))
+            .copied()
+            .collect();
+        if !self.nodes_data[&node].is_mastery {
+            let nodes_in: Vec<u32> = self.nodes_data[&node]
+                .r#in
+                .as_ref()
+                .unwrap()
+                .iter()
+                .filter(|id| self.nodes.contains(id))
+                .copied()
+                .collect();
+            v.extend(nodes_in);
+        }
+        v
+    }
+
     /// To be called after deserializing
     fn init(&mut self) {
         for (_, node) in &self.nodes_cluster {
@@ -388,6 +411,14 @@ impl PassiveTree {
         let fdn = FindDisconnectedNodes::new(&self.nodes, self.class, self.bloodline, &self.nodes_data);
         let to_remove = fdn.find_nodes_remove();
         self.nodes.retain(|id| !to_remove.contains(id));
+    }
+
+    pub fn distance_to_class_start(&self, node_id: u32) -> usize {
+        let class_node = get_class_node(self.class);
+        if let Some(vec) = bfs(&node_id, |p| self.successors_allocated(*p), |p| *p == class_node) {
+            return vec.len();
+        }
+        0
     }
 
     /// Flip a node status (allocated <-> non-allocated)

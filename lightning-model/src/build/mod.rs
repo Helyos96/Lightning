@@ -322,9 +322,23 @@ impl Build {
             let item = &self.inventory[*idx];
             if let Slot::TreeJewel(node_id) = slot {
                 if self.tree.nodes.contains(node_id) {
+                    let effect = item.jewel_effect_distance_class();
                     for m in item.calc_nonlocal_mods().iter() {
                         let mut new_mod = m.to_owned();
                         new_mod.source = Source::Item(*slot);
+
+                        // Apply increased effect for tree jewels with the "distance to class node" modifier
+                        if let Some(mut effect) = effect &&
+                           let Some(stat) = new_mod.as_stat_mut()
+                        {
+                            // This has a fairly high performance impact on power report (3x on some builds)
+                            let distance = self.tree.distance_to_class_start(*node_id) as i64;
+                            if distance > 2 {
+                                effect = effect * (distance - 2);
+                                stat.amount = (stat.amount * (100 + effect)) / 100;
+                            }
+                        }
+
                         mods.push(new_mod);
                     }
                 }
