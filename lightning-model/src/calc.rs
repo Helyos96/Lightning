@@ -424,6 +424,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
     mana_cost_stat.assimilate(stats.stat(StatId::Cost));
     ret.insert("Mana Cost", mana_cost_stat.val());
 
+    // TODO: currently we always add up both weapons even for skills where dual weapons alternate
     let average_damage: i64 = damage.iter().sum();
     ret.insert("Average Damage", average_damage);
 

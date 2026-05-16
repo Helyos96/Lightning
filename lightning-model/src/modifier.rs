@@ -184,12 +184,15 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("added maximum attack lightning damage", StatId::AddedMaxLightningDamage, flags!(GemTag::Attack), BitFlags::EMPTY, BitFlags::EMPTY),
     ("added minimum lightning damage", StatId::AddedMinLightningDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("added maximum lightning damage", StatId::AddedMaxLightningDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("added minimum cold damage", StatId::AddedMinColdDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("added maximum cold damage", StatId::AddedMaxColdDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("physical attack damage", StatId::PhysicalDamage, flags!(GemTag::Attack), BitFlags::EMPTY, flags!(ModFlag::Hit)),
     ("physical damage", StatId::PhysicalDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("wand damage", StatId::Damage, BitFlags::EMPTY, flags!(ItemClass::Wand), BitFlags::EMPTY),
     ("damage", StatId::Damage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("area of effect", StatId::AreaOfEffect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("accuracy rating", StatId::AccuracyRating, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("accuracy", StatId::AccuracyRating, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("movement speed", StatId::MovementSpeed, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("skill effect duration", StatId::SkillEffectDuration, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("impale effect", StatId::ImpaleEffect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
@@ -248,7 +251,7 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
 lazy_static! {
     static ref CORES: Vec<(Regex, Box<dyn Fn(&Captures) -> Option<Vec<Mod>> + Send + Sync>)> = vec![
         (
-            regex!(r"^([0-9]+)% (increased|reduced) ([a-z -]+)$"),
+            regex!(r"^(?:grants )?([0-9]+)% (increased|reduced) ([a-z -]+)$"),
             Box::new(|c| {
                 let stat_tags = parse_stat(&c[3])?;
                 let mut amount = i64::from_str(&c[1]).unwrap();
@@ -471,6 +474,7 @@ lazy_static! {
         (regex!("per power charge$"), Mutation::MultiplierProperty((1, property::Int::PowerCharges))),
         (regex!("per endurance charge$"), Mutation::MultiplierProperty((1, property::Int::EnduranceCharges))),
         (regex!("per fortification$"), Mutation::MultiplierProperty((1, property::Int::Fortification))),
+        (regex!("per ([0-9]+)% quality$"), Mutation::MultiplierQuality(1)),
     ];
 
     static ref ENDING_PER_GENERIC: Regex = regex!("per ([0-9]+)?%? ([a-z ]+)$");
@@ -565,6 +569,7 @@ pub enum Mutation {
     MultiplierStat((i64, StatId)),
     MultiplierStatLowest((i64, &'static [StatId])),
     MultiplierProperty((i64, property::Int)),
+    MultiplierQuality(i64),
     StatPct((i64, StatId)),
     MultiplierSlotDefence((i64, Slot, Defence)),
     UpTo(i64),
@@ -581,6 +586,7 @@ impl Mutation {
             Mutation::MultiplierSlotDefence(mutation) => mutation.0 = amount,
             Mutation::UpTo(mutation) => *mutation = amount,
             Mutation::IncreasedEffect(mutation) => *mutation = amount,
+            Mutation::MultiplierQuality(mutation) => *mutation = amount,
         }
     }
 }

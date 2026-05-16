@@ -61,8 +61,9 @@ impl<'a> Evaluator<'a> {
                 }
 
                 let mut m = m.to_owned();
+                let source = m.source;
                 if let Some(stat) = m.as_stat_mut() && !stat.mutations.is_empty() {
-                    self.apply_mutations(stat);
+                    self.apply_mutations(stat, source);
                 }
 
                 if m.flags.contains(ModFlag::Aura) && let Some(stat) = m.as_stat_mut() {
@@ -179,7 +180,7 @@ impl<'a> Evaluator<'a> {
         true
     }
 
-    fn apply_mutations(&mut self, m: &mut ModStat) {
+    fn apply_mutations(&mut self, m: &mut ModStat, source: Source) {
         let mut amount = m.amount;
         let mut up_to = i64::MAX;
         for f in &m.mutations {
@@ -222,6 +223,15 @@ impl<'a> Evaluator<'a> {
                 Mutation::IncreasedEffect(effect) => {
                     amount = (amount * (100 + effect)) / 100;
                 },
+                Mutation::MultiplierQuality(per) => {
+                    if let Source::Item(slot) = source {
+                        let qual = self.build.get_equipped(slot).unwrap().quality;
+                        amount = (amount * qual) / per;
+                    } else {
+                        eprintln!("Warning: applying MultiplierQuality for non-item source");
+                        dbg!(&m);
+                    }
+                }
             }
         }
 

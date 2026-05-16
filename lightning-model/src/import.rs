@@ -8,6 +8,7 @@ use crate::data::tree::{Ascendancy, Class, ExpansionJewel};
 use crate::data::{GEMS, ITEMS, TREE};
 use crate::gem;
 use crate::item::{self, JewelRadius};
+use regex::Regex;
 use serde::Deserialize;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde_with::{serde_as, DisplayFromStr};
@@ -17,6 +18,7 @@ use std::io;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
+use lazy_static::lazy_static;
 
 #[derive(Deserialize)]
 struct Character {
@@ -132,6 +134,10 @@ impl Item {
     }
 }
 
+lazy_static! {
+    static ref REGEX_NUMBER: Regex = regex!("[0-9]+");
+}
+
 fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
     let mut gemlink = GemLink {
         gems: vec![],
@@ -203,6 +209,19 @@ fn conv_item(item: &Item) -> Option<item::Item> {
     let (armour, evasion, energy_shield) = (item.prop("Armour"), item.prop("Evasion Rating"), item.prop("Energy Shield"));
     if armour.is_some() || evasion.is_some() || energy_shield.is_some() {
         item_ret.reverse_base_percentile(armour.unwrap_or(0), evasion.unwrap_or(0), energy_shield.unwrap_or(0));
+    }
+
+    // Revert already-applied implicit increases from effect/quality for tinctures
+    if item_ret.data().tags.contains("tincture") {
+        let mult = item_ret.effect().mult();
+        for m in &mut item_ret.mods_impl {
+            if let Some(caps) = REGEX_NUMBER.captures(m) {
+                let mut new_amount = i64::from_str(&caps[0]).unwrap();
+                new_amount = (new_amount * 10000) / mult;
+                *m = m.replace(&caps[0], &new_amount.to_string());
+            }
+        }
+        item_ret.invalidate_caches();
     }
 
     Some(item_ret)

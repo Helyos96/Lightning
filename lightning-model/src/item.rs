@@ -248,7 +248,11 @@ impl Item {
 
     pub fn effect(&self) -> Stat {
         let mods = self.calc_local_mods();
-        crate::build::stat::calc_stat(StatId::Effect, &mods)
+        let mut effect_stat = crate::build::stat::calc_stat(StatId::Effect, &mods);
+        if self.data().tags.contains("tincture") {
+            effect_stat.adjust(Type::More, self.quality);
+        }
+        effect_stat
     }
 
     pub fn radius_data(&self) -> Option<JewelRadiusData> {
@@ -469,6 +473,11 @@ impl Item {
         self.local_modcache.store(Arc::new(self.calc_mods(true)));
         self.non_local_modcache.store(Arc::new(self.calc_mods(false)));
         self.is_modcache_fresh.store(true, Ordering::Relaxed);
+    }
+
+    pub fn invalidate_caches(&self) {
+        self.is_modcache_fresh.store(false, Ordering::Relaxed);
+        self.is_defence_cache_fresh.store(false, Ordering::Relaxed);
     }
 
     pub fn calc_nonlocal_mods(&self) -> Arc<Vec<Mod>> {

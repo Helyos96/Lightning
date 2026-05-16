@@ -184,6 +184,9 @@ fn draw_stat_breakdown(ui: &mut egui::Ui, state: &State, stat_id: StatId) {
                                     Mutation::IncreasedEffect(amt) => {
                                         mutations_str.push_str(&format!("{}% inc effect", amt));
                                     },
+                                    Mutation::MultiplierQuality(per) => {
+                                        mutations_str.push_str(&format!("{}% per {}% qual", mstat.amount, per));
+                                    },
                                     _ => {}
                                 }
                             }
