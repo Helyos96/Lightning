@@ -143,7 +143,7 @@ fn get_val(column: &Column, cursor: &mut Cursor<&Vec<u8>>, strict: bool) -> io::
 pub fn dump(poe_dir: &str, dat_schema: &DatSchema, name: &str, strict: bool) -> io::Result<Vec<FxHashMap<String, Val>>> {
     if let Some(table) = dat_schema.tables.iter().find(|t| (t.valid_for == 1 || t.valid_for == 3) && t.name == name) {
         let buf = read_file(&format!("{poe_dir}/out/data/{}.datc64", name.to_lowercase()))?;
-        let var_offset = find_pattern(&buf, &PATTERN_VAR_DATA).unwrap_or(buf.len());
+        let var_offset = memchr::memmem::find(&buf, &PATTERN_VAR_DATA).unwrap_or(buf.len());
         let mut ret = vec![];
         let mut cursor = Cursor::new(&buf);
         let nb_rows = cursor.read_u32::<LittleEndian>()?;
@@ -205,16 +205,4 @@ pub fn dump(poe_dir: &str, dat_schema: &DatSchema, name: &str, strict: bool) -> 
     } else {
         return Err(io::Error::other(format!("No dat schema for {name}")));
     }
-}
-
-fn find_pattern(data: &[u8], pattern: &[u8]) -> Option<usize> {
-    if data.len() < pattern.len() {
-        return None;
-    }
-    for i in 0..data.len() - pattern.len() {
-        if &data[i..i+pattern.len()] == pattern {
-            return Some(i);
-        }
-    }
-    None
 }

@@ -1921,6 +1921,7 @@ dependencies = [
  "encoding_rs_io",
  "lazy_static",
  "lightning-model",
+ "memchr",
  "regex",
  "rustc-hash",
  "serde",
