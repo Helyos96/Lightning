@@ -4,6 +4,7 @@ use lightning_model::calc::PowerReport;
 use lightning_model::data::tree::{Ascendancy, Class, Node, NodeType, Rect, Sprite};
 use lightning_model::data::TREE;
 use lightning_model::item::JewelRadiusData;
+use rustc_hash::FxHashSet;
 use std::collections::HashMap;
 use std::ops::Neg;
 
@@ -323,7 +324,7 @@ pub fn connectors_gl_inactive(nodes: &imbl::GenericHashMap<u32, Node, rustc_hash
     dd
 }
 
-pub fn connectors_gl(nodes_id: &[u32], nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>, rect: &Rect, w: f32) -> DrawData {
+pub fn connectors_gl(nodes_id: &FxHashSet<u32>, nodes: &imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>, rect: &Rect, w: f32) -> DrawData {
     let mut dd = DrawData::default();
     let sprite = &TREE.sprites["line"];
 

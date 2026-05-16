@@ -35,6 +35,8 @@ opt-level = 3
 opt-level = 3
 [profile.dev.package.imbl]
 opt-level = 3
+[profile.dev.package.pathfinding]
+opt-level = 3
 
 [workspace.lints.clippy]
 collapsible_if = "allow"

@@ -3,7 +3,7 @@ use crate::build::Slot;
 use crate::data::base_item::{BaseItem, Rarity};
 use crate::data::tree::Node;
 use crate::data::{DAMAGE_GROUPS, DamageType, ITEMS, TREE};
-use crate::modifier::{self, Mod, ModEffect, ModStat, Source, Type, parse_mod};
+use crate::modifier::{self, Mod, ModEffect, ModStat, Mutation, Source, Type, parse_mod};
 use arc_swap::ArcSwap;
 use derivative::Derivative;
 use regex::Regex;
@@ -440,6 +440,16 @@ impl Item {
         for m in self.mods_impl.iter().chain(&self.mods_expl).chain(&self.mods_enchant) {
             if let Some(modifiers) = parse_mod(&m, Source::Innate) {
                 mods.extend(modifiers.into_iter().filter(|m| (local && match_local(m, match_table)) || (!local && !match_local(m, match_table))));
+            }
+        }
+
+        let effect = calc_stat(StatId::Effect, &mods).mult();
+        if effect != 10000 {
+            for m in &mut mods {
+                if let Some(stat) = m.as_stat_mut() {
+                    // TODO: probably not correct if somehow there's a combination of inc/more effect
+                    stat.mutations.push(Mutation::IncreasedEffect((effect / 100) - 100));
+                }
             }
         }
 

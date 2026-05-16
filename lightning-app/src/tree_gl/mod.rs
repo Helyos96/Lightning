@@ -8,7 +8,7 @@ use lightning_model::build::{Build, Slot};
 use lightning_model::calc::PowerReport;
 use lightning_model::data::TREE;
 use lightning_model::item::JewelRadiusData;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 fn load_texture(img: &RgbaImage, gl: &glow::Context) -> glow::Texture {
     unsafe {
@@ -360,13 +360,13 @@ impl TreeGl {
         self.draw_data
             .insert("class_start".to_string(), GlDrawData::new(gl, &class_start_gl(build.tree.class)));
         if let Some(path) = path_hovered {
-            let data = connectors_gl(path, &build.tree.nodes_data, &TREE.sprites["line"].coords["LineConnectorActive"], 10.0);
+            let data = connectors_gl(&path.iter().copied().collect(), &build.tree.nodes_data, &TREE.sprites["line"].coords["LineConnectorActive"], 10.0);
             self.draw_data
                 .insert("connectors_hovered".to_string(), GlDrawData::new(gl, &data));
         }
         if let Some(path_red) = path_red {
             self.draw_data
-                .insert("connectors_red".to_string(), GlDrawData::new(gl, &connectors_gl(path_red, &build.tree.nodes_data, &TREE.sprites["line"].coords["LineConnectorActive"], 20.0)));
+                .insert("connectors_red".to_string(), GlDrawData::new(gl, &connectors_gl(&path_red.iter().copied().collect(), &build.tree.nodes_data, &TREE.sprites["line"].coords["LineConnectorActive"], 20.0)));
             let index = path_red.iter().position(|x| *x == hovered_node_id.unwrap()).unwrap();
             let mut path_red = path_red.clone();
             path_red.remove(index);

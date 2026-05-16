@@ -148,6 +148,7 @@ pub enum StatId {
     FireToChaosConversion,
     FasterIgnite,
     ItemEffectDistanceClass,
+    Effect,
 }
 
 impl StatId {

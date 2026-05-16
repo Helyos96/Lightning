@@ -334,8 +334,7 @@ impl Build {
                             // This has a fairly high performance impact on power report (3x on some builds)
                             let distance = self.tree.distance_to_class_start(*node_id) as i64;
                             if distance > 2 {
-                                effect = effect * (distance - 2);
-                                stat.amount = (stat.amount * (100 + effect)) / 100;
+                                stat.mutations.push(Mutation::IncreasedEffect(effect * (distance - 2)));
                             }
                         }
 

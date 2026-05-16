@@ -2,6 +2,7 @@ use std::ops::Neg;
 
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
+use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, EnumString, IntoStaticStr, EnumIter};
 use serde_with::{serde_as, DisplayFromStr};
 use lazy_static::lazy_static;
@@ -9,7 +10,7 @@ use enumflags2::bitflags;
 
 use crate::data::TREE;
 
-#[derive(Default, Clone, Copy, Hash, Eq, PartialEq, Debug, Serialize, Deserialize, EnumString, AsRefStr)]
+#[derive(Default, Clone, Copy, Hash, Eq, PartialEq, Debug, Serialize, Deserialize, EnumString, AsRefStr, EnumIter)]
 pub enum Class {
     #[default]
     Scion,
@@ -344,8 +345,23 @@ fn calc_angles() -> Vec<Vec<f32>> {
     ret
 }
 
+fn _get_class_node(class: Class) -> u32 {
+    TREE.nodes
+        .values()
+        .find(|n| n.class_start_index == Some(class as i32))
+        .unwrap()
+        .skill
+}
+
 lazy_static! {
     pub static ref ORBIT_ANGLES: Vec<Vec<f32>> = calc_angles();
+    pub static ref CLASS_START_NODES: FxHashMap<Class, u32> = {
+        let mut ret = FxHashMap::default();
+        for class in Class::iter() {
+            ret.insert(class, _get_class_node(class));
+        }
+        ret
+    };
 }
 
 pub fn node_pos(node: &Node) -> (f32, f32) {

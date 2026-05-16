@@ -466,7 +466,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                                 build_compare_single.tree.nodes.retain(|&x| x != node.skill);
                                                 build_compare_single.tree.masteries.remove(&node.skill);
                                             } else {
-                                                build_compare_single.tree.nodes.push(node.skill);
+                                                build_compare_single.tree.nodes.insert(node.skill);
                                             }
                                             build_compare_single.tree.invalidate_modcache();
                                             state.delta_compare_single = state.compare(&build_compare_single);

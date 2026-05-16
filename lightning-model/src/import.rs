@@ -9,7 +9,7 @@ use crate::data::{GEMS, ITEMS, TREE};
 use crate::gem;
 use crate::item::{self, JewelRadius};
 use serde::Deserialize;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde_with::{serde_as, DisplayFromStr};
 use std::cell::Cell;
 use std::error::Error;
@@ -100,7 +100,7 @@ struct SkillOverride {
 
 #[derive(Deserialize)]
 struct PassiveTreeImport {
-    hashes: Vec<u32>,
+    hashes: FxHashSet<u32>,
     hashes_ex: Vec<u32>,
     items: Vec<Item>,
     #[serde(default)]
@@ -333,7 +333,7 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
                    generated_node.orbit == Some(*orbit) &&
                    generated_node.orbit_index == Some(*orbit_index)
                 {
-                    build.tree.nodes.push(generated_node.skill);
+                    build.tree.nodes.insert(generated_node.skill);
                     break;
                 }
             }

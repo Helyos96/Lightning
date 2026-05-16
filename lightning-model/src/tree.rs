@@ -1,5 +1,5 @@
 use crate::build::stat::{self, StatId};
-use crate::data::tree::{Ascendancy, Class, ClusterOrbitData, Node, NodeType, TreeData, node_pos};
+use crate::data::tree::{Ascendancy, CLASS_START_NODES, Class, ClusterOrbitData, Node, NodeType, TreeData, node_pos};
 use crate::data::{TATTOOS, TREE};
 use crate::item::{ClusterData, Item, JewelRadiusData};
 use crate::modifier::{Mod, Mutation, Source, parse_mod};
@@ -8,7 +8,7 @@ use enumflags2::BitFlags;
 use lazy_static::lazy_static;
 use pathfinding::directed::strongly_connected_components;
 use pathfinding::prelude::bfs;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use derivative::Derivative;
 use std::cell::{Cell, RefCell};
@@ -25,7 +25,7 @@ struct RawPassiveTree {
     class: Class,
     ascendancy: Option<Ascendancy>,
     bloodline: Option<Ascendancy>,
-    nodes: Vec<u32>,
+    nodes: FxHashSet<u32>,
     #[serde(default)]
     nodes_additional: Vec<u32>,
     #[serde(default)]
@@ -45,7 +45,7 @@ pub struct PassiveTree {
     pub class: Class,
     pub ascendancy: Option<Ascendancy>,
     pub bloodline: Option<Ascendancy>,
-    pub nodes: Vec<u32>,
+    pub nodes: FxHashSet<u32>,
     pub nodes_additional: Vec<u32>,
     pub nodes_cluster: Vec<(u32, Node)>,
     pub masteries: FxHashMap<u32, u32>,
@@ -134,20 +134,12 @@ impl Default for PassiveTree {
             tattoos: Default::default(),
             node_mutations: Default::default(),
         };
-        pt.nodes.push(get_class_node(pt.class));
+        pt.nodes.insert(CLASS_START_NODES[&pt.class]);
         pt
     }
 }
 
 pub const NOTHINGNESS_NODE_ID: u32 = u32::MAX - 1;
-
-fn get_class_node(class: Class) -> u32 {
-    TREE.nodes
-        .values()
-        .find(|n| n.class_start_index == Some(class as i32))
-        .unwrap()
-        .skill
-}
 
 fn get_ascendancy_node(ascendancy: Ascendancy) -> u32 {
     TREE.nodes
@@ -251,7 +243,7 @@ lazy_static! {
 }
 
 struct FindDisconnectedNodes<'a> {
-    pub nodes_search_remove: &'a [u32],
+    pub nodes_search_remove: &'a FxHashSet<u32>,
     class: Class,
     bloodline: Option<Ascendancy>,
     nodes_data: &'a imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>,
@@ -259,7 +251,7 @@ struct FindDisconnectedNodes<'a> {
 
 impl<'a> FindDisconnectedNodes<'a> {
     fn new(
-        nodes_search_remove: &'a [u32],
+        nodes_search_remove: &'a FxHashSet<u32>,
         class: Class,
         bloodline: Option<Ascendancy>,
         nodes_data: &'a imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>,
@@ -299,7 +291,7 @@ impl<'a> FindDisconnectedNodes<'a> {
     pub fn find_nodes_remove(&self) -> Vec<u32> {
         let mut col = vec![];
 
-        let mut start_nodes = vec![get_class_node(self.class)];
+        let mut start_nodes = vec![CLASS_START_NODES[&self.class]];
         if let Some(bloodline) = self.bloodline {
             start_nodes.push(get_bloodline_node(bloodline));
         }
@@ -351,27 +343,28 @@ impl PassiveTree {
         v
     }
 
-    fn successors_allocated(&self, node: u32) -> Vec<u32> {
-        let mut v: Vec<u32> = self.nodes_data[&node]
-            .out
-            .as_ref()
-            .unwrap()
+    fn successors_allocated(&self, node: u32) -> impl Iterator<Item = u32> {
+        let node_data = &self.nodes_data[&node];
+
+        let out_iter = node_data.out
+            .as_deref()
+            .unwrap_or(&[])
             .iter()
-            .filter(|id| self.nodes.contains(id))
             .copied()
-            .collect();
-        if !self.nodes_data[&node].is_mastery {
-            let nodes_in: Vec<u32> = self.nodes_data[&node]
-                .r#in
-                .as_ref()
-                .unwrap()
-                .iter()
-                .filter(|id| self.nodes.contains(id))
-                .copied()
-                .collect();
-            v.extend(nodes_in);
-        }
-        v
+            .filter(|id| self.nodes.contains(id));
+
+        let in_slice = if !node_data.is_mastery {
+            node_data.r#in.as_deref().unwrap_or(&[])
+        } else {
+            &[]
+        };
+
+        let in_iter = in_slice
+            .iter()
+            .copied()
+            .filter(|id| self.nodes.contains(id));
+
+        out_iter.chain(in_iter)
     }
 
     /// To be called after deserializing
@@ -414,7 +407,7 @@ impl PassiveTree {
     }
 
     pub fn distance_to_class_start(&self, node_id: u32) -> usize {
-        let class_node = get_class_node(self.class);
+        let class_node = CLASS_START_NODES[&self.class];
         if let Some(vec) = bfs(&node_id, |p| self.successors_allocated(*p), |p| *p == class_node) {
             return vec.len();
         }
@@ -433,9 +426,9 @@ impl PassiveTree {
             self.nodes.retain(|id| !to_remove.contains(id));
             self.remove_orphan_nodes();
         } else if self.is_node_alloc_nopath(node, &self.nodes) {
-            self.nodes.push(node);
+            self.nodes.insert(node);
         } else if let Some(path) = self.find_path(node) {
-            self.nodes.extend_from_slice(&path[0..path.len() - 1]);
+            self.nodes.extend(&path[0..path.len() - 1]);
         }
 
         self.invalidate_modcache();
@@ -456,8 +449,8 @@ impl PassiveTree {
 
         let old_class = self.class;
         self.class = class;
-        self.nodes.push(get_class_node(class));
-        self.flip_node(get_class_node(old_class));
+        self.nodes.insert(CLASS_START_NODES[&class]);
+        self.flip_node(CLASS_START_NODES[&old_class]);
         self.set_ascendancy(None);
     }
 
@@ -473,7 +466,7 @@ impl PassiveTree {
             if let Some(class) = ascendancy.class() {
                 self.set_class(class);
             }
-            self.nodes.push(get_ascendancy_node(ascendancy));
+            self.nodes.insert(get_ascendancy_node(ascendancy));
         }
 
         self.ascendancy = ascendancy;
@@ -495,14 +488,14 @@ impl PassiveTree {
         }
     }
 
-    pub fn node_mutations(&self, node_id: u32, nodes: &[u32]) -> Option<&Vec<NodeMutation>> {
+    pub fn node_mutations(&self, node_id: u32, nodes: &FxHashSet<u32>) -> Option<&Vec<NodeMutation>> {
         if let Some((mutations, jewel_id)) = self.node_mutations.get(&node_id) && nodes.contains(jewel_id) {
             return Some(mutations);
         }
         None
     }
 
-    pub fn is_node_alloc_nopath(&self, node_id: u32, nodes: &[u32]) -> bool {
+    pub fn is_node_alloc_nopath(&self, node_id: u32, nodes: &FxHashSet<u32>) -> bool {
         if let Some(mutations) = self.node_mutations(node_id, nodes) {
             return mutations.iter().find(|m| matches!(m, NodeMutation::AllocNoPath)).is_some();
         }
