@@ -281,7 +281,8 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                     if item.data().item_class.allowed_slots().iter().any(|&s| s.compatible(slot)) {
                         // Skip if already equipped in this exact slot
                         if state.build.equipment().get(&slot) == Some(&idx) ||
-                           item.data().name.ends_with("Cluster Jewel") {
+                           item.data().name.ends_with("Cluster Jewel") ||
+                           matches!(slot, Slot::Flask(_)) {
                             continue;
                         }
                         let mut build_compare = state.build.clone();

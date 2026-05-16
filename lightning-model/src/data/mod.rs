@@ -23,7 +23,7 @@ use include_bytes_zstd::include_bytes_zstd;
 
 #[bitflags]
 #[repr(u8)]
-#[derive(PartialEq, Eq, Hash, Clone, Copy, IntoStaticStr)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug, IntoStaticStr)]
 pub enum DamageType {
     Physical  = 1 << 0,
     Fire      = 1 << 1,

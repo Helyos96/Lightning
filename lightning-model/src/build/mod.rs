@@ -203,6 +203,8 @@ pub static ref BANDIT_STATS: FxHashMap<BanditChoice, Vec<Mod>> = {
         Mod::stat(StatId::AccuracyRating, Type::Base, 2).with_mutations(stackvec![Mutation::MultiplierProperty((1, property::Int::Level))]),
         Mod::stat(StatId::CriticalStrikeMultiplier, Type::Base, 150),
         Mod::stat(StatId::MaximumFortification, Type::Base, 20),
+        Mod::stat(StatId::AttackSpeed, Type::More, 10).with_conditions(stackvec![Condition::WhileDualWielding]),
+        Mod::stat(StatId::ChanceToBlockAttackDamage, Type::Base, 20).with_conditions(stackvec![Condition::WhileDualWielding]),
     ];
 }
 
@@ -580,7 +582,19 @@ impl Build {
     }
 
     pub fn calc_stats(&self, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>) -> Stats {
-        let mut evaluator = Evaluator::new(self, mods, tags, flags);
+        let mut evaluator = Evaluator::new(self, mods, tags, flags, None);
+
+        let stat_ids: Vec<StatId> = evaluator.mods_by_stat.keys().copied().collect();
+
+        for stat_id in stat_ids {
+            evaluator.eval_stat(stat_id);
+        }
+
+        Stats { stats: evaluator.resolved_stats }
+    }
+
+    pub fn calc_stats_slot(&self, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>, slot: Slot) -> Stats {
+        let mut evaluator = Evaluator::new(self, mods, tags, flags, Some(slot));
 
         let stat_ids: Vec<StatId> = evaluator.mods_by_stat.keys().copied().collect();
 
@@ -592,7 +606,7 @@ impl Build {
     }
 
     pub fn calc_stat(&self, stat_id: StatId, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>) -> Stat {
-        let mut evaluator = Evaluator::new(self, mods, tags, flags);
+        let mut evaluator = Evaluator::new(self, mods, tags, flags, None);
 
         evaluator.eval_stat(stat_id).clone()
     }

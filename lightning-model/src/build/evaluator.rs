@@ -6,13 +6,14 @@ use crate::{build::{Build, Defence, Slot, property, stat::{self, Stat, StatId}},
 /// Evaluate Stats from a collection of Mods
 pub struct Evaluator<'a> {
     build: &'a Build,
+    slot: Option<Slot>,
     pub mods_by_stat: FxHashMap<StatId, Vec<&'a Mod>>,
     pub resolved_stats: FxHashMap<StatId, Stat>,
     evaluating: FxHashSet<StatId>,
 }
 
 impl<'a> Evaluator<'a> {
-    pub fn new(build: &'a Build, mods: &'a [Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>) -> Self {
+    pub fn new(build: &'a Build, mods: &'a [Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>, slot: Option<Slot>) -> Self {
         let mut mods_by_stat: FxHashMap<StatId, Vec<&'a Mod>> = FxHashMap::default();
 
         for m in mods.iter().filter(|m| {
@@ -27,6 +28,7 @@ impl<'a> Evaluator<'a> {
 
         Self {
             build,
+            slot,
             mods_by_stat,
             resolved_stats: FxHashMap::default(),
             evaluating: FxHashSet::default(),
@@ -53,7 +55,7 @@ impl<'a> Evaluator<'a> {
             let mods_to_process = self.mods_by_stat.remove(&stat_id).unwrap_or_default();
 
             for m in mods_to_process {
-                let passes_conditions_bor = m.conditions.is_empty() || m.conditions.iter().any(|c| self.check_condition(c));
+                let passes_conditions_bor = m.conditions.is_empty() || m.conditions.iter().any(|c| self.check_condition(c, m.source));
                 if !passes_conditions_bor {
                     continue;
                 }
@@ -103,7 +105,7 @@ impl<'a> Evaluator<'a> {
         self.build.property_int(p).clamp(min, max.max(min))
     }
 
-    fn check_condition(&mut self, c: &Condition) -> bool {
+    fn check_condition(&mut self, c: &Condition, source: Source) -> bool {
         match c {
             Condition::GreaterEqualProperty(mutation) => {
                 if self.property_int_stats(mutation.1) < mutation.0 { return false; }
@@ -162,6 +164,14 @@ impl<'a> Evaluator<'a> {
                         return false;
                     }
                 } else {
+                    return false;
+                }
+            }
+            Condition::WithThisWeapon => {
+                if self.slot.is_none() {
+                    return false;
+                }
+                if !matches!(source, Source::Item(slot) if Some(slot) == self.slot) {
                     return false;
                 }
             }

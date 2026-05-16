@@ -1,6 +1,7 @@
 use crate::build::stat::StatId;
 use crate::data::gem::GemTag;
-use crate::modifier::{Mod, Type, ModFlag};
+use crate::modifier::{Condition, Mod, ModFlag, Type};
+use crate::stackvec;
 use rustc_hash::FxHashMap;
 use enumflags2::{make_bitflags as flags, BitFlags};
 use lazy_static::lazy_static;
@@ -60,6 +61,9 @@ lazy_static! {
         ("poison_and_bleeding_damage", vec![
             Mod::stat(StatId::Damage, Type::Base, 0).with_flags(flags!(ModFlag::{Bleed | Poison})),
         ]),
+        ("poison_damage", vec![
+            Mod::stat(StatId::Damage, Type::Base, 0).with_flags(flags!(ModFlag::{Poison})),
+        ]),
         ("melee_physical_damage", vec![
             Mod::stat(StatId::PhysicalDamage, Type::Base, 0).with_tags(GemTag::Melee).with_flags(ModFlag::Hit),
         ]),
@@ -98,6 +102,12 @@ lazy_static! {
         ("deal_no_chaos_damage", vec![
             Mod::stat(StatId::ChaosDamage, Type::More, -100),
         ]),
+        ("dual_wield_attack_speed", vec![
+            Mod::stat(StatId::AttackSpeed, Type::Base, 0).with_tags(GemTag::Attack).with_conditions(stackvec![Condition::WhileDualWielding]),
+        ]),
+        ("dual_wield_damage", vec![
+            Mod::stat(StatId::Damage, Type::Base, 0).with_tags(GemTag::Attack).with_flags(ModFlag::Hit).with_conditions(stackvec![Condition::WhileDualWielding]),
+        ]),
         ("attack_speed", vec![
             Mod::stat(StatId::AttackSpeed, Type::Base, 0).with_tags(GemTag::Attack),
         ]),
@@ -135,7 +145,7 @@ lazy_static! {
     [
         // Gem name = GemData::base_item::display_name
         ("Precision", [
-            ("additional_accuracy", vec![
+            ("accuracy_rating", vec![
                 Mod::stat(StatId::AccuracyRating, Type::Base, 0).with_flags(ModFlag::Aura),
             ]),
         ].into_iter().collect()),
@@ -271,7 +281,8 @@ pub fn match_gemstat(gem_basename: &str, mut stat: &str) -> Option<Vec<Mod>> {
     };
 
     if let Some(gemstats) = GEMSTATS_PERGEM.get(gem_basename) &&
-       let Some(gem_mods) = gemstats.get(search_in) {
+       let Some(gem_mods) = gemstats.get(search_in)
+    {
         mods = gem_mods.to_owned();
     } else {
         for gemstat in GEMSTATS_GENERIC.iter() {

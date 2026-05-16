@@ -28,7 +28,7 @@ struct DamageInstance {
     instance_type: Vec<DamageInstanceType>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy, Debug)]
 struct DamagePortion {
     amount: i64,
     source_types: BitFlags<DamageType>,
@@ -283,6 +283,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
 
         for slot in [Slot::Weapon, Slot::Offhand] {
             if let Some(weapon) = build.get_equipped(slot) {
+                let stats = build.calc_stats_slot(&mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff}), slot);
                 let weapon_restrictions = &active_gem.data().active_skill.as_ref().unwrap().weapon_restrictions;
                 if !weapon_restrictions.is_empty() && !weapon_restrictions.contains(&weapon.data().item_class) {
                     continue;
@@ -304,11 +305,10 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
 
                 let mut base_damages = [0i64; 5];
                 for (i, dg) in DAMAGE_GROUPS.iter().enumerate() {
-                    if let Some((min_item, max_item)) = weapon.calc_dmg(dg.damage_type) {
-                        let added_min = stats.stat(dg.added_min_id).with_weapon(item_class).val();
-                        let added_max = stats.stat(dg.added_max_id).with_weapon(item_class).val();
-                        base_damages[i] = calc_average_dmg(&stats, active_gem, min_item, max_item, added_min, added_max, dg);
-                    }
+                    let (min_item, max_item) = weapon.calc_dmg(dg.damage_type).unwrap_or((0, 0));
+                    let added_min = stats.stat(dg.added_min_id).with_weapon(item_class).val();
+                    let added_max = stats.stat(dg.added_max_id).with_weapon(item_class).val();
+                    base_damages[i] = calc_average_dmg(&stats, active_gem, min_item, max_item, added_min, added_max, dg);
                 }
 
                 let portions = apply_conversion(&stats, &base_damages);

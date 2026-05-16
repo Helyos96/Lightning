@@ -109,6 +109,7 @@ const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>
     ("while on full life", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::PropertyBool((true, property::Bool::OnFullLife))]),
     ("while on low life", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::PropertyBool((true, property::Bool::OnLowLife))]),
     ("when on low life", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::PropertyBool((true, property::Bool::OnLowLife))]),
+    ("with this weapon", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WithThisWeapon]),
     ("while holding a shield", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(flags!(ItemClass::Shield))]),
     ("while holding a staff or shield", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(ItemClass::STAVES.union_c(flags!(ItemClass::Shield)))]),
     ("while wielding a wand", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(flags!(ItemClass::Wand))]),
@@ -179,6 +180,10 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("maximum physical attack damage", StatId::MaxPhysicalDamage, flags!(GemTag::Attack), BitFlags::EMPTY, BitFlags::EMPTY),
     ("added minimum physical damage", StatId::AddedMinPhysicalDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("added maximum physical damage", StatId::AddedMaxPhysicalDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("added minimum attack lightning damage", StatId::AddedMinLightningDamage, flags!(GemTag::Attack), BitFlags::EMPTY, BitFlags::EMPTY),
+    ("added maximum attack lightning damage", StatId::AddedMaxLightningDamage, flags!(GemTag::Attack), BitFlags::EMPTY, BitFlags::EMPTY),
+    ("added minimum lightning damage", StatId::AddedMinLightningDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("added maximum lightning damage", StatId::AddedMaxLightningDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("physical attack damage", StatId::PhysicalDamage, flags!(GemTag::Attack), BitFlags::EMPTY, flags!(ModFlag::Hit)),
     ("physical damage", StatId::PhysicalDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("wand damage", StatId::Damage, BitFlags::EMPTY, flags!(ItemClass::Wand), BitFlags::EMPTY),
@@ -331,6 +336,16 @@ lazy_static! {
                 ])
             })
         ), (
+            regex!(r"^([0-9]+) to ([0-9]+) added ([a-z -]+)$"),
+            Box::new(|c| {
+                let stat_tags_1 = STATS_MAP.get(format!("added minimum {}", &c[3]).as_str()).cloned()?;
+                let stat_tags_2 = STATS_MAP.get(format!("added maximum {}", &c[3]).as_str()).cloned()?;
+                Some(vec![
+                    Mod::stat(stat_tags_1.0, Type::Base, i64::from_str(&c[1]).unwrap()).with_tags(stat_tags_1.1).with_weapons(stat_tags_1.2),
+                    Mod::stat(stat_tags_2.0, Type::Base, i64::from_str(&c[2]).unwrap()).with_tags(stat_tags_2.1).with_weapons(stat_tags_2.2),
+                ])
+            })
+        ), (
             regex!(r"^regenerate ([0-9.]+)(% of)? (life|mana) per second$"),
             Box::new(|c| {
                 let stat = match(&c[3], c.get(2).is_some()) {
@@ -438,6 +453,11 @@ lazy_static! {
             Box::new(|c| {
                 Some(vec![Mod::stat(StatId::ItemEffectDistanceClass, Type::Base, i64::from_str(&c[1]).unwrap())])
             })
+        ), (
+            regex!(r"^flasks applied to you have ([0-9]+)% increased effect$"),
+            Box::new(|c| {
+                Some(vec![Mod::stat(StatId::FlaskEffect, Type::Inc, i64::from_str(&c[1]).unwrap())])
+            })
         ),
     ];
 
@@ -479,6 +499,12 @@ lazy_static! {
         ]);
         map.insert("passive skills in radius can be allocated without being connected to your tree", vec![
             Mod::mutate_node(NodeMutation::AllocNoPath, flags!(NodeType::{Normal | Notable})),
+        ]);
+        map.insert("gain accuracy rating equal to twice your strength", vec![
+            Mod::stat(StatId::AccuracyRating, Type::Base, 2).with_mutations(stackvec!(Mutation::MultiplierStat((1, StatId::Strength)))),
+        ]);
+        map.insert("gain accuracy rating equal to your intelligence", vec![
+            Mod::stat(StatId::AccuracyRating, Type::Base, 1).with_mutations(stackvec!(Mutation::MultiplierStat((1, StatId::Intelligence)))),
         ]);
         map
     };
@@ -571,6 +597,7 @@ pub enum Condition {
     SlotsHaveDefence((Defence, &'static [Slot])),
     SlotLesserEqualStats((Slot, i64, &'static [StatId])),
     GreaterEqualMasteryAllocated((&'static str, u32)),
+    WithThisWeapon,
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -678,6 +705,11 @@ impl Mod {
         } else {
             eprintln!("Trying to add mutations to non-stat Mod");
         }
+        self
+    }
+
+    pub fn with_conditions(mut self, conditions: StackVec<Condition, CONDITIONS_COUNT>) -> Self {
+        self.conditions.extend(conditions);
         self
     }
 
