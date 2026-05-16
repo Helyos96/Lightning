@@ -1,7 +1,7 @@
 use enumflags2::BitFlags;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{build::{Build, Defence, Slot, property, stat::{self, Stat, StatId}}, data::gem::GemTag, modifier::{Condition, Mod, ModEffect, ModFlag, ModStat, Mutation}};
+use crate::{build::{Build, Defence, Slot, property, stat::{self, Stat, StatId}}, data::gem::GemTag, modifier::{Condition, Mod, ModEffect, ModFlag, ModStat, Mutation, Source}};
 
 /// Evaluate Stats from a collection of Mods
 pub struct Evaluator<'a> {
@@ -59,15 +59,21 @@ impl<'a> Evaluator<'a> {
                 }
 
                 let mut m = m.to_owned();
-                if let Some(stat) = m.as_stat_mut() &&
-                   !stat.mutations.is_empty()
-                {
+                if let Some(stat) = m.as_stat_mut() && !stat.mutations.is_empty() {
                     self.apply_mutations(stat);
                 }
 
                 if m.flags.contains(ModFlag::Aura) && let Some(stat) = m.as_stat_mut() {
                     let mult = self.get_stat_mult(StatId::AuraEffect);
                     let new_amount = (stat.final_amount() * mult) / 10000;
+                    stat.revised_amount = Some(new_amount);
+                }
+
+                if let Source::Item(Slot::Flask(idx)) = m.source && let Some(stat) = m.as_stat_mut() {
+                    let effect_local = self.build.get_equipped(Slot::Flask(idx)).unwrap().effect();
+                    let mut flask_effect = self.eval_stat(StatId::FlaskEffect).clone();
+                    flask_effect.assimilate(&effect_local);
+                    let new_amount = (stat.final_amount() * flask_effect.mult()) / 10000;
                     stat.revised_amount = Some(new_amount);
                 }
 

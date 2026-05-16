@@ -227,6 +227,8 @@ pub struct Build {
     pub import_account: Option<(String, String)>,
     #[serde(default)]
     pub custom_mods: Arc<Vec<String>>,
+    #[serde(default)]
+    flask_enabled: FxHashSet<u16>,
 }
 
 impl Build {
@@ -241,6 +243,22 @@ impl Build {
 
     pub fn set_custom_mods(&mut self, mods: Vec<String>) {
         self.custom_mods = Arc::new(mods);
+    }
+
+    pub fn is_flask_enabled(&self, idx: u16) -> bool {
+        self.flask_enabled.contains(&idx)
+    }
+
+    pub fn set_flask_enabled(&mut self, idx: u16, enabled: bool) {
+        if idx > 4 {
+            return;
+        }
+
+        if enabled {
+            self.flask_enabled.insert(idx);
+        } else {
+            self.flask_enabled.remove(&idx);
+        }
     }
 
     pub fn update_item_allocations(&mut self) {
@@ -323,21 +341,32 @@ impl Build {
             if let Slot::TreeJewel(node_id) = slot {
                 if self.tree.nodes.contains(node_id) {
                     let effect = item.jewel_effect_distance_class();
+                    let distance = if effect.is_some() {
+                        self.tree.distance_to_class_start(*node_id)
+                    } else {
+                        0
+                    } as i64;
+
                     for m in item.calc_nonlocal_mods().iter() {
                         let mut new_mod = m.to_owned();
                         new_mod.source = Source::Item(*slot);
 
                         // Apply increased effect for tree jewels with the "distance to class node" modifier
-                        if let Some(mut effect) = effect &&
-                           let Some(stat) = new_mod.as_stat_mut()
+                        if let Some(effect) = effect &&
+                           let Some(stat) = new_mod.as_stat_mut() &&
+                           distance > 2
                         {
-                            // This has a fairly high performance impact on power report (3x on some builds)
-                            let distance = self.tree.distance_to_class_start(*node_id) as i64;
-                            if distance > 2 {
-                                stat.mutations.push(Mutation::IncreasedEffect(effect * (distance - 2)));
-                            }
+                            stat.mutations.push(Mutation::IncreasedEffect(effect * (distance - 2)));
                         }
 
+                        mods.push(new_mod);
+                    }
+                }
+            } else if let Slot::Flask(flask_idx) = slot {
+                if self.is_flask_enabled(*flask_idx) {
+                    for m in item.calc_nonlocal_mods().iter() {
+                        let mut new_mod = m.to_owned();
+                        new_mod.source = Source::Item(*slot);
                         mods.push(new_mod);
                     }
                 }

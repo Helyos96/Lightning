@@ -35,6 +35,7 @@ allowed_class = {
     "UtilityFlask",
     "AbyssJewel",
     "Jewel",
+    "Tincture",
     "Body Armour",
     "Rune Dagger",
     "One Hand Sword",

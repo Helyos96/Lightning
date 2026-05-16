@@ -93,6 +93,7 @@ const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>
     ("with two handed melee weapons", BitFlags::EMPTY, ItemClass::TWO_HANDED_MELEE, BitFlags::EMPTY, &[]),
     ("with one handed melee weapons", BitFlags::EMPTY, ItemClass::ONE_HANDED_MELEE, BitFlags::EMPTY, &[]),
     ("with one handed weapons", BitFlags::EMPTY, ItemClass::ONE_HANDED, BitFlags::EMPTY, &[]),
+    ("with melee weapons", BitFlags::EMPTY, ItemClass::MELEE, BitFlags::EMPTY, &[]),
     ("with staves", BitFlags::EMPTY, ItemClass::STAVES, BitFlags::EMPTY, &[]),
     ("with bows", BitFlags::EMPTY, flags!(ItemClass::Bow), BitFlags::EMPTY, &[]),
     ("with claws", BitFlags::EMPTY, flags!(ItemClass::Claw), BitFlags::EMPTY, &[]),
@@ -186,7 +187,6 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("accuracy rating", StatId::AccuracyRating, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("movement speed", StatId::MovementSpeed, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("skill effect duration", StatId::SkillEffectDuration, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
-    ("duration", StatId::Duration, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("impale effect", StatId::ImpaleEffect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("minimum frenzy charges", StatId::MinimumFrenzyCharges, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("minimum power charges", StatId::MinimumPowerCharges, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
@@ -237,6 +237,7 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("life", StatId::MaximumLife, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("mana", StatId::MaximumMana, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("effect", StatId::Effect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("duration", StatId::Duration, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
 ];
 
 lazy_static! {

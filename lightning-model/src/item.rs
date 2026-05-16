@@ -139,6 +139,10 @@ const LOCAL_MODS_ARMOUR: &[LocalModMatch] = &[
     LocalModMatch { stat: StatId::ChanceToBlockAttackDamage, typ: modifier::Type::Inc },
 ];
 
+const LOCAL_MODS_FLASK: &[LocalModMatch] = &[
+    LocalModMatch { stat: StatId::Effect, typ: modifier::Type::Inc },
+];
+
 fn match_local(m: &Mod, match_table: &[LocalModMatch]) -> bool {
     if let Some(stat) = m.as_stat() {
         if !m.conditions.is_empty() || !stat.mutations.is_empty() {
@@ -240,6 +244,11 @@ impl Item {
             return None;
         }
         Some(effect)
+    }
+
+    pub fn effect(&self) -> Stat {
+        let mods = self.calc_local_mods();
+        crate::build::stat::calc_stat(StatId::Effect, &mods)
     }
 
     pub fn radius_data(&self) -> Option<JewelRadiusData> {
@@ -435,21 +444,13 @@ impl Item {
             match_table = &LOCAL_MODS_WEAPON;
         } else if tags.contains("armour") {
             match_table = &LOCAL_MODS_ARMOUR;
+        } else if tags.contains("flask") || tags.contains("tincture") {
+            match_table = &LOCAL_MODS_FLASK;
         }
 
         for m in self.mods_impl.iter().chain(&self.mods_expl).chain(&self.mods_enchant) {
             if let Some(modifiers) = parse_mod(&m, Source::Innate) {
                 mods.extend(modifiers.into_iter().filter(|m| (local && match_local(m, match_table)) || (!local && !match_local(m, match_table))));
-            }
-        }
-
-        let effect = calc_stat(StatId::Effect, &mods).mult();
-        if effect != 10000 {
-            for m in &mut mods {
-                if let Some(stat) = m.as_stat_mut() {
-                    // TODO: probably not correct if somehow there's a combination of inc/more effect
-                    stat.mutations.push(Mutation::IncreasedEffect((effect / 100) - 100));
-                }
             }
         }
 

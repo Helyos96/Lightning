@@ -50,6 +50,7 @@ pub struct PassiveTree {
     pub nodes_cluster: Vec<(u32, Node)>,
     pub masteries: FxHashMap<u32, u32>,
     pub tattoos: FxHashMap<u32, String>,
+    // TODO: skip field and recompute on build load
     pub node_mutations: FxHashMap<u32, (Vec<NodeMutation>, u32)>,
 
     #[serde(skip)]

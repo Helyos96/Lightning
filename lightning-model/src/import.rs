@@ -40,6 +40,8 @@ struct Item {
     #[serde(default)]
     implicitMods: Vec<String>,
     #[serde(default)]
+    utilityMods: Vec<String>,
+    #[serde(default)]
     explicitMods: Vec<String>,
     #[serde(default)]
     fracturedMods: Vec<String>,
@@ -168,6 +170,7 @@ fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
 
 fn conv_item(item: &Item) -> Option<item::Item> {
     if !ITEMS.contains_key(&item.baseType) {
+        eprintln!("No basetype found: {}", item.baseType);
         return None;
     }
 
@@ -175,11 +178,15 @@ fn conv_item(item: &Item) -> Option<item::Item> {
         string.replace('\n', " ")
     }).collect();
 
+    let mods_impl: Vec<String> = item.utilityMods.iter().chain(&item.implicitMods).map(|string| {
+        string.replace('\n', " ")
+    }).collect();
+
     let mut item_ret = item::Item {
         base_item: item.baseType.clone(),
         name: item.name.clone(),
         rarity: item.rarity,
-        mods_impl: item.implicitMods.clone(),
+        mods_impl,
         mods_expl,
         mods_enchant: item.enchantMods.clone(),
         quality: item.prop("Quality").unwrap_or(0),

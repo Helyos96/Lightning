@@ -31,6 +31,7 @@ pub enum ItemClass {
     UtilityFlask,
     AbyssJewel,
     Jewel,
+    Tincture,
     #[serde(rename = "Body Armour")]
     BodyArmour,
     #[serde(rename = "Rune Dagger")]
@@ -78,7 +79,7 @@ impl ItemClass {
             Ring => &[Slot::Ring, Slot::Ring2],
             Jewel => &[Slot::TreeJewel(0)],
             AbyssJewel => &[Slot::TreeJewel(0), Slot::AbyssalJewel(0)],
-            LifeFlask | ManaFlask | HybridFlask | UtilityFlask => &[Slot::Flask(0)],
+            LifeFlask | ManaFlask | HybridFlask | UtilityFlask | Tincture => &[Slot::Flask(0)],
             _ => &[],
         }
     }

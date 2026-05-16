@@ -149,6 +149,7 @@ pub enum StatId {
     FasterIgnite,
     ItemEffectDistanceClass,
     Effect,
+    FlaskEffect,
 }
 
 impl StatId {

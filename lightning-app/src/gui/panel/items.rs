@@ -27,7 +27,6 @@ pub struct ItemsPanelState {
     pub editing_item_idx: Option<usize>,
     pub editing_item: Option<Item>,
     pub can_save: bool,
-    pub flask_enabled: [bool; 5],
     pub hovered_item_idx: Option<usize>,
     pub hovered_item_deltas: Vec<(String, rustc_hash::FxHashMap<&'static str, i64>)>,
     pub editing_item_last_str: String,
@@ -66,7 +65,7 @@ const COMBO_WIDTH: f32 = 300.0;
 fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<usize> {
     let mut ret = None;
     let mut hovered_idx = None;
-    let idx = state.build.equipment().get(&slot);
+    let idx = state.build.equipment().get(&slot).cloned();
     let selected_text = match state.build.get_equipped(slot) {
         Some(item) => item_to_richtext(item),
         None => egui::RichText::new("<No Item>"),
@@ -77,7 +76,11 @@ fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<u
 
     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
         if let Slot::Flask(flask_idx) = slot {
-            ui.checkbox(&mut state.panel_items.flask_enabled[flask_idx as usize], "");
+            let mut checked = state.build.is_flask_enabled(flask_idx);
+            if ui.checkbox(&mut checked, "").changed() {
+                state.build.set_flask_enabled(flask_idx, checked);
+                state.request_recalc = true;
+            }
         }
         ui.label(egui::RichText::new(label_text).strong());
     });
@@ -102,7 +105,7 @@ fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<u
                         continue;
                     }
                 }
-                let response = ui.selectable_label(idx.is_some() && *idx.unwrap() == i, item_to_richtext(item));
+                let response = ui.selectable_label(idx.is_some() && idx.unwrap() == i, item_to_richtext(item));
                 if response.clicked() {
                     ret = Some(Some(i));
                 } else if response.hovered() {
@@ -115,7 +118,7 @@ fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<u
     if let Some(item) = item_hover {
         draw_item_window(ui, item, [response.rect.max.x + 10.0, response.rect.min.y], state.config.show_debug, Some(&state.panel_items.hovered_item_deltas));
     } else if response.hovered() && idx.is_some() {
-        hovered_idx = Some(*idx.unwrap());
+        hovered_idx = Some(idx.unwrap());
         draw_item_window(ui, state.build.get_equipped(slot).unwrap(), [response.rect.max.x + 10.0, response.rect.min.y], state.config.show_debug, Some(&state.panel_items.hovered_item_deltas));
     }
 
