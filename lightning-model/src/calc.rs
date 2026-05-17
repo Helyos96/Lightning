@@ -221,7 +221,7 @@ fn calc_crit_chance(stats: &Stats, crit_chance: Option<i64>) -> i64 {
     if let Some(crit_chance) = crit_chance {
         crit_chance_stat.adjust(Type::Base, crit_chance);
     }
-    crit_chance_stat.val()
+    crit_chance_stat.val().min(10000)
 }
 
 fn calc_chance_hit_weapon(stats: &Stats, monster_stats: &Stats, weapon: &Item) -> i64 {

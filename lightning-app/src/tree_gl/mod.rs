@@ -8,7 +8,7 @@ use lightning_model::build::{Build, Slot};
 use lightning_model::calc::PowerReport;
 use lightning_model::data::TREE;
 use lightning_model::item::JewelRadiusData;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
 fn load_texture(img: &RgbaImage, gl: &glow::Context) -> glow::Texture {
     unsafe {

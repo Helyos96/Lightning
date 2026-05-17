@@ -321,4 +321,16 @@ impl Stat {
     pub fn val_custom_inv(&self, val: i64) -> i64 {
         (val * 10000) / self.mult()
     }
+
+    /// Attempts to revert the multipliers from a pre-computed value
+    /// It is not possible to retrieve the original value if the multiplier is lower than 10000
+    /// with 100% certainty (e.g with a reduced/less effect multiplier), so this is best effort.
+    pub fn revert(&self, val: i64) -> i64 {
+        let mult = self.mult();
+        let mut original_val = (val * 10000) / mult;
+        while (original_val * mult) / 10000 < val {
+            original_val += 1;
+        }
+        original_val
+    }
 }

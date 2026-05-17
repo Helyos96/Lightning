@@ -211,14 +211,16 @@ fn conv_item(item: &Item) -> Option<item::Item> {
         item_ret.reverse_base_percentile(armour.unwrap_or(0), evasion.unwrap_or(0), energy_shield.unwrap_or(0));
     }
 
-    // Revert already-applied implicit increases from effect/quality for tinctures
+    // Revert already-applied modifier changes from effect/quality for tinctures
     if item_ret.data().tags.contains("tincture") {
-        let mult = item_ret.effect().mult();
-        for m in &mut item_ret.mods_impl {
+        let effect = item_ret.effect();
+        for m in item_ret.mods_impl.iter_mut().chain(&mut item_ret.mods_expl) {
+            if m.ends_with("increased effect") {
+                continue;
+            }
             if let Some(caps) = REGEX_NUMBER.captures(m) {
-                let mut new_amount = i64::from_str(&caps[0]).unwrap();
-                new_amount = (new_amount * 10000) / mult;
-                *m = m.replace(&caps[0], &new_amount.to_string());
+                let augmented_amount = i64::from_str(&caps[0]).unwrap();
+                *m = m.replace(&caps[0], &effect.revert(augmented_amount).to_string());
             }
         }
         item_ret.invalidate_caches();
