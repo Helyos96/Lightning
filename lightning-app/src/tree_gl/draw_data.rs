@@ -553,6 +553,7 @@ lazy_static! {
         ("Large Cluster Jewel", "JewelSocketActiveAltPurple"),
         ("Medium Cluster Jewel", "JewelSocketActiveAltBlue"),
         ("Small Cluster Jewel", "JewelSocketActiveAltRed"),
+        ("Searching Eye Jewel", "JewelSocketActiveAbyssAlt"),
     ]);
 }
 
@@ -565,7 +566,7 @@ pub fn jewels_gl(build: &Build, nodes: &imbl::GenericHashMap<u32, Node, rustc_ha
             if let Some(sprite_name) = JEWELS_BASE_SPRITE.get(build.get_equipped(*slot).unwrap().base_item.as_str()) {
                 let rect = &sprite.coords[*sprite_name];
                 let (x, y) = node_pos(&nodes[node]);
-                dd.append(x, y, rect, sprite, false, 1.6);
+                dd.append(x, y, rect, sprite, false, 2.0);
             }
         }
     }

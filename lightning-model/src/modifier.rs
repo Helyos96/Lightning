@@ -100,6 +100,7 @@ const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>
     ("with bows", BitFlags::EMPTY, flags!(ItemClass::Bow), BitFlags::EMPTY, &[]),
     ("with claws", BitFlags::EMPTY, flags!(ItemClass::Claw), BitFlags::EMPTY, &[]),
     ("with wands", BitFlags::EMPTY, flags!(ItemClass::Wand), BitFlags::EMPTY, &[]),
+    ("with wand attacks", flags!(GemTag::Attack), flags!(ItemClass::Wand), BitFlags::EMPTY, &[]),
     ("with daggers", BitFlags::EMPTY, ItemClass::DAGGERS, BitFlags::EMPTY, &[]),
     ("with maces or sceptres", BitFlags::EMPTY, flags!(ItemClass::{OneHandMace | TwoHandMace | Sceptre}), BitFlags::EMPTY, &[]),
     ("while fortified", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::GreaterEqualProperty((1, property::Int::Fortification))]),
@@ -156,6 +157,8 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("cooldown recovery rate", StatId::CooldownRecoverySpeed, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("projectile speed", StatId::ProjectileSpeed, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("trap throwing speed", StatId::TrapThrowingSpeed, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("maximum chance to block attack damage", StatId::MaximumChanceToBlockAttackDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("maximum chance to block spell damage", StatId::MaximumChanceToBlockSpellDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("chance to block attack damage", StatId::ChanceToBlockAttackDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("chance to block spell damage", StatId::ChanceToBlockSpellDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("chance to block", StatId::ChanceToBlockAttackDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY), // local on shields
@@ -188,6 +191,8 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("added maximum lightning damage", StatId::AddedMaxLightningDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("added minimum cold damage", StatId::AddedMinColdDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("added maximum cold damage", StatId::AddedMaxColdDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("added minimum fire damage", StatId::AddedMinFireDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("added maximum fire damage", StatId::AddedMaxFireDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("minimum physical attack damage", StatId::MinPhysicalDamage, flags!(GemTag::Attack), BitFlags::EMPTY, BitFlags::EMPTY),
     ("maximum physical attack damage", StatId::MaxPhysicalDamage, flags!(GemTag::Attack), BitFlags::EMPTY, BitFlags::EMPTY),
     ("minimum attack damage", StatId::MinDamage, flags!(GemTag::Attack), BitFlags::EMPTY, BitFlags::EMPTY),
@@ -469,7 +474,7 @@ lazy_static! {
                 Some(vec![Mod::ring_size(size)])
             })
         ), (
-            regex!(r"^this jewel's socket has ([0-9]+)% increased effect per allocated passive skill between it and your class' starting location$"),
+            regex!(r"^this jewel's socket has ([0-9]+)% increased effect per allocated passive skill between"),
             Box::new(|c| {
                 Some(vec![Mod::stat(StatId::ItemEffectDistanceClass, Type::Base, i64::from_str(&c[1]).unwrap())])
             })
@@ -498,6 +503,7 @@ lazy_static! {
         (regex!("per endurance charge$"), Mutation::MultiplierProperty((1, property::Int::EnduranceCharges))),
         (regex!("per fortification$"), Mutation::MultiplierProperty((1, property::Int::Fortification))),
         (regex!("per ([0-9]+)% quality$"), Mutation::MultiplierQuality(1)),
+        (regex!("per ([0-9]+)% chance to block on equipped shield$"), Mutation::MultiplierSlotDefence((5, Slot::Offhand, Defence::Block))),
     ];
 
     static ref ENDING_PER_GENERIC: Regex = regex!("per ([0-9]+)?%? ([a-z ]+)$");

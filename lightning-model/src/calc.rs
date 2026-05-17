@@ -448,8 +448,8 @@ pub fn calc_defence(build: &Build) -> (FxHashMap<&'static str, i64>, Stats) {
     let mods = build.calc_mods(true);
     let stats = build.calc_stats(&mods, BitFlags::EMPTY, make_bitflags!(ModFlag::{Aura | Buff}));
 
-    let max_life = stats.stat(StatId::MaximumLife).val_ceil();
-    let max_mana = stats.stat(StatId::MaximumMana).val_ceil();
+    let max_life = stats.stat(StatId::MaximumLife).val_rounded();
+    let max_mana = stats.stat(StatId::MaximumMana).val_rounded();
     ret.insert("Maximum Life", max_life);
     ret.insert("Maximum Mana", max_mana);
     ret.insert("Fire Resistance", stats.val(StatId::FireResistance));
@@ -469,6 +469,8 @@ pub fn calc_defence(build: &Build) -> (FxHashMap<&'static str, i64>, Stats) {
     ret.insert("Spell Suppression", stats.val(StatId::ChanceToSuppressSpellDamage));
     ret.insert("Block", stats.val(StatId::ChanceToBlockAttackDamage));
     ret.insert("Spell Block", stats.val(StatId::ChanceToBlockSpellDamage));
+    ret.insert("Maximum Block", stats.val(StatId::MaximumChanceToBlockAttackDamage));
+    ret.insert("Maximum Spell Block", stats.val(StatId::MaximumChanceToBlockSpellDamage));
 
     let mut life_regen = stats.stat(StatId::LifeRegeneration).to_owned();
     life_regen.adjust(Type::Base, (stats.stat(StatId::LifeRegenerationPct).val() * max_life) / 100);

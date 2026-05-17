@@ -17,6 +17,8 @@ pub enum StatId {
     CooldownRecoverySpeed,
     ProjectileSpeed,
     TrapThrowingSpeed,
+    MaximumChanceToBlockAttackDamage,
+    MaximumChanceToBlockSpellDamage,
     ChanceToBlockAttackDamage,
     ChanceToBlockSpellDamage,
     ChanceToSuppressSpellDamage,

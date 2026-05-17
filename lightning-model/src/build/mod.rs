@@ -93,7 +93,8 @@ impl TryFrom<(&str, u16)> for Slot {
 pub enum Defence {
     Armour,
     Evasion,
-    EnergyShield
+    EnergyShield,
+    Block,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -207,6 +208,8 @@ pub static ref BANDIT_STATS: FxHashMap<BanditChoice, Vec<Mod>> = {
         Mod::stat(StatId::MaximumFortification, Type::Base, 20),
         Mod::stat(StatId::AttackSpeed, Type::More, 10).with_conditions(stackvec![Condition::WhileDualWielding]),
         Mod::stat(StatId::ChanceToBlockAttackDamage, Type::Base, 20).with_conditions(stackvec![Condition::WhileDualWielding]),
+        Mod::stat(StatId::MaximumChanceToBlockAttackDamage, Type::Base, 75),
+        Mod::stat(StatId::MaximumChanceToBlockSpellDamage, Type::Base, 75),
     ];
 }
 

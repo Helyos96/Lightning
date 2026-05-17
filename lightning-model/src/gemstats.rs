@@ -154,11 +154,17 @@ lazy_static! {
         ("critical_strike_chance", vec![
             Mod::stat(StatId::CriticalStrikeChance, Type::Base, 0),
         ]),
+        ("critical_strike_multiplier", vec![
+            Mod::stat(StatId::CriticalStrikeMultiplier, Type::Base, 0),
+        ]),
         ("base_fire_damage_resistance", vec![
             Mod::stat(StatId::FireResistance, Type::Base, 0),
         ]),
         ("damage", vec![
             Mod::stat(StatId::Damage, Type::Base, 0),
+        ]),
+        ("aura_effect", vec![
+            Mod::stat(StatId::AuraEffect, Type::Base, 0),
         ]),
     ];
 
@@ -306,6 +312,9 @@ pub fn match_gemstat(gem_basename: &str, mut stat: &str) -> Option<Vec<Mod>> {
         typ_override = Some(Type::Inc);
         ret
     } else if let Some(ret) = stat.strip_suffix("_%") {
+        typ_override = Some(Type::Base);
+        ret
+    } else if let Some(ret) = stat.strip_suffix("_+") {
         typ_override = Some(Type::Base);
         ret
     } else {

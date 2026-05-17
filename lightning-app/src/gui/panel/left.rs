@@ -183,8 +183,8 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                         draw_calc_result_row(ui, "Armour", state.defence_calc.get("Armour"), Format::Flat);
                         draw_calc_result_row(ui, "Evasion", state.defence_calc.get("Evasion"), Format::Flat);
                         draw_calc_result_row(ui, "Energy Shield", state.defence_calc.get("Energy Shield"), Format::Flat);
-                        draw_calc_result_row(ui, "Attack Block", state.defence_calc.get("Block"), Format::Percent);
-                        draw_calc_result_row(ui, "Spell Block", state.defence_calc.get("Spell Block"), Format::Percent);
+                        draw_calc_result_row(ui, "Attack Block", state.defence_calc.get("Block"), Format::PercentOtherStat(*state.defence_calc.get("Maximum Block").unwrap()));
+                        draw_calc_result_row(ui, "Spell Block", state.defence_calc.get("Spell Block"), Format::PercentOtherStat(*state.defence_calc.get("Maximum Spell Block").unwrap()));
                         draw_calc_result_row(ui, "Spell Suppression", state.defence_calc.get("Spell Suppression"), Format::PercentOtherStat(100));
                     });
                     ui.separator();

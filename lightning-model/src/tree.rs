@@ -245,28 +245,22 @@ lazy_static! {
 
 struct FindDisconnectedNodes<'a> {
     pub nodes_search_remove: &'a FxHashSet<u32>,
-    class: Class,
-    bloodline: Option<Ascendancy>,
-    nodes_data: &'a imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>,
+    tree: &'a PassiveTree,
 }
 
 impl<'a> FindDisconnectedNodes<'a> {
     fn new(
         nodes_search_remove: &'a FxHashSet<u32>,
-        class: Class,
-        bloodline: Option<Ascendancy>,
-        nodes_data: &'a imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>,
+        tree: &'a PassiveTree,
     ) -> Self {
         Self {
             nodes_search_remove,
-            class,
-            bloodline,
-            nodes_data,
+            tree
         }
     }
 
     fn successors_allocated(&self, node: u32) -> Vec<u32> {
-        let mut v: Vec<u32> = self.nodes_data[&node]
+        let mut v: Vec<u32> = self.tree.nodes_data[&node]
             .out
             .as_ref()
             .unwrap()
@@ -274,8 +268,8 @@ impl<'a> FindDisconnectedNodes<'a> {
             .filter(|id| self.nodes_search_remove.contains(id))
             .copied()
             .collect();
-        if !self.nodes_data[&node].is_mastery {
-            let nodes_in: Vec<u32> = self.nodes_data[&node]
+        if !self.tree.nodes_data[&node].is_mastery {
+            let nodes_in: Vec<u32> = self.tree.nodes_data[&node]
                 .r#in
                 .as_ref()
                 .unwrap()
@@ -292,8 +286,8 @@ impl<'a> FindDisconnectedNodes<'a> {
     pub fn find_nodes_remove(&self) -> Vec<u32> {
         let mut col = vec![];
 
-        let mut start_nodes = vec![CLASS_START_NODES[&self.class]];
-        if let Some(bloodline) = self.bloodline {
+        let mut start_nodes = vec![CLASS_START_NODES[&self.tree.class]];
+        if let Some(bloodline) = self.tree.bloodline {
             start_nodes.push(get_bloodline_node(bloodline));
         }
 
@@ -304,7 +298,7 @@ impl<'a> FindDisconnectedNodes<'a> {
             }
         }
 
-        let ret: Vec<u32> = self.nodes_search_remove.iter().filter(|id| !col.contains(id)).copied().collect();
+        let ret: Vec<u32> = self.nodes_search_remove.iter().filter(|id| !col.contains(id) && !self.tree.is_node_alloc_nopath(**id, self.nodes_search_remove)).copied().collect();
         ret
     }
 }
@@ -393,16 +387,16 @@ impl PassiveTree {
     pub fn find_path_remove(&self, node: u32) -> Vec<u32> {
         let mut nodes = self.nodes.clone();
         nodes.retain(|&x| x != node);
-        let fdn = FindDisconnectedNodes::new(&nodes, self.class, self.bloodline, &self.nodes_data);
+        let fdn = FindDisconnectedNodes::new(&nodes, self);
         let mut to_remove = fdn.find_nodes_remove();
         to_remove.retain(|id| !self.is_node_alloc_nopath(*id, &nodes));
         to_remove.push(node);
         to_remove
     }
 
-    /// Clean up the tree from orphaned nodes, typically after removing a passage jewel
+    /// Clean up the tree from orphaned nodes, typically after deallocating a passage jewel
     pub fn remove_orphan_nodes(&mut self) {
-        let fdn = FindDisconnectedNodes::new(&self.nodes, self.class, self.bloodline, &self.nodes_data);
+        let fdn = FindDisconnectedNodes::new(&self.nodes, self);
         let to_remove = fdn.find_nodes_remove();
         self.nodes.retain(|id| !to_remove.contains(id));
     }

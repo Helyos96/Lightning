@@ -134,6 +134,7 @@ impl<'a> Evaluator<'a> {
                             Defence::Armour => calc_defence.armour.val(),
                             Defence::Evasion => calc_defence.evasion.val(),
                             Defence::EnergyShield => calc_defence.energy_shield.val(),
+                            Defence::Block => calc_defence.block_chance.val(),
                         };
                         if val == 0 { return false; }
                     } else {
@@ -218,6 +219,7 @@ impl<'a> Evaluator<'a> {
                             Defence::Armour => defences.armour.val(),
                             Defence::Evasion => defences.evasion.val(),
                             Defence::EnergyShield => defences.energy_shield.val(),
+                            Defence::Block => defences.block_chance.val(),
                         }
                     } else {
                         0
