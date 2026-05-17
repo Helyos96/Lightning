@@ -58,7 +58,29 @@ lazy_static! {
         ("maximum_added_chaos_damage", vec![
             Mod::stat(StatId::AddedMaxChaosDamage, Type::Base, 0),
         ]),
+        ("minimum_attack_damage", vec![
+            Mod::stat(StatId::MinDamage, Type::Base, 0).with_tags(GemTag::Attack),
+        ]),
+        ("maximum_attack_damage", vec![
+            Mod::stat(StatId::MaxDamage, Type::Base, 0).with_tags(GemTag::Attack),
+        ]),
+        ("attack_skills_elemental_damage", vec![
+            Mod::stat(StatId::FireDamage, Type::Base, 0).with_tags(GemTag::Attack),
+            Mod::stat(StatId::ColdDamage, Type::Base, 0).with_tags(GemTag::Attack),
+            Mod::stat(StatId::LightningDamage, Type::Base, 0).with_tags(GemTag::Attack),
+        ]),
+        ("elemental_damage_with_attack_skills", vec![
+            Mod::stat(StatId::FireDamage, Type::Base, 0).with_tags(GemTag::Attack),
+            Mod::stat(StatId::ColdDamage, Type::Base, 0).with_tags(GemTag::Attack),
+            Mod::stat(StatId::LightningDamage, Type::Base, 0).with_tags(GemTag::Attack),
+        ]),
+        ("reduce_enemy_lightning_resistance", vec![
+            Mod::stat(StatId::LightningDamagePen, Type::Base, 0),
+        ]),
         ("poison_and_bleeding_damage", vec![
+            Mod::stat(StatId::Damage, Type::Base, 0).with_flags(flags!(ModFlag::{Bleed | Poison})),
+        ]),
+        ("ailment_damage", vec![
             Mod::stat(StatId::Damage, Type::Base, 0).with_flags(flags!(ModFlag::{Bleed | Poison})),
         ]),
         ("poison_damage", vec![
@@ -246,6 +268,14 @@ lazy_static! {
                 Mod::stat(StatId::Armour, Type::Base, 0).with_flags(ModFlag::Aura),
             ]),
         ].into_iter().collect()),
+        ("Grace", [
+            ("base_evasion_rating", vec![
+                Mod::stat(StatId::EvasionRating, Type::Base, 0).with_flags(ModFlag::Aura),
+            ]),
+            ("grace_aura_evasion_rating", vec![
+                Mod::stat(StatId::EvasionRating, Type::Base, 0).with_flags(ModFlag::Aura),
+            ]),
+        ].into_iter().collect()),
        /* ("Vitality", [
             // Should be per minute
             ("base_life_regeneration_rate_per_minute", vec![
@@ -261,6 +291,8 @@ pub fn match_gemstat(gem_basename: &str, mut stat: &str) -> Option<Vec<Mod>> {
     let mut mods = vec![];
 
     if let Some(substat) = stat.strip_suffix("_granted_from_skill") {
+        stat = substat;
+    } else if let Some(substat) = stat.strip_suffix("_from_volatility_support") {
         stat = substat;
     } else if let Some(substat) = stat.strip_suffix("_from_melee_hits") {
         gem_tags.insert(GemTag::Melee);

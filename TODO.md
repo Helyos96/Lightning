@@ -56,4 +56,5 @@
 		* PDR
 	* Ward
 	* ~~Block~~
+* +level of gems / socketed gems
 * All the mods and gems

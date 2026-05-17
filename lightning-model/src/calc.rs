@@ -178,6 +178,8 @@ fn calc_min_max_dmg(stats: &Stats, active_gem: &Gem, mut base_min: i64, mut base
     // These stats are like "10% more maximum physical attack damage"
     let mut stat_min_dt = stats.stat(dg.min_id).clone();
     let mut stat_max_dt = stats.stat(dg.max_id).clone();
+    stat_min_dt.assimilate(stats.stat(StatId::MinDamage));
+    stat_max_dt.assimilate(stats.stat(StatId::MaxDamage));
     stat_min_dt.adjust(Type::Base, base_min + added_min);
     stat_max_dt.adjust(Type::Base, base_max + added_max);
 
@@ -333,6 +335,11 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
                         chance_to_hit,
                         crit_chance,
                     });
+
+                    if let Some(pen_id) = dg.pen_id {
+                        avg_damage = (avg_damage * (100 + stats.stat(pen_id).val())) / 100;
+                    }
+
                     damage.push(calc_dmg_crit_accuracy(avg_damage, crit_chance, crit_multi, chance_to_hit));
                 }
                 damage_instances.push(dmg_inst);

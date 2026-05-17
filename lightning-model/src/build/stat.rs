@@ -64,6 +64,8 @@ pub enum StatId {
     AddedMaxPhysicalDamage,
     MinPhysicalDamage,
     MaxPhysicalDamage,
+    MinDamage,
+    MaxDamage,
     PhysicalDamage,
     Damage,
     AreaOfEffect,

@@ -52,11 +52,12 @@ pub struct DamageGroup {
     pub base_max_id: StatId,
     pub min_id: StatId,
     pub max_id: StatId,
+    pub pen_id: Option<StatId>,
     pub damage_type: DamageType,
 }
 
 impl DamageGroup {
-    const fn new(stat_id: StatId, added_min_id: StatId, added_max_id: StatId, base_min_id: StatId, base_max_id: StatId, min_id: StatId, max_id: StatId, damage_type: DamageType) -> Self {
+    const fn new(stat_id: StatId, added_min_id: StatId, added_max_id: StatId, base_min_id: StatId, base_max_id: StatId, min_id: StatId, max_id: StatId, pen_id: Option<StatId>, damage_type: DamageType) -> Self {
         DamageGroup {
             stat_id,
             added_min_id,
@@ -65,6 +66,7 @@ impl DamageGroup {
             base_max_id,
             min_id,
             max_id,
+            pen_id,
             damage_type,
         }
     }
@@ -72,11 +74,11 @@ impl DamageGroup {
 
 // Make sure this is the same order as DamageType
 pub const DAMAGE_GROUPS: [DamageGroup; 5] = [
-    DamageGroup::new(StatId::PhysicalDamage, StatId::AddedMinPhysicalDamage, StatId::AddedMaxPhysicalDamage, StatId::BaseMinPhysicalDamage, StatId::BaseMaxPhysicalDamage, StatId::MinPhysicalDamage, StatId::MaxPhysicalDamage, DamageType::Physical),
-    DamageGroup::new(StatId::FireDamage, StatId::AddedMinFireDamage, StatId::AddedMaxFireDamage, StatId::BaseMinFireDamage, StatId::BaseMaxFireDamage, StatId::MinFireDamage, StatId::MaxFireDamage, DamageType::Fire),
-    DamageGroup::new(StatId::ColdDamage, StatId::AddedMinColdDamage, StatId::AddedMaxColdDamage, StatId::BaseMinColdDamage, StatId::BaseMaxColdDamage, StatId::MinColdDamage, StatId::MaxColdDamage, DamageType::Cold),
-    DamageGroup::new(StatId::LightningDamage, StatId::AddedMinLightningDamage, StatId::AddedMaxLightningDamage, StatId::BaseMinLightningDamage, StatId::BaseMaxLightningDamage, StatId::MinLightningDamage, StatId::MaxLightningDamage, DamageType::Lightning),
-    DamageGroup::new(StatId::ChaosDamage, StatId::AddedMinChaosDamage, StatId::AddedMaxChaosDamage, StatId::BaseMinChaosDamage, StatId::BaseMaxChaosDamage, StatId::MinChaosDamage, StatId::MaxChaosDamage, DamageType::Chaos),
+    DamageGroup::new(StatId::PhysicalDamage, StatId::AddedMinPhysicalDamage, StatId::AddedMaxPhysicalDamage, StatId::BaseMinPhysicalDamage, StatId::BaseMaxPhysicalDamage, StatId::MinPhysicalDamage, StatId::MaxPhysicalDamage, None, DamageType::Physical),
+    DamageGroup::new(StatId::FireDamage, StatId::AddedMinFireDamage, StatId::AddedMaxFireDamage, StatId::BaseMinFireDamage, StatId::BaseMaxFireDamage, StatId::MinFireDamage, StatId::MaxFireDamage, Some(StatId::FireDamagePen), DamageType::Fire),
+    DamageGroup::new(StatId::ColdDamage, StatId::AddedMinColdDamage, StatId::AddedMaxColdDamage, StatId::BaseMinColdDamage, StatId::BaseMaxColdDamage, StatId::MinColdDamage, StatId::MaxColdDamage, Some(StatId::ColdDamagePen), DamageType::Cold),
+    DamageGroup::new(StatId::LightningDamage, StatId::AddedMinLightningDamage, StatId::AddedMaxLightningDamage, StatId::BaseMinLightningDamage, StatId::BaseMaxLightningDamage, StatId::MinLightningDamage, StatId::MaxLightningDamage, Some(StatId::LightningDamagePen), DamageType::Lightning),
+    DamageGroup::new(StatId::ChaosDamage, StatId::AddedMinChaosDamage, StatId::AddedMaxChaosDamage, StatId::BaseMinChaosDamage, StatId::BaseMaxChaosDamage, StatId::MinChaosDamage, StatId::MaxChaosDamage, Some(StatId::ChaosDamagePen), DamageType::Chaos),
 ];
 
 #[cfg(debug_assertions)]

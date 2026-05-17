@@ -337,7 +337,6 @@ impl State {
         }
         build_compare_single.tree.invalidate_modcache();
         self.delta_compare_single = self.compare(&build_compare_single);
-        println!("woot {:?}", self.delta_compare_single);
     }
 
     pub fn regen_quadtree_hover(&mut self) {

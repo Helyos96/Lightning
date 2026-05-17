@@ -201,6 +201,8 @@ pub static ref BANDIT_STATS: FxHashMap<BanditChoice, Vec<Mod>> = {
         Mod::stat(StatId::AccuracyRating, Type::Base, 2).with_mutations(stackvec![Mutation::MultiplierStat((1, StatId::Dexterity))]),
         Mod::stat(StatId::AccuracyRating, Type::Base, 2),
         Mod::stat(StatId::AccuracyRating, Type::Base, 2).with_mutations(stackvec![Mutation::MultiplierProperty((1, property::Int::Level))]),
+        Mod::stat(StatId::EvasionRating, Type::Base, 15),
+        Mod::stat(StatId::EvasionRating, Type::Inc, 1).with_mutations(stackvec![Mutation::MultiplierStat((5, StatId::Dexterity))]),
         Mod::stat(StatId::CriticalStrikeMultiplier, Type::Base, 150),
         Mod::stat(StatId::MaximumFortification, Type::Base, 20),
         Mod::stat(StatId::AttackSpeed, Type::More, 10).with_conditions(stackvec![Condition::WhileDualWielding]),

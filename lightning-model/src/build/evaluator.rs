@@ -167,7 +167,17 @@ impl<'a> Evaluator<'a> {
                 } else {
                     return false;
                 }
-            }
+            },
+            Condition::WhileDualWieldingItems(items) => {
+                if let Some(mainhand) = self.build.get_equipped(Slot::Weapon) &&
+                   let Some(offhand) = self.build.get_equipped(Slot::Offhand) {
+                    if !items.contains(mainhand.data().item_class) || !items.contains(offhand.data().item_class) {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            },
             Condition::WithThisWeapon => {
                 if self.slot.is_none() {
                     return false;

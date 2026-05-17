@@ -66,6 +66,8 @@ const BEGINNINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, &[Condition])]
     ("melee skills have", flags!(GemTag::Melee), BitFlags::EMPTY, &[]),
     ("minions have", flags!(GemTag::Minion), BitFlags::EMPTY, &[]),
     ("minions deal", flags!(GemTag::Minion), BitFlags::EMPTY, &[]),
+    ("melee weapon damage", flags!(GemTag::Melee), BitFlags::EMPTY, &[]),
+    ("damage with weapons", BitFlags::EMPTY, BitFlags::EMPTY, &[]),
 ];
 
 const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>, &[Condition])] = &[
@@ -115,6 +117,7 @@ const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>
     ("while wielding a wand", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(flags!(ItemClass::Wand))]),
     ("while wielding a staff", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(ItemClass::STAVES)]),
     ("while wielding a sword", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(ItemClass::SWORDS)]),
+    ("while wielding two claws", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileDualWieldingItems(flags!(ItemClass::Claw))]),
     ("while wielding a dagger", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(ItemClass::DAGGERS)]),
     ("while wielding a mace or sceptre", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(flags!(ItemClass::{OneHandMace | TwoHandMace | Sceptre}))]),
     ("while wielding a claw or dagger", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::WhileWielding(flags!(ItemClass::{Dagger | RuneDagger | Claw}))]),
@@ -135,6 +138,7 @@ const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>
     ("if you have at least 6 life masteries allocated", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[
         Condition::GreaterEqualMasteryAllocated(("Life Mastery", 6)),
     ]),
+    ("during effect", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
 ];
 
 // Order is important for overlapping stats
@@ -176,8 +180,6 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("cold damage", StatId::ColdDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("lightning damage", StatId::LightningDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("chaos damage", StatId::ChaosDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
-    ("minimum physical attack damage", StatId::MinPhysicalDamage, flags!(GemTag::Attack), BitFlags::EMPTY, BitFlags::EMPTY),
-    ("maximum physical attack damage", StatId::MaxPhysicalDamage, flags!(GemTag::Attack), BitFlags::EMPTY, BitFlags::EMPTY),
     ("added minimum physical damage", StatId::AddedMinPhysicalDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("added maximum physical damage", StatId::AddedMaxPhysicalDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("added minimum attack lightning damage", StatId::AddedMinLightningDamage, flags!(GemTag::Attack), BitFlags::EMPTY, BitFlags::EMPTY),
@@ -186,6 +188,10 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("added maximum lightning damage", StatId::AddedMaxLightningDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("added minimum cold damage", StatId::AddedMinColdDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("added maximum cold damage", StatId::AddedMaxColdDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("minimum physical attack damage", StatId::MinPhysicalDamage, flags!(GemTag::Attack), BitFlags::EMPTY, BitFlags::EMPTY),
+    ("maximum physical attack damage", StatId::MaxPhysicalDamage, flags!(GemTag::Attack), BitFlags::EMPTY, BitFlags::EMPTY),
+    ("minimum attack damage", StatId::MinDamage, flags!(GemTag::Attack), BitFlags::EMPTY, BitFlags::EMPTY),
+    ("maximum attack damage", StatId::MaxDamage, flags!(GemTag::Attack), BitFlags::EMPTY, BitFlags::EMPTY),
     ("physical attack damage", StatId::PhysicalDamage, flags!(GemTag::Attack), BitFlags::EMPTY, flags!(ModFlag::Hit)),
     ("physical damage", StatId::PhysicalDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("wand damage", StatId::Damage, BitFlags::EMPTY, flags!(ItemClass::Wand), BitFlags::EMPTY),
@@ -246,6 +252,7 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("mana", StatId::MaximumMana, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("effect", StatId::Effect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("duration", StatId::Duration, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("evasion", StatId::EvasionRating, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
 ];
 
 lazy_static! {
@@ -362,10 +369,20 @@ lazy_static! {
                 Some(vec![Mod::stat(stat, Type::Base, parse_val100(&c[1])?)])
             })
         ), (
-            regex!(r"^damage penetrates ([0-9]+)% ([a-z]+) resistance$"),
+            regex!(r"^(?:damage )?penetrates ([0-9]+)% ([a-z]+) resistance$"),
             Box::new(|c| {
                 let stat_tags_1 = STATS_MAP.get(format!("{} damage penetration", &c[2]).as_str()).cloned()?;
-                Some(vec![Mod::stat(stat_tags_1.0, Type::Base, parse_val100(&c[1])?).with_tags(stat_tags_1.1)])
+                Some(vec![Mod::stat(stat_tags_1.0, Type::Base, i64::from_str(&c[1]).unwrap()).with_tags(stat_tags_1.1)])
+            })
+        ), (
+            regex!(r"^(?:damage )?penetrates ([0-9]+)% elemental resistances$"),
+            Box::new(|c| {
+                let val = i64::from_str(&c[1]).ok()?;
+                Some(vec![
+                    Mod::stat(StatId::FireDamagePen, Type::Base, val),
+                    Mod::stat(StatId::ColdDamagePen, Type::Base, val),
+                    Mod::stat(StatId::LightningDamagePen, Type::Base, val),
+                ])
             })
         ), (
             regex!(r"^your ([a-z -]+) is equal to ([0-9]+)% of your ([a-z -]+)$"),
@@ -460,6 +477,12 @@ lazy_static! {
             regex!(r"^flasks applied to you have ([0-9]+)% increased effect$"),
             Box::new(|c| {
                 Some(vec![Mod::stat(StatId::FlaskEffect, Type::Inc, i64::from_str(&c[1]).unwrap())])
+            })
+        ), (
+            regex!(r"^inherent attack speed bonus from dual wielding is doubled$"),
+            Box::new(|_| {
+                // Hack: a 9% more on top of the existing 10% more is 19.9% instead of 20%
+                Some(vec![Mod::stat(StatId::AttackSpeed, Type::More, 9).with_conditions(stackvec![Condition::WhileDualWielding])])
             })
         ),
     ];
@@ -600,6 +623,7 @@ pub enum Condition {
     PropertyBool((bool, property::Bool)),
     WhileWielding(BitFlags<ItemClass>),
     WhileDualWielding,
+    WhileDualWieldingItems(BitFlags<ItemClass>),
     SlotsHaveDefence((Defence, &'static [Slot])),
     SlotLesserEqualStats((Slot, i64, &'static [StatId])),
     GreaterEqualMasteryAllocated((&'static str, u32)),
