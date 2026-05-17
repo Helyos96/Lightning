@@ -1,3 +1,4 @@
+use crate::build::property;
 use crate::build::stat::StatId;
 use crate::data::gem::GemTag;
 use crate::modifier::{Condition, Mod, ModFlag, Type};
@@ -165,6 +166,9 @@ lazy_static! {
         ]),
         ("aura_effect", vec![
             Mod::stat(StatId::AuraEffect, Type::Base, 0),
+        ]),
+        ("damage_while_on_full_life", vec![
+            Mod::stat(StatId::Damage, Type::Base, 0).with_conditions(stackvec![Condition::PropertyBool((true, property::Bool::OnFullLife))]),
         ]),
     ];
 

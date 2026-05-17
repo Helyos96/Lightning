@@ -120,9 +120,12 @@ fn apply_conversion(stats: &Stats, base_damages: &[i64; 5]) -> [Vec<DamagePortio
 
 /// Apply inc/more modifiers to converted damage portions.
 /// Each portion gets modifiers from all damage types in its conversion path.
-fn apply_damage_mods_portions(portions: &[Vec<DamagePortion>; 5], stats: &Stats, weapon: Option<ItemClass>) -> [i64; 5] {
+fn apply_damage_mods_portions(portions: &[Vec<DamagePortion>; 5], stats: &Stats, weapon: Option<ItemClass>, is_spell: bool) -> [i64; 5] {
     let mut result = [0i64; 5];
-    let generic = stats.stat(StatId::Damage).with_weapon(weapon);
+    let mut generic = stats.stat(StatId::Damage).with_weapon(weapon);
+    if is_spell {
+        generic.assimilate(stats.stat(StatId::SpellDamage));
+    }
 
     for (dg_idx, dg_portions) in portions.iter().enumerate() {
         for portion in dg_portions {
@@ -314,7 +317,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
                 }
 
                 let portions = apply_conversion(&stats, &base_damages);
-                let final_damages = apply_damage_mods_portions(&portions, &stats, item_class);
+                let final_damages = apply_damage_mods_portions(&portions, &stats, item_class, false);
 
                 let mut dmg_inst = DamageInstance {
                     source: DamageSource::Slot(slot),
@@ -369,7 +372,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
         }
 
         let portions = apply_conversion(&stats, &base_damages);
-        let final_damages = apply_damage_mods_portions(&portions, &stats, None);
+        let final_damages = apply_damage_mods_portions(&portions, &stats, None, true);
 
         let mut dmg_inst = DamageInstance {
             source: DamageSource::Gem,

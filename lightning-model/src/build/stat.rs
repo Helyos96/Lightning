@@ -1,3 +1,4 @@
+use enumflags2::BitFlags;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Serialize, Deserialize};
 use crate::{data::{base_item::ItemClass, gem::GemTag}, modifier::{Mod, Type}};
@@ -70,6 +71,7 @@ pub enum StatId {
     MaxDamage,
     PhysicalDamage,
     Damage,
+    SpellDamage,
     AreaOfEffect,
     AccuracyRating,
     MovementSpeed,
@@ -192,6 +194,7 @@ pub struct Stat {
     pub more: i64,
     pub overrid: Option<i64>,
     pub mods: Vec<Mod>,
+    pub mods_disabled: Vec<Mod>,
 }
 
 /// Computes a stat from a mod list
@@ -228,6 +231,7 @@ impl Default for Stat {
             more: 100,
             overrid: None,
             mods: vec![],
+            mods_disabled: vec![],
         }
     }
 }
@@ -297,6 +301,16 @@ impl Stat {
         stat
     }
 
+    pub fn with_tags(&self, tags: BitFlags<GemTag>) -> Stat {
+        let mut stat = Stat::default();
+
+        for m in self.mods.iter().chain(&self.mods_disabled).filter(|m| m.tags.contains(tags)) {
+            stat.adjust_mod(m);
+        }
+
+        stat
+    }
+
     pub fn val(&self) -> i64 {
         self.val100() / 100
     }
@@ -336,5 +350,9 @@ impl Stat {
             original_val += 1;
         }
         original_val
+    }
+
+    pub fn add_mod_disabled(&mut self, m: &Mod) {
+        self.mods_disabled.push(m.to_owned());
     }
 }

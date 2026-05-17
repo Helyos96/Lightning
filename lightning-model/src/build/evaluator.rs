@@ -7,6 +7,8 @@ use crate::{build::{Build, Defence, Slot, property, stat::{self, Stat, StatId}},
 pub struct Evaluator<'a> {
     build: &'a Build,
     slot: Option<Slot>,
+    tags: BitFlags<GemTag>,
+    flags: BitFlags<ModFlag>,
     pub mods_by_stat: FxHashMap<StatId, Vec<&'a Mod>>,
     pub resolved_stats: FxHashMap<StatId, Stat>,
     evaluating: FxHashSet<StatId>,
@@ -29,6 +31,8 @@ impl<'a> Evaluator<'a> {
         Self {
             build,
             slot,
+            tags,
+            flags,
             mods_by_stat,
             resolved_stats: FxHashMap::default(),
             evaluating: FxHashSet::default(),
@@ -243,6 +247,9 @@ impl<'a> Evaluator<'a> {
                         eprintln!("Warning: applying MultiplierQuality for non-item source");
                         dbg!(&m);
                     }
+                },
+                Mutation::OtherStatIncPct(pct, stat_id) => {
+                    amount = (self.eval_stat(*stat_id).inc * pct) / 100;
                 }
             }
         }

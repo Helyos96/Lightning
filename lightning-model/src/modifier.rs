@@ -200,6 +200,7 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("physical attack damage", StatId::PhysicalDamage, flags!(GemTag::Attack), BitFlags::EMPTY, flags!(ModFlag::Hit)),
     ("physical damage", StatId::PhysicalDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("wand damage", StatId::Damage, BitFlags::EMPTY, flags!(ItemClass::Wand), BitFlags::EMPTY),
+    ("spell damage", StatId::SpellDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("damage", StatId::Damage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("area of effect", StatId::AreaOfEffect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("accuracy rating", StatId::AccuracyRating, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
@@ -427,7 +428,7 @@ lazy_static! {
                 Some(vec![Mod::stat(StatId::AddedPassivesAreJewelSockets, Type::Base, i64::from_str(&c[1]).unwrap())])
             })
         ), (
-            regex!(r"^adds ([0-9]+) small passive skills which grant nothing$"),
+            regex!(r"^adds ([0-9]+) small passive skills? which grants? nothing$"),
             Box::new(|c| {
                 Some(vec![
                     Mod::stat(StatId::AllocatesPassiveSkills, Type::Base, i64::from_str(&c[1]).unwrap()),
@@ -489,6 +490,19 @@ lazy_static! {
                 // Hack: a 9% more on top of the existing 10% more is 19.9% instead of 20%
                 Some(vec![Mod::stat(StatId::AttackSpeed, Type::More, 9).with_conditions(stackvec![Condition::WhileDualWielding])])
             })
+        ), (
+            regex!(r"^increases and reductions to spell damage also apply to attacks at ([0-9]+)% of their value$"),
+            Box::new(|c| {
+                Some(vec![Mod::stat(StatId::Damage, Type::Inc, 1).with_tags(GemTag::Attack).with_mutations(stackvec![Mutation::OtherStatIncPct(i64::from_str(&c[1]).unwrap(), StatId::SpellDamage)])])
+            })
+        ), (
+            regex!(r"^attacks with this weapon have added fire damage equal to ([0-9]+)% of player's maximum life$"),
+            Box::new(|c| {
+                Some(vec![
+                    Mod::stat(StatId::AddedMinFireDamage, Type::Base, 1).with_tags(GemTag::Attack).with_mutations(stackvec![Mutation::StatPct((i64::from_str(&c[1]).unwrap(), StatId::MaximumLife))]).with_conditions(stackvec![Condition::WithThisWeapon]),
+                    Mod::stat(StatId::AddedMaxFireDamage, Type::Base, 1).with_tags(GemTag::Attack).with_mutations(stackvec![Mutation::StatPct((i64::from_str(&c[1]).unwrap(), StatId::MaximumLife))]).with_conditions(stackvec![Condition::WithThisWeapon]),
+                ])
+            })
         ),
     ];
 
@@ -504,6 +518,7 @@ lazy_static! {
         (regex!("per fortification$"), Mutation::MultiplierProperty((1, property::Int::Fortification))),
         (regex!("per ([0-9]+)% quality$"), Mutation::MultiplierQuality(1)),
         (regex!("per ([0-9]+)% chance to block on equipped shield$"), Mutation::MultiplierSlotDefence((5, Slot::Offhand, Defence::Block))),
+        (regex!("per ([0-9]+) player maximum life$"), Mutation::MultiplierStat((1, StatId::MaximumLife))),
     ];
 
     static ref ENDING_PER_GENERIC: Regex = regex!("per ([0-9]+)?%? ([a-z ]+)$");
@@ -525,7 +540,7 @@ lazy_static! {
             Mod::stat(StatId::MaximumMana, Type::Override, 0),
         ]);
         map.insert("strength's damage bonus applies to all spell damage as well", vec![
-            Mod::stat(StatId::Damage, Type::Inc, 1).with_tags(GemTag::Spell).with_mutations(stackvec!(Mutation::MultiplierStat((5, StatId::Strength)))),
+            Mod::stat(StatId::SpellDamage, Type::Inc, 1).with_mutations(stackvec!(Mutation::MultiplierStat((5, StatId::Strength)))),
         ]);
         map.insert("removes all energy shield", vec![
             Mod::stat(StatId::MaximumEnergyShield, Type::Override, 0),
@@ -603,6 +618,7 @@ pub enum Mutation {
     MultiplierSlotDefence((i64, Slot, Defence)),
     UpTo(i64),
     IncreasedEffect(i64),
+    OtherStatIncPct(i64, StatId),
 }
 
 impl Mutation {
@@ -616,6 +632,7 @@ impl Mutation {
             Mutation::UpTo(mutation) => *mutation = amount,
             Mutation::IncreasedEffect(mutation) => *mutation = amount,
             Mutation::MultiplierQuality(mutation) => *mutation = amount,
+            Mutation::OtherStatIncPct(pct, _) => *pct = amount,
         }
     }
 }
