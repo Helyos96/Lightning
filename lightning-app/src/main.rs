@@ -394,7 +394,6 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                     }
                                 } else if button_state == ElementState::Released {
                                     if let Some(node_id) = state.hovered_node_id {
-                                        state.build_compare = Some(state.build.clone());
                                         state.build.tree.flip_node(node_id);
                                         state.snapshot();
                                         if !state.build.tree.nodes.contains(&node_id) {
@@ -456,28 +455,16 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                     if hovered_node_id != state.hovered_node_id {
                                         state.hovered_node_id = hovered_node_id;
                                         if let Some(node_id) = state.hovered_node_id {
-                                            let node = state.build.tree.nodes_data.get(&node_id).unwrap();
-                                            let mut build_compare = state.build.clone();
-                                            build_compare.tree.flip_node(node.skill);
-                                            state.delta_compare = state.compare(&build_compare);
+                                            let node_id = state.build.tree.nodes_data.get(&node_id).unwrap().skill;
+                                            state.recalc_node_compare(node_id);
 
-                                            let mut build_compare_single = state.build.clone();
-                                            if build_compare_single.tree.nodes.contains(&node.skill) {
-                                                build_compare_single.tree.nodes.retain(|&x| x != node.skill);
-                                                build_compare_single.tree.masteries.remove(&node.skill);
-                                            } else {
-                                                build_compare_single.tree.nodes.insert(node.skill);
-                                            }
-                                            build_compare_single.tree.invalidate_modcache();
-                                            state.delta_compare_single = state.compare(&build_compare_single);
-
-                                            if !state.build.tree.nodes.contains(&node.skill) {
-                                                if !state.build.tree.is_node_alloc_nopath(node.skill, &state.build.tree.nodes) {
-                                                    state.path_hovered = state.build.tree.find_path(node.skill);
+                                            if !state.build.tree.nodes.contains(&node_id) {
+                                                if !state.build.tree.is_node_alloc_nopath(node_id, &state.build.tree.nodes) {
+                                                    state.path_hovered = state.build.tree.find_path(node_id);
                                                 }
                                                 state.path_red = None;
                                             } else {
-                                                state.path_red = Some(state.build.tree.find_path_remove(node.skill));
+                                                state.path_red = Some(state.build.tree.find_path_remove(node_id));
                                                 state.path_hovered = None;
                                             }
                                         } else {
@@ -485,7 +472,6 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                             state.path_hovered = None;
                                             state.delta_compare.clear();
                                             state.delta_compare_single.clear();
-                                            state.build_compare = None;
                                         }
                                         state.request_regen_gl = true;
                                         window.request_redraw();
@@ -494,7 +480,6 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                     state.hovered_node_id = None;
                                     state.path_red = None;
                                     state.path_hovered = None;
-                                    state.build_compare = None;
                                     state.request_regen_gl = true;
                                     window.request_redraw();
                                 }

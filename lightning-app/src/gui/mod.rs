@@ -47,8 +47,6 @@ pub enum UiState {
 pub struct State {
     pub ui_state: UiState,
     pub build: Build,
-    // Used for stat comparison on hover
-    pub build_compare: Option<Build>,
     pub history: VecDeque<Build>,
     pub history_idx: usize,
     pub config: Config,
@@ -112,7 +110,6 @@ impl State {
             ui_state: UiState::ChooseBuild,
             quadtree_hover: QuadTreeHover::build(&build.tree.nodes_data),
             build: build,
-            build_compare: None,
             history: Default::default(),
             history_idx: 0,
 
@@ -272,8 +269,8 @@ impl State {
                 self.active_skill_calc = calc::calc_gem(&self.build, &supports, active_gem);
             }
         }
-        if let Some(build_compare) = self.build_compare.as_ref() {
-            self.delta_compare = self.compare(build_compare);
+        if let Some(node_id) = self.hovered_node_id {
+            self.recalc_node_compare(node_id);
         }
         if self.panel_skills.selected_gem.is_some() {
             if self.build.gem_links.len() > self.panel_skills.selected_gemlink {
@@ -324,6 +321,23 @@ impl State {
             self.request_regen_nodes_gl = true;
         }
         self.request_recalc = false;
+    }
+
+    pub fn recalc_node_compare(&mut self, node_id: u32) {
+        let mut build_compare = self.build.clone();
+        build_compare.tree.flip_node(node_id);
+        self.delta_compare = self.compare(&build_compare);
+
+        let mut build_compare_single = self.build.clone();
+        if build_compare_single.tree.nodes.contains(&node_id) {
+            build_compare_single.tree.nodes.retain(|&x| x != node_id);
+            build_compare_single.tree.masteries.remove(&node_id);
+        } else {
+            build_compare_single.tree.nodes.insert(node_id);
+        }
+        build_compare_single.tree.invalidate_modcache();
+        self.delta_compare_single = self.compare(&build_compare_single);
+        println!("woot {:?}", self.delta_compare_single);
     }
 
     pub fn regen_quadtree_hover(&mut self) {
