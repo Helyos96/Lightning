@@ -1,3 +1,4 @@
+use crate::build::Slot;
 use crate::build::stat::{self, StatId};
 use crate::data::tree::{Ascendancy, CLASS_START_NODES, Class, ClusterOrbitData, Node, NodeType, TreeData, node_pos};
 use crate::data::{TATTOOS, TREE};
@@ -34,7 +35,7 @@ struct RawPassiveTree {
     #[serde(default)]
     tattoos: FxHashMap<u32, String>,
     #[serde(default)]
-    node_mutations: FxHashMap<u32, (Vec<NodeMutation>, u32)>,
+    jewels: FxHashMap<u32, Arc<Item>>,
 }
 
 /// Player tree used in Build
@@ -50,9 +51,10 @@ pub struct PassiveTree {
     pub nodes_cluster: Vec<(u32, Node)>,
     pub masteries: FxHashMap<u32, u32>,
     pub tattoos: FxHashMap<u32, String>,
-    // TODO: skip field and recompute on build load
-    pub node_mutations: FxHashMap<u32, (Vec<NodeMutation>, u32)>,
+    pub jewels: FxHashMap<u32, Arc<Item>>,
 
+    #[serde(skip)]
+    pub node_mutations: FxHashMap<u32, (Vec<NodeMutation>, u32)>,
     #[serde(skip)]
     pub nodes_data: imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>,
     #[serde(skip)]
@@ -63,7 +65,7 @@ pub struct PassiveTree {
     is_modcache_fresh: AtomicBool,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug)]
 pub enum NodeMutation {
     TransformStat(StatId, StatId),
     AllocNoPath,
@@ -80,9 +82,10 @@ impl From<RawPassiveTree> for PassiveTree {
             nodes_cluster: raw.nodes_cluster,
             masteries: raw.masteries,
             tattoos: raw.tattoos,
-            node_mutations: raw.node_mutations,
+            jewels: raw.jewels,
 
             // Skipped fields
+            node_mutations: Default::default(),
             nodes_data: init_data(),
             mod_cache: ArcSwap::from_pointee(Vec::new()),
             is_modcache_fresh: AtomicBool::new(false),
@@ -134,6 +137,7 @@ impl Default for PassiveTree {
             is_modcache_fresh: Default::default(),
             tattoos: Default::default(),
             node_mutations: Default::default(),
+            jewels: Default::default(),
         };
         pt.nodes.insert(CLASS_START_NODES[&pt.class]);
         pt
@@ -364,6 +368,10 @@ impl PassiveTree {
 
     /// To be called after deserializing
     fn init(&mut self) {
+        let jewels = self.jewels.clone();
+        for (node_id, jewel) in jewels {
+            self.add_jewel(node_id, jewel, true);
+        }
         for (_, node) in &self.nodes_cluster {
             self.nodes_data.insert(node.skill, node.clone());
         }
@@ -559,6 +567,30 @@ impl PassiveTree {
             }
         }
 
+        for (node_id, jewel) in self.jewels.iter().filter(|(k, _)| self.nodes.contains(*k)) {
+            let effect = jewel.jewel_effect_distance_class();
+            let distance = if effect.is_some() {
+                self.distance_to_class_start(*node_id)
+            } else {
+                0
+            } as i64;
+
+            for m in jewel.calc_nonlocal_mods().iter() {
+                let mut new_mod = m.to_owned();
+                new_mod.source = Source::Item(Slot::TreeJewel(*node_id));
+
+                // Apply increased effect for tree jewels with the "distance to class node" modifier
+                if let Some(effect) = effect &&
+                   let Some(stat) = new_mod.as_stat_mut() &&
+                   distance > 2
+                {
+                    stat.mutations.push(Mutation::IncreasedEffect(effect * (distance - 2)));
+                }
+
+                mods.push(new_mod);
+            }
+        }
+
         self.mod_cache.store(Arc::new(mods));
         self.is_modcache_fresh.store(true, Ordering::Relaxed);
     }
@@ -602,22 +634,28 @@ impl PassiveTree {
         self.nodes_data.insert(new_root_node.skill, new_root_node);
         self.nodes_cluster.retain(|(jewel_id, _)| *jewel_id != node_id);
         self.nodes.retain(|id| !node_ids.contains(id));
+        self.jewels.remove(&node_id);
     }
 
-    pub fn remove_jewel(&mut self, node_id: u32, jewel: &Item) -> Vec<u32> {
+    pub fn remove_jewel(&mut self, node_id: u32) -> Vec<u32> {
         let mut removed_sockets = vec![];
-        self._remove_jewel(node_id, &mut removed_sockets);
-        if let Some(radius_data) = jewel.radius_data() {
-            for n in self.nodes_in_radius(node_id, &radius_data, true) {
-                self.node_mutations.remove(&n);
+        if let Some(jewel) = self.jewels.get(&node_id).cloned() {
+            self._remove_jewel(node_id, &mut removed_sockets);
+            if let Some(radius_data) = jewel.radius_data() {
+                for n in self.nodes_in_radius(node_id, &radius_data, true) {
+                    self.node_mutations.remove(&n);
+                }
+                self.remove_orphan_nodes();
+                self.invalidate_modcache();
             }
-            self.remove_orphan_nodes();
-            self.invalidate_modcache();
+            removed_sockets
+        } else {
+            eprintln!("Trying to remove non-equipped jewel in node {node_id}");
+            vec![]
         }
-        removed_sockets
     }
 
-    pub fn add_jewel(&mut self, node_id: u32, jewel: &Item) {
+    pub fn add_jewel(&mut self, node_id: u32, jewel: Arc<Item>, is_init: bool) {
         if let Some(radius_data) = jewel.radius_data() {
             let node_ids = self.nodes_in_radius(node_id, &radius_data, false);
             let mods = jewel.calc_nonlocal_mods();
@@ -637,9 +675,11 @@ impl PassiveTree {
             }
             self.invalidate_modcache();
         }
-        if let Some(cluster_data) = jewel.get_cluster() {
+        // Jewels added by init() don't need to remake cluster nodes
+        if !is_init && let Some(cluster_data) = jewel.get_cluster() {
             self.add_cluster(cluster_data, node_id, &jewel.base_item);
         }
+        self.jewels.insert(node_id, jewel);
     }
 
     /// Returns nodes in radius (or ring) of a node

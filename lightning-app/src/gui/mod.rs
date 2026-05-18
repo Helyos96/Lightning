@@ -78,8 +78,6 @@ pub struct State {
 
     // widget-specific values
     builds_list_cur: usize,
-    pub gemlink_cur: usize,
-    pub active_skill_cur: usize,
     builds_dir_settings: String,
     framerate_settings: u64,
     pub level: i64,
@@ -139,8 +137,6 @@ impl State {
             panel_bottom: Default::default(),
 
             builds_list_cur: 0,
-            gemlink_cur: 0,
-            active_skill_cur: 0,
             builds_dir_settings: config.builds_dir.clone().into_os_string().into_string().unwrap(),
             framerate_settings: config.framerate,
             level: 1,
@@ -173,8 +169,6 @@ impl State {
         self.path_hovered = None;
         self.path_red = None;
         self.hovered_node_id = None;
-        self.gemlink_cur = 0;
-        self.active_skill_cur = 0;
         self.panel_items.editing_item_idx = None;
         self.panel_items.custom_text.clear();
         self.panel_items.editing_item = None;
@@ -217,8 +211,8 @@ impl State {
 
     pub fn compare(&self, build_compare: &Build) -> FxHashMap<&'static str, i64> {
         let mut delta = FxHashMap::default();
-        if let Some(gem_link_compare) = build_compare.gem_links.get(self.gemlink_cur) {
-            if let Some(active_gem_compare) = gem_link_compare.active_gems().nth(self.active_skill_cur) {
+        if let Some(gem_link_compare) = build_compare.gem_links.get(self.build.gemlink_cur) {
+            if let Some(active_gem_compare) = gem_link_compare.active_gems().nth(self.build.active_skill_cur) {
                 let supports: Vec<&Gem> = gem_link_compare.support_gems().filter(|g| g.enabled).map(|arc_gem| arc_gem.as_ref()).collect();
                 let active_gem_compare_calc = calc::calc_gem(build_compare, &supports, active_gem_compare);
                 delta.extend(calc::compare(&self.active_skill_calc, &active_gem_compare_calc));
@@ -263,8 +257,8 @@ impl State {
         self.defence_calc = defence_calc;
         self.defence_stats = defence_stats;
         self.active_skill_calc.clear();
-        if let Some(gem_link) = self.build.gem_links.get(self.gemlink_cur) {
-            if let Some(active_gem) = gem_link.active_gems().nth(self.active_skill_cur) {
+        if let Some(gem_link) = self.build.gem_links.get(self.build.gemlink_cur) {
+            if let Some(active_gem) = gem_link.active_gems().nth(self.build.active_skill_cur) {
                 let supports: Vec<&Gem> = gem_link.support_gems().filter(|g| g.enabled).map(|arc_gem| arc_gem.as_ref()).collect();
                 self.active_skill_calc = calc::calc_gem(&self.build, &supports, active_gem);
             }
@@ -306,8 +300,8 @@ impl State {
             self.power_report = match self.panel_bottom.power_report_selected.1 {
                 PowerReportType::Defence => Some(PowerReport::new_defence(&self.build, string)),
                 PowerReportType::Gem => {
-                    if let Some(gem_link) = self.build.gem_links.get(self.gemlink_cur) {
-                        if let Some(active_gem) = gem_link.active_gems().nth(self.active_skill_cur) {
+                    if let Some(gem_link) = self.build.gem_links.get(self.build.gemlink_cur) {
+                        if let Some(active_gem) = gem_link.active_gems().nth(self.build.active_skill_cur) {
                             let supports: Vec<&Gem> = gem_link.support_gems().filter(|g| g.enabled).map(|arc_gem| arc_gem.as_ref()).collect();
                             Some(PowerReport::new_gem(&self.build, string, &supports, active_gem))
                         } else {

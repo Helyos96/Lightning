@@ -8,7 +8,7 @@ fn selected_text_gemlink(state: &State) -> String {
     if state.build.gem_links.is_empty() {
         return String::from("<No Gemlink>");
     }
-    if let Some(selected) = state.build.gem_links.get(state.gemlink_cur) {
+    if let Some(selected) = state.build.gem_links.get(state.build.gemlink_cur) {
         return text_gemlink_cutoff(selected, 35);
     }
     return String::from("");
@@ -18,8 +18,8 @@ fn selected_text_active(state: &State) -> &str {
     if state.build.gem_links.iter().flat_map(|gl| gl.active_gems()).count() == 0 {
         return "<No Active Skill>";
     }
-    if let Some(gemlink) = state.build.gem_links.get(state.gemlink_cur) {
-        if let Some(active_skill) = gemlink.active_gems().nth(state.active_skill_cur) {
+    if let Some(gemlink) = state.build.gem_links.get(state.build.gemlink_cur) {
+        if let Some(active_skill) = gemlink.active_gems().nth(state.build.active_skill_cur) {
             return active_skill.data().display_name();
         }
     }
@@ -129,8 +129,8 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                             ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
                             for gem_link in state.build.gem_links.iter().enumerate() {
                                 if gem_link.1.active_gems().count() == 0 { continue; }
-                                if ui.selectable_value(&mut state.gemlink_cur, gem_link.0, text_gemlink(gem_link.1)).clicked() {
-                                    state.active_skill_cur = 0;
+                                if ui.selectable_value(&mut state.build.gemlink_cur, gem_link.0, text_gemlink(gem_link.1)).clicked() {
+                                    state.build.active_skill_cur = 0;
                                     state.request_recalc = true;
                                 }
                             }
@@ -141,9 +141,9 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                         .width(ui.available_width())
                         .show_ui(ui, |ui| {
                             ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
-                            if let Some(gemlink) = state.build.gem_links.get(state.gemlink_cur) {
+                            if let Some(gemlink) = state.build.gem_links.get(state.build.gemlink_cur) {
                                 for active_gem in gemlink.active_gems().enumerate() {
-                                    if ui.selectable_value(&mut state.active_skill_cur, active_gem.0, active_gem.1.data().display_name()).clicked() {
+                                    if ui.selectable_value(&mut state.build.active_skill_cur, active_gem.0, active_gem.1.data().display_name()).clicked() {
                                         state.request_recalc = true;
                                     }
                                 }

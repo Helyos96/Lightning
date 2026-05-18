@@ -493,7 +493,7 @@ lazy_static! {
         ), (
             regex!(r"^increases and reductions to spell damage also apply to attacks at ([0-9]+)% of their value$"),
             Box::new(|c| {
-                Some(vec![Mod::stat(StatId::Damage, Type::Inc, 1).with_tags(GemTag::Attack).with_mutations(stackvec![Mutation::OtherStatIncPct(i64::from_str(&c[1]).unwrap(), StatId::SpellDamage)])])
+                Some(vec![Mod::stat(StatId::Damage, Type::Inc, 1).with_tags(GemTag::Attack).with_mutations(stackvec![Mutation::StatIncPct(i64::from_str(&c[1]).unwrap(), StatId::SpellDamage)])])
             })
         ), (
             regex!(r"^attacks with this weapon have added fire damage equal to ([0-9]+)% of player's maximum life$"),
@@ -656,7 +656,7 @@ pub enum Mutation {
     MultiplierSlotDefence((i64, Slot, Defence)),
     UpTo(i64),
     IncreasedEffect(i64),
-    OtherStatIncPct(i64, StatId),
+    StatIncPct(i64, StatId),
 }
 
 impl Mutation {
@@ -670,7 +670,7 @@ impl Mutation {
             Mutation::UpTo(mutation) => *mutation = amount,
             Mutation::IncreasedEffect(mutation) => *mutation = amount,
             Mutation::MultiplierQuality(mutation) => *mutation = amount,
-            Mutation::OtherStatIncPct(pct, _) => *pct = amount,
+            Mutation::StatIncPct(pct, _) => *pct = amount,
         }
     }
 }
@@ -1070,6 +1070,7 @@ fn test_parse() {
     assert!(parse_mod("Gain 10% of Maximum Life as Extra Armour", Source::Innate).is_some());
     assert!(parse_mod("Gain 5% of Wand Physical Damage as Extra Lightning Damage", Source::Innate).is_some());
 
+    // Invalid mods
     assert!(parse_mod("40% of chaos damage converted to physical damage", Source::Innate).is_none());
     assert!(parse_mod("Gain 10% of Guealefh as Extra Physical Damage", Source::Innate).is_none());
 }

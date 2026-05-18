@@ -219,8 +219,7 @@ pub struct Build {
     pub name: String,
     pub gem_links: Vec<GemLink>,
     #[serde_as(as = "FxHashMap<serde_with::json::JsonString, _>")]
-    // usize is index into inventory
-    equipment: FxHashMap<Slot, usize>,
+    equipment: FxHashMap<Slot, usize>, // usize is index into inventory
     pub inventory: Vec<Arc<Item>>,
     pub tree: PassiveTree,
     #[serde(default)]
@@ -236,6 +235,10 @@ pub struct Build {
     pub custom_mods: Arc<Vec<String>>,
     #[serde(default)]
     flask_enabled: FxHashSet<u16>,
+    #[serde(default)]
+    pub gemlink_cur: usize, // Currently selected gemlink
+    #[serde(default)]
+    pub active_skill_cur: usize, // Currently selected active skill within gemlink
 }
 
 impl Build {
@@ -345,30 +348,9 @@ impl Build {
         mods.extend_from_slice(&self.tree.calc_mods(&jewels));
         for (slot, idx) in &self.equipment {
             let item = &self.inventory[*idx];
-            if let Slot::TreeJewel(node_id) = slot {
-                if self.tree.nodes.contains(node_id) {
-                    let effect = item.jewel_effect_distance_class();
-                    let distance = if effect.is_some() {
-                        self.tree.distance_to_class_start(*node_id)
-                    } else {
-                        0
-                    } as i64;
-
-                    for m in item.calc_nonlocal_mods().iter() {
-                        let mut new_mod = m.to_owned();
-                        new_mod.source = Source::Item(*slot);
-
-                        // Apply increased effect for tree jewels with the "distance to class node" modifier
-                        if let Some(effect) = effect &&
-                           let Some(stat) = new_mod.as_stat_mut() &&
-                           distance > 2
-                        {
-                            stat.mutations.push(Mutation::IncreasedEffect(effect * (distance - 2)));
-                        }
-
-                        mods.push(new_mod);
-                    }
-                }
+            if let Slot::TreeJewel(_) = slot {
+                // Mods from jewels are added by tree.calc_mods()
+                continue;
             } else if let Slot::Flask(flask_idx) = slot {
                 if self.is_flask_enabled(*flask_idx) {
                     for m in item.calc_nonlocal_mods().iter() {
@@ -484,7 +466,7 @@ impl Build {
         }
 
         if let Slot::TreeJewel(jewel_node_id) = slot {
-            self.tree.add_jewel(jewel_node_id, &self.inventory[item_idx]);
+            self.tree.add_jewel(jewel_node_id, self.inventory[item_idx].clone(), false);
         }
     }
 
@@ -500,7 +482,7 @@ impl Build {
         }
 
         if let Slot::TreeJewel(node_id) = slot {
-            let removed_sockets = self.tree.remove_jewel(node_id, &self.inventory[item_idx]);
+            let removed_sockets = self.tree.remove_jewel(node_id);
             for socket in removed_sockets {
                 self.unequip(Slot::TreeJewel(socket));
             }

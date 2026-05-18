@@ -248,7 +248,7 @@ impl<'a> Evaluator<'a> {
                         dbg!(&m);
                     }
                 },
-                Mutation::OtherStatIncPct(pct, stat_id) => {
+                Mutation::StatIncPct(pct, stat_id) => {
                     amount = (self.eval_stat(*stat_id).inc * pct) / 100;
                 }
             }

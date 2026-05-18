@@ -1,5 +1,5 @@
 * build.rs for automating cleanups/json2bincode/putting every target file in the right place
-* Remember selected skill in saved build
+* ~~Remember selected skill in saved build~~
 * Tree view
 	* ~~Power report (highest dps unallocated etc.)~~
 		* Add table output to list nodes
