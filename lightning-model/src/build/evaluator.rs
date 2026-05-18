@@ -95,7 +95,7 @@ impl<'a> Evaluator<'a> {
     }
 
     fn property_int_stats(&mut self, p: property::Int) -> i64 {
-        let min = match property::int_data(p).min {
+        let mut min = match property::int_data(p).min {
             property::Val::Val(i) => i,
             property::Val::Stat(s) => self.get_stat_val(s),
         };
@@ -107,7 +107,8 @@ impl<'a> Evaluator<'a> {
         if self.build.is_property_int_maxed(p) {
             return max;
         }
-        self.build.property_int(p).clamp(min, max.max(min))
+        min = min.min(max);
+        self.build.property_int(p).clamp(min, max)
     }
 
     fn check_condition(&mut self, c: &Condition, source: Source) -> bool {

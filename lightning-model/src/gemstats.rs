@@ -251,6 +251,13 @@ lazy_static! {
                 Mod::stat(StatId::MaximumLightningResistance, Type::Base, 0).with_flags(ModFlag::Aura),
             ]),
         ].into_iter().collect()),
+        ("Purity of Elements", [
+            ("base_resist_all_elements", vec![
+                Mod::stat(StatId::FireResistance, Type::Base, 0).with_flags(ModFlag::Aura),
+                Mod::stat(StatId::ColdResistance, Type::Base, 0).with_flags(ModFlag::Aura),
+                Mod::stat(StatId::LightningResistance, Type::Base, 0).with_flags(ModFlag::Aura),
+            ]),
+        ].into_iter().collect()),
         ("Discipline", [
             ("base_maximum_energy_shield", vec![
                 Mod::stat(StatId::MaximumEnergyShield, Type::Base, 0).with_flags(ModFlag::Aura),

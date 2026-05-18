@@ -537,7 +537,7 @@ impl Build {
     }
 
     pub fn property_int_stats(&self, p: property::Int, stats: &Stats) -> i64 {
-        let min = match property::int_data(p).min {
+        let mut min = match property::int_data(p).min {
             property::Val::Val(i) => i,
             property::Val::Stat(s) => stats.val(s),
         };
@@ -549,6 +549,7 @@ impl Build {
         if self.is_property_int_maxed(p) {
             return max;
         }
+        min = min.min(max);
         self.property_int(p).clamp(min, max)
     }
 
