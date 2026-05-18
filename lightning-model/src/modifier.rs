@@ -235,6 +235,7 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("maximum cold resistance", StatId::MaximumColdResistance, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("maximum lightning resistance", StatId::MaximumLightningResistance, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("maximum chaos resistance", StatId::MaximumChaosResistance, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("fire resistance or all elemental resistances", StatId::FireResistance, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("fire resistance", StatId::FireResistance, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("cold resistance", StatId::ColdResistance, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("lightning resistance", StatId::LightningResistance, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
@@ -278,7 +279,7 @@ lazy_static! {
                 }).collect())
             })
         ), (
-            regex!(r"^([+-]?[0-9]+)%? (?:additional )?(?:to )?(?:all )?([a-z -]+)$"),
+            regex!(r"^(?:grants )?([+-]?[0-9]+)%? (?:additional )?(?:to )?(?:all )?([a-z -]+)$"),
             Box::new(|c| {
                 let stat_tags = parse_stat(&c[2])?;
                 let amount = i64::from_str(&c[1]).unwrap();
@@ -469,10 +470,18 @@ lazy_static! {
                 Some(vec![Mod::mutate_node(NodeMutation::TransformStat(stat_1.0, stat_2.0), flags!(NodeType::{Normal | Notable}))])
             })
         ), (
-            regex!(r"^only affects passives in ([a-z ]+) ring$"),
+            regex!(r"^([a-z -]+) from passives in radius is transformed to ([a-z -]+)$"),
             Box::new(|c| {
-                let size = JewelRadius::from_str(&c[1])?;
-                Some(vec![Mod::ring_size(size)])
+                let stat_1 = parse_stat_nomulti(&c[1])?;
+                let stat_2 = parse_stat_nomulti(&c[2])?;
+                Some(vec![Mod::mutate_node(NodeMutation::TransformStat(stat_1.0, stat_2.0), flags!(NodeType::{Normal | Notable}))])
+            })
+        ), (
+            regex!(r"^passives granting ([a-z -]+) in radius also grant (increased )?([a-z -]+) at ([0-9]+)% of its value$"),
+            Box::new(|c| {
+                let stat_1 = parse_stat_nomulti(&c[1])?;
+                let stat_2 = parse_stat_nomulti(&c[3])?;
+                Some(vec![Mod::mutate_node(NodeMutation::AlsoGrantStatPct(stat_1.0, stat_2.0, if c.get(2).is_some() { Type::Inc } else { Type::Base }, i64::from_str(&c[4]).unwrap()), flags!(NodeType::{Normal | Notable}))])
             })
         ), (
             regex!(r"^this jewel's socket has ([0-9]+)% increased effect per allocated passive skill between"),

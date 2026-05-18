@@ -1,7 +1,7 @@
 use crate::gui::State;
 use lightning_model::data::base_item::Rarity;
 use lightning_model::{build::stat::StatId, modifier::Mutation};
-use lightning_model::modifier::Source;
+use lightning_model::modifier::{Source, Type};
 
 use egui::Color32;
 use egui_extras::{Column, TableBuilder};
@@ -116,7 +116,10 @@ fn draw_stat_breakdown(ui: &mut egui::Ui, state: &State, stat_id: StatId) {
                 for (mstat, source) in stat.mods.iter().filter_map(|m| m.as_stat().map(|s| (s, m.source))) {
                     body.row(20.0, |mut row| {
                         row.col(|ui| {
-                            ui.add(egui::Label::new(mstat.final_amount().to_string()).wrap_mode(egui::TextWrapMode::Extend));
+                            match mstat.typ {
+                                Type::Inc|Type::More => { ui.add(egui::Label::new(format!("{}%", mstat.final_amount())).wrap_mode(egui::TextWrapMode::Extend)); },
+                                _ => { ui.add(egui::Label::new(mstat.final_amount().to_string()).wrap_mode(egui::TextWrapMode::Extend)); },
+                            }
                         });
                         row.col(|ui| {
                             ui.add(egui::Label::new(format!("{:?}", mstat.typ)).wrap_mode(egui::TextWrapMode::Extend));
