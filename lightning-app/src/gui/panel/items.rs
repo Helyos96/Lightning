@@ -1,5 +1,6 @@
 use std::{sync::Arc};
 
+use egui::style::StyleModifier;
 use lightning_model::{build::Slot, item::Item, modifier::Source};
 use crate::gui::{State, utils::{draw_item, draw_item_window, draw_item_deltas, rarity_to_color}};
 
@@ -87,6 +88,7 @@ fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<u
 
     let response = egui::ComboBox::from_id_salt(format!("item_choice_{:?}", slot))
         .width(COMBO_WIDTH)
+        .height(f32::INFINITY)
         .selected_text(selected_text)
         .show_ui(ui, |ui| {
             ui.spacing_mut().item_spacing = [ui.spacing().item_spacing.x, ui.spacing().item_spacing.y - 2.0].into();

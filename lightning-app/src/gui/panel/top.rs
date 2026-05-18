@@ -25,6 +25,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 }
                 egui::ComboBox::from_id_salt("combo_class")
                     .selected_text(state.build.tree.class.as_ref())
+                    .height(f32::INFINITY)
                     .show_ui(ui, |ui| {
                         ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
                         for class in TREE.classes.keys() {
@@ -42,6 +43,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 };
                 egui::ComboBox::from_id_salt("combo_ascendancy")
                     .selected_text(selected_text)
+                    .height(f32::INFINITY)
                     .show_ui(ui, |ui| {
                         ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
                         for ascendancy in state.build.tree.class.ascendancies() {
@@ -65,6 +67,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
 
                 egui::ComboBox::from_id_salt("combo_bloodline")
                     .selected_text(bloodline_selected_text)
+                    .height(f32::INFINITY)
                     .show_ui(ui, |ui| {
                         ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
 
@@ -86,6 +89,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
 
                 egui::ComboBox::from_id_salt("bandit_choice")
                     .selected_text(state.build.bandit_choice.as_ref())
+                    .height(f32::INFINITY)
                     .show_ui(ui, |ui| {
                         ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
                         for bandit_choice in BanditChoice::iter() {
@@ -98,6 +102,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 );
                 egui::ComboBox::from_id_salt("campaign_choice")
                     .selected_text(state.build.campaign_choice.as_ref())
+                    .height(f32::INFINITY)
                     .show_ui(ui, |ui| {
                         ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
                         for campaign_choice in CampaignChoice::iter() {

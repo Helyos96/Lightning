@@ -125,6 +125,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                     egui::ComboBox::from_id_salt("combo_gemlink")
                         .selected_text(selected_text_gemlink(state))
                         .width(ui.available_width())
+                        .height(f32::INFINITY)
                         .show_ui(ui, |ui| {
                             ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
                             for gem_link in state.build.gem_links.iter().enumerate() {
@@ -139,6 +140,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                     egui::ComboBox::from_id_salt("combo_active_skill")
                         .selected_text(selected_text_active(state))
                         .width(ui.available_width())
+                        .height(f32::INFINITY)
                         .show_ui(ui, |ui| {
                             ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
                             if let Some(gemlink) = state.build.gem_links.get(state.build.gemlink_cur) {
