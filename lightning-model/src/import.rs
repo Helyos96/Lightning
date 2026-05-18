@@ -8,6 +8,7 @@ use crate::data::tree::{Ascendancy, Class, ExpansionJewel};
 use crate::data::{GEMS, ITEMS, TREE};
 use crate::gem;
 use crate::item::{self, JewelRadius};
+use crate::modifier::{Source, parse_mod};
 use regex::Regex;
 use serde::Deserialize;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -174,36 +175,46 @@ fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
     (gemlink, jewels)
 }
 
+/// Attempts to stitch or split modifier's '\n' depending on what we can parse
+pub fn process_mod_string(mod_str: &str) -> Vec<String> {
+    let lines: Vec<&str> = mod_str.split('\n').collect();
+    let mut final_strings = Vec::new();
+    let mut i = 0;
+
+    while i < lines.len() {
+        let current_line = lines[i];
+
+        if parse_mod(current_line, Source::Innate).is_some() {
+            final_strings.push(current_line.to_string());
+            i += 1;
+        } else if i + 1 < lines.len() && parse_mod(&format!("{} {}", current_line, lines[i + 1]), Source::Innate).is_some() {
+            final_strings.push(format!("{} {}", current_line, lines[i + 1]));
+            i += 2;
+        } else {
+            final_strings.push(current_line.to_string());
+            i += 1;
+        }
+    }
+
+    final_strings
+}
+
 fn conv_item(item: &Item) -> Option<item::Item> {
     if !ITEMS.contains_key(&item.baseType) {
         eprintln!("No basetype found: {}", item.baseType);
         return None;
     }
 
-    // For short mods, split '\n' into distinct mods.
-    // For long mods, replace '\n' with ' '
     let mods_expl: Vec<String> = item.explicitMods.iter()
         .chain(&item.craftedMods)
         .chain(&item.fracturedMods)
         .chain(&item.mutatedMods)
-        .flat_map(|mod_str| {
-            if mod_str.len() < 72 {
-                mod_str.split('\n').map(|s| s.to_string()).collect::<Vec<String>>()
-            } else {
-                vec![mod_str.replace('\n', " ")]
-            }
-        })
+        .flat_map(|mod_str| process_mod_string(mod_str))
         .collect();
 
     let mods_impl: Vec<String> = item.utilityMods.iter()
         .chain(&item.implicitMods)
-        .flat_map(|mod_str| {
-            if mod_str.len() < 72 {
-                mod_str.split('\n').map(|s| s.to_string()).collect::<Vec<String>>()
-            } else {
-                vec![mod_str.replace('\n', " ")]
-            }
-        })
+        .flat_map(|mod_str| process_mod_string(mod_str))
         .collect();
 
     let mut item_ret = item::Item {

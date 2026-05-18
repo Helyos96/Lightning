@@ -484,6 +484,12 @@ lazy_static! {
                 Some(vec![Mod::mutate_node(NodeMutation::AlsoGrantStatPct(stat_1.0, stat_2.0, if c.get(2).is_some() { Type::Inc } else { Type::Base }, i64::from_str(&c[4]).unwrap()), flags!(NodeType::{Normal | Notable}))])
             })
         ), (
+            regex!(r"^only affects passives in ([a-z ]+) ring$"),
+            Box::new(|c| {
+                let size = JewelRadius::from_str(&c[1])?;
+                Some(vec![Mod::ring_size(size)])
+            })
+        ), (
             regex!(r"^this jewel's socket has ([0-9]+)% increased effect per allocated passive skill between"),
             Box::new(|c| {
                 Some(vec![Mod::stat(StatId::ItemEffectDistanceClass, Type::Base, i64::from_str(&c[1]).unwrap())])
@@ -578,7 +584,7 @@ lazy_static! {
             Mod::stat(StatId::MaximumEnergyShield, Type::Override, 0),
         ]);
         map.insert("passive skills in radius can be allocated without being connected to your tree", vec![
-            Mod::mutate_node(NodeMutation::AllocNoPath, flags!(NodeType::{Normal | Notable})),
+            Mod::mutate_node(NodeMutation::AllocNoPath, flags!(NodeType::{Normal | Notable | Keystone})),
         ]);
         map.insert("gain accuracy rating equal to twice your strength", vec![
             Mod::stat(StatId::AccuracyRating, Type::Base, 2).with_mutations(stackvec!(Mutation::MultiplierStat((1, StatId::Strength)))),
