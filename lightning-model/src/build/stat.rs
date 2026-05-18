@@ -156,6 +156,16 @@ pub enum StatId {
     ItemEffectDistanceClass,
     Effect,
     FlaskEffect,
+    PhysicalAsFireExtra,
+    PhysicalAsColdExtra,
+    PhysicalAsLightningExtra,
+    PhysicalAsChaosExtra,
+    LightningAsColdExtra,
+    LightningAsFireExtra,
+    LightningAsChaosExtra,
+    ColdAsFireExtra,
+    ColdAsChaosExtra,
+    FireAsChaosExtra,
 }
 
 impl StatId {

@@ -57,6 +57,22 @@ fn conversion_stat_id(from_dt: DamageType, to_dt: DamageType) -> Option<StatId> 
     }
 }
 
+fn extra_damage_stat_id(from_dt: DamageType, to_dt: DamageType) -> Option<StatId> {
+    match (from_dt, to_dt) {
+        (DamageType::Physical, DamageType::Lightning) => Some(StatId::PhysicalAsLightningExtra),
+        (DamageType::Physical, DamageType::Cold)      => Some(StatId::PhysicalAsColdExtra),
+        (DamageType::Physical, DamageType::Fire)      => Some(StatId::PhysicalAsFireExtra),
+        (DamageType::Physical, DamageType::Chaos)     => Some(StatId::PhysicalAsChaosExtra),
+        (DamageType::Lightning, DamageType::Cold)     => Some(StatId::LightningAsColdExtra),
+        (DamageType::Lightning, DamageType::Fire)     => Some(StatId::LightningAsFireExtra),
+        (DamageType::Lightning, DamageType::Chaos)    => Some(StatId::LightningAsChaosExtra),
+        (DamageType::Cold, DamageType::Fire)          => Some(StatId::ColdAsFireExtra),
+        (DamageType::Cold, DamageType::Chaos)         => Some(StatId::ColdAsChaosExtra),
+        (DamageType::Fire, DamageType::Chaos)         => Some(StatId::FireAsChaosExtra),
+        _ => None,
+    }
+}
+
 fn conversion_targets(from_dt: DamageType) -> &'static [DamageType] {
     match from_dt {
         DamageType::Physical  => &[DamageType::Lightning, DamageType::Cold, DamageType::Fire, DamageType::Chaos],
@@ -85,28 +101,44 @@ fn apply_conversion(stats: &Stats, base_damages: &[i64; 5]) -> [Vec<DamagePortio
             conversion_stat_id(from_dt, to_dt).map(|sid| stats.val(sid))
         }).sum();
 
-        if total_conv == 0 { continue; }
+        if total_conv > 0 {
+            let remaining_pct = (100 - total_conv.min(100)).max(0);
+            let current_portions = std::mem::take(&mut portions[from_idx]);
 
-        let remaining_pct = (100 - total_conv.min(100)).max(0);
-        let current_portions = std::mem::take(&mut portions[from_idx]);
-
-        for portion in &current_portions {
-            if remaining_pct > 0 {
-                portions[from_idx].push(DamagePortion {
-                    amount: (portion.amount * remaining_pct) / 100,
-                    source_types: portion.source_types,
-                });
-            }
-            for &to_dt in targets {
-                let to_idx = to_dt.as_index();
-                if let Some(stat_id) = conversion_stat_id(from_dt, to_dt) {
-                    let mut conv_pct = stats.val(stat_id);
-                    if total_conv > 100 {
-                        conv_pct = (conv_pct * 100) / total_conv;
+            for portion in &current_portions {
+                if remaining_pct > 0 {
+                    portions[from_idx].push(DamagePortion {
+                        amount: (portion.amount * remaining_pct) / 100,
+                        source_types: portion.source_types,
+                    });
+                }
+                for &to_dt in targets {
+                    let to_idx = to_dt.as_index();
+                    if let Some(stat_id) = conversion_stat_id(from_dt, to_dt) {
+                        let mut conv_pct = stats.val(stat_id);
+                        if total_conv > 100 {
+                            conv_pct = (conv_pct * 100) / total_conv;
+                        }
+                        if conv_pct > 0 {
+                            portions[to_idx].push(DamagePortion {
+                                amount: (portion.amount * conv_pct) / 100,
+                                source_types: portion.source_types | DAMAGE_GROUPS[to_idx].damage_type,
+                            });
+                        }
                     }
-                    if conv_pct > 0 {
+                }
+            }
+        }
+
+        // "as Extra Damage"
+        for &to_dt in targets {
+            if let Some(stat_id) = extra_damage_stat_id(from_dt, to_dt) {
+                let extra_pct = stats.val(stat_id);
+                if extra_pct > 0 {
+                    let to_idx = to_dt.as_index();
+                    for portion in &portions[from_idx].clone() {
                         portions[to_idx].push(DamagePortion {
-                            amount: (portion.amount * conv_pct) / 100,
+                            amount: (portion.amount * extra_pct) / 100,
                             source_types: portion.source_types | DAMAGE_GROUPS[to_idx].damage_type,
                         });
                     }

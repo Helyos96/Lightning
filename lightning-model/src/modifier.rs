@@ -453,7 +453,7 @@ lazy_static! {
         ), (
             regex!(r"^([0-9]+)% of (physical|cold|fire|lightning|chaos) damage converted to (fire|cold|lightning|chaos) damage$"),
             Box::new(|c| {
-                let stat = CONVERSIONS.get(&(c[2].to_string(), c[3].to_string()))?;
+                let stat = CONVERSIONS.get(&(&c[2], &c[3]))?;
                 Some(vec![Mod::stat(*stat, Type::Base, i64::from_str(&c[1]).unwrap())])
             })
         ), (
@@ -502,6 +502,29 @@ lazy_static! {
                     Mod::stat(StatId::AddedMinFireDamage, Type::Base, 1).with_tags(GemTag::Attack).with_mutations(stackvec![Mutation::StatPct((i64::from_str(&c[1]).unwrap(), StatId::MaximumLife))]).with_conditions(stackvec![Condition::WithThisWeapon]),
                     Mod::stat(StatId::AddedMaxFireDamage, Type::Base, 1).with_tags(GemTag::Attack).with_mutations(stackvec![Mutation::StatPct((i64::from_str(&c[1]).unwrap(), StatId::MaximumLife))]).with_conditions(stackvec![Condition::WithThisWeapon]),
                 ])
+            })
+        ), (
+            regex!(r"^gain ([0-9]+)% of (?:(wand|bow|claw) )?([a-z ]+) as extra ([a-z ]+)$"),
+            Box::new(|c| {
+                let pct = i64::from_str(&c[1]).unwrap();
+                let source = &c[3];
+                let target = &c[4];
+                if let Some(stat) = EXTRA_DAMAGE.get(&(&source, &target)) {
+                    let mut m = Mod::stat(*stat, Type::Base, pct);
+                    if let Some(weapon) = c.get(2) {
+                        let weapons = match weapon.as_str() {
+                            "wand" => flags!(ItemClass::Wand),
+                            "bow" => flags!(ItemClass::Bow),
+                            "claw" => flags!(ItemClass::Claw),
+                            _ => return None,
+                        };
+                        m = m.with_weapons(weapons);
+                    }
+                    return Some(vec![m]);
+                }
+                let source_stat = parse_stat_nomulti(source)?;
+                let target_stat = parse_stat_nomulti(target)?;
+                Some(vec![Mod::stat(target_stat.0, Type::Base, 1).with_tags(target_stat.1).with_mutations(stackvec![Mutation::StatPct((pct, source_stat.0))])])
             })
         ),
     ];
@@ -579,18 +602,33 @@ lazy_static! {
         map
     };
 
-    static ref CONVERSIONS: FxHashMap<(String, String), StatId> = {
+    static ref CONVERSIONS: FxHashMap<(&'static str, &'static str), StatId> = {
         let mut map = FxHashMap::default();
-        map.insert(("physical".into(), "lightning".into()), StatId::PhysicalToLightningConversion);
-        map.insert(("physical".into(), "cold".into()), StatId::PhysicalToColdConversion);
-        map.insert(("physical".into(), "fire".into()), StatId::PhysicalToFireConversion);
-        map.insert(("physical".into(), "chaos".into()), StatId::PhysicalToChaosConversion);
-        map.insert(("lightning".into(), "cold".into()), StatId::LightningToColdConversion);
-        map.insert(("lightning".into(), "fire".into()), StatId::LightningToFireConversion);
-        map.insert(("lightning".into(), "chaos".into()), StatId::LightningToChaosConversion);
-        map.insert(("cold".into(), "fire".into()), StatId::ColdToFireConversion);
-        map.insert(("cold".into(), "chaos".into()), StatId::ColdToChaosConversion);
-        map.insert(("fire".into(), "chaos".into()), StatId::FireToChaosConversion);
+        map.insert(("physical", "lightning"), StatId::PhysicalToLightningConversion);
+        map.insert(("physical", "cold"), StatId::PhysicalToColdConversion);
+        map.insert(("physical", "fire"), StatId::PhysicalToFireConversion);
+        map.insert(("physical", "chaos"), StatId::PhysicalToChaosConversion);
+        map.insert(("lightning", "cold"), StatId::LightningToColdConversion);
+        map.insert(("lightning", "fire"), StatId::LightningToFireConversion);
+        map.insert(("lightning", "chaos"), StatId::LightningToChaosConversion);
+        map.insert(("cold", "fire"), StatId::ColdToFireConversion);
+        map.insert(("cold", "chaos"), StatId::ColdToChaosConversion);
+        map.insert(("fire", "chaos"), StatId::FireToChaosConversion);
+        map
+    };
+
+    static ref EXTRA_DAMAGE: FxHashMap<(&'static str, &'static str), StatId> = {
+        let mut map = FxHashMap::default();
+        map.insert(("physical damage", "fire damage"), StatId::PhysicalAsFireExtra);
+        map.insert(("physical damage", "cold damage"), StatId::PhysicalAsColdExtra);
+        map.insert(("physical damage", "lightning damage"), StatId::PhysicalAsLightningExtra);
+        map.insert(("physical damage", "chaos damage"), StatId::PhysicalAsChaosExtra);
+        map.insert(("lightning damage", "cold damage"), StatId::LightningAsColdExtra);
+        map.insert(("lightning damage", "fire damage"), StatId::LightningAsFireExtra);
+        map.insert(("lightning damage", "chaos damage"), StatId::LightningAsChaosExtra);
+        map.insert(("cold damage", "fire damage"), StatId::ColdAsFireExtra);
+        map.insert(("cold damage", "chaos damage"), StatId::ColdAsChaosExtra);
+        map.insert(("fire damage", "chaos damage"), StatId::FireAsChaosExtra);
         map
     };
 }
@@ -1025,8 +1063,15 @@ fn test_parse() {
     assert!(parse_mod("40% of physical damage converted to fire damage", Source::Innate).is_some());
     assert!(parse_mod("50% of lightning damage converted to cold damage", Source::Innate).is_some());
     assert!(parse_mod("100% of fire damage converted to chaos damage", Source::Innate).is_some());
-    // Invalid conversion direction (chaos can't convert to physical)
+    assert!(parse_mod("Gain 10% of Physical Damage as Extra Fire Damage", Source::Innate).is_some());
+    assert!(parse_mod("Gain 5% of Physical Damage as Extra Chaos Damage", Source::Innate).is_some());
+    assert!(parse_mod("Gain 10% of Lightning Damage as Extra Cold Damage", Source::Innate).is_some());
+    assert!(parse_mod("Gain 20% of Maximum Mana as Extra Maximum Energy Shield", Source::Innate).is_some());
+    assert!(parse_mod("Gain 10% of Maximum Life as Extra Armour", Source::Innate).is_some());
+    assert!(parse_mod("Gain 5% of Wand Physical Damage as Extra Lightning Damage", Source::Innate).is_some());
+
     assert!(parse_mod("40% of chaos damage converted to physical damage", Source::Innate).is_none());
+    assert!(parse_mod("Gain 10% of Guealefh as Extra Physical Damage", Source::Innate).is_none());
 }
 
 #[test]
