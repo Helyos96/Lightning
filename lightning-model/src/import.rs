@@ -180,19 +180,30 @@ fn conv_item(item: &Item) -> Option<item::Item> {
         return None;
     }
 
-    // Split '\n' into distinct mods.
-    // Unfortunately in rare cases, some modifiers include a '\n' even though they're not 2 mods
+    // For short mods, split '\n' into distinct mods.
+    // For long mods, replace '\n' with ' '
     let mods_expl: Vec<String> = item.explicitMods.iter()
         .chain(&item.craftedMods)
         .chain(&item.fracturedMods)
         .chain(&item.mutatedMods)
-        .flat_map(|mod_str| mod_str.split('\n'))
-        .map(|s| s.to_string())
+        .flat_map(|mod_str| {
+            if mod_str.len() < 72 {
+                mod_str.split('\n').map(|s| s.to_string()).collect::<Vec<String>>()
+            } else {
+                vec![mod_str.replace('\n', " ")]
+            }
+        })
         .collect();
+
     let mods_impl: Vec<String> = item.utilityMods.iter()
         .chain(&item.implicitMods)
-        .flat_map(|mod_str| mod_str.split('\n'))
-        .map(|s| s.to_string())
+        .flat_map(|mod_str| {
+            if mod_str.len() < 72 {
+                mod_str.split('\n').map(|s| s.to_string()).collect::<Vec<String>>()
+            } else {
+                vec![mod_str.replace('\n', " ")]
+            }
+        })
         .collect();
 
     let mut item_ret = item::Item {
