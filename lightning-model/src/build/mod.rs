@@ -365,19 +365,6 @@ impl Build {
                     new_mod.source = Source::Item(*slot);
                     mods.push(new_mod);
                 }
-                let defence = item.calc_defence();
-                if defence.armour.val() != 0 {
-                    mods.push(Mod::stat(StatId::Armour, Type::Base, defence.armour.val()).with_source(Source::Item(*slot)));
-                }
-                if defence.energy_shield.val() != 0 {
-                    mods.push(Mod::stat(StatId::MaximumEnergyShield, Type::Base, defence.energy_shield.val()).with_source(Source::Item(*slot)));
-                }
-                if defence.evasion.val() != 0 {
-                    mods.push(Mod::stat(StatId::EvasionRating, Type::Base, defence.evasion.val()).with_source(Source::Item(*slot)));
-                }
-                if defence.block_chance.val() != 0 {
-                    mods.push(Mod::stat(StatId::ChanceToBlockAttackDamage, Type::Base, defence.block_chance.val()).with_source(Source::Item(*slot)));
-                }
             }
         }
         for mod_str in self.custom_mods.iter() {
@@ -484,15 +471,8 @@ impl Build {
         if let Slot::TreeJewel(node_id) = slot {
             let removed_sockets = self.tree.remove_jewel(node_id);
             for socket in removed_sockets {
-                self.unequip(Slot::TreeJewel(socket));
+                self.equipment.remove(&Slot::TreeJewel(socket));
             }
-            self.equipment.retain(|k, _| {
-                if let Slot::TreeJewel(node_id) = k && !self.tree.nodes_data.contains_key(node_id) {
-                    false
-                } else {
-                    true
-                }
-            });
         }
     }
 
@@ -570,26 +550,12 @@ impl Build {
     }
 
     pub fn calc_stats(&self, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>) -> Stats {
-        let mut evaluator = Evaluator::new(self, mods, tags, flags, None);
-
-        let stat_ids: Vec<StatId> = evaluator.mods_by_stat.keys().copied().collect();
-
-        for stat_id in stat_ids {
-            evaluator.eval_stat(stat_id);
-        }
-
+        let evaluator = Evaluator::new(self, mods, tags, flags, None);
         Stats { stats: evaluator.resolved_stats }
     }
 
     pub fn calc_stats_slot(&self, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>, slot: Slot) -> Stats {
-        let mut evaluator = Evaluator::new(self, mods, tags, flags, Some(slot));
-
-        let stat_ids: Vec<StatId> = evaluator.mods_by_stat.keys().copied().collect();
-
-        for stat_id in stat_ids {
-            evaluator.eval_stat(stat_id);
-        }
-
+        let evaluator = Evaluator::new(self, mods, tags, flags, Some(slot));
         Stats { stats: evaluator.resolved_stats }
     }
 

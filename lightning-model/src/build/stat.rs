@@ -200,6 +200,7 @@ impl Stats {
 #[derive(Debug, Clone)]
 pub struct Stat {
     pub base: i64,
+    pub flat: i64,
     pub inc: i64,
     pub more: i64,
     pub overrid: Option<i64>,
@@ -237,6 +238,7 @@ impl Default for Stat {
     fn default() -> Self {
         Self {
             base: 0,
+            flat: 0,
             inc: 0,
             more: 100,
             overrid: None,
@@ -268,6 +270,7 @@ impl Stat {
     pub fn adjust(&mut self, t: Type, amount: i64) {
         match t {
             Type::Base => self.base += amount,
+            Type::Flat => self.flat += amount,
             Type::Inc => self.inc += amount,
             Type::More => self.more = (self.more * (100 + amount)) / 100,
             Type::Override => {
@@ -295,7 +298,7 @@ impl Stat {
         if let Some(overrid) = self.overrid {
             overrid * 100
         } else {
-            (self.base * self.mult()) / 100
+            (self.base * self.mult()) / 100 + (self.flat * 100)
         }
     }
 

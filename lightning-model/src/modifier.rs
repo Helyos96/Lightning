@@ -279,10 +279,15 @@ lazy_static! {
                 }).collect())
             })
         ), (
-            regex!(r"^(?:grants )?([+-]?[0-9]+)%? (?:additional )?(?:to )?(?:all )?([a-z -]+)$"),
+            regex!(r"^(?:grants )?([+-]?[0-9.]+)%? (?:additional )?(?:to )?(?:all )?([a-z -]+)$"),
             Box::new(|c| {
                 let stat_tags = parse_stat(&c[2])?;
-                let amount = i64::from_str(&c[1]).unwrap();
+                let amount = if c[1].contains('.') {
+                    parse_val100(&c[1])?
+                } else {
+                    i64::from_str(&c[1]).unwrap()
+                };
+
                 Some(stat_tags.iter().map(|s| {
                     Mod::stat(s.0, Type::Base, amount).with_tags(s.1).with_weapons(s.2).with_flags(s.3)
                 }).collect())
@@ -592,6 +597,12 @@ lazy_static! {
         map.insert("gain accuracy rating equal to your intelligence", vec![
             Mod::stat(StatId::AccuracyRating, Type::Base, 1).with_mutations(stackvec!(Mutation::MultiplierStat((1, StatId::Intelligence)))),
         ]);
+        map.insert("gain maximum life instead of maximum energy shield from equipped armour items", vec![
+            Mod::build_flag(BuildFlag::ItemsGrantLifeInsteadES),
+        ]);
+        map.insert("quality does not increase defences", vec![
+            Mod::build_flag(BuildFlag::QualityNoDefences),
+        ]);
         map
     };
 
@@ -656,6 +667,7 @@ pub fn lol() {
 pub enum Type {
     #[default]
     Base,
+    Flat, // Unlike Base, Flat is not scaled by multipliers
     Inc,
     More,
     Override,
@@ -730,6 +742,12 @@ pub enum ModFlag {
     Buff,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BuildFlag {
+    ItemsGrantLifeInsteadES,
+    QualityNoDefences,
+}
+
 const MUTATIONS_COUNT: usize = 2;
 const CONDITIONS_COUNT: usize = 2;
 
@@ -761,6 +779,7 @@ pub enum ModEffect {
     ForceBool(property::Bool, bool),
     MutateNode(NodeMutation, BitFlags<NodeType>),
     RingSize(JewelRadius),
+    BuildFlag(BuildFlag),
 }
 
 impl Default for ModEffect {
@@ -791,6 +810,10 @@ impl Mod {
 
     pub fn allocate(node: u32) -> Self {
         Self { effect: ModEffect::Allocate(node), ..Default::default() }
+    }
+
+    pub fn build_flag(flag: BuildFlag) -> Self {
+        Self { effect: ModEffect::BuildFlag(flag), ..Default::default() }
     }
 
     pub fn ring_size(size: JewelRadius) -> Self {
@@ -842,6 +865,14 @@ impl Mod {
     pub fn as_stat(&self) -> Option<&ModStat> {
         if let ModEffect::Stat(stat) = &self.effect {
             Some(stat)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_build_flag(&self) -> Option<&BuildFlag> {
+        if let ModEffect::BuildFlag(flag) = &self.effect {
+            Some(flag)
         } else {
             None
         }

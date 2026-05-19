@@ -1,7 +1,7 @@
 use enumflags2::BitFlags;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{build::{Build, Defence, Slot, property, stat::{self, Stat, StatId}}, data::gem::GemTag, modifier::{Condition, Mod, ModEffect, ModFlag, ModStat, Mutation, Source}};
+use crate::{build::{Build, Defence, Slot, property, stat::{self, Stat, StatId}}, data::gem::GemTag, modifier::{BuildFlag, Condition, Mod, ModEffect, ModFlag, ModStat, Mutation, Source, Type}};
 
 /// Evaluate Stats from a collection of Mods
 pub struct Evaluator<'a> {
@@ -9,7 +9,9 @@ pub struct Evaluator<'a> {
     slot: Option<Slot>,
     tags: BitFlags<GemTag>,
     flags: BitFlags<ModFlag>,
+    build_flags: FxHashSet<BuildFlag>,
     pub mods_by_stat: FxHashMap<StatId, Vec<&'a Mod>>,
+    other_mods: Vec<&'a Mod>,
     pub resolved_stats: FxHashMap<StatId, Stat>,
     evaluating: FxHashSet<StatId>,
 }
@@ -17,6 +19,7 @@ pub struct Evaluator<'a> {
 impl<'a> Evaluator<'a> {
     pub fn new(build: &'a Build, mods: &'a [Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>, slot: Option<Slot>) -> Self {
         let mut mods_by_stat: FxHashMap<StatId, Vec<&'a Mod>> = FxHashMap::default();
+        let mut other_mods = vec![];
 
         for m in mods.iter().filter(|m| {
             tags.contains(m.tags) &&
@@ -25,17 +28,62 @@ impl<'a> Evaluator<'a> {
         }) {
             if let Some(mstat) = m.as_stat() {
                 mods_by_stat.entry(mstat.stat).or_default().push(m);
+            } else {
+                other_mods.push(m);
             }
         }
 
-        Self {
+        let mut eval = Self {
             build,
             slot,
             tags,
             flags,
+            build_flags: FxHashSet::from(other_mods.iter().filter_map(|m| m.as_build_flag()).copied().collect()),
             mods_by_stat,
+            other_mods,
             resolved_stats: FxHashMap::default(),
             evaluating: FxHashSet::default(),
+        };
+
+        eval.resolve_stats();
+        eval.resolve_armour();
+
+        eval
+    }
+
+    fn resolve_stats(&mut self) {
+        let stat_ids: Vec<StatId> = self.mods_by_stat.keys().copied().collect();
+
+        for stat_id in stat_ids {
+            self.eval_stat(stat_id);
+        }
+    }
+
+    fn resolve_armour(&mut self) {
+        for (slot, idx) in &self.build.equipment {
+            let item = &self.build.inventory[*idx];
+            let defence = item.calc_defence();
+
+            if defence.armour.val() != 0 {
+                let val = self.resolved_stats.get(&StatId::Armour).unwrap_or(&Stat::default()).val_custom(defence.armour.val());
+                self.resolved_stats.entry(StatId::Armour).or_default().adjust_mod_move(Mod::stat(StatId::Armour, Type::Flat, val).with_source(Source::Item(*slot)));
+            }
+            if defence.energy_shield.val() != 0 {
+                if self.build_flags.contains(&BuildFlag::ItemsGrantLifeInsteadES) {
+                    self.resolved_stats.entry(StatId::MaximumLife).or_default().adjust_mod_move(Mod::stat(StatId::MaximumLife, Type::Base, defence.energy_shield.val()).with_source(Source::Item(*slot)));
+                } else {
+                    let val = self.resolved_stats.get(&StatId::MaximumEnergyShield).unwrap_or(&Stat::default()).val_custom(defence.energy_shield.val());
+                    self.resolved_stats.entry(StatId::MaximumEnergyShield).or_default().adjust_mod_move(Mod::stat(StatId::Armour, Type::Flat, val).with_source(Source::Item(*slot)));
+                }
+            }
+            if defence.evasion.val() != 0 {
+                let val = self.resolved_stats.get(&StatId::EvasionRating).unwrap_or(&Stat::default()).val_custom(defence.evasion.val());
+                self.resolved_stats.entry(StatId::EvasionRating).or_default().adjust_mod_move(Mod::stat(StatId::Armour, Type::Flat, val).with_source(Source::Item(*slot)));
+            }
+            if defence.block_chance.val() != 0 {
+                let val = self.resolved_stats.get(&StatId::ChanceToBlockAttackDamage).unwrap_or(&Stat::default()).val_custom(defence.block_chance.val());
+                self.resolved_stats.entry(StatId::ChanceToBlockAttackDamage).or_default().adjust_mod_move(Mod::stat(StatId::Armour, Type::Flat, val).with_source(Source::Item(*slot)));
+            }
         }
     }
 

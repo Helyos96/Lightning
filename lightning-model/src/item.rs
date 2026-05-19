@@ -3,7 +3,7 @@ use crate::build::Slot;
 use crate::data::base_item::{BaseItem, Rarity};
 use crate::data::tree::Node;
 use crate::data::{DAMAGE_GROUPS, DamageType, ITEMS, TREE};
-use crate::modifier::{self, Mod, ModEffect, ModStat, Mutation, Source, Type, parse_mod};
+use crate::modifier::{self, BuildFlag, Mod, ModEffect, ModStat, Mutation, Source, Type, parse_mod};
 use arc_swap::ArcSwap;
 use derivative::Derivative;
 use regex::Regex;
@@ -104,54 +104,73 @@ fn clone_atomic_bool(bool_ref: &AtomicBool) -> AtomicBool {
     AtomicBool::new(bool_ref.load(Ordering::Relaxed))
 }
 
-struct LocalModMatch {
+struct StatMatch {
     stat: StatId,
     typ: modifier::Type,
 }
 
+enum LocalModMatch {
+    Stat(StatMatch),
+    Flag(BuildFlag),
+}
+
 impl LocalModMatch {
-    fn matches(&self, m: &ModStat) -> bool {
-        if m.stat == self.stat && m.typ == self.typ {
-            return true;
+    fn matches(&self, m: &Mod) -> bool {
+        if !m.conditions.is_empty() {
+            return false;
         }
+        match self {
+            LocalModMatch::Stat(stat) => {
+                if let Some(m_stat) = m.as_stat() &&
+                   m_stat.stat == stat.stat && m_stat.typ == stat.typ &&
+                   m_stat.mutations.is_empty()
+                {
+                    return true;
+                }
+            },
+            LocalModMatch::Flag(flag) => {
+                if let Some(m_flag) = m.as_build_flag() &&
+                   m_flag == flag
+                {
+                    return true;
+                }
+            },
+        }
+
         false
     }
 }
 
 const LOCAL_MODS_WEAPON: &[LocalModMatch] = &[
-    LocalModMatch { stat: StatId::AddedMinPhysicalDamage, typ: modifier::Type::Base },
-    LocalModMatch { stat: StatId::AddedMaxPhysicalDamage, typ: modifier::Type::Base },
-    LocalModMatch { stat: StatId::PhysicalDamage, typ: modifier::Type::Inc },
-    LocalModMatch { stat: StatId::AttackSpeed, typ: modifier::Type::Inc },
-    LocalModMatch { stat: StatId::AccuracyRating, typ: modifier::Type::Base },
-    LocalModMatch { stat: StatId::AccuracyRating, typ: modifier::Type::Override },
-    LocalModMatch { stat: StatId::CriticalStrikeChance, typ: modifier::Type::Inc },
+    LocalModMatch::Stat(StatMatch { stat: StatId::AddedMinPhysicalDamage, typ: modifier::Type::Base }),
+    LocalModMatch::Stat(StatMatch { stat: StatId::AddedMaxPhysicalDamage, typ: modifier::Type::Base }),
+    LocalModMatch::Stat(StatMatch { stat: StatId::PhysicalDamage, typ: modifier::Type::Inc }),
+    LocalModMatch::Stat(StatMatch { stat: StatId::AttackSpeed, typ: modifier::Type::Inc }),
+    LocalModMatch::Stat(StatMatch { stat: StatId::AccuracyRating, typ: modifier::Type::Base }),
+    LocalModMatch::Stat(StatMatch { stat: StatId::AccuracyRating, typ: modifier::Type::Override }),
+    LocalModMatch::Stat(StatMatch { stat: StatId::CriticalStrikeChance, typ: modifier::Type::Inc }),
 ];
 
 const LOCAL_MODS_ARMOUR: &[LocalModMatch] = &[
-    LocalModMatch { stat: StatId::EvasionRating, typ: modifier::Type::Base },
-    LocalModMatch { stat: StatId::EvasionRating, typ: modifier::Type::Inc },
-    LocalModMatch { stat: StatId::Armour, typ: modifier::Type::Base },
-    LocalModMatch { stat: StatId::Armour, typ: modifier::Type::Inc },
-    LocalModMatch { stat: StatId::MaximumEnergyShield, typ: modifier::Type::Base },
+    LocalModMatch::Stat(StatMatch { stat: StatId::EvasionRating, typ: modifier::Type::Base }),
+    LocalModMatch::Stat(StatMatch { stat: StatId::EvasionRating, typ: modifier::Type::Inc }),
+    LocalModMatch::Stat(StatMatch { stat: StatId::Armour, typ: modifier::Type::Base }),
+    LocalModMatch::Stat(StatMatch { stat: StatId::Armour, typ: modifier::Type::Inc }),
+    LocalModMatch::Stat(StatMatch { stat: StatId::MaximumEnergyShield, typ: modifier::Type::Base }),
     // TODO: corrupted implicits max ES are global
-    LocalModMatch { stat: StatId::MaximumEnergyShield, typ: modifier::Type::Inc },
-    LocalModMatch { stat: StatId::ChanceToBlockAttackDamage, typ: modifier::Type::Inc },
+    LocalModMatch::Stat(StatMatch { stat: StatId::MaximumEnergyShield, typ: modifier::Type::Inc }),
+    LocalModMatch::Stat(StatMatch { stat: StatId::ChanceToBlockAttackDamage, typ: modifier::Type::Inc }),
+    LocalModMatch::Flag(BuildFlag::QualityNoDefences),
 ];
 
 const LOCAL_MODS_FLASK: &[LocalModMatch] = &[
-    LocalModMatch { stat: StatId::Effect, typ: modifier::Type::Inc },
+    LocalModMatch::Stat(StatMatch { stat: StatId::Effect, typ: modifier::Type::Inc }),
 ];
 
 fn match_local(m: &Mod, match_table: &[LocalModMatch]) -> bool {
-    if let Some(stat) = m.as_stat() {
-        if !m.conditions.is_empty() || !stat.mutations.is_empty() {
-            return false;
-        }
-        for local_mod_match in match_table {
-            if local_mod_match.matches(stat) {
-                return true;
-            }
+    for local_mod_match in match_table {
+        if local_mod_match.matches(m) {
+            return true;
         }
     }
     false
@@ -355,9 +374,11 @@ impl Item {
         ret.armour.assimilate(&calc_stat(StatId::Armour, &mods));
         ret.energy_shield.assimilate(&calc_stat(StatId::MaximumEnergyShield, &mods));
         ret.evasion.assimilate(&calc_stat(StatId::EvasionRating, &mods));
-        ret.armour.adjust_mod(&Mod::stat(StatId::Armour, Type::More, self.quality));
-        ret.energy_shield.adjust_mod(&Mod::stat(StatId::MaximumEnergyShield, Type::More, self.quality));
-        ret.evasion.adjust_mod(&Mod::stat(StatId::EvasionRating, Type::More, self.quality));
+        if mods.iter().flat_map(|m| m.as_build_flag()).find(|flag| **flag == BuildFlag::QualityNoDefences).is_none() {
+            ret.armour.adjust_mod(&Mod::stat(StatId::Armour, Type::More, self.quality));
+            ret.energy_shield.adjust_mod(&Mod::stat(StatId::MaximumEnergyShield, Type::More, self.quality));
+            ret.evasion.adjust_mod(&Mod::stat(StatId::EvasionRating, Type::More, self.quality));
+        }
         ret.block_chance.adjust_mod(&Mod::stat(StatId::ChanceToBlockAttackDamage, Type::Base, self.block_chance().unwrap_or(0)));
 
         self.defence_cache.store(Arc::new(ret));

@@ -1,4 +1,5 @@
 use crate::gui::State;
+use std::str::FromStr;
 
 pub const HEIGHT: f32 = 40.0;
 
@@ -63,6 +64,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                     state.panel_bottom.search_nodes.clear();
                     let search_str = state.panel_bottom.search.to_lowercase();
                     if !state.panel_bottom.search.is_empty() {
+                        let node_id = u32::from_str(&state.panel_bottom.search);
                         'outer: for node in state.build.tree.nodes_data.values().filter(|n| n.group.is_some()) {
                             if node.name.to_lowercase().contains(&search_str) {
                                 state.panel_bottom.search_nodes.push(node.skill);
@@ -81,6 +83,9 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                                         continue 'outer;
                                     }
                                 }
+                            }
+                            if node_id == Ok(node.skill) {
+                                state.panel_bottom.search_nodes.push(node.skill);
                             }
                         }
                     }

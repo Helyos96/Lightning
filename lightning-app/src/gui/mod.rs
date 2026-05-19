@@ -234,7 +234,8 @@ impl State {
         for stat in defence_stats.stats.values_mut() {
             stat.mods.sort_unstable_by(|a, b| {
                 let type_score = |t: lightning_model::modifier::Type| match t {
-                    lightning_model::modifier::Type::Override => 3,
+                    lightning_model::modifier::Type::Override => 4,
+                    lightning_model::modifier::Type::Flat => 3,
                     lightning_model::modifier::Type::Base => 2,
                     lightning_model::modifier::Type::Inc => 1,
                     lightning_model::modifier::Type::More => 0,

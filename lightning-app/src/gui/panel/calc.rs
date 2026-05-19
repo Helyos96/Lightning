@@ -17,8 +17,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 flex.add_ui(egui_flex::item(), |ui| {
                     egui::Frame::group(ui.style()).show(ui, |ui| {
                         ui.vertical(|ui| {
-                            ui.label(egui::RichText::new("Maximum Life").size(18.0).color(Color32::LIGHT_RED));
-                            draw_stat_breakdown(ui, state, StatId::MaximumLife);
+                            draw_stat_breakdown(ui, state, StatId::MaximumLife, "Maximum Life", egui::Color32::LIGHT_RED);
                         });
                     });
                 });
@@ -26,8 +25,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 flex.add_ui(egui_flex::item(), |ui| {
                     egui::Frame::group(ui.style()).show(ui, |ui| {
                         ui.vertical(|ui| {
-                            ui.label(egui::RichText::new("Maximum Mana").size(18.0).color(Color32::LIGHT_BLUE));
-                            draw_stat_breakdown(ui, state, StatId::MaximumMana);
+                            draw_stat_breakdown(ui, state, StatId::MaximumMana, "Maximum Mana", Color32::LIGHT_BLUE);
                         });
                     });
                 });
@@ -35,8 +33,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 flex.add_ui(egui_flex::item(), |ui| {
                     egui::Frame::group(ui.style()).show(ui, |ui| {
                         ui.vertical(|ui| {
-                            ui.label(egui::RichText::new("Armour").size(18.0).color(Color32::WHITE));
-                            draw_stat_breakdown(ui, state, StatId::Armour);
+                            draw_stat_breakdown(ui, state, StatId::Armour, "Armour", Color32::WHITE);
                         });
                     });
                 });
@@ -44,8 +41,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 flex.add_ui(egui_flex::item(), |ui| {
                     egui::Frame::group(ui.style()).show(ui, |ui| {
                         ui.vertical(|ui| {
-                            ui.label(egui::RichText::new("Evasion").size(18.0).color(Color32::GREEN));
-                            draw_stat_breakdown(ui, state, StatId::EvasionRating);
+                            draw_stat_breakdown(ui, state, StatId::EvasionRating, "Evasion", Color32::GREEN);
                         });
                     });
                 });
@@ -53,8 +49,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 flex.add_ui(egui_flex::item(), |ui| {
                     egui::Frame::group(ui.style()).show(ui, |ui| {
                         ui.vertical(|ui| {
-                            ui.label(egui::RichText::new("Energy Shield").size(18.0).color(Color32::LIGHT_BLUE));
-                            draw_stat_breakdown(ui, state, StatId::MaximumEnergyShield);
+                            draw_stat_breakdown(ui, state, StatId::MaximumEnergyShield, "Energy Shield", Color32::LIGHT_BLUE);
                         });
                     });
                 });
@@ -62,8 +57,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 flex.add_ui(egui_flex::item(), |ui| {
                     egui::Frame::group(ui.style()).show(ui, |ui| {
                         ui.vertical(|ui| {
-                            ui.label(egui::RichText::new("Strength").size(18.0).color(Color32::LIGHT_RED));
-                            draw_stat_breakdown(ui, state, StatId::Strength);
+                            draw_stat_breakdown(ui, state, StatId::Strength, "Strength", Color32::LIGHT_RED);
                         });
                     });
                 });
@@ -71,8 +65,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 flex.add_ui(egui_flex::item(), |ui| {
                     egui::Frame::group(ui.style()).show(ui, |ui| {
                         ui.vertical(|ui| {
-                            ui.label(egui::RichText::new("Dexterity").size(18.0).color(Color32::GREEN));
-                            draw_stat_breakdown(ui, state, StatId::Dexterity);
+                            draw_stat_breakdown(ui, state, StatId::Dexterity, "Dexterity", Color32::GREEN);
                         });
                     });
                 });
@@ -80,8 +73,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 flex.add_ui(egui_flex::item(), |ui| {
                     egui::Frame::group(ui.style()).show(ui, |ui| {
                         ui.vertical(|ui| {
-                            ui.label(egui::RichText::new("Intelligence").size(18.0).color(Color32::LIGHT_BLUE));
-                            draw_stat_breakdown(ui, state, StatId::Intelligence);
+                            draw_stat_breakdown(ui, state, StatId::Intelligence, "Intelligence", Color32::LIGHT_BLUE);
                         });
                     });
                 });
@@ -90,10 +82,11 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
     });
 }
 
-fn draw_stat_breakdown(ui: &mut egui::Ui, state: &State, stat_id: StatId) {
+fn draw_stat_breakdown(ui: &mut egui::Ui, state: &State, stat_id: StatId, title: &str, color: egui::Color32) {
     let stat = state.defence_stats.stat(stat_id);
-    
-    ui.label(egui::RichText::new(format!("Base: {}, Inc: {}%, More: {}%", stat.base, stat.inc, stat.more - 100)).italics());
+
+    ui.label(egui::RichText::new(format!("{}: {}", title, stat.val())).size(18.0).color(color));
+    ui.label(egui::RichText::new(format!("Flat: {}, Base: {}, Inc: {}%, More: {}%", stat.flat, stat.base, stat.inc, stat.more - 100)).italics());
     ui.add_space(5.0);
 
     ui.push_id(format!("calc_grid_{:?}", stat_id), |ui| {
