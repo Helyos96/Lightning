@@ -86,7 +86,11 @@ fn draw_stat_breakdown(ui: &mut egui::Ui, state: &State, stat_id: StatId, title:
     let stat = state.defence_stats.stat(stat_id);
 
     ui.label(egui::RichText::new(format!("{}: {}", title, stat.val())).size(18.0).color(color));
-    ui.label(egui::RichText::new(format!("Flat: {}, Base: {}, Inc: {}%, More: {}%", stat.flat, stat.base, stat.inc, stat.more - 100)).italics());
+    if stat.flat != 0 {
+        ui.label(egui::RichText::new(format!("Flat: {}, Base: {}, Inc: {}%, More: {}%", stat.flat, stat.base, stat.inc, stat.more - 100)).italics());
+    } else {
+        ui.label(egui::RichText::new(format!("Base: {}, Inc: {}%, More: {}%", stat.base, stat.inc, stat.more - 100)).italics());
+    }
     ui.add_space(5.0);
 
     ui.push_id(format!("calc_grid_{:?}", stat_id), |ui| {
