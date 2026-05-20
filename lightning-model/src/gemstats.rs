@@ -117,6 +117,16 @@ lazy_static! {
         ("area_damage", vec![
             Mod::stat(StatId::Damage, Type::Base, 0).with_tags(GemTag::Area),
         ]),
+        ("trap_and_mine_damage", vec![
+            Mod::stat(StatId::Damage, Type::Base, 0).with_tags(GemTag::Trap),
+            Mod::stat(StatId::Damage, Type::Base, 0).with_tags(GemTag::Mine),
+        ]),
+        ("minion_damage", vec![
+            Mod::stat(StatId::Damage, Type::Base, 0).with_tags(GemTag::Minion),
+        ]),
+        ("totem_damage", vec![
+            Mod::stat(StatId::Damage, Type::Base, 0).with_tags(GemTag::Totem),
+        ]),
         ("deal_no_elemental_damage", vec![
             Mod::stat(StatId::FireDamage, Type::More, -100),
             Mod::stat(StatId::ColdDamage, Type::More, -100),
@@ -130,6 +140,9 @@ lazy_static! {
         ]),
         ("dual_wield_damage", vec![
             Mod::stat(StatId::Damage, Type::Base, 0).with_tags(GemTag::Attack).with_flags(ModFlag::Hit).with_conditions(stackvec![Condition::WhileDualWielding]),
+        ]),
+        ("totem_attack_speed", vec![
+            Mod::stat(StatId::AttackSpeed, Type::Base, 0).with_tags(flags!(GemTag::{Attack | Totem})),
         ]),
         ("attack_speed", vec![
             Mod::stat(StatId::AttackSpeed, Type::Base, 0).with_tags(GemTag::Attack),
@@ -169,6 +182,9 @@ lazy_static! {
         ]),
         ("damage_while_on_full_life", vec![
             Mod::stat(StatId::Damage, Type::Base, 0).with_conditions(stackvec![Condition::PropertyBool((true, property::Bool::OnFullLife))]),
+        ]),
+        ("active_skill_gem_level", vec![
+            Mod::gem_level(0).with_tags(GemTag::Active_Skill),
         ]),
     ];
 

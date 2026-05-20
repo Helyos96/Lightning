@@ -1,7 +1,7 @@
 use enumflags2::BitFlags;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{build::{Build, Defence, Slot, property, stat::{self, Stat, StatId}}, data::gem::GemTag, modifier::{BuildFlag, Condition, Mod, ModEffect, ModFlag, ModStat, Mutation, Source, Type}};
+use crate::{build::{Build, Defence, GemLink, Slot, property, stat::{self, Stat, StatId}}, data::gem::{ActiveSkillType, GemTag}, gem::Gem, modifier::{BuildFlag, Condition, Mod, ModEffect, ModFlag, ModStat, Mutation, Source, Type}};
 
 /// Evaluate Stats from a collection of Mods
 pub struct Evaluator<'a> {
@@ -11,7 +11,7 @@ pub struct Evaluator<'a> {
     flags: BitFlags<ModFlag>,
     build_flags: FxHashSet<BuildFlag>,
     pub mods_by_stat: FxHashMap<StatId, Vec<Mod>>,
-    other_mods: Vec<&'a Mod>,
+    other_mods: Vec<Mod>,
     pub resolved_stats: FxHashMap<StatId, Stat>,
     evaluating: FxHashSet<StatId>,
 }
@@ -29,11 +29,11 @@ impl<'a> Evaluator<'a> {
             if let Some(mstat) = m.as_stat() {
                 mods_by_stat.entry(mstat.stat).or_default().push(m.to_owned());
             } else {
-                other_mods.push(m);
+                other_mods.push(m.to_owned());
             }
         }
 
-        let mut eval = Self {
+        Self {
             build,
             slot,
             tags,
@@ -43,12 +43,87 @@ impl<'a> Evaluator<'a> {
             other_mods,
             resolved_stats: FxHashMap::default(),
             evaluating: FxHashSet::default(),
-        };
+        }
+    }
 
-        eval.resolve_armour();
-        eval.resolve_stats();
+    pub fn calc_buffs_auras_mods(&mut self) -> Vec<Mod> {
+        // Find best unique active auras
+        let mut best_gems: FxHashMap<&str, (&Gem, &GemLink)> = FxHashMap::default();
+        for link in &self.build.gem_links {
+            for active_gem in link.active_gems().filter(|gem| {
+                let types = &gem.data().active_skill.as_ref().unwrap().types;
+                gem.enabled && (types.contains(&ActiveSkillType::Aura) || types.contains(&ActiveSkillType::Buff))
+            })
+            {
+                if let Some((existing_gem, _)) = best_gems.get(active_gem.id.as_str()) {
+                    if existing_gem.level >= active_gem.level {
+                        continue;
+                    }
+                }
+                best_gems.insert(active_gem.id.as_str(), (active_gem, link));
+            }
+        }
 
-        eval
+        let mut ret = vec![];
+        for (gem, link) in best_gems.values() {
+            // extra gem level from support gems
+            let mut extra_level = self.gem_level_extra(gem.data().tags);
+            // extra aura effect from support gems
+            let mut extra_aura_effect = 0;
+            let mut best_supports: FxHashMap<&str, &Gem> = FxHashMap::default();
+
+            // Find best unique support gems in link
+            for support_gem in link.support_gems() {
+                if support_gem.can_support(gem) {
+                    if let Some(existing_gem) = best_supports.get(support_gem.id.as_str()) {
+                        if existing_gem.level >= support_gem.level {
+                            continue;
+                        }
+                    }
+                    best_supports.insert(support_gem.id.as_str(), support_gem);
+                }
+            }
+
+            for support in best_supports.values().filter(|gem| gem.enabled) {
+                for m in support.calc_mods(false, self.gem_level_extra(support.data().tags), 0).iter() {
+                    if let Some(level) = m.as_gem_level() {
+                        extra_level += level;
+                    } else if let Some(mstat) = m.as_stat() && mstat.stat == StatId::AuraEffect {
+                        extra_aura_effect += mstat.amount;
+                    }
+                }
+            }
+
+            let mods = gem.calc_mods(true, extra_level, 0);
+            if gem.data().active_skill.as_ref().unwrap().types.contains(&ActiveSkillType::Aura) {
+                for mut m in mods.iter().cloned() {
+                    if let Some(mstat) = m.as_stat_mut() {
+                        mstat.mutations.push(Mutation::StatMultExtra(StatId::AuraEffect, extra_aura_effect));
+                    }
+                    ret.push(m);
+                }
+            } else {
+                ret.extend_from_slice(&mods);
+            }
+        }
+        ret
+    }
+
+    pub fn resolve(&mut self) {
+        let mods = self.calc_buffs_auras_mods();
+        for m in mods.into_iter().filter(|m| {
+            self.tags.contains(m.tags) &&
+            (m.flags.is_empty() || self.flags.intersects(m.flags)) &&
+            (m.weapons.is_empty() || self.build.is_holding(&m.weapons))
+        }) {
+            if let Some(mstat) = m.as_stat() {
+                self.mods_by_stat.entry(mstat.stat).or_default().push(m.to_owned());
+            } else {
+                self.other_mods.push(m);
+            }
+        }
+        self.resolve_armour();
+        self.resolve_stats();
     }
 
     fn resolve_stats(&mut self) {
@@ -87,6 +162,14 @@ impl<'a> Evaluator<'a> {
         }
     }
 
+    pub fn gem_level_extra(&self, tags: BitFlags<GemTag>) -> u32 {
+        self.other_mods.iter().filter(|m| tags.contains(m.tags)).flat_map(|m| m.as_gem_level()).sum()
+    }
+
+    pub fn gem_quality_extra(&self) -> i32 {
+        self.other_mods.iter().flat_map(|m| m.as_gem_quality()).sum()
+    }
+
     pub fn get_stat_val(&mut self, stat_id: StatId) -> i64 {
         self.eval_stat(stat_id).val()
     }
@@ -106,7 +189,8 @@ impl<'a> Evaluator<'a> {
             let mut current_stat = Stat::default();
             let mods_to_process = self.mods_by_stat.remove(&stat_id).unwrap_or_default();
 
-            for mut m in mods_to_process {
+            for m in mods_to_process {
+                let mut m = m.to_owned();
                 let passes_conditions_bor = m.conditions.is_empty() || m.conditions.iter().any(|c| self.check_condition(c, m.source));
                 if !passes_conditions_bor {
                     continue;
@@ -302,7 +386,14 @@ impl<'a> Evaluator<'a> {
                 Mutation::MultiplierOvercap(per, stat_a, stat_b) => {
                     let delta = (self.eval_stat(*stat_a).val() - self.eval_stat(*stat_b).val()).max(0);
                     amount = (amount * delta) / per;
-                }
+                },
+                Mutation::StatMultExtra(stat_id, extra) => {
+                    // Multiplies by a Stat's multiplier with an added extra Inc
+                    // Typical use is AuraEffect where the extra is the sum of support gems' increased aura effect
+                    let mut stat = self.eval_stat(*stat_id).clone();
+                    stat.adjust(Type::Inc, *extra);
+                    amount = stat.val_custom(amount);
+                },
             }
         }
 

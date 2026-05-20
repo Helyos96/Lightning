@@ -1,7 +1,7 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicI32, Ordering};
 
 use crate::build::stat::StatId;
 use crate::data::gem::{GemData, GemTag};
@@ -31,16 +31,23 @@ pub struct Gem {
     #[derivative(Clone(clone_with = "clone_arc_swap"))]
     mod_cache_auras: ArcSwap<Vec<Mod>>,
     #[serde(skip)]
-    #[derivative(Clone(clone_with = "clone_atomic_bool"))]
-    is_modcache_fresh: AtomicBool,
+    #[derivative(Clone(clone_with = "clone_atomic_u32"))]
+    mod_cache_level: AtomicU32,
+    #[serde(skip)]
+    #[derivative(Clone(clone_with = "clone_atomic_i32"))]
+    mod_cache_qual: AtomicI32,
 }
 
 fn clone_arc_swap<T>(cache: &ArcSwap<T>) -> ArcSwap<T> {
     ArcSwap::new(cache.load_full())
 }
 
-fn clone_atomic_bool(bool_ref: &AtomicBool) -> AtomicBool {
-    AtomicBool::new(bool_ref.load(Ordering::Relaxed))
+fn clone_atomic_u32(u32_ref: &AtomicU32) -> AtomicU32 {
+    AtomicU32::new(u32_ref.load(Ordering::Relaxed))
+}
+
+fn clone_atomic_i32(i32_ref: &AtomicI32) -> AtomicI32 {
+    AtomicI32::new(i32_ref.load(Ordering::Relaxed))
 }
 
 fn extract_bracket_content(input: &str) -> Option<&str> {
@@ -59,7 +66,8 @@ impl Gem {
             alt_qual,
             mod_cache: Default::default(),
             mod_cache_auras: Default::default(),
-            is_modcache_fresh: Default::default(),
+            mod_cache_level: Default::default(),
+            mod_cache_qual: Default::default(),
         }
     }
 
@@ -69,15 +77,18 @@ impl Gem {
 
     pub fn can_support(&self, active_gem: &Gem) -> bool {
         if let Some(active_skill) = active_gem.data().active_skill.as_ref() &&
-           let Some(support_gem) = self.data().support_gem.as_ref() &&
-           let Some(excluded_types) = support_gem.excluded_types.as_ref() &&
-           let Some(allowed_types) = support_gem.allowed_types.as_ref() {
-            if !excluded_types.is_disjoint(&active_skill.types) {
-                return false;
+           let Some(support_gem) = self.data().support_gem.as_ref()
+        {
+            if let Some(excluded_types) = support_gem.excluded_types.as_ref() {
+                if !excluded_types.is_disjoint(&active_skill.types) {
+                    return false;
+                }
             }
-            if !allowed_types.is_empty() &&
-                allowed_types.is_disjoint(&active_skill.types) {
-                return false;
+            if let Some(allowed_types) = support_gem.allowed_types.as_ref() {
+                if !allowed_types.is_empty() &&
+                    allowed_types.is_disjoint(&active_skill.types) {
+                    return false;
+                }
             }
         }
         true
@@ -100,94 +111,35 @@ impl Gem {
         ret
     }
 
-    fn regen_modcache(&self) {
-        self.mod_cache.store(Arc::new(self._calc_mods(false)));
-        self.mod_cache_auras.store(Arc::new(self._calc_mods(true)));
-        self.is_modcache_fresh.store(true, Ordering::Relaxed);
+    fn regen_modcache(&self, level: u32, qual: i32) {
+        self.mod_cache.store(Arc::new(self.data().calc_mods(false, level, qual)));
+        self.mod_cache_auras.store(Arc::new(self.data().calc_mods(true, level, qual)));
+        self.mod_cache_level.store(level, Ordering::Relaxed);
+        self.mod_cache_qual.store(qual, Ordering::Relaxed);
     }
 
-    pub fn _calc_mods(&self, as_aura_buff: bool) -> Vec<Mod> {
-        let mut mods = vec![];
-        let source = Source::Gem(self.data().display_name());
-
-        if let Some(stats) = &self.data().r#static.stats {
-            for gem_stat in stats.iter().flatten() {
-                if let Some(id) = &gem_stat.id {
-                    if let Some(modifiers) = gemstats::match_gemstat(&self.data().base_item.display_name, id) {
-                        for mut modifier in modifiers {
-                            if as_aura_buff != modifier.flags.intersects(make_bitflags!(ModFlag::{Aura | Buff})) {
-                                continue;
-                            }
-                            if let Some(stat) = modifier.as_stat_mut() {
-                                if stat.amount == 0 {
-                                    stat.amount = self.stat_value(id).unwrap_or(0);
-                                }
-                            }
-                            modifier.source = source;
-                            mods.push(modifier);
-                        }
-                    } else {
-                        //println!("failed: {id}");
-                    }
-                }
-            }
-        }
-
-        for quality_stat in &self.data().r#static.quality_stats {
-            for (stat_name, val) in &quality_stat.stats {
-                if let Some(modifiers) = gemstats::match_gemstat(&self.data().base_item.display_name, stat_name) {
-                    for mut modifier in modifiers {
-                        if as_aura_buff != modifier.flags.intersects(make_bitflags!(ModFlag::{Aura | Buff})) {
-                            continue;
-                        }
-                        if let Some(stat) = modifier.as_stat_mut() {
-                            if stat.amount == 0 {
-                                stat.amount = (*val as i64 * self.qual as i64) / 1000;
-                            }
-                        }
-                        modifier.source = source;
-                        mods.push(modifier);
-                    }
-                } else {
-                    //println!("failed: {stat_name}");
-                }
-            }
-        }
-
-        if !as_aura_buff {
-            if let Some(speed_multiplier) = &self.data().r#static.attack_speed_multiplier {
-                mods.push(Mod::stat(StatId::AttackSpeed, Type::More, *speed_multiplier as i64).with_source(source));
-            }
-
-            if let Some(base_mana_cost) = self.mana_cost_level() {
-                mods.push(Mod::stat(StatId::ManaCost, Type::Base, base_mana_cost).with_source(source));
-            }
-
-            if let Some(cost_multiplier) = self.cost_multiplier_level() {
-                mods.push(Mod::stat(StatId::Cost, Type::More, cost_multiplier).with_source(source));
-            }
-        }
-
-        mods
-    }
-
-    pub fn force_regen_modcache(&self) {
-        self.is_modcache_fresh.store(false, Ordering::Relaxed);
+    pub fn invalidate_modcache(&self) {
+        self.mod_cache_level.store(0, Ordering::Relaxed);
     }
 
     pub fn set_level(&mut self, level: u32) {
         self.level = level;
-        self.is_modcache_fresh.store(false, Ordering::Relaxed);
+        self.invalidate_modcache();
     }
 
     pub fn set_qual(&mut self, qual: i32) {
         self.qual = qual;
-        self.is_modcache_fresh.store(false, Ordering::Relaxed);
+        self.invalidate_modcache();
     }
 
-    pub fn calc_mods(&self, as_aura_buff: bool) -> Arc<Vec<Mod>> {
-        if !self.is_modcache_fresh.load(Ordering::Relaxed) {
-            self.regen_modcache();
+    pub fn calc_mods(&self, as_aura_buff: bool, extra_level: u32, extra_qual: i32) -> Arc<Vec<Mod>> {
+        let level = self.level + extra_level;
+        let qual = self.qual + extra_qual;
+
+        if self.mod_cache_level.load(Ordering::Relaxed) != level ||
+           self.mod_cache_qual.load(Ordering::Relaxed) != qual
+        {
+            self.regen_modcache(level, qual);
         }
 
         match as_aura_buff {
@@ -196,56 +148,28 @@ impl Gem {
         }
     }
 
-    pub fn mana_cost_level(&self) -> Option<i64> {
-        let level_data = self.data().per_level.get(&self.level)?;
-        if let Some(mana) = level_data.costs.as_ref()?.mana {
-            Some(mana as i64)
-        } else {
-            None
-        }
+    pub fn mana_cost_level(&self, extra_level: u32) -> Option<i64> {
+        self.data().mana_cost(self.level + extra_level)
     }
 
-    pub fn cost_multiplier_level(&self) -> Option<i64> {
-        let level_data = self.data().per_level.get(&self.level)?;
-        level_data.cost_multiplier
+    pub fn cost_multiplier_level(&self, extra_level: u32) -> Option<i64> {
+        self.data().cost_multiplier(self.level + extra_level)
     }
 
     fn stat_value_level(&self, id: &str) -> Option<i64> {
-        let idx = self.data().r#static.stat_idx(id)?;
-        let level_data = self.data().per_level.get(&self.level)?;
-        let level_stats = level_data.stats.as_ref()?;
-        if let Some(Some(stat)) = level_stats.get(idx) {
-            return stat.value;
-        }
-        None
+        self.data().stat_value_level(id, self.level)
     }
 
-    /// Get the value of a gem stat.
-    /// Will use per_level value if available,
-    /// otherwise static value, otherwise None
-    /// todo: add quality value if present.
     pub fn stat_value(&self, id: &str) -> Option<i64> {
-        if let Some(value_level) = self.stat_value_level(id) {
-            return Some(value_level);
-        }
-
-        if let Some(stats) = &self.data().r#static.stats {
-            if let Some(gem_stat) = stats.iter().flatten().find(|x| x.id.as_ref().is_some_and(|stat_id| stat_id == id)) {
-                if gem_stat.value.is_some() {
-                    return gem_stat.value;
-                }
-            }
-        }
-
-        None
+        self.data().stat_value(id, self.level)
     }
 
     pub fn crit_chance(&self) -> Option<i64> {
         self.data().r#static.crit_chance
     }
 
-    pub fn added_effectiveness(&self) -> Option<i64> {
-        if let Some(level_data) = self.data().per_level.get(&self.level) {
+    pub fn added_effectiveness(&self, extra_level: u32) -> Option<i64> {
+        if let Some(level_data) = self.data().per_level.get(&(self.level + extra_level)) {
             if level_data.damage_effectiveness.is_some() {
                 return level_data.damage_effectiveness;
             }
@@ -253,8 +177,8 @@ impl Gem {
         self.data().r#static.damage_effectiveness
     }
 
-    pub fn damage_multiplier(&self) -> Option<i64> {
-        if let Some(level_data) = self.data().per_level.get(&self.level) {
+    pub fn damage_multiplier(&self, extra_level: u32) -> Option<i64> {
+        if let Some(level_data) = self.data().per_level.get(&(self.level + extra_level)) {
             if level_data.damage_multiplier.is_some() {
                 return level_data.damage_multiplier;
             }

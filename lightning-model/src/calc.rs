@@ -199,13 +199,13 @@ fn calc_dmg_crit_accuracy(damage: i64, crit_chance: i64, crit_multi: i64, chance
     damage_crit + damage_noncrit
 }
 
-fn calc_min_max_dmg(stats: &Stats, active_gem: &Gem, mut base_min: i64, mut base_max: i64, mut added_min: i64, mut added_max: i64, dg: &DamageGroup) -> (i64, i64) {
-    if let Some(damage_multiplier) = active_gem.damage_multiplier() {
+fn calc_min_max_dmg(stats: &Stats, active_gem: &Gem, mut base_min: i64, mut base_max: i64, mut added_min: i64, mut added_max: i64, dg: &DamageGroup, extra_level: u32) -> (i64, i64) {
+    if let Some(damage_multiplier) = active_gem.damage_multiplier(extra_level) {
         base_min = (base_min * (10000 + damage_multiplier)) / 10000;
         base_max = (base_max * (10000 + damage_multiplier)) / 10000;
     }
 
-    if let Some(added_effectiveness) = active_gem.added_effectiveness() {
+    if let Some(added_effectiveness) = active_gem.added_effectiveness(extra_level) {
         added_min = (added_min * (100 + added_effectiveness)) / 100;
         added_max = (added_max * (100 + added_effectiveness)) / 100;
     }
@@ -221,17 +221,17 @@ fn calc_min_max_dmg(stats: &Stats, active_gem: &Gem, mut base_min: i64, mut base
     (stat_min_dt.val(), stat_max_dt.val())
 }
 
-fn calc_average_dmg(stats: &Stats, active_gem: &Gem, base_min: i64, base_max: i64, added_min: i64, added_max: i64, dg: &DamageGroup) -> i64 {
-    let (min, max) = calc_min_max_dmg(stats, active_gem, base_min, base_max, added_min, added_max, dg);
+fn calc_average_dmg(stats: &Stats, active_gem: &Gem, base_min: i64, base_max: i64, added_min: i64, added_max: i64, dg: &DamageGroup, extra_level: u32) -> i64 {
+    let (min, max) = calc_min_max_dmg(stats, active_gem, base_min, base_max, added_min, added_max, dg, extra_level);
     (min + max) / 2
 }
 
 
-fn calc_weapon_max_base_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &DamageGroup) -> Option<Stat> {
+fn calc_weapon_max_base_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &DamageGroup, extra_level: u32) -> Option<Stat> {
     if let Some((_, max_item)) = weapon.calc_dmg(dg.damage_type) {
         let item_class = Some(weapon.data().item_class);
         let added_max_stat = stats.stat(dg.added_max_id).with_weapon(item_class);
-        let (_, max) = calc_min_max_dmg(stats, active_gem, 0, max_item, 0, added_max_stat.val(), dg);
+        let (_, max) = calc_min_max_dmg(stats, active_gem, 0, max_item, 0, added_max_stat.val(), dg, extra_level);
         let dmg_stat_dt = stats.stat(dg.stat_id).with_weapon(item_class);
         let mut dmg_stat = stats.stat(StatId::Damage).with_weapon(item_class);
         dmg_stat.assimilate(&dmg_stat_dt);
@@ -241,8 +241,8 @@ fn calc_weapon_max_base_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: 
     None
 }
 
-fn calc_weapon_bleed_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &DamageGroup) -> i64 {
-    if let Some(mut max_dmg) = calc_weapon_max_base_dmg(stats, weapon, active_gem, dg) {
+fn calc_weapon_bleed_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &DamageGroup, extra_level: u32) -> i64 {
+    if let Some(mut max_dmg) = calc_weapon_max_base_dmg(stats, weapon, active_gem, dg, extra_level) {
         let mut dot_multi = stats.stat(StatId::DotMultiplier).to_owned();
         dot_multi.assimilate(stats.stat(StatId::PhysicalDotMultiplier));
         max_dmg.adjust_mod(&Mod::stat(StatId::Damage, Type::More, -30).with_source(Source::Custom("Bleeds deal 70%")));
@@ -281,12 +281,9 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
     assert!(!active_gem.data().is_support);
     let mut ret = FxHashMap::default();
 
-    // convert HashSet<GemTag> into BitFlags
-    let tags = active_gem.data().tags.iter().copied().map(BitFlags::from).fold(BitFlags::empty(), |acc, flag| acc | flag);
+    let tags = active_gem.data().tags;
     let mut damage = vec![];
-
     let mut mods = build.calc_mods(true);
-    mods.extend_from_slice(&active_gem.calc_mods(false));
 
     let mut best_supports: FxHashMap<&str, &Gem> = FxHashMap::default();
     for support_gem in support_gems {
@@ -301,8 +298,11 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
     }
 
     for support_gem in best_supports.values() {
-        mods.extend_from_slice(&support_gem.calc_mods(false));
+        mods.extend_from_slice(&support_gem.calc_mods(false, 0, 0));
     }
+
+    let extra_level = mods.iter().flat_map(|m| m.as_gem_level()).sum();
+    mods.extend_from_slice(&active_gem.calc_mods(false, extra_level, 0));
 
     let stats = build.calc_stats(&mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff}));
     let stats_bleed = build.calc_stats(&mods, tags, make_bitflags!(ModFlag::{Ailment | Bleed | Aura | Buff}));
@@ -345,7 +345,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
                     let (min_item, max_item) = weapon.calc_dmg(dg.damage_type).unwrap_or((0, 0));
                     let added_min = stats.stat(dg.added_min_id).with_weapon(item_class).val();
                     let added_max = stats.stat(dg.added_max_id).with_weapon(item_class).val();
-                    base_damages[i] = calc_average_dmg(&stats, active_gem, min_item, max_item, added_min, added_max, dg);
+                    base_damages[i] = calc_average_dmg(&stats, active_gem, min_item, max_item, added_min, added_max, dg, extra_level);
                 }
 
                 let portions = apply_conversion(&stats, &base_damages);
@@ -381,7 +381,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
 
                 if bleed_chance > 0 {
                     let physical_dg = &DAMAGE_GROUPS[0];
-                    let local_bleed_dps = calc_weapon_bleed_dmg(&stats_bleed, weapon, active_gem, physical_dg);
+                    let local_bleed_dps = calc_weapon_bleed_dmg(&stats_bleed, weapon, active_gem, physical_dg, extra_level);
                     if local_bleed_dps > bleed_dps {
                         bleed_dps = local_bleed_dps;
                     }
@@ -400,7 +400,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
             let added_max = stats.stat(dg.added_max_id).with_weapon(None).val();
             let base_min = stats.stat(dg.base_min_id).with_weapon(None).val();
             let base_max = stats.stat(dg.base_max_id).with_weapon(None).val();
-            base_damages[i] = calc_average_dmg(&stats, active_gem, base_min, base_max, added_min, added_max, dg);
+            base_damages[i] = calc_average_dmg(&stats, active_gem, base_min, base_max, added_min, added_max, dg, extra_level);
         }
 
         let portions = apply_conversion(&stats, &base_damages);

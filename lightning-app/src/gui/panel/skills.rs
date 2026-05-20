@@ -124,8 +124,8 @@ enum Action {
 }
 
 fn gem_from_display_name(display_name: &str) -> Gem {
-    let gem_id = GEMS.iter().find_map(|(id, gem_data)| if gem_data.display_name() == display_name { Some(id) } else { None }).unwrap();
-    Gem::new(gem_id.clone(), true, 20, 20, 0)
+    let (id, gem) = GEMS.iter().find(|(_, gem_data)| gem_data.display_name() == display_name).unwrap();
+    Gem::new(id.clone(), true, gem.max_level() as u32, 20, 0)
 }
 
 pub fn draw(ctx: &egui::Context, state: &mut State) {
@@ -215,7 +215,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                                             row.col(|ui| {
                                                 let mut level = socketed_gem.level;
                                                 if ui.add(egui::DragValue::new(&mut level).range(RangeInclusive::new(1, 40))).changed() {
-                                                    let mut new_gem = (**socketed_gem).clone();
+                                                    let mut new_gem = socketed_gem.clone();
                                                     new_gem.set_level(level);
                                                     action = Some(Action::SwapGem((i, Arc::new(new_gem))));
                                                 }
@@ -224,7 +224,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                                             row.col(|ui| {
                                                 let mut qual = socketed_gem.qual;
                                                 if ui.add(egui::DragValue::new(&mut qual).range(RangeInclusive::new(0, 23))).changed() {
-                                                    let mut new_gem = (**socketed_gem).clone();
+                                                    let mut new_gem = socketed_gem.clone();
                                                     new_gem.set_qual(qual);
                                                     action = Some(Action::SwapGem((i, Arc::new(new_gem))));
                                                 }
@@ -233,7 +233,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                                             row.col(|ui| {
                                                 let mut enabled = socketed_gem.enabled;
                                                 if ui.checkbox(&mut enabled, "").clicked() {
-                                                    let mut new_gem = (**socketed_gem).clone();
+                                                    let mut new_gem = socketed_gem.clone();
                                                     new_gem.enabled = enabled;
                                                     action = Some(Action::SwapGem((i, Arc::new(new_gem))));
                                                 }
@@ -276,7 +276,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
             Action::SwapSelectedGem(gem_name) => {
                 let gem = gem_from_display_name(gem_name);
                 if let Some(gemlink) = state.build.gem_links.get_mut(state.panel_skills.selected_gemlink) {
-                    gemlink.gems[state.panel_skills.selected_gem.unwrap()] = Arc::new(gem);
+                    gemlink.gems[state.panel_skills.selected_gem.unwrap()] = gem;
                 } else {
                     eprintln!("Trying to swap gem \"{gem_name}\" but no selected gemlink");
                 }
@@ -284,7 +284,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
             Action::AddGem(gem_name) => {
                 let gem = gem_from_display_name(gem_name);
                 if let Some(gemlink) = state.build.gem_links.get_mut(state.panel_skills.selected_gemlink) {
-                    gemlink.gems.push(Arc::new(gem));
+                    gemlink.gems.push(gem);
                 } else {
                     eprintln!("Trying to push gem \"{gem_name}\" but no selected gemlink");
                 }
@@ -299,7 +299,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
             }
             Action::SwapGem((idx, gem)) => {
                 if let Some(gemlink) = state.build.gem_links.get_mut(state.panel_skills.selected_gemlink) {
-                    gemlink.gems[idx] = gem;
+                    gemlink.gems[idx] = (*gem).clone();
                 }
             }
         }

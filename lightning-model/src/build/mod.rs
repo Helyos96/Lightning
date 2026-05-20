@@ -99,17 +99,15 @@ pub enum Defence {
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct GemLink {
-    //pub active_gems: Vec<Gem>,
-    //pub support_gems: Vec<Gem>,
-    pub gems: Vec<Arc<Gem>>,
+    pub gems: Vec<Gem>,
     pub slot: Slot,
 }
 
 impl GemLink {
-    pub fn active_gems(&self) -> impl Iterator<Item = &Arc<Gem>> {
+    pub fn active_gems(&self) -> impl Iterator<Item = &Gem> {
         self.gems.iter().filter(|g| g.data().active_skill.is_some())
     }
-    pub fn support_gems(&self) -> impl Iterator<Item = &Arc<Gem>> {
+    pub fn support_gems(&self) -> impl Iterator<Item = &Gem> {
         self.gems.iter().filter(|g| g.data().is_support)
     }
 }
@@ -305,29 +303,9 @@ impl Build {
         });
     }
 
-    pub fn calc_buffs_auras(&self) -> Vec<Mod> {
-        let mut best_gems: FxHashMap<&str, &Gem> = FxHashMap::default();
-        for link in &self.gem_links {
-            for active_gem in link.active_gems().filter(|gem| gem.enabled && (gem.data().active_skill.as_ref().unwrap().types.contains(&ActiveSkillType::Aura) || gem.data().active_skill.as_ref().unwrap().types.contains(&ActiveSkillType::Buff))) {
-                if let Some(existing_gem) = best_gems.get(active_gem.id.as_str()) {
-                    if existing_gem.level >= active_gem.level {
-                        continue;
-                    }
-                }
-                best_gems.insert(active_gem.id.as_str(), active_gem);
-            }
-        }
-
-        let mut ret = vec![];
-        for gem in best_gems.values() {
-            ret.extend_from_slice(&gem.calc_mods(true));
-        }
-        ret
-    }
-
     /// Returns mods from the following sources:
     /// Innate, Passive Tree, Items, Global Skills (Auras..)
-    pub fn calc_mods(&self, include_global: bool) -> Vec<Mod> {
+    pub fn calc_mods(&self, _include_global: bool) -> Vec<Mod> {
         let class_data = &TREE.classes[&self.tree.class];
         let mut mods = Vec::with_capacity(600);
         mods.extend_from_slice(&BASE_MODES);
@@ -371,9 +349,6 @@ impl Build {
             if let Some(mut config_mods) = parse_mod(mod_str, Source::Custom("Config")) {
                 mods.append(&mut config_mods);
             }
-        }
-        if include_global {
-            mods.append(&mut self.calc_buffs_auras());
         }
         mods
     }
@@ -550,18 +525,20 @@ impl Build {
     }
 
     pub fn calc_stats(&self, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>) -> Stats {
-        let evaluator = Evaluator::new(self, mods, tags, flags, None);
+        let mut evaluator = Evaluator::new(self, mods, tags, flags, None);
+        evaluator.resolve();
         Stats { stats: evaluator.resolved_stats }
     }
 
     pub fn calc_stats_slot(&self, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>, slot: Slot) -> Stats {
-        let evaluator = Evaluator::new(self, mods, tags, flags, Some(slot));
+        let mut evaluator = Evaluator::new(self, mods, tags, flags, Some(slot));
+        evaluator.resolve();
         Stats { stats: evaluator.resolved_stats }
     }
 
     pub fn calc_stat(&self, stat_id: StatId, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>) -> Stat {
         let mut evaluator = Evaluator::new(self, mods, tags, flags, None);
-
+        evaluator.resolve();
         evaluator.eval_stat(stat_id).clone()
     }
 

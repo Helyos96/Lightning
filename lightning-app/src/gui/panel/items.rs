@@ -1,6 +1,4 @@
 use std::{sync::Arc};
-
-use egui::style::StyleModifier;
 use lightning_model::{build::Slot, item::Item, modifier::Source};
 use crate::gui::{State, utils::{draw_item, draw_item_window, draw_item_deltas, rarity_to_color}};
 

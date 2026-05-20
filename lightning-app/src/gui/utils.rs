@@ -79,7 +79,7 @@ pub fn draw_gem(ui: &mut egui::Ui, gem: &Gem) {
         ui.separator();
         let mut tags_text = String::new();
         const TAG_BLACKLIST: BitFlags<GemTag> = make_bitflags!(GemTag::{Strength | Intelligence | Dexterity | Grants_Active_Skill | Low_Max_Level});
-        for (i, tag) in gem_data.tags.iter().filter(|t| !TAG_BLACKLIST.contains(**t)).enumerate() {
+        for (i, tag) in gem_data.tags.iter().filter(|t| !TAG_BLACKLIST.contains(*t)).enumerate() {
             if i > 0 {
                 tags_text += ", ";
             }

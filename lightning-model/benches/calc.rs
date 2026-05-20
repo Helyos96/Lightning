@@ -43,7 +43,7 @@ fn calc_mods_uncached(bencher: divan::Bencher) {
         }
         for gemlink in &player.gem_links {
             for gem in &gemlink.gems {
-                gem.force_regen_modcache();
+                gem.invalidate_modcache();
             }
         }
         player.calc_mods(true);
@@ -84,7 +84,7 @@ fn calc_power_report_maxhp(bencher: divan::Bencher) {
 fn calc_gem(bencher: divan::Bencher) {
     let player = fetch().expect("Failed to get a build");
     let active_gem = player.gem_links[1].active_gems().nth(0).unwrap();
-    let support_gems: Vec<&Gem> = player.gem_links[1].support_gems().map(|arc_gem| arc_gem.as_ref()).collect();
+    let support_gems: Vec<&Gem> = player.gem_links[1].support_gems().map(|gem| gem).collect();
 
     lightning_model::calc::calc_gem(&player, &support_gems, active_gem);
 

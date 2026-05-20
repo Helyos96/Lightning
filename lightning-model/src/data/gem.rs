@@ -1,7 +1,9 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
-use enumflags2::{BitFlags, bitflags};
-use crate::modifier::{Mod, Source, parse_mod};
+use enumflags2::{BitFlags, bitflags, make_bitflags};
+use crate::{gemstats, modifier::{Mod, Source, Type, parse_mod}};
+use crate::modifier::ModFlag;
+use crate::build::stat::StatId;
 
 use super::base_item::ItemClass;
 
@@ -312,6 +314,30 @@ pub struct SupportGemData {
     pub support_text: String,
 }
 
+// Ser/Des an array into BitFlags
+pub mod enumflags2_array {
+    use enumflags2::{BitFlag, BitFlags};
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    pub fn deserialize<'de, D, T>(deserializer: D) -> Result<BitFlags<T>, D::Error>
+    where
+        D: Deserializer<'de>,
+        T: BitFlag + Deserialize<'de>,
+    {
+        let vec: Vec<T> = Vec::deserialize(deserializer)?;
+        Ok(vec.into_iter().collect())
+    }
+
+    pub fn serialize<S, T>(flags: &BitFlags<T>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+        T: BitFlag + Serialize,
+    {
+        let vec: Vec<T> = flags.into_iter().collect();
+        vec.serialize(serializer)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GemData {
     pub active_skill: Option<ActiveSkill>,
@@ -320,8 +346,8 @@ pub struct GemData {
     pub is_support: bool,
     pub per_level: FxHashMap<u32, Level>,
     pub r#static: Static,
-    #[serde(default)]
-    pub tags: FxHashSet<GemTag>,
+    #[serde(default, with = "enumflags2_array")]
+    pub tags: BitFlags<GemTag>,
     #[serde(default)]
     pub weapon_restrictions: FxHashSet<ItemClass>,
     #[serde(default)]
@@ -343,6 +369,9 @@ impl GemData {
     pub fn max_level(&self) -> i32 {
         if let Some(max_level) = self.base_item.max_level {
             return max_level;
+        }
+        if let Some(max_level) = self.per_level.keys().max().copied() {
+            return max_level.min(20) as i32;
         }
         return 20;
     }
@@ -369,5 +398,117 @@ impl GemData {
             return Some(&support_data.support_text);
         }
         None
+    }
+
+    pub fn mana_cost(&self, level: u32) -> Option<i64> {
+        let level_data = self.per_level.get(&level)?;
+        if let Some(mana) = level_data.costs.as_ref()?.mana {
+            Some(mana as i64)
+        } else {
+            None
+        }
+    }
+
+    pub fn cost_multiplier(&self, level: u32) -> Option<i64> {
+        let level_data = self.per_level.get(&level)?;
+        level_data.cost_multiplier
+    }
+
+    pub fn stat_value_level(&self, id: &str, level: u32) -> Option<i64> {
+        let idx = self.r#static.stat_idx(id)?;
+        let level_data = self.per_level.get(&level)?;
+        let level_stats = level_data.stats.as_ref()?;
+        if let Some(Some(stat)) = level_stats.get(idx) {
+            return stat.value;
+        }
+        None
+    }
+
+    /// Get the value of a gem stat.
+    /// Will use per_level value if available,
+    /// otherwise static value, otherwise None
+    /// todo: add quality value if present.
+    pub fn stat_value(&self, id: &str, level: u32) -> Option<i64> {
+        if let Some(value_level) = self.stat_value_level(id, level) {
+            return Some(value_level);
+        }
+
+        if let Some(stats) = &self.r#static.stats {
+            if let Some(gem_stat) = stats.iter().flatten().find(|x| x.id.as_ref().is_some_and(|stat_id| stat_id == id)) {
+                if gem_stat.value.is_some() {
+                    return gem_stat.value;
+                }
+            }
+        }
+
+        None
+    }
+
+    pub fn calc_mods(&'static self, as_aura_buff: bool, level: u32, qual: i32) -> Vec<Mod> {
+        let mut mods = vec![];
+        let source = Source::Gem(self.display_name());
+
+        if let Some(stats) = &self.r#static.stats {
+            for gem_stat in stats.iter().flatten() {
+                if let Some(id) = &gem_stat.id {
+                    if let Some(modifiers) = gemstats::match_gemstat(&self.base_item.display_name, id) {
+                        for mut modifier in modifiers {
+                            if as_aura_buff != modifier.flags.intersects(make_bitflags!(ModFlag::{Aura | Buff})) {
+                                continue;
+                            }
+                            let amount = self.stat_value(id, level).unwrap_or(0);
+                            if let Some(stat) = modifier.as_stat_mut() {
+                                if stat.amount == 0 {
+                                    stat.amount = amount;
+                                }
+                            } else if modifier.as_gem_level().is_some() {
+                                modifier.effect = crate::modifier::ModEffect::LevelOfGems(amount as u32)
+                            }
+                            modifier.source = source;
+                            mods.push(modifier);
+                        }
+                    } else {
+                        //println!("failed: {id}");
+                    }
+                }
+            }
+        }
+
+        for quality_stat in &self.r#static.quality_stats {
+            for (stat_name, val) in &quality_stat.stats {
+                if let Some(modifiers) = gemstats::match_gemstat(&self.base_item.display_name, stat_name) {
+                    for mut modifier in modifiers {
+                        if as_aura_buff != modifier.flags.intersects(make_bitflags!(ModFlag::{Aura | Buff})) {
+                            continue;
+                        }
+                        if let Some(stat) = modifier.as_stat_mut() {
+                            if stat.amount == 0 {
+                                stat.amount = (*val as i64 * qual as i64) / 1000;
+                            }
+                        }
+                        modifier.source = source;
+                        mods.push(modifier);
+                    }
+                } else {
+                    //println!("failed: {stat_name}");
+                }
+            }
+        }
+
+        if !as_aura_buff {
+            if let Some(speed_multiplier) = &self.r#static.attack_speed_multiplier {
+                mods.push(Mod::stat(StatId::AttackSpeed, Type::More, *speed_multiplier as i64).with_source(source));
+            }
+
+            if let Some(base_mana_cost) = self.mana_cost(level) {
+                mods.push(Mod::stat(StatId::ManaCost, Type::Base, base_mana_cost).with_source(source));
+            }
+
+            if let Some(cost_multiplier) = self.cost_multiplier(level) {
+                mods.push(Mod::stat(StatId::Cost, Type::More, cost_multiplier).with_source(source));
+            }
+        }
+
+        mods
     }
 }

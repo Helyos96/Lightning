@@ -692,6 +692,7 @@ pub enum Mutation {
     IncreasedEffect(i64),
     StatIncPct(i64, StatId),
     MultiplierOvercap(i64, StatId, StatId),
+    StatMultExtra(StatId, i64),
 }
 
 impl Mutation {
@@ -707,6 +708,7 @@ impl Mutation {
             Mutation::MultiplierQuality(mutation) => *mutation = amount,
             Mutation::StatIncPct(pct, _) => *pct = amount,
             Mutation::MultiplierOvercap(amnt, _, _) => *amnt = amount,
+            Mutation::StatMultExtra(_, extra) => *extra = amount,
         }
     }
 }
@@ -789,6 +791,8 @@ pub enum ModEffect {
     MutateNode(NodeMutation, BitFlags<NodeType>),
     RingSize(JewelRadius),
     BuildFlag(BuildFlag),
+    LevelOfGems(u32),
+    QualityOfGems(i32)
 }
 
 impl Default for ModEffect {
@@ -823,6 +827,14 @@ impl Mod {
 
     pub fn build_flag(flag: BuildFlag) -> Self {
         Self { effect: ModEffect::BuildFlag(flag), ..Default::default() }
+    }
+
+    pub fn gem_level(level: u32) -> Self {
+        Self { effect: ModEffect::LevelOfGems(level), ..Default::default() }
+    }
+
+    pub fn gem_quality(quality: i32) -> Self {
+        Self { effect: ModEffect::QualityOfGems(quality), ..Default::default() }
     }
 
     pub fn ring_size(size: JewelRadius) -> Self {
@@ -882,6 +894,22 @@ impl Mod {
     pub fn as_build_flag(&self) -> Option<&BuildFlag> {
         if let ModEffect::BuildFlag(flag) = &self.effect {
             Some(flag)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_gem_level(&self) -> Option<u32> {
+        if let ModEffect::LevelOfGems(level) = &self.effect {
+            Some(*level)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_gem_quality(&self) -> Option<i32> {
+        if let ModEffect::QualityOfGems(quality) = &self.effect {
+            Some(*quality)
         } else {
             None
         }
