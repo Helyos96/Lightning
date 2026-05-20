@@ -124,6 +124,24 @@ impl<'a> Evaluator<'a> {
         }
         self.resolve_armour();
         self.resolve_stats();
+        self.resolve_flags_post();
+    }
+
+    fn resolve_flags_post(&mut self) {
+        for f in &self.build_flags {
+            match f {
+                BuildFlag::EleMaxResHighest => {
+                    let fire = self.resolved_stats.get(&StatId::MaximumFireResistance).unwrap().val();
+                    let cold = self.resolved_stats.get(&StatId::MaximumColdResistance).unwrap().val();
+                    let lightning = self.resolved_stats.get(&StatId::MaximumLightningResistance).unwrap().val();
+                    let max = fire.max(cold).max(lightning);
+                    self.resolved_stats.get_mut(&StatId::MaximumFireResistance).unwrap().adjust(Type::Override, max);
+                    self.resolved_stats.get_mut(&StatId::MaximumColdResistance).unwrap().adjust(Type::Override, max);
+                    self.resolved_stats.get_mut(&StatId::MaximumLightningResistance).unwrap().adjust(Type::Override, max);
+                }
+                _ => {}
+            }
+        }
     }
 
     fn resolve_stats(&mut self) {

@@ -610,6 +610,9 @@ lazy_static! {
         map.insert("quality does not increase defences", vec![
             Mod::build_flag(BuildFlag::QualityNoDefences),
         ]);
+        map.insert("elemental resistances are capped by your highest maximum elemental resistance instead", vec![
+            Mod::build_flag(BuildFlag::EleMaxResHighest),
+        ]);
         map
     };
 
@@ -757,6 +760,7 @@ pub enum ModFlag {
 pub enum BuildFlag {
     ItemsGrantLifeInsteadES,
     QualityNoDefences,
+    EleMaxResHighest,
 }
 
 const MUTATIONS_COUNT: usize = 2;
