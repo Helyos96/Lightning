@@ -8,7 +8,7 @@ use egui_extras::{Column, TableBuilder};
 
 pub fn draw(ctx: &egui::Context, state: &mut State) {
     egui::CentralPanel::default().show(ctx, |ui| {
-        egui::ScrollArea::vertical().show(ui, |ui| {
+        egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             ui.heading(egui::RichText::new("Defence Calculations").size(24.0).color(Color32::WHITE));
             egui_flex::Flex::horizontal()
                 .wrap(true)

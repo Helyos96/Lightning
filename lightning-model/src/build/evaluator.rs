@@ -10,7 +10,7 @@ pub struct Evaluator<'a> {
     tags: BitFlags<GemTag>,
     flags: BitFlags<ModFlag>,
     build_flags: FxHashSet<BuildFlag>,
-    pub mods_by_stat: FxHashMap<StatId, Vec<&'a Mod>>,
+    pub mods_by_stat: FxHashMap<StatId, Vec<Mod>>,
     other_mods: Vec<&'a Mod>,
     pub resolved_stats: FxHashMap<StatId, Stat>,
     evaluating: FxHashSet<StatId>,
@@ -18,7 +18,7 @@ pub struct Evaluator<'a> {
 
 impl<'a> Evaluator<'a> {
     pub fn new(build: &'a Build, mods: &'a [Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>, slot: Option<Slot>) -> Self {
-        let mut mods_by_stat: FxHashMap<StatId, Vec<&'a Mod>> = FxHashMap::default();
+        let mut mods_by_stat: FxHashMap<StatId, Vec<Mod>> = FxHashMap::default();
         let mut other_mods = vec![];
 
         for m in mods.iter().filter(|m| {
@@ -27,7 +27,7 @@ impl<'a> Evaluator<'a> {
             (m.weapons.is_empty() || build.is_holding(&m.weapons))
         }) {
             if let Some(mstat) = m.as_stat() {
-                mods_by_stat.entry(mstat.stat).or_default().push(m);
+                mods_by_stat.entry(mstat.stat).or_default().push(m.to_owned());
             } else {
                 other_mods.push(m);
             }
@@ -45,8 +45,8 @@ impl<'a> Evaluator<'a> {
             evaluating: FxHashSet::default(),
         };
 
-        eval.resolve_stats();
         eval.resolve_armour();
+        eval.resolve_stats();
 
         eval
     }
@@ -65,23 +65,23 @@ impl<'a> Evaluator<'a> {
             let defence = item.calc_defence();
 
             if defence.armour.val() != 0 {
-                let val = self.resolved_stats.get(&StatId::Armour).unwrap_or(&Stat::default()).val_custom(defence.armour.val());
+                let val = self.eval_stat(StatId::Armour).val_custom(defence.armour.val());
                 self.resolved_stats.entry(StatId::Armour).or_default().adjust_mod_move(Mod::stat(StatId::Armour, Type::Flat, val).with_source(Source::Item(*slot)));
             }
             if defence.energy_shield.val() != 0 {
                 if self.build_flags.contains(&BuildFlag::ItemsGrantLifeInsteadES) {
-                    self.resolved_stats.entry(StatId::MaximumLife).or_default().adjust_mod_move(Mod::stat(StatId::MaximumLife, Type::Base, defence.energy_shield.val()).with_source(Source::Item(*slot)));
+                    self.mods_by_stat.entry(StatId::MaximumLife).or_default().push(Mod::stat(StatId::MaximumLife, Type::Base, defence.energy_shield.val()).with_source(Source::Item(*slot)));
                 } else {
-                    let val = self.resolved_stats.get(&StatId::MaximumEnergyShield).unwrap_or(&Stat::default()).val_custom(defence.energy_shield.val());
+                    let val = self.eval_stat(StatId::MaximumEnergyShield).val_custom(defence.energy_shield.val());
                     self.resolved_stats.entry(StatId::MaximumEnergyShield).or_default().adjust_mod_move(Mod::stat(StatId::Armour, Type::Flat, val).with_source(Source::Item(*slot)));
                 }
             }
             if defence.evasion.val() != 0 {
-                let val = self.resolved_stats.get(&StatId::EvasionRating).unwrap_or(&Stat::default()).val_custom(defence.evasion.val());
+                let val = self.eval_stat(StatId::EvasionRating).val_custom(defence.evasion.val());
                 self.resolved_stats.entry(StatId::EvasionRating).or_default().adjust_mod_move(Mod::stat(StatId::Armour, Type::Flat, val).with_source(Source::Item(*slot)));
             }
             if defence.block_chance.val() != 0 {
-                let val = self.resolved_stats.get(&StatId::ChanceToBlockAttackDamage).unwrap_or(&Stat::default()).val_custom(defence.block_chance.val());
+                let val = self.eval_stat(StatId::ChanceToBlockAttackDamage).val_custom(defence.block_chance.val());
                 self.resolved_stats.entry(StatId::ChanceToBlockAttackDamage).or_default().adjust_mod_move(Mod::stat(StatId::Armour, Type::Flat, val).with_source(Source::Item(*slot)));
             }
         }
@@ -106,13 +106,12 @@ impl<'a> Evaluator<'a> {
             let mut current_stat = Stat::default();
             let mods_to_process = self.mods_by_stat.remove(&stat_id).unwrap_or_default();
 
-            for m in mods_to_process {
+            for mut m in mods_to_process {
                 let passes_conditions_bor = m.conditions.is_empty() || m.conditions.iter().any(|c| self.check_condition(c, m.source));
                 if !passes_conditions_bor {
                     continue;
                 }
 
-                let mut m = m.to_owned();
                 let source = m.source;
                 if let Some(stat) = m.as_stat_mut() && !stat.mutations.is_empty() {
                     self.apply_mutations(stat, source);
@@ -299,6 +298,10 @@ impl<'a> Evaluator<'a> {
                 },
                 Mutation::StatIncPct(pct, stat_id) => {
                     amount = (self.eval_stat(*stat_id).inc * pct) / 100;
+                },
+                Mutation::MultiplierOvercap(per, stat_a, stat_b) => {
+                    let delta = (self.eval_stat(*stat_a).val() - self.eval_stat(*stat_b).val()).max(0);
+                    amount = (amount * delta) / per;
                 }
             }
         }

@@ -58,6 +58,7 @@ const BEGINNINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, &[Condition])]
     ("mace or sceptre attacks deal", flags!(GemTag::Attack), flags!(ItemClass::{OneHandMace | TwoHandMace | Sceptre}), &[]),
     ("dagger attacks deal", flags!(GemTag::Attack), ItemClass::DAGGERS, &[]),
     ("claw attacks deal", flags!(GemTag::Attack), flags!(ItemClass::Claw), &[]),
+    ("staff attacks deal", flags!(GemTag::Attack), ItemClass::STAVES, &[]),
     ("attacks with two handed melee weapons deal", flags!(GemTag::Attack), ItemClass::TWO_HANDED_MELEE, &[]),
     ("attacks with one handed weapons deal", flags!(GemTag::Attack), ItemClass::ONE_HANDED, &[]),
     ("attacks with melee weapons deal", flags!(GemTag::Attack), ItemClass::MELEE, &[]),
@@ -381,10 +382,15 @@ lazy_static! {
                 Some(vec![Mod::stat(stat, Type::Base, parse_val100(&c[1])?)])
             })
         ), (
-            regex!(r"^(?:damage )?penetrates ([0-9]+)% ([a-z]+) resistance$"),
+            regex!(r"^(?:damage )?penetrates (?:([0-9]+)% )?([a-z]+) resistance$"),
             Box::new(|c| {
                 let stat_tags_1 = STATS_MAP.get(format!("{} damage penetration", &c[2]).as_str()).cloned()?;
-                Some(vec![Mod::stat(stat_tags_1.0, Type::Base, i64::from_str(&c[1]).unwrap()).with_tags(stat_tags_1.1)])
+                let amount = if let Some(cap) = c.get(1) {
+                    i64::from_str(cap.as_str()).unwrap()
+                } else {
+                    1
+                };
+                Some(vec![Mod::stat(stat_tags_1.0, Type::Base, amount).with_tags(stat_tags_1.1)])
             })
         ), (
             regex!(r"^(?:damage )?penetrates ([0-9]+)% elemental resistances$"),
@@ -562,6 +568,7 @@ lazy_static! {
         (regex!("per ([0-9]+)% quality$"), Mutation::MultiplierQuality(1)),
         (regex!("per ([0-9]+)% chance to block on equipped shield$"), Mutation::MultiplierSlotDefence((5, Slot::Offhand, Defence::Block))),
         (regex!("per ([0-9]+) player maximum life$"), Mutation::MultiplierStat((1, StatId::MaximumLife))),
+        (regex!("equal to your overcapped fire resistance$"), Mutation::MultiplierOvercap(1, StatId::FireResistance, StatId::MaximumFireResistance)),
     ];
 
     static ref ENDING_PER_GENERIC: Regex = regex!("per ([0-9]+)?%? ([a-z ]+)$");
@@ -684,6 +691,7 @@ pub enum Mutation {
     UpTo(i64),
     IncreasedEffect(i64),
     StatIncPct(i64, StatId),
+    MultiplierOvercap(i64, StatId, StatId),
 }
 
 impl Mutation {
@@ -698,6 +706,7 @@ impl Mutation {
             Mutation::IncreasedEffect(mutation) => *mutation = amount,
             Mutation::MultiplierQuality(mutation) => *mutation = amount,
             Mutation::StatIncPct(pct, _) => *pct = amount,
+            Mutation::MultiplierOvercap(amnt, _, _) => *amnt = amount,
         }
     }
 }
