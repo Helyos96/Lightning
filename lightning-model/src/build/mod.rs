@@ -1,6 +1,7 @@
 pub mod property;
 pub mod stat;
 pub mod evaluator;
+pub mod buff;
 
 use std::rc::Rc;
 use std::sync::Arc;

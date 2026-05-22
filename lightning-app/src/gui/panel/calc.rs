@@ -77,6 +77,14 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                         });
                     });
                 });
+
+                flex.add_ui(egui_flex::item(), |ui| {
+                    egui::Frame::group(ui.style()).show(ui, |ui| {
+                        ui.vertical(|ui| {
+                            draw_stat_breakdown(ui, state, StatId::ChanceToSuppressSpellDamage, "Spell Suppression", Color32::LIGHT_BLUE);
+                        });
+                    });
+                });
             });
         });
     });

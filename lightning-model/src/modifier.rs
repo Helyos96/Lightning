@@ -1,3 +1,4 @@
+use crate::build::buff::Buff;
 use crate::build::stat::StatId;
 use crate::build::{Defence, Slot, property};
 use crate::data::base_item::ItemClass;
@@ -613,6 +614,9 @@ lazy_static! {
         map.insert("elemental resistances are capped by your highest maximum elemental resistance instead", vec![
             Mod::build_flag(BuildFlag::EleMaxResHighest),
         ]);
+        map.insert("onslaught", vec![
+            Mod::buff(Buff::Onslaught),
+        ]);
         map
     };
 
@@ -796,7 +800,8 @@ pub enum ModEffect {
     RingSize(JewelRadius),
     BuildFlag(BuildFlag),
     LevelOfGems(u32),
-    QualityOfGems(i32)
+    QualityOfGems(i32),
+    Buff(Buff),
 }
 
 impl Default for ModEffect {
@@ -835,6 +840,10 @@ impl Mod {
 
     pub fn gem_level(level: u32) -> Self {
         Self { effect: ModEffect::LevelOfGems(level), ..Default::default() }
+    }
+
+    pub fn buff(buff: Buff) -> Self {
+        Self { effect: ModEffect::Buff(buff), ..Default::default() }
     }
 
     pub fn gem_quality(quality: i32) -> Self {
@@ -906,6 +915,14 @@ impl Mod {
     pub fn as_gem_level(&self) -> Option<u32> {
         if let ModEffect::LevelOfGems(level) = &self.effect {
             Some(*level)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_buff(&self) -> Option<Buff> {
+        if let ModEffect::Buff(buff) = &self.effect {
+            Some(*buff)
         } else {
             None
         }

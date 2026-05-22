@@ -1,7 +1,7 @@
 use enumflags2::BitFlags;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{build::{Build, Defence, GemLink, Slot, property, stat::{self, Stat, StatId}}, data::gem::{ActiveSkillType, GemTag}, gem::Gem, modifier::{BuildFlag, Condition, Mod, ModEffect, ModFlag, ModStat, Mutation, Source, Type}};
+use crate::{build::{Build, Defence, GemLink, Slot, buff::{BUFF_MODS, Buff}, property, stat::{self, Stat, StatId}}, data::gem::{ActiveSkillType, GemTag}, gem::Gem, modifier::{BuildFlag, Condition, Mod, ModEffect, ModFlag, ModStat, Mutation, Source, Type}};
 
 /// Evaluate Stats from a collection of Mods
 pub struct Evaluator<'a> {
@@ -12,6 +12,7 @@ pub struct Evaluator<'a> {
     build_flags: FxHashSet<BuildFlag>,
     pub mods_by_stat: FxHashMap<StatId, Vec<Mod>>,
     other_mods: Vec<Mod>,
+    buffs: FxHashSet<Buff>,
     pub resolved_stats: FxHashMap<StatId, Stat>,
     evaluating: FxHashSet<StatId>,
 }
@@ -25,11 +26,11 @@ impl<'a> Evaluator<'a> {
             tags.contains(m.tags) &&
             (m.flags.is_empty() || flags.intersects(m.flags)) &&
             (m.weapons.is_empty() || build.is_holding(&m.weapons))
-        }) {
+        }).cloned() {
             if let Some(mstat) = m.as_stat() {
-                mods_by_stat.entry(mstat.stat).or_default().push(m.to_owned());
+                mods_by_stat.entry(mstat.stat).or_default().push(m);
             } else {
-                other_mods.push(m.to_owned());
+                other_mods.push(m);
             }
         }
 
@@ -41,12 +42,13 @@ impl<'a> Evaluator<'a> {
             build_flags: FxHashSet::from(other_mods.iter().filter_map(|m| m.as_build_flag()).copied().collect()),
             mods_by_stat,
             other_mods,
+            buffs: Default::default(),
             resolved_stats: FxHashMap::default(),
             evaluating: FxHashSet::default(),
         }
     }
 
-    pub fn calc_buffs_auras_mods(&mut self) -> Vec<Mod> {
+    pub fn resolve_gem_buffs_auras(&mut self) {
         // Find best unique active auras
         let mut best_gems: FxHashMap<&str, (&Gem, &GemLink)> = FxHashMap::default();
         for link in &self.build.gem_links {
@@ -106,12 +108,7 @@ impl<'a> Evaluator<'a> {
                 ret.extend_from_slice(&mods);
             }
         }
-        ret
-    }
-
-    pub fn resolve(&mut self) {
-        let mods = self.calc_buffs_auras_mods();
-        for m in mods.into_iter().filter(|m| {
+        for m in ret.into_iter().filter(|m| {
             self.tags.contains(m.tags) &&
             (m.flags.is_empty() || self.flags.intersects(m.flags)) &&
             (m.weapons.is_empty() || self.build.is_holding(&m.weapons))
@@ -122,6 +119,28 @@ impl<'a> Evaluator<'a> {
                 self.other_mods.push(m);
             }
         }
+    }
+
+    fn resolve_buffs(&mut self) {
+        let buff_mods: Vec<Mod> = self.other_mods.iter().filter(|m| m.as_buff().is_some()).cloned().collect();
+        for m in buff_mods {
+            let passes_conditions_bor = m.conditions.is_empty() || m.conditions.iter().any(|c| self.check_condition(c, m.source));
+            if !passes_conditions_bor {
+                continue;
+            }
+            if let Some(mods) = BUFF_MODS.get(&m.as_buff().unwrap()) {
+                for m in mods {
+                    if let Some(mstat) = m.as_stat() {
+                        self.mods_by_stat.entry(mstat.stat).or_default().push(m.to_owned());
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn resolve(&mut self) {
+        self.resolve_buffs();
+        self.resolve_gem_buffs_auras();
         self.resolve_armour();
         self.resolve_stats();
         self.resolve_flags_post();
