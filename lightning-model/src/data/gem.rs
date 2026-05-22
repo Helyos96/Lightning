@@ -1,7 +1,7 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use enumflags2::{BitFlags, bitflags, make_bitflags};
-use crate::{gemstats, modifier::{Mod, Source, Type, parse_mod}};
+use crate::{gemstats, modifier::{Mod, Source, Type}};
 use crate::modifier::ModFlag;
 use crate::build::stat::StatId;
 

@@ -1,5 +1,5 @@
 use enumflags2::{BitFlags, make_bitflags};
-use lightning_model::{data::{DAMAGE_GROUPS, base_item::Rarity, gem::{GemData, GemTag}}, item::Item, modifier::Source};
+use lightning_model::{data::{DAMAGE_GROUPS, base_item::Rarity, gem::{GemData, GemTag}}, item::Item, modifier::Source, modparser::parse_mod};
 use lightning_model::gem::Gem;
 
 pub const COLOR_INT: egui::Color32 = egui::Color32::from_rgb(0x67, 0x67, 0xEA);
@@ -30,7 +30,7 @@ pub fn gem_name_richtext(gem: &'static GemData) -> egui::RichText {
 
 pub fn mod_to_richtext(mod_str: &str, source: Source, show_debug: bool) -> egui::text::LayoutJob {
     let mut ret = egui::text::LayoutJob::default();
-    let modifier = lightning_model::modifier::parse_mod(mod_str, source);
+    let modifier = parse_mod(mod_str, source);
 
     match modifier {
         Some(modifier) => {
