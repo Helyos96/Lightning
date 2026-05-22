@@ -38,6 +38,13 @@ lazy_static! {
         map.insert("totem", GemTag::Totem);
         map.insert("area", GemTag::Area);
         map.insert("warcry", GemTag::Warcry);
+        map.insert("fire", GemTag::Fire);
+        map.insert("cold", GemTag::Cold);
+        map.insert("lightning", GemTag::Lightning);
+        map.insert("chaos", GemTag::Chaos);
+        map.insert("curse", GemTag::Curse);
+        map.insert("aura", GemTag::Aura);
+        map.insert("link", GemTag::Link);
         map
     };
 }
@@ -70,6 +77,7 @@ const BEGINNINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, &[Condition])]
     ("minions deal", flags!(GemTag::Minion), BitFlags::EMPTY, &[]),
     ("melee weapon damage", flags!(GemTag::Melee), BitFlags::EMPTY, &[]),
     ("damage with weapons", BitFlags::EMPTY, BitFlags::EMPTY, &[]),
+    ("curse skills have", flags!(GemTag::Curse), BitFlags::EMPTY, &[]),
 ];
 
 const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>, &[Condition])] = &[
@@ -142,6 +150,7 @@ const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>
         Condition::GreaterEqualMasteryAllocated(("Life Mastery", 6)),
     ]),
     ("during effect", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
+    ("while affected by no flasks", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::NoFlaskActive]),
 ];
 
 // Order is important for overlapping stats
@@ -257,6 +266,7 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("chance to poison on hit", StatId::ChanceToPoison, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("poison duration", StatId::PoisonDuration, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("effect of non-curse auras from your skills", StatId::AuraEffect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("effect of your curses", StatId::CurseEffect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("life", StatId::MaximumLife, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("mana", StatId::MaximumMana, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("effect", StatId::Effect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
@@ -531,6 +541,14 @@ lazy_static! {
                 ])
             })
         ), (
+            regex!(r"^\+([0-9]+) to level of all ([a-z]+) skill gems$"),
+            Box::new(|c| {
+                let tag = TAGS.get(&c[2])?;
+                Some(vec![
+                    Mod::gem_level(u32::from_str(&c[1]).unwrap()).with_tags(*tag),
+                ])
+            })
+        ), (
             regex!(r"^gain ([0-9]+)% of (?:(wand|bow|claw) )?([a-z ]+) as extra ([a-z ]+)$"),
             Box::new(|c| {
                 let pct = i64::from_str(&c[1]).unwrap();
@@ -552,6 +570,18 @@ lazy_static! {
                 let source_stat = parse_stat_nomulti(source)?;
                 let target_stat = parse_stat_nomulti(target)?;
                 Some(vec![Mod::stat(target_stat.0, Type::Base, 1).with_tags(target_stat.1).with_mutations(stackvec![Mutation::StatPct((pct, source_stat.0))])])
+            })
+        ), (
+            regex!(r"^you have ([a-z ]+)$"),
+            Box::new(|c| {
+                let buff = match &c[1] {
+                    "diamond shrine buff" => Some(Buff::DiamondShrine),
+                    "massive shrine buff" => Some(Buff::MassiveShrine),
+                    _ => None,
+                }?;
+                Some(vec![
+                    Mod::buff(buff),
+                ])
             })
         ),
     ];
@@ -734,6 +764,7 @@ pub enum Condition {
     SlotLesserEqualStats((Slot, i64, &'static [StatId])),
     GreaterEqualMasteryAllocated((&'static str, u32)),
     WithThisWeapon,
+    NoFlaskActive,
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -758,6 +789,7 @@ pub enum ModFlag {
     Poison,
     Aura,
     Buff,
+    Curse,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

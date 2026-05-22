@@ -304,8 +304,8 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
     let extra_level = mods.iter().flat_map(|m| m.as_gem_level()).sum();
     mods.extend_from_slice(&active_gem.calc_mods(false, extra_level, 0));
 
-    let stats = build.calc_stats(&mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff}));
-    let stats_bleed = build.calc_stats(&mods, tags, make_bitflags!(ModFlag::{Ailment | Bleed | Aura | Buff}));
+    let stats = build.calc_stats(&mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}));
+    let stats_bleed = build.calc_stats(&mods, tags, make_bitflags!(ModFlag::{Ailment | Bleed | Aura | Buff | Curse}));
 
     let monster_mods = Build::calc_mods_monster(build.property_int(property::Int::Level).min(83));
     let monster_stats = build::stat::calc_stats(&monster_mods);
@@ -320,7 +320,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
 
         for slot in [Slot::Weapon, Slot::Offhand] {
             if let Some(weapon) = build.get_equipped(slot) {
-                let stats = build.calc_stats_slot(&mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff}), slot);
+                let stats = build.calc_stats_slot(&mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}), slot);
                 let weapon_restrictions = &active_gem.data().active_skill.as_ref().unwrap().weapon_restrictions;
                 if !weapon_restrictions.is_empty() && !weapon_restrictions.contains(&weapon.data().item_class) {
                     continue;

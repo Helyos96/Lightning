@@ -54,7 +54,7 @@ impl<'a> Evaluator<'a> {
         for link in &self.build.gem_links {
             for active_gem in link.active_gems().filter(|gem| {
                 let types = &gem.data().active_skill.as_ref().unwrap().types;
-                gem.enabled && (types.contains(&ActiveSkillType::Aura) || types.contains(&ActiveSkillType::Buff))
+                gem.enabled && (types.contains(&ActiveSkillType::Aura) || types.contains(&ActiveSkillType::Buff) || types.contains(&ActiveSkillType::AppliesCurse))
             })
             {
                 if let Some((existing_gem, _)) = best_gems.get(active_gem.id.as_str()) {
@@ -72,6 +72,8 @@ impl<'a> Evaluator<'a> {
             let mut extra_level = self.gem_level_extra(gem.data().tags);
             // extra aura effect from support gems
             let mut extra_aura_effect = 0;
+            // extra curse effect from support gems
+            let mut extra_curse_effect = 0;
             let mut best_supports: FxHashMap<&str, &Gem> = FxHashMap::default();
 
             // Find best unique support gems in link
@@ -90,23 +92,30 @@ impl<'a> Evaluator<'a> {
                 for m in support.calc_mods(false, self.gem_level_extra(support.data().tags), 0).iter() {
                     if let Some(level) = m.as_gem_level() {
                         extra_level += level;
-                    } else if let Some(mstat) = m.as_stat() && mstat.stat == StatId::AuraEffect {
-                        extra_aura_effect += mstat.amount;
+                    } else if let Some(mstat) = m.as_stat() {
+                        match mstat.stat {
+                            StatId::AuraEffect => extra_aura_effect += mstat.amount,
+                            StatId::CurseEffect => extra_curse_effect += mstat.amount,
+                            _ => { },
+                        }
                     }
                 }
             }
 
-            let mods = gem.calc_mods(true, extra_level, 0);
-            if gem.data().active_skill.as_ref().unwrap().types.contains(&ActiveSkillType::Aura) {
-                for mut m in mods.iter().cloned() {
-                    if let Some(mstat) = m.as_stat_mut() {
-                        mstat.mutations.push(Mutation::StatMultExtra(StatId::AuraEffect, extra_aura_effect));
-                    }
-                    ret.push(m);
+            let mut mods = (*gem.calc_mods(true, extra_level, 0)).clone();
+            for m in mods.iter_mut() {
+                if m.flags.contains(ModFlag::Aura) &&
+                   let Some(mstat) = m.as_stat_mut()
+                {
+                    mstat.mutations.push(Mutation::StatMultExtra(StatId::AuraEffect, extra_aura_effect));
                 }
-            } else {
-                ret.extend_from_slice(&mods);
+                if m.flags.contains(ModFlag::Curse) &&
+                   let Some(mstat) = m.as_stat_mut()
+                {
+                    mstat.mutations.push(Mutation::StatMultExtra(StatId::CurseEffect, extra_curse_effect));
+                }
             }
+            ret.extend(mods);
         }
         for m in ret.into_iter().filter(|m| {
             self.tags.contains(m.tags) &&
@@ -238,12 +247,6 @@ impl<'a> Evaluator<'a> {
                     self.apply_mutations(stat, source);
                 }
 
-                if m.flags.contains(ModFlag::Aura) && let Some(stat) = m.as_stat_mut() {
-                    let mult = self.get_stat_mult(StatId::AuraEffect);
-                    let new_amount = (stat.final_amount() * mult) / 10000;
-                    stat.revised_amount = Some(new_amount);
-                }
-
                 if let Source::Item(Slot::Flask(idx)) = m.source && let Some(stat) = m.as_stat_mut() {
                     let effect_local = self.build.get_equipped(Slot::Flask(idx)).unwrap().effect();
                     let mut flask_effect = self.eval_stat(StatId::FlaskEffect).clone();
@@ -359,7 +362,12 @@ impl<'a> Evaluator<'a> {
                 if !matches!(source, Source::Item(slot) if Some(slot) == self.slot) {
                     return false;
                 }
-            }
+            },
+            Condition::NoFlaskActive => {
+                if self.build.flask_enabled.iter().filter(|idx| self.build.get_equipped(Slot::Flask(**idx)).is_some()).count() > 0 {
+                    return false;
+                }
+            },
         }
         true
     }

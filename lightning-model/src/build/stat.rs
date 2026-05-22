@@ -141,6 +141,7 @@ pub enum StatId {
     ChanceToFreeze,
     PoisonDuration,
     AuraEffect,
+    CurseEffect,
     SmallPassiveIncreasedEffect,
     PhysicalToLightningConversion,
     PhysicalToColdConversion,

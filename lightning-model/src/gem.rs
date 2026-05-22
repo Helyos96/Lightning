@@ -132,7 +132,7 @@ impl Gem {
         self.invalidate_modcache();
     }
 
-    pub fn calc_mods(&self, as_aura_buff: bool, extra_level: u32, extra_qual: i32) -> Arc<Vec<Mod>> {
+    pub fn calc_mods(&self, as_aura_buff_curse: bool, extra_level: u32, extra_qual: i32) -> Arc<Vec<Mod>> {
         let level = self.level + extra_level;
         let qual = self.qual + extra_qual;
 
@@ -142,7 +142,7 @@ impl Gem {
             self.regen_modcache(level, qual);
         }
 
-        match as_aura_buff {
+        match as_aura_buff_curse {
             true => arc_swap::Guard::into_inner(self.mod_cache_auras.load()),
             false => arc_swap::Guard::into_inner(self.mod_cache.load()),
         }

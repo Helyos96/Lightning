@@ -444,7 +444,7 @@ impl GemData {
         None
     }
 
-    pub fn calc_mods(&'static self, as_aura_buff: bool, level: u32, qual: i32) -> Vec<Mod> {
+    pub fn calc_mods(&'static self, as_aura_buff_curse: bool, level: u32, qual: i32) -> Vec<Mod> {
         let mut mods = vec![];
         let source = Source::Gem(self.display_name());
 
@@ -453,7 +453,7 @@ impl GemData {
                 if let Some(id) = &gem_stat.id {
                     if let Some(modifiers) = gemstats::match_gemstat(&self.base_item.display_name, id) {
                         for mut modifier in modifiers {
-                            if as_aura_buff != modifier.flags.intersects(make_bitflags!(ModFlag::{Aura | Buff})) {
+                            if as_aura_buff_curse != modifier.flags.intersects(make_bitflags!(ModFlag::{Aura | Buff | Curse})) {
                                 continue;
                             }
                             let amount = self.stat_value(id, level).unwrap_or(0);
@@ -478,7 +478,7 @@ impl GemData {
             for (stat_name, val) in &quality_stat.stats {
                 if let Some(modifiers) = gemstats::match_gemstat(&self.base_item.display_name, stat_name) {
                     for mut modifier in modifiers {
-                        if as_aura_buff != modifier.flags.intersects(make_bitflags!(ModFlag::{Aura | Buff})) {
+                        if as_aura_buff_curse != modifier.flags.intersects(make_bitflags!(ModFlag::{Aura | Buff | Curse})) {
                             continue;
                         }
                         if let Some(stat) = modifier.as_stat_mut() {
@@ -495,7 +495,7 @@ impl GemData {
             }
         }
 
-        if !as_aura_buff {
+        if !as_aura_buff_curse {
             if let Some(speed_multiplier) = &self.r#static.attack_speed_multiplier {
                 mods.push(Mod::stat(StatId::AttackSpeed, Type::More, *speed_multiplier as i64).with_source(source));
             }

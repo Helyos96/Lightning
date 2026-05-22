@@ -180,6 +180,9 @@ lazy_static! {
         ("aura_effect", vec![
             Mod::stat(StatId::AuraEffect, Type::Base, 0),
         ]),
+        ("curse_effect", vec![
+            Mod::stat(StatId::CurseEffect, Type::Base, 0),
+        ]),
         ("damage_while_on_full_life", vec![
             Mod::stat(StatId::Damage, Type::Base, 0).with_conditions(stackvec![Condition::PropertyBool((true, property::Bool::OnFullLife))]),
         ]),
@@ -307,6 +310,15 @@ lazy_static! {
             ]),
             ("grace_aura_evasion_rating", vec![
                 Mod::stat(StatId::EvasionRating, Type::Base, 0).with_flags(ModFlag::Aura),
+            ]),
+        ].into_iter().collect()),
+        ("Assassin's Mark", [
+            // TODO: enemy actor mods
+            ("enemy_additional_critical_strike_chance_against_self", vec![
+                Mod::stat(StatId::CriticalStrikeChance, Type::Base, 0).with_flags(ModFlag::Curse),
+            ]),
+            ("enemy_additional_critical_strike_multiplier_against_self", vec![
+                Mod::stat(StatId::CriticalStrikeMultiplier, Type::Base, 0).with_flags(ModFlag::Curse),
             ]),
         ].into_iter().collect()),
        /* ("Vitality", [

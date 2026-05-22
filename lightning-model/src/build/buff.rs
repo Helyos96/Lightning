@@ -23,7 +23,7 @@ lazy_static! {
 			Mod::stat(StatId::MovementSpeed, Type::Inc, 20),
 		]);
 		ret.insert(DiamondShrine, vec![
-			Mod::stat(StatId::CriticalStrikeChance, Type::Override, 100),
+			Mod::stat(StatId::CriticalStrikeChance, Type::Override, 10000),
 		]);
 		ret.insert(MassiveShrine, vec![
 			Mod::stat(StatId::AreaOfEffect, Type::Inc, 40),
