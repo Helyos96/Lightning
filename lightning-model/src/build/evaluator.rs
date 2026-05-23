@@ -23,12 +23,13 @@ impl<'a> Evaluator<'a> {
         let mut other_mods = vec![];
 
         for m in mods.iter().filter(|m| {
-            tags.contains(m.tags) &&
             (m.flags.is_empty() || flags.intersects(m.flags)) &&
             (m.weapons.is_empty() || build.is_holding(&m.weapons))
         }).cloned() {
             if let Some(mstat) = m.as_stat() {
-                mods_by_stat.entry(mstat.stat).or_default().push(m);
+                if tags.contains(m.tags) {
+                    mods_by_stat.entry(mstat.stat).or_default().push(m);
+                }
             } else {
                 other_mods.push(m);
             }
