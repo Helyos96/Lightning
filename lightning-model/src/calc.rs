@@ -1,3 +1,4 @@
+use crate::build::evaluator::Evaluator;
 use crate::build::stat::{Stat, StatId, Stats};
 use crate::build::{self, property, Build, Slot};
 use crate::data::base_item::ItemClass;
@@ -85,7 +86,7 @@ fn conversion_targets(from_dt: DamageType) -> &'static [DamageType] {
 
 /// Apply the damage conversion chain, tracking which source types contributed
 /// to each portion.
-fn apply_conversion(stats: &Stats, base_damages: &[i64; 5]) -> [Vec<DamagePortion>; 5] {
+fn apply_conversion(eval: &mut Evaluator, base_damages: &[i64; 5]) -> [Vec<DamagePortion>; 5] {
     let mut portions: [Vec<DamagePortion>; 5] = Default::default();
 
     for i in 0..5 {
@@ -98,7 +99,7 @@ fn apply_conversion(stats: &Stats, base_damages: &[i64; 5]) -> [Vec<DamagePortio
         let targets = conversion_targets(from_dt);
         let from_idx = from_dt.as_index();
         let total_conv: i64 = targets.iter().filter_map(|&to_dt| {
-            conversion_stat_id(from_dt, to_dt).map(|sid| stats.val(sid))
+            conversion_stat_id(from_dt, to_dt).map(|sid| eval.eval_stat(sid).val())
         }).sum();
 
         if total_conv > 0 {
@@ -115,7 +116,7 @@ fn apply_conversion(stats: &Stats, base_damages: &[i64; 5]) -> [Vec<DamagePortio
                 for &to_dt in targets {
                     let to_idx = to_dt.as_index();
                     if let Some(stat_id) = conversion_stat_id(from_dt, to_dt) {
-                        let mut conv_pct = stats.val(stat_id);
+                        let mut conv_pct = eval.eval_stat(stat_id).val();
                         if total_conv > 100 {
                             conv_pct = (conv_pct * 100) / total_conv;
                         }
@@ -133,7 +134,7 @@ fn apply_conversion(stats: &Stats, base_damages: &[i64; 5]) -> [Vec<DamagePortio
         // "as Extra Damage"
         for &to_dt in targets {
             if let Some(stat_id) = extra_damage_stat_id(from_dt, to_dt) {
-                let extra_pct = stats.val(stat_id);
+                let extra_pct = eval.eval_stat(stat_id).val();
                 if extra_pct > 0 {
                     let to_idx = to_dt.as_index();
                     for portion in &portions[from_idx].clone() {
@@ -152,11 +153,11 @@ fn apply_conversion(stats: &Stats, base_damages: &[i64; 5]) -> [Vec<DamagePortio
 
 /// Apply inc/more modifiers to converted damage portions.
 /// Each portion gets modifiers from all damage types in its conversion path.
-fn apply_damage_mods_portions(portions: &[Vec<DamagePortion>; 5], stats: &Stats, weapon: Option<ItemClass>, is_spell: bool) -> [i64; 5] {
+fn apply_damage_mods_portions(portions: &[Vec<DamagePortion>; 5], eval: &mut Evaluator, weapon: Option<ItemClass>, is_spell: bool) -> [i64; 5] {
     let mut result = [0i64; 5];
-    let mut generic = stats.stat(StatId::Damage).with_weapon(weapon);
+    let mut generic = eval.eval_stat(StatId::Damage).with_weapon(weapon);
     if is_spell {
-        generic.assimilate(stats.stat(StatId::SpellDamage));
+        generic.assimilate(eval.eval_stat(StatId::SpellDamage));
     }
 
     for (dg_idx, dg_portions) in portions.iter().enumerate() {
@@ -166,7 +167,7 @@ fn apply_damage_mods_portions(portions: &[Vec<DamagePortion>; 5], stats: &Stats,
 
             for type_idx in 0..5 {
                 if portion.source_types.contains(DAMAGE_GROUPS[type_idx].damage_type) {
-                    let type_stat = stats.stat(DAMAGE_GROUPS[type_idx].stat_id).with_weapon(weapon);
+                    let type_stat = eval.eval_stat(DAMAGE_GROUPS[type_idx].stat_id).with_weapon(weapon);
                     inc += type_stat.inc;
                     more = (more * type_stat.more) / 100;
                 }
@@ -199,7 +200,7 @@ fn calc_dmg_crit_accuracy(damage: i64, crit_chance: i64, crit_multi: i64, chance
     damage_crit + damage_noncrit
 }
 
-fn calc_min_max_dmg(stats: &Stats, active_gem: &Gem, mut base_min: i64, mut base_max: i64, mut added_min: i64, mut added_max: i64, dg: &DamageGroup, extra_level: u32) -> (i64, i64) {
+fn calc_min_max_dmg(eval: &mut Evaluator, active_gem: &Gem, mut base_min: i64, mut base_max: i64, mut added_min: i64, mut added_max: i64, dg: &DamageGroup, extra_level: u32) -> (i64, i64) {
     if let Some(damage_multiplier) = active_gem.damage_multiplier(extra_level) {
         base_min = (base_min * (10000 + damage_multiplier)) / 10000;
         base_max = (base_max * (10000 + damage_multiplier)) / 10000;
@@ -211,29 +212,29 @@ fn calc_min_max_dmg(stats: &Stats, active_gem: &Gem, mut base_min: i64, mut base
     }
 
     // These stats are like "10% more maximum physical attack damage"
-    let mut stat_min_dt = stats.stat(dg.min_id).clone();
-    let mut stat_max_dt = stats.stat(dg.max_id).clone();
-    stat_min_dt.assimilate(stats.stat(StatId::MinDamage));
-    stat_max_dt.assimilate(stats.stat(StatId::MaxDamage));
+    let mut stat_min_dt = eval.eval_stat(dg.min_id).clone();
+    let mut stat_max_dt = eval.eval_stat(dg.max_id).clone();
+    stat_min_dt.assimilate(eval.eval_stat(StatId::MinDamage));
+    stat_max_dt.assimilate(eval.eval_stat(StatId::MaxDamage));
     stat_min_dt.adjust(Type::Base, base_min + added_min);
     stat_max_dt.adjust(Type::Base, base_max + added_max);
 
     (stat_min_dt.val(), stat_max_dt.val())
 }
 
-fn calc_average_dmg(stats: &Stats, active_gem: &Gem, base_min: i64, base_max: i64, added_min: i64, added_max: i64, dg: &DamageGroup, extra_level: u32) -> i64 {
-    let (min, max) = calc_min_max_dmg(stats, active_gem, base_min, base_max, added_min, added_max, dg, extra_level);
+fn calc_average_dmg(eval: &mut Evaluator, active_gem: &Gem, base_min: i64, base_max: i64, added_min: i64, added_max: i64, dg: &DamageGroup, extra_level: u32) -> i64 {
+    let (min, max) = calc_min_max_dmg(eval, active_gem, base_min, base_max, added_min, added_max, dg, extra_level);
     (min + max) / 2
 }
 
 
-fn calc_weapon_max_base_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &DamageGroup, extra_level: u32) -> Option<Stat> {
+fn calc_weapon_max_base_dmg(eval: &mut Evaluator, weapon: &Item, active_gem: &Gem, dg: &DamageGroup, extra_level: u32) -> Option<Stat> {
     if let Some((_, max_item)) = weapon.calc_dmg(dg.damage_type) {
         let item_class = Some(weapon.data().item_class);
-        let added_max_stat = stats.stat(dg.added_max_id).with_weapon(item_class);
-        let (_, max) = calc_min_max_dmg(stats, active_gem, 0, max_item, 0, added_max_stat.val(), dg, extra_level);
-        let dmg_stat_dt = stats.stat(dg.stat_id).with_weapon(item_class);
-        let mut dmg_stat = stats.stat(StatId::Damage).with_weapon(item_class);
+        let added_max_stat = eval.eval_stat(dg.added_max_id).with_weapon(item_class);
+        let (_, max) = calc_min_max_dmg(eval, active_gem, 0, max_item, 0, added_max_stat.val(), dg, extra_level);
+        let dmg_stat_dt = eval.eval_stat(dg.stat_id).with_weapon(item_class);
+        let mut dmg_stat = eval.eval_stat(StatId::Damage).with_weapon(item_class);
         dmg_stat.assimilate(&dmg_stat_dt);
         dmg_stat.adjust(Type::Base, max);
         return Some(dmg_stat);
@@ -241,10 +242,10 @@ fn calc_weapon_max_base_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: 
     None
 }
 
-fn calc_weapon_bleed_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &DamageGroup, extra_level: u32) -> i64 {
-    if let Some(mut max_dmg) = calc_weapon_max_base_dmg(stats, weapon, active_gem, dg, extra_level) {
-        let mut dot_multi = stats.stat(StatId::DotMultiplier).to_owned();
-        dot_multi.assimilate(stats.stat(StatId::PhysicalDotMultiplier));
+fn calc_weapon_bleed_dmg(eval: &mut Evaluator, weapon: &Item, active_gem: &Gem, dg: &DamageGroup, extra_level: u32) -> i64 {
+    if let Some(mut max_dmg) = calc_weapon_max_base_dmg(eval, weapon, active_gem, dg, extra_level) {
+        let mut dot_multi = eval.eval_stat(StatId::DotMultiplier).to_owned();
+        dot_multi.assimilate(eval.eval_stat(StatId::PhysicalDotMultiplier));
         max_dmg.adjust_mod(&Mod::stat(StatId::Damage, Type::More, -30).with_source(Source::Custom("Bleeds deal 70%")));
         max_dmg.adjust_mod(&Mod::stat(StatId::Damage, Type::More, dot_multi.val()).with_source(Source::Custom("Bleed Multi")));
         return max_dmg.val();
@@ -253,17 +254,17 @@ fn calc_weapon_bleed_dmg(stats: &Stats, weapon: &Item, active_gem: &Gem, dg: &Da
 }
 
 
-fn calc_crit_chance(stats: &Stats, crit_chance: Option<i64>) -> i64 {
-    let mut crit_chance_stat = stats.stat(StatId::CriticalStrikeChance).to_owned();
+fn calc_crit_chance(eval: &mut Evaluator, crit_chance: Option<i64>) -> i64 {
+    let mut crit_chance_stat = eval.eval_stat(StatId::CriticalStrikeChance).to_owned();
     if let Some(crit_chance) = crit_chance {
         crit_chance_stat.adjust(Type::Base, crit_chance);
     }
     crit_chance_stat.val().min(10000)
 }
 
-fn calc_chance_hit_weapon(stats: &Stats, monster_stats: &Stats, weapon: &Item) -> i64 {
-    let mut chance_to_hit_stat = stats.stat(StatId::ChanceToHit).to_owned();
-    let mut accuracy_stat = stats.stat(StatId::AccuracyRating).to_owned();
+fn calc_chance_hit_weapon(eval: &mut Evaluator, monster_stats: &Stats, weapon: &Item) -> i64 {
+    let mut chance_to_hit_stat = eval.eval_stat(StatId::ChanceToHit).to_owned();
+    let mut accuracy_stat = eval.eval_stat(StatId::AccuracyRating).to_owned();
     accuracy_stat.assimilate(&weapon.accuracy());
     let accuracy = accuracy_stat.val() as f32;
     let monster_evasion = monster_stats.val(StatId::EvasionRating) as f32;
@@ -304,28 +305,28 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
     let extra_level = mods.iter().filter(|m| tags.contains(m.tags)).flat_map(|m| m.as_gem_level()).sum();
     mods.extend_from_slice(&active_gem.calc_mods(false, extra_level, 0));
 
-    let stats = build.calc_stats(&mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}));
+    let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}), None);
 
     let monster_mods = Build::calc_mods_monster(build.property_int(property::Int::Level).min(83));
     let monster_stats = build::stat::calc_stats(&monster_mods);
 
-    let crit_multi = stats.val(StatId::CriticalStrikeMultiplier);
+    let crit_multi = eval.eval_stat(StatId::CriticalStrikeMultiplier).val();
 
     let mut damage_instances = vec![];
     let mut bleed_dps = 0;
 
     if tags.contains(GemTag::Attack) {
-        let bleed_chance = stats.val(StatId::ChanceToBleed);
+        let bleed_chance = eval.eval_stat(StatId::ChanceToBleed).val();
 
         for slot in [Slot::Weapon, Slot::Offhand] {
             if let Some(weapon) = build.get_equipped(slot) {
-                let stats = build.calc_stats_slot(&mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}), slot);
+                let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}), Some(slot));
                 let weapon_restrictions = &active_gem.data().active_skill.as_ref().unwrap().weapon_restrictions;
                 if !weapon_restrictions.is_empty() && !weapon_restrictions.contains(&weapon.data().item_class) {
                     continue;
                 }
-                let chance_to_hit = calc_chance_hit_weapon(&stats, &monster_stats, weapon);
-                let crit_chance = calc_crit_chance(&stats, weapon.crit_chance());
+                let chance_to_hit = calc_chance_hit_weapon(&mut eval, &monster_stats, weapon);
+                let crit_chance = calc_crit_chance(&mut eval, weapon.crit_chance());
 
                 if crit_chance > 0 {
                     if slot == Slot::Weapon {
@@ -342,13 +343,13 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
                 let mut base_damages = [0i64; 5];
                 for (i, dg) in DAMAGE_GROUPS.iter().enumerate() {
                     let (min_item, max_item) = weapon.calc_dmg(dg.damage_type).unwrap_or((0, 0));
-                    let added_min = stats.stat(dg.added_min_id).with_weapon(item_class).val();
-                    let added_max = stats.stat(dg.added_max_id).with_weapon(item_class).val();
-                    base_damages[i] = calc_average_dmg(&stats, active_gem, min_item, max_item, added_min, added_max, dg, extra_level);
+                    let added_min = eval.eval_stat(dg.added_min_id).with_weapon(item_class).val();
+                    let added_max = eval.eval_stat(dg.added_max_id).with_weapon(item_class).val();
+                    base_damages[i] = calc_average_dmg(&mut eval, active_gem, min_item, max_item, added_min, added_max, dg, extra_level);
                 }
 
-                let portions = apply_conversion(&stats, &base_damages);
-                let final_damages = apply_damage_mods_portions(&portions, &stats, item_class, false);
+                let portions = apply_conversion(&mut eval, &base_damages);
+                let final_damages = apply_damage_mods_portions(&portions, &mut eval, item_class, false);
 
                 let mut dmg_inst = DamageInstance {
                     source: DamageSource::Slot(slot),
@@ -371,7 +372,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
                     });
 
                     if let Some(pen_id) = dg.pen_id {
-                        avg_damage = (avg_damage * (100 + stats.stat(pen_id).val())) / 100;
+                        avg_damage = (avg_damage * (100 + eval.eval_stat(pen_id).val())) / 100;
                     }
 
                     damage.push(calc_dmg_crit_accuracy(avg_damage, crit_chance, crit_multi, chance_to_hit));
@@ -379,9 +380,9 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
                 damage_instances.push(dmg_inst);
 
                 if bleed_chance > 0 {
-                    let stats_bleed = build.calc_stats(&mods, tags, make_bitflags!(ModFlag::{Ailment | Bleed | Aura | Buff | Curse}));
+                    let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Ailment | Bleed | Aura | Buff | Curse}), Some(slot));
                     let physical_dg = &DAMAGE_GROUPS[0];
-                    let local_bleed_dps = calc_weapon_bleed_dmg(&stats_bleed, weapon, active_gem, physical_dg, extra_level);
+                    let local_bleed_dps = calc_weapon_bleed_dmg(&mut eval, weapon, active_gem, physical_dg, extra_level);
                     if local_bleed_dps > bleed_dps {
                         bleed_dps = local_bleed_dps;
                     }
@@ -389,22 +390,22 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
             }
         }
     } else if tags.contains(GemTag::Spell) {
-        let crit_chance = calc_crit_chance(&stats, active_gem.crit_chance());
+        let crit_chance = calc_crit_chance(&mut eval, active_gem.crit_chance());
         if crit_chance > 0 {
             ret.insert("Crit Chance", crit_chance);
         }
 
         let mut base_damages = [0i64; 5];
         for (i, dg) in DAMAGE_GROUPS.iter().enumerate() {
-            let added_min = stats.stat(dg.added_min_id).with_weapon(None).val();
-            let added_max = stats.stat(dg.added_max_id).with_weapon(None).val();
-            let base_min = stats.stat(dg.base_min_id).with_weapon(None).val();
-            let base_max = stats.stat(dg.base_max_id).with_weapon(None).val();
-            base_damages[i] = calc_average_dmg(&stats, active_gem, base_min, base_max, added_min, added_max, dg, extra_level);
+            let added_min = eval.eval_stat(dg.added_min_id).with_weapon(None).val();
+            let added_max = eval.eval_stat(dg.added_max_id).with_weapon(None).val();
+            let base_min = eval.eval_stat(dg.base_min_id).with_weapon(None).val();
+            let base_max = eval.eval_stat(dg.base_max_id).with_weapon(None).val();
+            base_damages[i] = calc_average_dmg(&mut eval, active_gem, base_min, base_max, added_min, added_max, dg, extra_level);
         }
 
-        let portions = apply_conversion(&stats, &base_damages);
-        let final_damages = apply_damage_mods_portions(&portions, &stats, None, true);
+        let portions = apply_conversion(&mut eval, &base_damages);
+        let final_damages = apply_damage_mods_portions(&portions, &mut eval, None, true);
 
         let mut dmg_inst = DamageInstance {
             source: DamageSource::Gem,
@@ -432,7 +433,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
     let time = {
         if tags.contains(GemTag::Spell) {
             if let Some(time) = active_gem.data().cast_time {
-                stats.stat(StatId::CastSpeed).val_custom_inv(time)
+                eval.eval_stat(StatId::CastSpeed).val_custom_inv(time)
             } else {
                 0
             }
@@ -452,8 +453,8 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
             }
             if div > 0 {
                 time /= div;
-                time += stats.stat(StatId::AddedAttackTime).val();
-                stats.stat(StatId::AttackSpeed).val_custom_inv(time)
+                time += eval.eval_stat(StatId::AddedAttackTime).val();
+                eval.eval_stat(StatId::AttackSpeed).val_custom_inv(time)
             } else {
                 0
             }
@@ -462,8 +463,8 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
         }
     };
 
-    let mut mana_cost_stat = stats.stat(StatId::ManaCost).to_owned();
-    mana_cost_stat.assimilate(stats.stat(StatId::Cost));
+    let mut mana_cost_stat = eval.eval_stat(StatId::ManaCost).to_owned();
+    mana_cost_stat.assimilate(eval.eval_stat(StatId::Cost));
     ret.insert("Mana Cost", mana_cost_stat.val());
 
     // TODO: currently we always add up both weapons even for skills where dual weapons alternate

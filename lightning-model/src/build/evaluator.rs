@@ -18,7 +18,7 @@ pub struct Evaluator<'a> {
 }
 
 impl<'a> Evaluator<'a> {
-    pub fn new(build: &'a Build, mods: &'a [Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>, slot: Option<Slot>) -> Self {
+    pub fn new(build: &'a Build, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>, slot: Option<Slot>) -> Self {
         let mut mods_by_stat: FxHashMap<StatId, Vec<Mod>> = FxHashMap::default();
         let mut other_mods = vec![];
 
@@ -35,7 +35,7 @@ impl<'a> Evaluator<'a> {
             }
         }
 
-        Self {
+        let mut ret = Self {
             build,
             slot,
             tags,
@@ -46,7 +46,9 @@ impl<'a> Evaluator<'a> {
             buffs: Default::default(),
             resolved_stats: FxHashMap::default(),
             evaluating: FxHashSet::default(),
-        }
+        };
+        ret.resolve();
+        ret
     }
 
     pub fn resolve_gem_buffs_auras(&mut self) {
@@ -152,17 +154,17 @@ impl<'a> Evaluator<'a> {
         self.resolve_buffs();
         self.resolve_gem_buffs_auras();
         self.resolve_armour();
-        self.resolve_stats();
+        //self.resolve_stats();
         self.resolve_flags_post();
     }
 
     fn resolve_flags_post(&mut self) {
-        for f in &self.build_flags {
+        for f in self.build_flags.clone() {
             match f {
                 BuildFlag::EleMaxResHighest => {
-                    let fire = self.resolved_stats.get(&StatId::MaximumFireResistance).unwrap().val();
-                    let cold = self.resolved_stats.get(&StatId::MaximumColdResistance).unwrap().val();
-                    let lightning = self.resolved_stats.get(&StatId::MaximumLightningResistance).unwrap().val();
+                    let fire = self.eval_stat(StatId::MaximumFireResistance).val();
+                    let cold = self.eval_stat(StatId::MaximumColdResistance).val();
+                    let lightning = self.eval_stat(StatId::MaximumLightningResistance).val();
                     let max = fire.max(cold).max(lightning);
                     self.resolved_stats.get_mut(&StatId::MaximumFireResistance).unwrap().adjust(Type::Override, max);
                     self.resolved_stats.get_mut(&StatId::MaximumColdResistance).unwrap().adjust(Type::Override, max);
@@ -173,7 +175,7 @@ impl<'a> Evaluator<'a> {
         }
     }
 
-    fn resolve_stats(&mut self) {
+    pub fn resolve_stats(&mut self) {
         let stat_ids: Vec<StatId> = self.mods_by_stat.keys().copied().collect();
 
         for stat_id in stat_ids {

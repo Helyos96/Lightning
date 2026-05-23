@@ -528,19 +528,19 @@ impl Build {
 
     pub fn calc_stats(&self, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>) -> Stats {
         let mut evaluator = Evaluator::new(self, mods, tags, flags, None);
-        evaluator.resolve();
+        evaluator.resolve_stats();
         Stats { stats: evaluator.resolved_stats }
     }
 
     pub fn calc_stats_slot(&self, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>, slot: Slot) -> Stats {
         let mut evaluator = Evaluator::new(self, mods, tags, flags, Some(slot));
-        evaluator.resolve();
+        evaluator.resolve_stats();
         Stats { stats: evaluator.resolved_stats }
     }
 
     pub fn calc_stat(&self, stat_id: StatId, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>) -> Stat {
         let mut evaluator = Evaluator::new(self, mods, tags, flags, None);
-        evaluator.resolve();
+        evaluator.resolve_stats();
         evaluator.eval_stat(stat_id).clone()
     }
 
