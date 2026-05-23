@@ -154,7 +154,6 @@ impl<'a> Evaluator<'a> {
         self.resolve_buffs();
         self.resolve_gem_buffs_auras();
         self.resolve_armour();
-        //self.resolve_stats();
         self.resolve_flags_post();
     }
 
