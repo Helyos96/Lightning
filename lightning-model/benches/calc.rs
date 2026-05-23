@@ -1,5 +1,5 @@
 use enumflags2::BitFlags;
-use lightning_model::{build::Build, calc, gem::Gem, modifier::CACHE};
+use lightning_model::{build::Build, calc, gem::Gem, modparser::CACHE};
 use rayon::ThreadPoolBuilder;
 use std::{fs, sync::atomic::Ordering};
 

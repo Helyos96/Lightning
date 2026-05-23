@@ -301,11 +301,10 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
         mods.extend_from_slice(&support_gem.calc_mods(false, 0, 0));
     }
 
-    let extra_level = mods.iter().flat_map(|m| m.as_gem_level()).sum();
+    let extra_level = mods.iter().filter(|m| tags.contains(m.tags)).flat_map(|m| m.as_gem_level()).sum();
     mods.extend_from_slice(&active_gem.calc_mods(false, extra_level, 0));
 
     let stats = build.calc_stats(&mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}));
-    let stats_bleed = build.calc_stats(&mods, tags, make_bitflags!(ModFlag::{Ailment | Bleed | Aura | Buff | Curse}));
 
     let monster_mods = Build::calc_mods_monster(build.property_int(property::Int::Level).min(83));
     let monster_stats = build::stat::calc_stats(&monster_mods);
@@ -380,6 +379,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
                 damage_instances.push(dmg_inst);
 
                 if bleed_chance > 0 {
+                    let stats_bleed = build.calc_stats(&mods, tags, make_bitflags!(ModFlag::{Ailment | Bleed | Aura | Buff | Curse}));
                     let physical_dg = &DAMAGE_GROUPS[0];
                     let local_bleed_dps = calc_weapon_bleed_dmg(&stats_bleed, weapon, active_gem, physical_dg, extra_level);
                     if local_bleed_dps > bleed_dps {

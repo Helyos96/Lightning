@@ -1,4 +1,5 @@
 use crate::gui::State;
+use lightning_model::build::Slot;
 use lightning_model::data::base_item::Rarity;
 use lightning_model::{build::stat::StatId, modifier::Mutation};
 use lightning_model::modifier::{Source, Type};
@@ -144,6 +145,8 @@ fn draw_stat_breakdown(ui: &mut egui::Ui, state: &State, stat_id: StatId, title:
                                     if let Some(item) = state.build.get_equipped(slot) {
                                         if item.rarity == Rarity::Unique {
                                             egui::RichText::new(format!("{}", item.name)).color(crate::gui::utils::rarity_to_color(item.rarity))
+                                        } else if let Slot::Flask(idx) = slot {
+                                            egui::RichText::new(format!("{}", item.data().name)).color(crate::gui::utils::rarity_to_color(item.rarity))
                                         } else {
                                             egui::RichText::new(format!("{slot}")).color(crate::gui::utils::rarity_to_color(item.rarity))
                                         }
