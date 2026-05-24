@@ -18,6 +18,7 @@ use crate::tree_gl::TreeGl;
 use glow::HasContext;
 use glutin::surface::SwapInterval;
 use gui::{MainState, State, UiState};
+use lightning_model::build::Build;
 use lightning_model::data::TREE;
 use lightning_model::{build, util};
 use rayon::ThreadPoolBuilder;
@@ -62,12 +63,18 @@ fn process_state(state: &mut State) -> Result<(), Box<dyn Error>> {
             state.reset();
             println!("Fetched build: {} {}", &state.import_account, &state.import_character);
             UiState::Main(MainState::Tree)
-        }
+        },
+        UiState::ImportBuildCode => {
+            state.build = Build::decode(&state.import_code)?;
+            state.reset();
+            state.import_code.clear();
+            UiState::Main(MainState::Tree)
+        },
         UiState::NewBuild => {
             state.build = build::Build::new_player();
             state.reset();
             UiState::Main(MainState::Tree)
-        }
+        },
         _ => state.ui_state.clone(),
     };
     Ok(())

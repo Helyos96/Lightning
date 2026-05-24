@@ -50,6 +50,15 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                 }
             }
 
+            ui.separator();
+            ui.label("From code");
+            let r = ui.add(egui::TextEdit::singleline(&mut state.import_code).hint_text("Code"));
+            if ui.button("Import").clicked() ||
+               (r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)))
+            {
+                state.ui_state = UiState::ImportBuildCode;
+            }
+
             ui.allocate_space(ui.available_size());
         });
 }

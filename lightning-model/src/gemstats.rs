@@ -75,6 +75,11 @@ lazy_static! {
             Mod::stat(StatId::ColdDamage, Type::Base, 0).with_tags(GemTag::Attack),
             Mod::stat(StatId::LightningDamage, Type::Base, 0).with_tags(GemTag::Attack),
         ]),
+        ("elemental_damage", vec![
+            Mod::stat(StatId::FireDamage, Type::Base, 0),
+            Mod::stat(StatId::ColdDamage, Type::Base, 0),
+            Mod::stat(StatId::LightningDamage, Type::Base, 0),
+        ]),
         ("reduce_enemy_lightning_resistance", vec![
             Mod::stat(StatId::LightningDamagePen, Type::Base, 0),
         ]),
@@ -85,7 +90,10 @@ lazy_static! {
             Mod::stat(StatId::Damage, Type::Base, 0).with_flags(flags!(ModFlag::{Bleed | Poison})),
         ]),
         ("poison_damage", vec![
-            Mod::stat(StatId::Damage, Type::Base, 0).with_flags(flags!(ModFlag::{Poison})),
+            Mod::stat(StatId::Damage, Type::Base, 0).with_flags(ModFlag::Poison),
+        ]),
+        ("spell_damage", vec![
+            Mod::stat(StatId::SpellDamage, Type::Base, 0),
         ]),
         ("melee_physical_damage", vec![
             Mod::stat(StatId::PhysicalDamage, Type::Base, 0).with_tags(GemTag::Melee).with_flags(ModFlag::Hit),
@@ -290,7 +298,7 @@ lazy_static! {
         ].into_iter().collect()),*/
         ("Zealotry", [
             ("spell_damage_aura_spell_damage", vec![
-                Mod::stat(StatId::Damage, Type::Base, 0).with_tags(GemTag::Spell).with_flags(ModFlag::Aura),
+                Mod::stat(StatId::SpellDamage, Type::Base, 0).with_flags(ModFlag::Aura),
             ]),
             ("spell_critical_strike_chance", vec![
                 Mod::stat(StatId::CriticalStrikeChance, Type::Base, 0).with_tags(GemTag::Spell).with_flags(ModFlag::Aura),

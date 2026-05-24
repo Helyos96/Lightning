@@ -26,6 +26,8 @@ derivative = "2.2"
 mimalloc = "0.1"
 dashmap = "6.1"
 include-bytes-zstd = "0.1"
+zstd = "0.13"
+base64 = "0.22"
 
 [features]
 default = ["import"]

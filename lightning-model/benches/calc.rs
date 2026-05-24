@@ -81,6 +81,19 @@ fn calc_power_report_maxhp(bencher: divan::Bencher) {
 }
 
 #[divan::bench]
+fn calc_power_report_dps(bencher: divan::Bencher) {
+    let player = fetch().expect("Failed to get a build");
+    let active_gem = player.gem_links[1].active_gems().nth(0).unwrap();
+    let support_gems: Vec<&Gem> = player.gem_links[1].support_gems().map(|gem| gem).collect();
+
+    lightning_model::calc::calc_gem(&player, &support_gems, active_gem);
+
+    bencher.bench_local(|| {
+        let _ = calc::PowerReport::new_gem(&player, "DPS", &support_gems, active_gem);
+    });
+}
+
+#[divan::bench]
 fn calc_gem(bencher: divan::Bencher) {
     let player = fetch().expect("Failed to get a build");
     let active_gem = player.gem_links[1].active_gems().nth(0).unwrap();

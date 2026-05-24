@@ -157,94 +157,109 @@ fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<u
 pub fn draw(ctx: &egui::Context, state: &mut State) {
     let mut newly_hovered_idx = None;
 
-    egui::CentralPanel::default()
-        .show(ctx, |ui| {
-           ui.columns(3, |uis| {
-                egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(&mut uis[0] /*ui*/, |ui| {
-                    egui::Grid::new("slots_grid")
-                        .num_columns(2)
-                        .spacing([10.0, 4.0])
-                        .show(ui, |ui| {
-                            for slot in SLOTS {
-                                if let Some(hov) = draw_item_combo(ui, state, slot) {
-                                    newly_hovered_idx = Some(hov);
+    egui::CentralPanel::default().show(ctx, |ui| {
+        egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+           egui_flex::Flex::horizontal()
+                .wrap(true)
+                .align_items(egui_flex::FlexAlign::Start)
+                .show(ui, |flex| {
+                flex.add_ui(egui_flex::item(), |ui| {
+                    egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(ui, |ui| {
+                        egui::Grid::new("slots_grid")
+                            .num_columns(2)
+                            .spacing([10.0, 4.0])
+                            .show(ui, |ui| {
+                                for slot in SLOTS {
+                                    if let Some(hov) = draw_item_combo(ui, state, slot) {
+                                        newly_hovered_idx = Some(hov);
+                                    }
                                 }
-                            }
-                            let jewel_slots = state.build.tree.jewel_slots();
-                            for jewel_node in jewel_slots {
-                                if let Some(hov) = draw_item_combo(ui, state, Slot::TreeJewel(jewel_node)) {
-                                    newly_hovered_idx = Some(hov);
+                                let jewel_slots = state.build.tree.jewel_slots();
+                                for jewel_node in jewel_slots {
+                                    if let Some(hov) = draw_item_combo(ui, state, Slot::TreeJewel(jewel_node)) {
+                                        newly_hovered_idx = Some(hov);
+                                    }
                                 }
-                            }
-                            for i in 0..state.abyssal_sockets {
-                                if let Some(hov) = draw_item_combo(ui, state, Slot::AbyssalJewel(i)) {
-                                    newly_hovered_idx = Some(hov);
+                                for i in 0..state.abyssal_sockets {
+                                    if let Some(hov) = draw_item_combo(ui, state, Slot::AbyssalJewel(i)) {
+                                        newly_hovered_idx = Some(hov);
+                                    }
                                 }
+                            });
+                    });
+                });
+                flex.add_ui(egui_flex::item(), |ui| {
+                    egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(ui, |ui| {
+                        egui::ScrollArea::vertical().show(ui, |ui| {
+                            ui.vertical(|ui| {
+                                for (i, item) in state.build.inventory.iter().enumerate() {
+                                    let response = ui.selectable_label(state.panel_items.editing_item_idx == Some(i), item_to_richtext(item));
+                                    if response.hovered() {
+                                        newly_hovered_idx = Some(i);
+                                        draw_item_window(ui, item, [state.mouse_pos.0 + 15.0, state.mouse_pos.1 + 15.0], state.config.show_debug, Some(&state.panel_items.hovered_item_deltas));
+                                    }
+                                    if response.clicked() {
+                                        state.panel_items.editing_item_idx = Some(i);
+                                        state.panel_items.custom_text = item.to_str();
+                                        state.panel_items.editing_item = Some((**item).clone());
+                                    }
+                                }
+                            });
+                        });
+                    });
+                });
+                flex.add_ui(egui_flex::item(), |ui| {
+                    ui.set_max_width(450.0);
+                    egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(ui, |ui| {
+                        ui.vertical(|ui| {
+                            ui.horizontal(|ui| {
+                                if ui.button("Clear").clicked() {
+                                    state.panel_items.editing_item_idx = None;
+                                    state.panel_items.editing_item = None;
+                                    state.panel_items.can_save = false;
+                                    state.panel_items.custom_text.clear();
+                                }
+                                if ui.add_enabled(state.panel_items.can_save, egui::Button::new("Save")).clicked() {
+                                    state.build.swap_item_inventory(state.panel_items.editing_item_idx.unwrap(), Arc::new(state.panel_items.editing_item.as_ref().unwrap().to_owned()));
+                                    state.panel_items.can_save = false;
+                                    state.request_recalc = true;
+                                    state.request_regen_gl = true;
+                                }
+                                if ui.add_enabled(state.panel_items.editing_item_idx.is_some(), egui::Button::new("Delete")).clicked() {
+                                    state.build.remove_inventory(state.panel_items.editing_item_idx.unwrap());
+                                    state.panel_items.can_save = false;
+                                    state.panel_items.custom_text.clear();
+                                    state.panel_items.editing_item_idx = None;
+                                    state.panel_items.editing_item = None;
+                                    state.request_recalc = true;
+                                }
+                                if ui.add_enabled(state.panel_items.editing_item.is_some() && state.panel_items.editing_item_idx.is_none(), egui::Button::new("Add to Build")).clicked() {
+                                    state.build.inventory.push(Arc::new(state.panel_items.editing_item.as_ref().unwrap().to_owned()));
+                                    state.panel_items.editing_item_idx = Some(state.build.inventory.len() - 1);
+                                }
+                            });
+                            egui::ScrollArea::vertical().id_salt("custom_item").max_height(400.0).show(ui, |ui| {
+                                let response = egui::TextEdit::multiline(&mut state.panel_items.custom_text).desired_width(400.0).show(ui).response;
+                                if response.changed() {
+                                    state.panel_items.editing_item = Item::from_str(&state.panel_items.custom_text);
+                                    if state.panel_items.editing_item.is_some() && state.panel_items.editing_item_idx.is_some() {
+                                        state.panel_items.can_save = true;
+                                    } else {
+                                        state.panel_items.can_save = false;
+                                    }
+                                }
+                            });
+                            if let Some(item) = state.panel_items.editing_item.as_ref() {
+                                ui.separator();
+                                draw_item(ui, item, Source::Innate, state.config.show_debug);
+                                draw_item_deltas(ui, &state.panel_items.editing_item_deltas);
                             }
                         });
-                });
-                egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(&mut uis[1] /*ui*/, |ui| {
-                    egui::ScrollArea::vertical().show(ui, |ui| {
-                        for (i, item) in state.build.inventory.iter().enumerate() {
-                            let response = ui.selectable_label(state.panel_items.editing_item_idx == Some(i), item_to_richtext(item));
-                            if response.hovered() {
-                                newly_hovered_idx = Some(i);
-                                draw_item_window(ui, item, [state.mouse_pos.0 + 15.0, state.mouse_pos.1 + 15.0], state.config.show_debug, Some(&state.panel_items.hovered_item_deltas));
-                            }
-                            if response.clicked() {
-                                state.panel_items.editing_item_idx = Some(i);
-                                state.panel_items.custom_text = item.to_str();
-                                state.panel_items.editing_item = Some((**item).clone());
-                            }
-                        }
                     });
-                });
-                egui::Frame::default().inner_margin(4.0).fill(egui::Color32::BLACK).show(&mut uis[2] /*ui*/, |ui| {
-                    ui.horizontal(|ui| {
-                        if ui.button("Clear").clicked() {
-                            state.panel_items.editing_item_idx = None;
-                            state.panel_items.editing_item = None;
-                            state.panel_items.can_save = false;
-                            state.panel_items.custom_text.clear();
-                        }
-                        if ui.add_enabled(state.panel_items.can_save, egui::Button::new("Save")).clicked() {
-                            state.build.swap_item_inventory(state.panel_items.editing_item_idx.unwrap(), Arc::new(state.panel_items.editing_item.as_ref().unwrap().to_owned()));
-                            state.panel_items.can_save = false;
-                            state.request_recalc = true;
-                            state.request_regen_gl = true;
-                        }
-                        if ui.add_enabled(state.panel_items.editing_item_idx.is_some(), egui::Button::new("Delete")).clicked() {
-                            state.build.remove_inventory(state.panel_items.editing_item_idx.unwrap());
-                            state.panel_items.can_save = false;
-                            state.panel_items.custom_text.clear();
-                            state.panel_items.editing_item_idx = None;
-                            state.panel_items.editing_item = None;
-                            state.request_recalc = true;
-                        }
-                        if ui.add_enabled(state.panel_items.editing_item.is_some() && state.panel_items.editing_item_idx.is_none(), egui::Button::new("Add to Build")).clicked() {
-                            state.build.inventory.push(Arc::new(state.panel_items.editing_item.as_ref().unwrap().to_owned()));
-                            state.panel_items.editing_item_idx = Some(state.build.inventory.len() - 1);
-                        }
-                    });
-                    egui::ScrollArea::vertical().id_salt("custom_item").max_height(400.0).show(ui, |ui| {
-                        let response = egui::TextEdit::multiline(&mut state.panel_items.custom_text).desired_width(f32::INFINITY).show(ui).response;
-                        if response.changed() {
-                            state.panel_items.editing_item = Item::from_str(&state.panel_items.custom_text);
-                            if state.panel_items.editing_item.is_some() && state.panel_items.editing_item_idx.is_some() {
-                                state.panel_items.can_save = true;
-                            } else {
-                                state.panel_items.can_save = false;
-                            }
-                        }
-                    });
-                    if let Some(item) = state.panel_items.editing_item.as_ref() {
-                        ui.separator();
-                        draw_item(ui, item, Source::Innate, state.config.show_debug);
-                        draw_item_deltas(ui, &state.panel_items.editing_item_deltas);
-                    }
                 });
             });
         });
+    });
 
     if state.panel_items.hovered_item_idx != newly_hovered_idx {
         state.panel_items.hovered_item_idx = newly_hovered_idx;

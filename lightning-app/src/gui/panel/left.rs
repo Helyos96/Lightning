@@ -108,6 +108,11 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                         if ui.button("Settings").clicked() {
                             state.show_settings = !state.show_settings;
                         }
+                        if ui.button("Copy Export Code").clicked() {
+                            if let Ok(code) = state.build.code() {
+                                ui.ctx().copy_text(code);
+                            }
+                        }
                     });
                     ui.add_space(4.0);
                 });

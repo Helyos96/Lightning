@@ -38,6 +38,7 @@ pub enum UiState {
     ChooseBuild,
     LoadBuild(PathBuf),
     ImportBuild,
+    ImportBuildCode,
     NewBuild,
     Main(MainState),
 }
@@ -51,6 +52,7 @@ pub struct State {
     pub config: Config,
     pub import_account: String,
     pub import_character: String,
+    pub import_code: String,
     pub request_recalc: bool,
     pub last_instant: Instant,
     pub show_settings: bool,
@@ -112,6 +114,7 @@ impl State {
 
             import_account: String::new(),
             import_character: String::new(),
+            import_code: String::new(),
             request_recalc: false,
             last_instant: Instant::now(),
             show_settings: false,

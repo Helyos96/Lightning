@@ -3,6 +3,7 @@ pub mod stat;
 pub mod evaluator;
 pub mod buff;
 
+use std::error::Error;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::{fs, io};
@@ -18,6 +19,7 @@ use crate::modifier::{Condition, Mod, ModFlag, Mutation, Source, Type};
 use crate::modparser::parse_mod;
 use crate::stackvec;
 use crate::tree::PassiveTree;
+use base64::prelude::*;
 use enumflags2::BitFlags;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -549,6 +551,20 @@ impl Build {
         file_path.set_extension("json");
         serde_json::to_writer(&fs::File::create(file_path)?, &self)?;
         Ok(())
+    }
+
+    /// Base64(zstd compress(json serialize))
+    pub fn code(&self) -> Result<String, Box<dyn Error>> {
+        let json_bytes = serde_json::to_vec(self)?;
+        let compressed_bytes = zstd::stream::encode_all(json_bytes.as_slice(), 9)?;
+        Ok(BASE64_STANDARD.encode(&compressed_bytes))
+    }
+
+    pub fn decode(encoded: &str) -> Result<Self, Box<dyn Error>> {
+        let compressed_bytes = BASE64_STANDARD.decode(encoded)?;
+        let json_bytes = zstd::stream::decode_all(compressed_bytes.as_slice())?;
+        let build = serde_json::from_slice(&json_bytes)?;
+        Ok(build)
     }
 }
 
