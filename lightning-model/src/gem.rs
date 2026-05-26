@@ -16,26 +16,61 @@ use enumflags2::make_bitflags;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
+/// Shadow struct for serde so that we can keep having `data` as a &'static in Gem
+#[derive(Deserialize)]
+struct RawGem {
+    id: String,
+    enabled: bool,
+    level: u32,
+    qual: i32,
+    alt_qual: i32,
+}
+
+/// Gem used in Build
 #[derive(Debug, Derivative, Serialize, Deserialize)]
 #[derivative(Clone)]
+#[serde(from = "RawGem")]
 pub struct Gem {
     pub id: String,
+    data: &'static GemData,
     pub enabled: bool,
     pub level: u32,
     pub qual: i32,
     pub alt_qual: i32,
+
     #[serde(skip)]
     #[derivative(Clone(clone_with = "clone_arc_swap"))]
     mod_cache: ArcSwap<Vec<Mod>>,
+
     #[serde(skip)]
     #[derivative(Clone(clone_with = "clone_arc_swap"))]
     mod_cache_auras: ArcSwap<Vec<Mod>>,
+
     #[serde(skip)]
     #[derivative(Clone(clone_with = "clone_atomic_u32"))]
     mod_cache_level: AtomicU32,
+
     #[serde(skip)]
     #[derivative(Clone(clone_with = "clone_atomic_i32"))]
     mod_cache_qual: AtomicI32,
+}
+
+impl From<RawGem> for Gem {
+    fn from(raw: RawGem) -> Self {
+        Gem {
+            data: &GEMS[&raw.id],
+            id: raw.id,
+            enabled: raw.enabled,
+            level: raw.level,
+            qual: raw.qual,
+            alt_qual: raw.alt_qual,
+
+            mod_cache: ArcSwap::from_pointee(Vec::new()),
+            mod_cache_auras: ArcSwap::from_pointee(Vec::new()),
+            mod_cache_level: AtomicU32::new(0),
+            mod_cache_qual: AtomicI32::new(0),
+        }
+    }
 }
 
 fn clone_arc_swap<T>(cache: &ArcSwap<T>) -> ArcSwap<T> {
@@ -59,6 +94,7 @@ fn extract_bracket_content(input: &str) -> Option<&str> {
 impl Gem {
     pub fn new(id: String, enabled: bool, level: u32, qual: i32, alt_qual: i32) -> Gem {
         Gem {
+            data: &GEMS[&id],
             id,
             enabled,
             level,
@@ -72,7 +108,7 @@ impl Gem {
     }
 
     pub fn data(&self) -> &'static GemData {
-        &GEMS[&self.id]
+        self.data
     }
 
     pub fn can_support(&self, active_gem: &Gem) -> bool {

@@ -55,11 +55,7 @@ impl<'a> Evaluator<'a> {
         // Find best unique active auras
         let mut best_gems: FxHashMap<&str, (&Gem, &GemLink)> = FxHashMap::default();
         for link in &self.build.gem_links {
-            for active_gem in link.active_gems().filter(|gem| {
-                let types = &gem.data().active_skill.as_ref().unwrap().types;
-                gem.enabled && (types.contains(&ActiveSkillType::Aura) || types.contains(&ActiveSkillType::Buff) || types.contains(&ActiveSkillType::AppliesCurse))
-            })
-            {
+            for active_gem in link.active_gems().filter(|gem| gem.enabled) {
                 if let Some((existing_gem, _)) = best_gems.get(active_gem.id.as_str()) {
                     if existing_gem.level >= active_gem.level {
                         continue;
@@ -116,6 +112,11 @@ impl<'a> Evaluator<'a> {
                    let Some(mstat) = m.as_stat_mut()
                 {
                     mstat.mutations.push(Mutation::StatMultExtra(StatId::CurseEffect, extra_curse_effect));
+                }
+                if m.flags.contains(ModFlag::Buff) &&
+                   let Some(mstat) = m.as_stat_mut()
+                {
+                    mstat.mutations.push(Mutation::StatMultExtra(StatId::BuffEffect, 0));
                 }
             }
             ret.extend(mods);
@@ -370,6 +371,11 @@ impl<'a> Evaluator<'a> {
                     return false;
                 }
             },
+            Condition::AffectedByGemTag(tag) => {
+                if !self.build.gem_links.iter().flat_map(|link| link.active_gems()).filter(|gem| gem.enabled).find(|gem| gem.data().tags.contains(*tag)).is_some() {
+                    return false;
+                }
+            }
         }
         true
     }
@@ -440,6 +446,16 @@ impl<'a> Evaluator<'a> {
                     let mut stat = self.eval_stat(*stat_id).clone();
                     stat.adjust(Type::Inc, *extra);
                     amount = stat.val_custom(amount);
+                },
+                Mutation::ForEachActiveSkill(types) => {
+                    let count = self.build.gem_links.iter().flat_map(|link| link.active_gems()).filter(|gem| {
+                        if let Some(active_skill) = &gem.data().active_skill {
+                            types.iter().any(|t| active_skill.types.contains(t))
+                        } else {
+                            false
+                        }
+                    }).count() as i64;
+                    amount = amount * count;
                 },
             }
         }

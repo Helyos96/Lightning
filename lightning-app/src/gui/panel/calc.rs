@@ -145,7 +145,7 @@ fn draw_stat_breakdown(ui: &mut egui::Ui, state: &State, stat_id: StatId, title:
                                     if let Some(item) = state.build.get_equipped(slot) {
                                         if item.rarity == Rarity::Unique {
                                             egui::RichText::new(format!("{}", item.name)).color(crate::gui::utils::rarity_to_color(item.rarity))
-                                        } else if let Slot::Flask(idx) = slot {
+                                        } else if let Slot::Flask(_) = slot {
                                             egui::RichText::new(format!("{}", item.data().name)).color(crate::gui::utils::rarity_to_color(item.rarity))
                                         } else {
                                             egui::RichText::new(format!("{slot}")).color(crate::gui::utils::rarity_to_color(item.rarity))

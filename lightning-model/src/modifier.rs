@@ -1,5 +1,5 @@
 use enumflags2::{bitflags, BitFlags};
-use crate::{build::{Defence, Slot, buff::Buff, property, stat::StatId}, data::{base_item::ItemClass, gem::GemTag, tree::NodeType}, item::JewelRadius, stackvec::StackVec};
+use crate::{build::{Defence, Slot, buff::Buff, property, stat::StatId}, data::{base_item::ItemClass, gem::{ActiveSkillType, GemTag}, tree::NodeType}, item::JewelRadius, stackvec::StackVec};
 use crate::tree::NodeMutation;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
@@ -25,6 +25,7 @@ pub enum Mutation {
     StatIncPct(i64, StatId),
     MultiplierOvercap(i64, StatId, StatId),
     StatMultExtra(StatId, i64),
+    ForEachActiveSkill(&'static [ActiveSkillType]),
 }
 
 impl Mutation {
@@ -41,6 +42,7 @@ impl Mutation {
             Mutation::StatIncPct(pct, _) => *pct = amount,
             Mutation::MultiplierOvercap(amnt, _, _) => *amnt = amount,
             Mutation::StatMultExtra(_, extra) => *extra = amount,
+            _ => {},
         }
     }
 }
@@ -60,6 +62,7 @@ pub enum Condition {
     GreaterEqualMasteryAllocated((&'static str, u32)),
     WithThisWeapon,
     NoFlaskActive,
+    AffectedByGemTag(GemTag),
 }
 
 #[derive(Default, Debug, Clone, Copy)]

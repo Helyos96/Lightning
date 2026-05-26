@@ -111,7 +111,7 @@ pub struct Requirements {
     pub intelligence: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BaseItem {
     pub name: String,
     pub tags: FxHashSet<String>,

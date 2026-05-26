@@ -17,9 +17,8 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-#[derive(Derivative, Debug, Default, Serialize, Deserialize)]
-#[derivative(Clone)]
-pub struct Item {
+#[derive(Deserialize, Default)]
+pub struct RawItem {
     pub base_item: String,
     pub name: String,
     pub rarity: Rarity,
@@ -37,22 +36,70 @@ pub struct Item {
     pub radius: Option<JewelRadius>,
     #[serde(default)]
     pub inc_effect: i64,
+}
+
+#[derive(Debug, Derivative, Serialize, Deserialize)]
+#[derivative(Clone)]
+#[serde(from = "RawItem")]
+pub struct Item {
+    pub data: &'static BaseItem,
+    pub base_item: String,
+    pub name: String,
+    pub rarity: Rarity,
+    pub mods_impl: Vec<String>,
+    pub mods_expl: Vec<String>,
+    pub mods_enchant: Vec<String>,
+    pub quality: i64,
+    pub corrupted: bool,
+    pub item_level: i64,
+    pub base_percentile: i64,
+    pub radius: Option<JewelRadius>,
+    pub inc_effect: i64,
 
     #[serde(skip)]
     #[derivative(Clone(clone_with = "clone_arc_swap"))]
     pub defence_cache: ArcSwap<DefenceCalc>,
+
     #[serde(skip)]
     #[derivative(Clone(clone_with = "clone_arc_swap"))]
     pub local_modcache: ArcSwap<Vec<Mod>>,
+
     #[serde(skip)]
     #[derivative(Clone(clone_with = "clone_arc_swap"))]
     pub non_local_modcache: ArcSwap<Vec<Mod>>,
+
     #[serde(skip)]
     #[derivative(Clone(clone_with = "clone_atomic_bool"))]
     pub is_defence_cache_fresh: AtomicBool,
+
     #[serde(skip)]
     #[derivative(Clone(clone_with = "clone_atomic_bool"))]
     pub is_modcache_fresh: AtomicBool,
+}
+
+impl From<RawItem> for Item {
+    fn from(raw: RawItem) -> Self {
+        Item {
+            data: &ITEMS[&raw.base_item],
+            base_item: raw.base_item,
+            name: raw.name,
+            rarity: raw.rarity,
+            mods_impl: raw.mods_impl,
+            mods_expl: raw.mods_expl,
+            mods_enchant: raw.mods_enchant,
+            quality: raw.quality,
+            corrupted: raw.corrupted,
+            item_level: raw.item_level,
+            base_percentile: raw.base_percentile,
+            radius: raw.radius,
+            inc_effect: raw.inc_effect,
+            defence_cache: ArcSwap::from_pointee(Default::default()),
+            local_modcache: ArcSwap::from_pointee(Vec::new()),
+            non_local_modcache: ArcSwap::from_pointee(Vec::new()),
+            is_defence_cache_fresh: AtomicBool::new(false),
+            is_modcache_fresh: AtomicBool::new(false),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -196,7 +243,7 @@ pub struct ClusterData<'a> {
 
 impl Item {
     pub fn data(&self) -> &'static BaseItem {
-        &ITEMS[&self.base_item]
+        self.data
     }
 
     fn get_small_passive_grant(&self) -> Option<u32> {
@@ -512,7 +559,7 @@ impl Item {
 
     // Parse an item from CTRL+C text
     pub fn from_str(text: &str) -> Option<Item> {
-        let mut item = Item::default();
+        let mut raw_item = RawItem::default();
         let mut found_name = false;
         let mut found_class = false;
         let mut armour = None;
@@ -524,28 +571,28 @@ impl Item {
             let line = line.strip_suffix(" (augmented)").unwrap_or(line);
             let line = line.strip_suffix(" (fractured)").unwrap_or(line);
             if let Some(rarity) = line.strip_prefix("Rarity: ") {
-                item.rarity = Rarity::from_str(rarity).unwrap_or_default();
+                raw_item.rarity = Rarity::from_str(rarity).unwrap_or_default();
                 continue;
             }
             if !found_class {
                 let potentiel_base_item = line.strip_prefix("Synthesised ").unwrap_or(line);
                 if ITEMS.contains_key(potentiel_base_item) {
-                    item.base_item = potentiel_base_item.to_owned();
+                    raw_item.base_item = potentiel_base_item.to_owned();
                     found_class = true;
                     continue;
                 }
             }
             if line == "Corrupted" {
-                item.corrupted = true;
+                raw_item.corrupted = true;
                 continue;
             }
             if let Some(item_level_str) = line.strip_prefix("Item Level: ") {
-                item.item_level = i64::from_str(item_level_str).unwrap_or_default();
+                raw_item.item_level = i64::from_str(item_level_str).unwrap_or_default();
                 continue;
             }
             if let Some(quality_str) = line.strip_prefix("Quality: +") {
                 if let Some(quality_str) = quality_str.strip_suffix("%") {
-                    item.quality = i64::from_str(quality_str).unwrap_or_default();
+                    raw_item.quality = i64::from_str(quality_str).unwrap_or_default();
                 }
                 continue;
             }
@@ -562,7 +609,7 @@ impl Item {
                 continue;
             }
             if let Some(r) = line.strip_prefix("Radius: ") {
-                item.radius = JewelRadius::from_str(r);
+                raw_item.radius = JewelRadius::from_str(r);
                 continue;
             }
             if line == "Requirements:" || line.starts_with("Level:") || line.starts_with("Str:") ||
@@ -574,30 +621,30 @@ impl Item {
                 continue;
             }
             if let Some(enchant) = line.strip_suffix(" (enchant)") {
-                item.mods_enchant.push(enchant.to_owned());
+                raw_item.mods_enchant.push(enchant.to_owned());
                 continue;
             }
             if let Some(implicit) = line.strip_suffix(" (implicit)") {
-                item.mods_impl.push(implicit.to_owned());
+                raw_item.mods_impl.push(implicit.to_owned());
                 continue;
             }
             if !found_class && !found_name {
-                item.name = line.to_owned();
+                raw_item.name = line.to_owned();
                 found_name = true;
                 continue;
             }
             let line = line.strip_suffix(" (crafted)").unwrap_or(line);
-            item.mods_expl.push(line.to_owned());
+            raw_item.mods_expl.push(line.to_owned());
         }
 
-        if armour.is_some() || evasion.is_some() || energy_shield.is_some() {
-            item.reverse_base_percentile(armour.unwrap_or(0), evasion.unwrap_or(0), energy_shield.unwrap_or(0));
+        if found_class {
+            let mut item = Item::from(raw_item);
+            if armour.is_some() || evasion.is_some() || energy_shield.is_some() {
+                item.reverse_base_percentile(armour.unwrap_or(0), evasion.unwrap_or(0), energy_shield.unwrap_or(0));
+            }
+            return Some(item);
         }
-
-        match found_class {
-            true => Some(item),
-            false => None,
-        }
+        None
     }
 
     pub fn to_str(&self) -> String {

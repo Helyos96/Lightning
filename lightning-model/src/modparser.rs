@@ -2,7 +2,7 @@ use crate::build::buff::Buff;
 use crate::build::stat::StatId;
 use crate::build::{Defence, Slot, property};
 use crate::data::base_item::ItemClass;
-use crate::data::gem::GemTag;
+use crate::data::gem::{ActiveSkillType, GemTag};
 use crate::data::tree::NodeType;
 use crate::gem::Gem;
 use crate::data::TREE;
@@ -46,6 +46,7 @@ lazy_static! {
         map.insert("curse", GemTag::Curse);
         map.insert("aura", GemTag::Aura);
         map.insert("link", GemTag::Link);
+        map.insert("physical", GemTag::Physical);
         map
     };
 }
@@ -79,6 +80,7 @@ const BEGINNINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, &[Condition])]
     ("melee weapon damage", flags!(GemTag::Melee), BitFlags::EMPTY, &[]),
     ("damage with weapons", BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("curse skills have", flags!(GemTag::Curse), BitFlags::EMPTY, &[]),
+    ("herald skills deal", flags!(GemTag::Herald), BitFlags::EMPTY, &[]),
 ];
 
 const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>, &[Condition])] = &[
@@ -152,6 +154,7 @@ const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>
     ]),
     ("during effect", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("while affected by no flasks", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::NoFlaskActive]),
+    ("while affected by a herald", BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::AffectedByGemTag(GemTag::Herald)]),
 ];
 
 // Order is important for overlapping stats
@@ -273,6 +276,8 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("effect", StatId::Effect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("duration", StatId::Duration, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("evasion", StatId::EvasionRating, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
+    // TODO: If we add GemTag::Herald, then the mod will be discarded by evaluator when evaluating a non-herald gem
+    ("effect of herald buffs on you", StatId::BuffEffect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
 ];
 
 lazy_static! {
@@ -542,11 +547,16 @@ lazy_static! {
                 ])
             })
         ), (
-            regex!(r"^\+([0-9]+) to level of all ([a-z]+) skill gems$"),
+            regex!(r"^\+([0-9]+) to level of all ([a-z ]+ )?skill gems$"),
             Box::new(|c| {
-                let tag = TAGS.get(&c[2])?;
+                let mut tag = BitFlags::EMPTY;
+                if let Some(tags_str) = c.get(2) {
+                    for tag_str in tags_str.as_str().trim_end().split(' ') {
+                        tag |= *TAGS.get(tag_str)?;
+                    }
+                }
                 Some(vec![
-                    Mod::gem_level(u32::from_str(&c[1]).unwrap()).with_tags(*tag),
+                    Mod::gem_level(u32::from_str(&c[1]).unwrap()).with_tags(tag),
                 ])
             })
         ), (
@@ -601,6 +611,8 @@ lazy_static! {
         (regex!("per ([0-9]+)% chance to block on equipped shield$"), Mutation::MultiplierSlotDefence((5, Slot::Offhand, Defence::Block))),
         (regex!("per ([0-9]+) player maximum life$"), Mutation::MultiplierStat((1, StatId::MaximumLife))),
         (regex!("equal to your overcapped fire resistance$"), Mutation::MultiplierOvercap(1, StatId::FireResistance, StatId::MaximumFireResistance)),
+        (regex!("for each of your aura or herald skills affecting you$"), Mutation::ForEachActiveSkill(&[ActiveSkillType::Aura, ActiveSkillType::Herald])),
+        (regex!("for each herald affecting you$"), Mutation::ForEachActiveSkill(&[ActiveSkillType::Herald])),
     ];
 
     static ref ENDING_PER_GENERIC: Regex = regex!("per ([0-9]+)?%? ([a-z ]+)$");

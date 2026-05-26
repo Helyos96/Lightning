@@ -218,7 +218,7 @@ fn conv_item(item: &Item) -> Option<item::Item> {
         .flat_map(|mod_str| process_mod_string(mod_str))
         .collect();
 
-    let mut item_ret = item::Item {
+    let raw_item = item::RawItem {
         base_item: item.baseType.clone(),
         name: item.name.clone(),
         rarity: item.rarity,
@@ -232,6 +232,7 @@ fn conv_item(item: &Item) -> Option<item::Item> {
         ..Default::default()
     };
 
+    let mut item_ret = item::Item::from(raw_item);
     if let Some(radius) = item.prop_str("Radius") {
         item_ret.radius = JewelRadius::from_str(radius);
     }

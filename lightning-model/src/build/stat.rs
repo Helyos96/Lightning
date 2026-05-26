@@ -168,6 +168,7 @@ pub enum StatId {
     ColdAsChaosExtra,
     FireAsChaosExtra,
     DamageTaken,
+    BuffEffect,
 }
 
 impl StatId {

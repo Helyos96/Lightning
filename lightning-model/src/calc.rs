@@ -98,6 +98,22 @@ fn apply_conversion(eval: &mut Evaluator, base_damages: &[i64; 5]) -> [Vec<Damag
     for &from_dt in &CONVERSION_ORDER {
         let targets = conversion_targets(from_dt);
         let from_idx = from_dt.as_index();
+
+        for &to_dt in targets {
+            if let Some(stat_id) = extra_damage_stat_id(from_dt, to_dt) {
+                let extra_pct = eval.eval_stat(stat_id).val();
+                if extra_pct > 0 {
+                    let to_idx = to_dt.as_index();
+                    for portion in &portions[from_idx].clone() {
+                        portions[to_idx].push(DamagePortion {
+                            amount: (portion.amount * extra_pct) / 100,
+                            source_types: portion.source_types | DAMAGE_GROUPS[to_idx].damage_type,
+                        });
+                    }
+                }
+            }
+        }
+
         let total_conv: i64 = targets.iter().filter_map(|&to_dt| {
             conversion_stat_id(from_dt, to_dt).map(|sid| eval.eval_stat(sid).val())
         }).sum();
@@ -126,22 +142,6 @@ fn apply_conversion(eval: &mut Evaluator, base_damages: &[i64; 5]) -> [Vec<Damag
                                 source_types: portion.source_types | DAMAGE_GROUPS[to_idx].damage_type,
                             });
                         }
-                    }
-                }
-            }
-        }
-
-        // "as Extra Damage"
-        for &to_dt in targets {
-            if let Some(stat_id) = extra_damage_stat_id(from_dt, to_dt) {
-                let extra_pct = eval.eval_stat(stat_id).val();
-                if extra_pct > 0 {
-                    let to_idx = to_dt.as_index();
-                    for portion in &portions[from_idx].clone() {
-                        portions[to_idx].push(DamagePortion {
-                            amount: (portion.amount * extra_pct) / 100,
-                            source_types: portion.source_types | DAMAGE_GROUPS[to_idx].damage_type,
-                        });
                     }
                 }
             }

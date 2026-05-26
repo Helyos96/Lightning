@@ -1,7 +1,7 @@
 use crate::build::property;
 use crate::build::stat::StatId;
 use crate::data::gem::GemTag;
-use crate::modifier::{Condition, Mod, ModFlag, Type};
+use crate::modifier::{Condition, Mod, ModFlag, Mutation, Type};
 use crate::stackvec;
 use rustc_hash::FxHashMap;
 use enumflags2::{make_bitflags as flags, BitFlags};
@@ -11,6 +11,12 @@ use std::collections::HashMap;
 lazy_static! {
 // Order is important, end-of-string match is performed in-order
     static ref GEMSTATS_GENERIC: Vec<(&'static str, Vec<Mod>)> = vec![
+        ("spell_minimum_base_physical_damage", vec![
+            Mod::stat(StatId::BaseMinPhysicalDamage, Type::Base, 0).with_tags(GemTag::Spell),
+        ]),
+        ("spell_maximum_base_physical_damage", vec![
+            Mod::stat(StatId::BaseMaxPhysicalDamage, Type::Base, 0).with_tags(GemTag::Spell),
+        ]),
         ("spell_minimum_base_fire_damage", vec![
             Mod::stat(StatId::BaseMinFireDamage, Type::Base, 0).with_tags(GemTag::Spell),
         ]),
@@ -94,6 +100,9 @@ lazy_static! {
         ]),
         ("spell_damage", vec![
             Mod::stat(StatId::SpellDamage, Type::Base, 0),
+        ]),
+        ("power_charge_on_crit_damage", vec![
+            Mod::stat(StatId::Damage, Type::Base, 0).with_mutations(stackvec![Mutation::MultiplierProperty((1, property::Int::PowerCharges))]),
         ]),
         ("melee_physical_damage", vec![
             Mod::stat(StatId::PhysicalDamage, Type::Base, 0).with_tags(GemTag::Melee).with_flags(ModFlag::Hit),
@@ -335,6 +344,47 @@ lazy_static! {
                 Mod::stat(StatId::LifeRegeneration, Type::Base, 0).with_flags(ModFlag::Aura),
             ]),
         ].into_iter().collect()),*/
+        ("Herald of Ice", [
+            ("spell_minimum_added_cold_damage", vec![
+                Mod::stat(StatId::AddedMinColdDamage, Type::Base, 0).with_tags(GemTag::Spell).with_flags(ModFlag::Buff),
+            ]),
+            ("spell_maximum_added_cold_damage", vec![
+                Mod::stat(StatId::AddedMaxColdDamage, Type::Base, 0).with_tags(GemTag::Spell).with_flags(ModFlag::Buff),
+            ]),
+            ("attack_minimum_added_cold_damage", vec![
+                Mod::stat(StatId::AddedMinColdDamage, Type::Base, 0).with_tags(GemTag::Attack).with_flags(ModFlag::Buff),
+            ]),
+            ("attack_maximum_added_cold_damage", vec![
+                Mod::stat(StatId::AddedMaxColdDamage, Type::Base, 0).with_tags(GemTag::Attack).with_flags(ModFlag::Buff),
+            ]),
+        ].into_iter().collect()),
+        ("Herald of Ash", [
+            ("physical_damage_%_to_add_as_fire", vec![
+                Mod::stat(StatId::PhysicalAsFireExtra, Type::Base, 0).with_flags(ModFlag::Buff),
+            ]),
+        ].into_iter().collect()),
+        ("Summon Lightning Golem", [
+            ("lightning_golem_grants_attack_and_cast_speed", vec![
+                Mod::stat(StatId::AttackSpeed, Type::Base, 0).with_flags(ModFlag::Buff),
+                Mod::stat(StatId::CastSpeed, Type::Base, 0).with_flags(ModFlag::Buff),
+            ]),
+        ].into_iter().collect()),
+        ("Summon Flame Golem", [
+            ("fire_golem_grants_damage", vec![
+                Mod::stat(StatId::Damage, Type::Base, 0).with_flags(ModFlag::Buff),
+            ]),
+            ("fire_golem_grants_area_of_effect", vec![
+                Mod::stat(StatId::AreaOfEffect, Type::Base, 0).with_flags(ModFlag::Buff),
+            ]),
+        ].into_iter().collect()),
+        ("Summon Ice Golem", [
+            ("ice_golem_grants_critical_strike_chance", vec![
+                Mod::stat(StatId::CriticalStrikeChance, Type::Base, 0).with_flags(ModFlag::Buff),
+            ]),
+            ("ice_golem_grants_accuracy_rating", vec![
+                Mod::stat(StatId::AccuracyRating, Type::Base, 0).with_flags(ModFlag::Buff),
+            ]),
+        ].into_iter().collect()),
     ].into_iter().collect();
 }
 
@@ -346,6 +396,8 @@ pub fn match_gemstat(gem_basename: &str, mut stat: &str) -> Option<Vec<Mod>> {
     if let Some(substat) = stat.strip_suffix("_granted_from_skill") {
         stat = substat;
     } else if let Some(substat) = stat.strip_suffix("_from_volatility_support") {
+        stat = substat;
+    } else if let Some(substat) = stat.strip_suffix("_per_power_charge") {
         stat = substat;
     } else if let Some(substat) = stat.strip_suffix("_from_melee_hits") {
         gem_tags.insert(GemTag::Melee);
