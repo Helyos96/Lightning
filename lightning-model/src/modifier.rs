@@ -26,6 +26,7 @@ pub enum Mutation {
     MultiplierOvercap(i64, StatId, StatId),
     StatMultExtra(StatId, i64),
     ForEachActiveSkill(&'static [ActiveSkillType]),
+    CustomMult(i64),
 }
 
 impl Mutation {
@@ -42,6 +43,7 @@ impl Mutation {
             Mutation::StatIncPct(pct, _) => *pct = amount,
             Mutation::MultiplierOvercap(amnt, _, _) => *amnt = amount,
             Mutation::StatMultExtra(_, extra) => *extra = amount,
+            Mutation::CustomMult(mult) => *mult = amount,
             _ => {},
         }
     }

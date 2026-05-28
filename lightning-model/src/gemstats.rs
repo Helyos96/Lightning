@@ -206,6 +206,9 @@ lazy_static! {
         ("active_skill_gem_level", vec![
             Mod::gem_level(0).with_tags(GemTag::Active_Skill),
         ]),
+        ("golem_buff_effect", vec![
+            Mod::stat(StatId::BuffEffect, Type::Base, 0).with_tags(GemTag::Golem),
+        ]),
     ];
 
     // HashMap<gemname<HashMap<statname>>>>

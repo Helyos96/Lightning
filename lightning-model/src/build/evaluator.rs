@@ -3,172 +3,81 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{build::{Build, Defence, GemLink, Slot, buff::{BUFF_MODS, Buff}, property, stat::{self, Stat, StatId}}, data::gem::{ActiveSkillType, GemTag}, gem::Gem, modifier::{BuildFlag, Condition, Mod, ModEffect, ModFlag, ModStat, Mutation, Source, Type}};
 
-/// Evaluate Stats from a collection of Mods
-pub struct Evaluator<'a> {
+#[derive(Default)]
+pub struct StatCache {
+    pub resolved_stats: FxHashMap<StatId, Stat>,
+    evaluating: FxHashSet<StatId>,
+}
+
+pub struct EvaluatorCtx<'a> {
     build: &'a Build,
     slot: Option<Slot>,
     tags: BitFlags<GemTag>,
     flags: BitFlags<ModFlag>,
     build_flags: FxHashSet<BuildFlag>,
-    pub mods_by_stat: FxHashMap<StatId, Vec<Mod>>,
-    other_mods: Vec<Mod>,
+    mods: &'a [Mod],
+    pub extra_mods: Vec<Mod>,
     buffs: FxHashSet<Buff>,
-    pub resolved_stats: FxHashMap<StatId, Stat>,
-    evaluating: FxHashSet<StatId>,
+}
+
+/// Evaluate Stats from a collection of Mods
+pub struct Evaluator<'a> {
+    pub ctx: EvaluatorCtx<'a>,
+    pub cache: StatCache,
 }
 
 impl<'a> Evaluator<'a> {
-    pub fn new(build: &'a Build, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>, slot: Option<Slot>) -> Self {
-        let mut mods_by_stat: FxHashMap<StatId, Vec<Mod>> = FxHashMap::default();
-        let mut other_mods = vec![];
-
-        for m in mods.iter().filter(|m| {
-            (m.flags.is_empty() || flags.intersects(m.flags)) &&
-            (m.weapons.is_empty() || build.is_holding(&m.weapons))
-        }).cloned() {
-            if let Some(mstat) = m.as_stat() {
-                if tags.contains(m.tags) {
-                    mods_by_stat.entry(mstat.stat).or_default().push(m);
-                }
-            } else {
-                other_mods.push(m);
-            }
-        }
-
-        let mut ret = Self {
-            build,
-            slot,
-            tags,
-            flags,
-            build_flags: FxHashSet::from(other_mods.iter().filter_map(|m| m.as_build_flag()).copied().collect()),
-            mods_by_stat,
-            other_mods,
-            buffs: Default::default(),
-            resolved_stats: FxHashMap::default(),
-            evaluating: FxHashSet::default(),
+    pub fn new(build: &'a Build, mods: &'a [Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>, slot: Option<Slot>) -> Self {
+        let ret = Self {
+            ctx: EvaluatorCtx {
+                build,
+                slot,
+                tags,
+                flags,
+                build_flags: FxHashSet::from(mods.iter().filter_map(|m| m.as_build_flag()).copied().collect()),
+                mods,
+                extra_mods: Default::default(),
+                buffs: Default::default(),
+            },
+            cache: Default::default(),
         };
-        ret.resolve();
         ret
     }
 
-    pub fn resolve_gem_buffs_auras(&mut self) {
-        // Find best unique active auras
-        let mut best_gems: FxHashMap<&str, (&Gem, &GemLink)> = FxHashMap::default();
-        for link in &self.build.gem_links {
-            for active_gem in link.active_gems().filter(|gem| gem.enabled) {
-                if let Some((existing_gem, _)) = best_gems.get(active_gem.id.as_str()) {
-                    if existing_gem.level >= active_gem.level {
-                        continue;
-                    }
-                }
-                best_gems.insert(active_gem.id.as_str(), (active_gem, link));
-            }
-        }
-
-        let mut ret = vec![];
-        for (gem, link) in best_gems.values() {
-            // extra gem level from support gems
-            let mut extra_level = self.gem_level_extra(gem.data().tags);
-            // extra aura effect from support gems
-            let mut extra_aura_effect = 0;
-            // extra curse effect from support gems
-            let mut extra_curse_effect = 0;
-            let mut best_supports: FxHashMap<&str, &Gem> = FxHashMap::default();
-
-            // Find best unique support gems in link
-            for support_gem in link.support_gems() {
-                if support_gem.can_support(gem) {
-                    if let Some(existing_gem) = best_supports.get(support_gem.id.as_str()) {
-                        if existing_gem.level >= support_gem.level {
-                            continue;
-                        }
-                    }
-                    best_supports.insert(support_gem.id.as_str(), support_gem);
-                }
-            }
-
-            for support in best_supports.values().filter(|gem| gem.enabled) {
-                for m in support.calc_mods(false, self.gem_level_extra(support.data().tags), 0).iter() {
-                    if let Some(level) = m.as_gem_level() {
-                        extra_level += level;
-                    } else if let Some(mstat) = m.as_stat() {
-                        match mstat.stat {
-                            StatId::AuraEffect => extra_aura_effect += mstat.amount,
-                            StatId::CurseEffect => extra_curse_effect += mstat.amount,
-                            _ => { },
-                        }
-                    }
-                }
-            }
-
-            let mut mods = (*gem.calc_mods(true, extra_level, 0)).clone();
-            for m in mods.iter_mut() {
-                if m.flags.contains(ModFlag::Aura) &&
-                   let Some(mstat) = m.as_stat_mut()
-                {
-                    mstat.mutations.push(Mutation::StatMultExtra(StatId::AuraEffect, extra_aura_effect));
-                }
-                if m.flags.contains(ModFlag::Curse) &&
-                   let Some(mstat) = m.as_stat_mut()
-                {
-                    mstat.mutations.push(Mutation::StatMultExtra(StatId::CurseEffect, extra_curse_effect));
-                }
-                if m.flags.contains(ModFlag::Buff) &&
-                   let Some(mstat) = m.as_stat_mut()
-                {
-                    mstat.mutations.push(Mutation::StatMultExtra(StatId::BuffEffect, 0));
-                }
-            }
-            ret.extend(mods);
-        }
-        for m in ret.into_iter().filter(|m| {
-            self.tags.contains(m.tags) &&
-            (m.flags.is_empty() || self.flags.intersects(m.flags)) &&
-            (m.weapons.is_empty() || self.build.is_holding(&m.weapons))
-        }) {
-            if let Some(mstat) = m.as_stat() {
-                self.mods_by_stat.entry(mstat.stat).or_default().push(m.to_owned());
-            } else {
-                self.other_mods.push(m);
-            }
-        }
-    }
-
     fn resolve_buffs(&mut self) {
-        let buff_mods: Vec<Mod> = self.other_mods.iter().filter(|m| m.as_buff().is_some()).cloned().collect();
+        let buff_mods: Vec<&Mod> = self.ctx.mods.iter().chain(&self.ctx.extra_mods).filter(|m| m.as_buff().is_some()).collect();
+        let mut new_mods = vec![];
         for m in buff_mods {
-            let passes_conditions_bor = m.conditions.is_empty() || m.conditions.iter().any(|c| self.check_condition(c, m.source));
+            let passes_conditions_bor = m.conditions.is_empty() || m.conditions.iter().any(|c| self.ctx.check_condition(&mut self.cache, c, m.source));
             if !passes_conditions_bor {
                 continue;
             }
             if let Some(mods) = BUFF_MODS.get(&m.as_buff().unwrap()) {
                 for m in mods {
-                    if let Some(mstat) = m.as_stat() {
-                        self.mods_by_stat.entry(mstat.stat).or_default().push(m.to_owned());
-                    }
+                    new_mods.push(m.to_owned());
                 }
             }
         }
+        self.ctx.extra_mods.append(&mut new_mods);
     }
 
     pub fn resolve(&mut self) {
         self.resolve_buffs();
-        self.resolve_gem_buffs_auras();
         self.resolve_armour();
         self.resolve_flags_post();
     }
 
     fn resolve_flags_post(&mut self) {
-        for f in self.build_flags.clone() {
+        for f in &self.ctx.build_flags {
             match f {
                 BuildFlag::EleMaxResHighest => {
-                    let fire = self.eval_stat(StatId::MaximumFireResistance).val();
-                    let cold = self.eval_stat(StatId::MaximumColdResistance).val();
-                    let lightning = self.eval_stat(StatId::MaximumLightningResistance).val();
+                    let fire = self.ctx.eval_stat(&mut self.cache, StatId::MaximumFireResistance).val();
+                    let cold = self.ctx.eval_stat(&mut self.cache, StatId::MaximumColdResistance).val();
+                    let lightning = self.ctx.eval_stat(&mut self.cache, StatId::MaximumLightningResistance).val();
                     let max = fire.max(cold).max(lightning);
-                    self.resolved_stats.get_mut(&StatId::MaximumFireResistance).unwrap().adjust(Type::Override, max);
-                    self.resolved_stats.get_mut(&StatId::MaximumColdResistance).unwrap().adjust(Type::Override, max);
-                    self.resolved_stats.get_mut(&StatId::MaximumLightningResistance).unwrap().adjust(Type::Override, max);
+                    self.cache.resolved_stats.get_mut(&StatId::MaximumFireResistance).unwrap().adjust(Type::Override, max);
+                    self.cache.resolved_stats.get_mut(&StatId::MaximumColdResistance).unwrap().adjust(Type::Override, max);
+                    self.cache.resolved_stats.get_mut(&StatId::MaximumLightningResistance).unwrap().adjust(Type::Override, max);
                 }
                 _ => {}
             }
@@ -176,83 +85,99 @@ impl<'a> Evaluator<'a> {
     }
 
     pub fn resolve_stats(&mut self) {
-        let stat_ids: Vec<StatId> = self.mods_by_stat.keys().copied().collect();
+        let stat_ids: FxHashSet<StatId> = self.ctx.mods.iter().chain(&self.ctx.extra_mods).filter_map(|m| m.as_stat()).map(|mstat| mstat.stat).collect();
 
         for stat_id in stat_ids {
-            self.eval_stat(stat_id);
+            self.ctx.eval_stat(&mut self.cache, stat_id);
         }
     }
 
     fn resolve_armour(&mut self) {
-        for (slot, idx) in &self.build.equipment {
-            let item = &self.build.inventory[*idx];
+        for (slot, idx) in &self.ctx.build.equipment {
+            let item = &self.ctx.build.inventory[*idx];
             let defence = item.calc_defence();
 
             if defence.armour.val() != 0 {
-                let val = self.eval_stat(StatId::Armour).val_custom(defence.armour.val());
-                self.resolved_stats.entry(StatId::Armour).or_default().adjust_mod_move(Mod::stat(StatId::Armour, Type::Flat, val).with_source(Source::Item(*slot)));
+                let val = self.ctx.eval_stat(&mut self.cache, StatId::Armour).val_custom(defence.armour.val());
+                self.cache.resolved_stats.entry(StatId::Armour).or_default().adjust_mod_move(Mod::stat(StatId::Armour, Type::Flat, val).with_source(Source::Item(*slot)));
             }
             if defence.energy_shield.val() != 0 {
-                if self.build_flags.contains(&BuildFlag::ItemsGrantLifeInsteadES) {
-                    self.mods_by_stat.entry(StatId::MaximumLife).or_default().push(Mod::stat(StatId::MaximumLife, Type::Base, defence.energy_shield.val()).with_source(Source::Item(*slot)));
+                if self.ctx.build_flags.contains(&BuildFlag::ItemsGrantLifeInsteadES) {
+                    self.ctx.extra_mods.push(Mod::stat(StatId::MaximumLife, Type::Base, defence.energy_shield.val()).with_source(Source::Item(*slot)));
                 } else {
-                    let val = self.eval_stat(StatId::MaximumEnergyShield).val_custom(defence.energy_shield.val());
-                    self.resolved_stats.entry(StatId::MaximumEnergyShield).or_default().adjust_mod_move(Mod::stat(StatId::Armour, Type::Flat, val).with_source(Source::Item(*slot)));
+                    let val = self.ctx.eval_stat(&mut self.cache, StatId::MaximumEnergyShield).val_custom(defence.energy_shield.val());
+                    self.cache.resolved_stats.entry(StatId::MaximumEnergyShield).or_default().adjust_mod_move(Mod::stat(StatId::Armour, Type::Flat, val).with_source(Source::Item(*slot)));
                 }
             }
             if defence.evasion.val() != 0 {
-                let val = self.eval_stat(StatId::EvasionRating).val_custom(defence.evasion.val());
-                self.resolved_stats.entry(StatId::EvasionRating).or_default().adjust_mod_move(Mod::stat(StatId::Armour, Type::Flat, val).with_source(Source::Item(*slot)));
+                let val = self.ctx.eval_stat(&mut self.cache, StatId::EvasionRating).val_custom(defence.evasion.val());
+                self.cache.resolved_stats.entry(StatId::EvasionRating).or_default().adjust_mod_move(Mod::stat(StatId::Armour, Type::Flat, val).with_source(Source::Item(*slot)));
             }
             if defence.block_chance.val() != 0 {
-                let val = self.eval_stat(StatId::ChanceToBlockAttackDamage).val_custom(defence.block_chance.val());
-                self.resolved_stats.entry(StatId::ChanceToBlockAttackDamage).or_default().adjust_mod_move(Mod::stat(StatId::Armour, Type::Flat, val).with_source(Source::Item(*slot)));
+                let val = self.ctx.eval_stat(&mut self.cache, StatId::ChanceToBlockAttackDamage).val_custom(defence.block_chance.val());
+                self.cache.resolved_stats.entry(StatId::ChanceToBlockAttackDamage).or_default().adjust_mod_move(Mod::stat(StatId::Armour, Type::Flat, val).with_source(Source::Item(*slot)));
             }
         }
     }
 
     pub fn gem_level_extra(&self, tags: BitFlags<GemTag>) -> u32 {
-        self.other_mods.iter().filter(|m| tags.contains(m.tags)).flat_map(|m| m.as_gem_level()).sum()
-    }
-
-    pub fn gem_quality_extra(&self) -> i32 {
-        self.other_mods.iter().flat_map(|m| m.as_gem_quality()).sum()
-    }
-
-    pub fn get_stat_val(&mut self, stat_id: StatId) -> i64 {
-        self.eval_stat(stat_id).val()
-    }
-
-    pub fn get_stat_mult(&mut self, stat_id: StatId) -> i64 {
-        self.eval_stat(stat_id).mult()
+        self.ctx.mods.iter().filter(|m| tags.contains(m.tags)).flat_map(|m| m.as_gem_level()).sum()
     }
 
     pub fn eval_stat(&mut self, stat_id: StatId) -> &Stat {
-        if !self.resolved_stats.contains_key(&stat_id) {
-            if !self.evaluating.insert(stat_id) {
+        self.ctx.eval_stat(&mut self.cache, stat_id)
+    }
+
+    /*pub fn gem_quality_extra(&self) -> i32 {
+        self.mods.iter().filter(|m| tags.contains(m.tags)).flat_map(|m| m.as_gem_quality()).sum()
+    }*/
+}
+
+impl<'a> EvaluatorCtx<'a> {
+    pub fn get_stat_val(&self, cache: &mut StatCache, stat_id: StatId) -> i64 {
+        self.eval_stat(cache, stat_id).val()
+    }
+
+    pub fn get_stat_mult(&self, cache: &mut StatCache, stat_id: StatId) -> i64 {
+        self.eval_stat(cache, stat_id).mult()
+    }
+
+    pub fn eval_stat<'b>(&self, cache: &'b mut StatCache, stat_id: StatId) -> &'b Stat {
+        if !cache.resolved_stats.contains_key(&stat_id) {
+            if !cache.evaluating.insert(stat_id) {
                 eprintln!("Warning: Circular dependency detected for stat: {:?}", stat_id);
-                self.resolved_stats.insert(stat_id, Stat::default());
-                return self.resolved_stats.get(&stat_id).unwrap();
+                cache.resolved_stats.insert(stat_id, Stat::default());
+                return cache.resolved_stats.get(&stat_id).unwrap();
             }
 
             let mut current_stat = Stat::default();
-            let mods_to_process = self.mods_by_stat.remove(&stat_id).unwrap_or_default();
 
-            for m in mods_to_process {
+            for m in self.mods.iter().chain(&self.extra_mods).filter(|m| {
+                if let Some(mstat) = m.as_stat() && mstat.stat == stat_id &&
+                   (m.flags.is_empty() || self.flags.intersects(m.flags)) &&
+                   (m.weapons.is_empty() || self.build.is_holding(&m.weapons)) &&
+                   self.tags.contains(m.tags)
+                {
+                    true
+                } else {
+                    false
+                }
+            })
+            {
                 let mut m = m.to_owned();
-                let passes_conditions_bor = m.conditions.is_empty() || m.conditions.iter().any(|c| self.check_condition(c, m.source));
+                let passes_conditions_bor = m.conditions.is_empty() || m.conditions.iter().any(|c| self.check_condition(cache, c, m.source));
                 if !passes_conditions_bor {
                     continue;
                 }
 
                 let source = m.source;
                 if let Some(stat) = m.as_stat_mut() && !stat.mutations.is_empty() {
-                    self.apply_mutations(stat, source);
+                    self.apply_mutations(cache, stat, source);
                 }
 
                 if let Source::Item(Slot::Flask(idx)) = m.source && let Some(stat) = m.as_stat_mut() {
                     let effect_local = self.build.get_equipped(Slot::Flask(idx)).unwrap().effect();
-                    let mut flask_effect = self.eval_stat(StatId::FlaskEffect).clone();
+                    let mut flask_effect = self.eval_stat(cache, StatId::FlaskEffect).clone();
                     flask_effect.assimilate(&effect_local);
                     let new_amount = (stat.final_amount() * flask_effect.mult()) / 10000;
                     stat.revised_amount = Some(new_amount);
@@ -261,21 +186,21 @@ impl<'a> Evaluator<'a> {
                 current_stat.adjust_mod_move(m);
             }
 
-            self.evaluating.remove(&stat_id);
-            self.resolved_stats.insert(stat_id, current_stat);
+            cache.evaluating.remove(&stat_id);
+            cache.resolved_stats.insert(stat_id, current_stat);
         }
 
-        self.resolved_stats.get(&stat_id).unwrap()
+        cache.resolved_stats.get(&stat_id).unwrap()
     }
 
-    fn property_int_stats(&mut self, p: property::Int) -> i64 {
+    fn property_int_stats(&self, cache: &mut StatCache, p: property::Int) -> i64 {
         let mut min = match property::int_data(p).min {
             property::Val::Val(i) => i,
-            property::Val::Stat(s) => self.get_stat_val(s),
+            property::Val::Stat(s) => self.get_stat_val(cache, s),
         };
         let max = match property::int_data(p).max {
             property::Val::Val(i) => i,
-            property::Val::Stat(s) => self.get_stat_val(s),
+            property::Val::Stat(s) => self.get_stat_val(cache, s),
         };
 
         if self.build.is_property_int_maxed(p) {
@@ -285,19 +210,105 @@ impl<'a> Evaluator<'a> {
         self.build.property_int(p).clamp(min, max)
     }
 
-    fn check_condition(&mut self, c: &Condition, source: Source) -> bool {
+    fn apply_mutations(&self, cache: &mut StatCache, m: &mut ModStat, source: Source) {
+        let mut amount = m.amount;
+        let mut up_to = i64::MAX;
+        for f in &m.mutations {
+            match f {
+                Mutation::MultiplierProperty(mutation) => {
+                    amount = (amount * self.property_int_stats(cache, mutation.1)) / mutation.0;
+                },
+                Mutation::MultiplierStat(mutation) => {
+                    amount = (amount * self.get_stat_val(cache, mutation.1)) / mutation.0;
+                },
+                Mutation::MultiplierStatLowest(mutation) => {
+                    let mut lowest = None;
+                    for stat_id in mutation.1 {
+                        let val = self.get_stat_val(cache, *stat_id);
+                        if lowest.is_none() || val < lowest.unwrap() {
+                            lowest = Some(val);
+                        }
+                    }
+                    amount = lowest.map_or(0, |l| (amount * l) / mutation.0);
+                },
+                Mutation::MultiplierSlotDefence((per, slot, defence)) => {
+                    let def_amount = if let Some(item) = self.build.get_equipped(*slot) {
+                        let defences = item.calc_defence();
+                        match defence {
+                            Defence::Armour => defences.armour.val(),
+                            Defence::Evasion => defences.evasion.val(),
+                            Defence::EnergyShield => defences.energy_shield.val(),
+                            Defence::Block => defences.block_chance.val(),
+                        }
+                    } else {
+                        0
+                    };
+                    amount = (amount * def_amount) / per;
+                },
+                Mutation::StatPct((pct, stat_id)) => {
+                    amount = (self.get_stat_val(cache, *stat_id) * pct) / 100;
+                },
+                Mutation::UpTo(mutation) => {
+                    up_to = *mutation;
+                },
+                Mutation::IncreasedEffect(effect) => {
+                    amount = (amount * (100 + effect)) / 100;
+                },
+                Mutation::MultiplierQuality(per) => {
+                    if let Source::Item(slot) = source {
+                        let qual = self.build.get_equipped(slot).unwrap().quality;
+                        amount = (amount * qual) / per;
+                    } else {
+                        eprintln!("Warning: applying MultiplierQuality for non-item source");
+                        dbg!(&m);
+                    }
+                },
+                Mutation::StatIncPct(pct, stat_id) => {
+                    amount = (self.eval_stat(cache, *stat_id).inc * pct) / 100;
+                },
+                Mutation::MultiplierOvercap(per, stat_a, stat_b) => {
+                    let delta = (self.eval_stat(cache, *stat_a).val() - self.eval_stat(cache, *stat_b).val()).max(0);
+                    amount = (amount * delta) / per;
+                },
+                Mutation::StatMultExtra(stat_id, extra) => {
+                    // Multiplies by a Stat's multiplier with an added extra Inc
+                    // Typical use is AuraEffect where the extra is the sum of support gems' increased aura effect
+                    let mut stat = self.eval_stat(cache, *stat_id).clone();
+                    stat.adjust(Type::Inc, *extra);
+                    amount = stat.val_custom(amount);
+                },
+                Mutation::ForEachActiveSkill(types) => {
+                    let count = self.build.gem_links.iter().flat_map(|link| link.active_gems()).filter(|gem| {
+                        if let Some(active_skill) = &gem.data().active_skill {
+                            types.iter().any(|t| active_skill.types.contains(t))
+                        } else {
+                            false
+                        }
+                    }).count() as i64;
+                    amount = amount * count;
+                },
+                Mutation::CustomMult(mult) => {
+                    amount = (amount * mult) / 10000;
+                },
+            }
+        }
+
+        m.revised_amount = Some(amount.min(up_to));
+    }
+
+    fn check_condition(&self, cache: &mut StatCache, c: &Condition, source: Source) -> bool {
         match c {
             Condition::GreaterEqualProperty(mutation) => {
-                if self.property_int_stats(mutation.1) < mutation.0 { return false; }
+                if self.property_int_stats(cache, mutation.1) < mutation.0 { return false; }
             },
             Condition::LesserEqualProperty(mutation) => {
-                if self.property_int_stats(mutation.1) > mutation.0 { return false; }
+                if self.property_int_stats(cache, mutation.1) > mutation.0 { return false; }
             },
             Condition::GreaterEqualStat(mutation) => {
-                if self.get_stat_val(mutation.1) < mutation.0 { return false; }
+                if self.get_stat_val(cache, mutation.1) < mutation.0 { return false; }
             },
             Condition::LesserEqualStat(mutation) => {
-                if self.get_stat_val(mutation.1) > mutation.0 { return false; }
+                if self.get_stat_val(cache, mutation.1) > mutation.0 { return false; }
             },
             Condition::PropertyBool(mutation) => {
                 if self.build.property_bool(mutation.1) != mutation.0 { return false; }
@@ -378,88 +389,5 @@ impl<'a> Evaluator<'a> {
             }
         }
         true
-    }
-
-    fn apply_mutations(&mut self, m: &mut ModStat, source: Source) {
-        let mut amount = m.amount;
-        let mut up_to = i64::MAX;
-        for f in &m.mutations {
-            match f {
-                Mutation::MultiplierProperty(mutation) => {
-                    amount = (amount * self.property_int_stats(mutation.1)) / mutation.0;
-                },
-                Mutation::MultiplierStat(mutation) => {
-                    amount = (amount * self.get_stat_val(mutation.1)) / mutation.0;
-                },
-                Mutation::MultiplierStatLowest(mutation) => {
-                    let mut lowest = None;
-                    for stat_id in mutation.1 {
-                        let val = self.get_stat_val(*stat_id);
-                        if lowest.is_none() || val < lowest.unwrap() {
-                            lowest = Some(val);
-                        }
-                    }
-                    amount = lowest.map_or(0, |l| (amount * l) / mutation.0);
-                },
-                Mutation::MultiplierSlotDefence((per, slot, defence)) => {
-                    let def_amount = if let Some(item) = self.build.get_equipped(*slot) {
-                        let defences = item.calc_defence();
-                        match defence {
-                            Defence::Armour => defences.armour.val(),
-                            Defence::Evasion => defences.evasion.val(),
-                            Defence::EnergyShield => defences.energy_shield.val(),
-                            Defence::Block => defences.block_chance.val(),
-                        }
-                    } else {
-                        0
-                    };
-                    amount = (amount * def_amount) / per;
-                },
-                Mutation::StatPct((pct, stat_id)) => {
-                    amount = (self.get_stat_val(*stat_id) * pct) / 100;
-                },
-                Mutation::UpTo(mutation) => {
-                    up_to = *mutation;
-                },
-                Mutation::IncreasedEffect(effect) => {
-                    amount = (amount * (100 + effect)) / 100;
-                },
-                Mutation::MultiplierQuality(per) => {
-                    if let Source::Item(slot) = source {
-                        let qual = self.build.get_equipped(slot).unwrap().quality;
-                        amount = (amount * qual) / per;
-                    } else {
-                        eprintln!("Warning: applying MultiplierQuality for non-item source");
-                        dbg!(&m);
-                    }
-                },
-                Mutation::StatIncPct(pct, stat_id) => {
-                    amount = (self.eval_stat(*stat_id).inc * pct) / 100;
-                },
-                Mutation::MultiplierOvercap(per, stat_a, stat_b) => {
-                    let delta = (self.eval_stat(*stat_a).val() - self.eval_stat(*stat_b).val()).max(0);
-                    amount = (amount * delta) / per;
-                },
-                Mutation::StatMultExtra(stat_id, extra) => {
-                    // Multiplies by a Stat's multiplier with an added extra Inc
-                    // Typical use is AuraEffect where the extra is the sum of support gems' increased aura effect
-                    let mut stat = self.eval_stat(*stat_id).clone();
-                    stat.adjust(Type::Inc, *extra);
-                    amount = stat.val_custom(amount);
-                },
-                Mutation::ForEachActiveSkill(types) => {
-                    let count = self.build.gem_links.iter().flat_map(|link| link.active_gems()).filter(|gem| {
-                        if let Some(active_skill) = &gem.data().active_skill {
-                            types.iter().any(|t| active_skill.types.contains(t))
-                        } else {
-                            false
-                        }
-                    }).count() as i64;
-                    amount = amount * count;
-                },
-            }
-        }
-
-        m.revised_amount = Some(amount.min(up_to));
     }
 }

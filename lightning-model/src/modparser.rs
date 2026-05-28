@@ -276,8 +276,8 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("effect", StatId::Effect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("duration", StatId::Duration, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
     ("evasion", StatId::EvasionRating, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
-    // TODO: If we add GemTag::Herald, then the mod will be discarded by evaluator when evaluating a non-herald gem
-    ("effect of herald buffs on you", StatId::BuffEffect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY),
+    ("effect of herald buffs on you", StatId::BuffEffect, flags!(GemTag::Herald), BitFlags::EMPTY, BitFlags::EMPTY),
+    ("effect of buffs granted by your golems", StatId::BuffEffect, flags!(GemTag::Golem), BitFlags::EMPTY, BitFlags::EMPTY),
 ];
 
 lazy_static! {

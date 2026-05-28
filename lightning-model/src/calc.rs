@@ -1,12 +1,12 @@
 use crate::build::evaluator::Evaluator;
 use crate::build::stat::{Stat, StatId, Stats};
-use crate::build::{self, property, Build, Slot};
+use crate::build::{self, Build, GemLink, Slot, property};
 use crate::data::base_item::ItemClass;
 use crate::data::gem::GemTag;
 use crate::data::{DamageGroup, DamageType, DAMAGE_GROUPS};
 use crate::gem::Gem;
 use crate::item::Item;
-use crate::modifier::{Mod, ModFlag, Source, Type};
+use crate::modifier::{Mod, ModFlag, Mutation, Source, Type};
 use enumflags2::{BitFlags, make_bitflags};
 use rustc_hash::FxHashMap;
 use rayon::slice::ParallelSlice;
@@ -306,6 +306,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
     mods.extend_from_slice(&active_gem.calc_mods(false, extra_level, 0));
 
     let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}), None);
+    eval.resolve();
 
     let monster_mods = Build::calc_mods_monster(build.property_int(property::Int::Level).min(83));
     let monster_stats = build::stat::calc_stats(&monster_mods);
@@ -321,6 +322,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
         for slot in [Slot::Weapon, Slot::Offhand] {
             if let Some(weapon) = build.get_equipped(slot) {
                 let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}), Some(slot));
+                eval.resolve();
                 let weapon_restrictions = &active_gem.data().active_skill.as_ref().unwrap().weapon_restrictions;
                 if !weapon_restrictions.is_empty() && !weapon_restrictions.contains(&weapon.data().item_class) {
                     continue;
@@ -381,6 +383,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
 
                 if bleed_chance > 0 {
                     let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Ailment | Bleed | Aura | Buff | Curse}), Some(slot));
+                    eval.resolve();
                     let physical_dg = &DAMAGE_GROUPS[0];
                     let local_bleed_dps = calc_weapon_bleed_dmg(&mut eval, weapon, active_gem, physical_dg, extra_level);
                     if local_bleed_dps > bleed_dps {

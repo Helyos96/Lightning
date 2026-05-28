@@ -20,7 +20,7 @@ use crate::modparser::parse_mod;
 use crate::stackvec;
 use crate::tree::PassiveTree;
 use base64::prelude::*;
-use enumflags2::BitFlags;
+use enumflags2::{BitFlags, make_bitflags};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
@@ -318,8 +318,8 @@ impl Build {
             Mod::stat(StatId::Dexterity, Type::Base, class_data.base_dex),
             Mod::stat(StatId::Intelligence, Type::Base, class_data.base_int),
         ]);
-        mods.append(&mut BANDIT_STATS.get(&self.bandit_choice).unwrap().clone());
-        mods.append(&mut CAMPAIGN_STATS.get(&self.campaign_choice).unwrap().clone());
+        mods.extend_from_slice(BANDIT_STATS.get(&self.bandit_choice).unwrap());
+        mods.extend_from_slice(CAMPAIGN_STATS.get(&self.campaign_choice).unwrap());
         let jewels: FxHashMap<u32, Arc<Item>> = self.equipment.iter().filter_map(|(k, v)| {
             if let Slot::TreeJewel(id) = k {
                 Some((*id, self.inventory[*v].clone()))
@@ -354,6 +354,7 @@ impl Build {
                 mods.append(&mut config_mods);
             }
         }
+        mods.extend(self.calc_mods_gem_buffs_auras(&mods));
         mods
     }
 
@@ -365,6 +366,67 @@ impl Build {
             Mod::stat(StatId::Armour, Type::Base, default_stats.armour),
         ];
         mods
+    }
+
+    pub fn calc_mods_gem_buffs_auras(&self, mods: &[Mod]) -> Vec<Mod> {
+        // Find best unique active auras
+        let mut best_gems: FxHashMap<&str, (&Gem, &GemLink)> = FxHashMap::default();
+        for link in &self.gem_links {
+            for active_gem in link.active_gems().filter(|gem| gem.enabled) {
+                if let Some((existing_gem, _)) = best_gems.get(active_gem.id.as_str()) {
+                    if existing_gem.level >= active_gem.level {
+                        continue;
+                    }
+                }
+                best_gems.insert(active_gem.id.as_str(), (active_gem, link));
+            }
+        }
+
+        let mut ret = vec![];
+        for (gem, link) in best_gems.values() {
+            let mut eval = Evaluator::new(self, mods, gem.data().tags, make_bitflags!(ModFlag::{Aura | Buff | Curse}), None);
+            //eval.resolve();
+            let mut best_supports: FxHashMap<&str, &Gem> = FxHashMap::default();
+
+            // Find best unique support gems in link
+            for support_gem in link.support_gems() {
+                if support_gem.can_support(gem) {
+                    if let Some(existing_gem) = best_supports.get(support_gem.id.as_str()) {
+                        if existing_gem.level >= support_gem.level {
+                            continue;
+                        }
+                    }
+                    best_supports.insert(support_gem.id.as_str(), support_gem);
+                }
+            }
+
+            for support in best_supports.values().filter(|gem| gem.enabled) {
+                eval.ctx.extra_mods.extend_from_slice(&support.calc_mods(false, eval.gem_level_extra(support.data().tags), 0));
+            }
+
+            let extra_level = eval.gem_level_extra(gem.data().tags);
+            eval.ctx.extra_mods.extend_from_slice(&gem.calc_mods(false, extra_level, 0));
+            let mut mods = (*gem.calc_mods(true, extra_level, 0)).clone();
+            for m in mods.iter_mut() {
+                if m.flags.contains(ModFlag::Aura) &&
+                   let Some(mstat) = m.as_stat_mut()
+                {
+                    mstat.mutations.push(Mutation::CustomMult(eval.eval_stat(StatId::AuraEffect).mult()));
+                }
+                if m.flags.contains(ModFlag::Curse) &&
+                   let Some(mstat) = m.as_stat_mut()
+                {
+                    mstat.mutations.push(Mutation::CustomMult(eval.eval_stat(StatId::CurseEffect).mult()));
+                }
+                if m.flags.contains(ModFlag::Buff) &&
+                   let Some(mstat) = m.as_stat_mut()
+                {
+                    mstat.mutations.push(Mutation::CustomMult(eval.eval_stat(StatId::BuffEffect).mult()));
+                }
+            }
+            ret.extend(mods);
+        }
+        ret
     }
 
     pub fn remove_inventory(&mut self, idx_remove: usize) {
@@ -530,20 +592,9 @@ impl Build {
 
     pub fn calc_stats(&self, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>) -> Stats {
         let mut evaluator = Evaluator::new(self, mods, tags, flags, None);
+        evaluator.resolve();
         evaluator.resolve_stats();
-        Stats { stats: evaluator.resolved_stats }
-    }
-
-    pub fn calc_stats_slot(&self, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>, slot: Slot) -> Stats {
-        let mut evaluator = Evaluator::new(self, mods, tags, flags, Some(slot));
-        evaluator.resolve_stats();
-        Stats { stats: evaluator.resolved_stats }
-    }
-
-    pub fn calc_stat(&self, stat_id: StatId, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>) -> Stat {
-        let mut evaluator = Evaluator::new(self, mods, tags, flags, None);
-        evaluator.resolve_stats();
-        evaluator.eval_stat(stat_id).clone()
+        Stats { stats: evaluator.cache.resolved_stats }
     }
 
     pub fn save(&self, dir: &Path) -> io::Result<()> {
