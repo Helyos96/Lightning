@@ -3,6 +3,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicI32, Ordering};
 
+use crate::build::Slot;
 use crate::build::stat::StatId;
 use crate::data::gem::{GemData, GemTag};
 use crate::data::{DamageType, GEMS};
@@ -24,6 +25,8 @@ struct RawGem {
     level: u32,
     qual: i32,
     alt_qual: i32,
+    #[serde(default)]
+    granted_by: Option<Slot>,
 }
 
 /// Gem used in Build
@@ -32,11 +35,14 @@ struct RawGem {
 #[serde(from = "RawGem")]
 pub struct Gem {
     pub id: String,
-    data: &'static GemData,
     pub enabled: bool,
     pub level: u32,
     pub qual: i32,
     pub alt_qual: i32,
+    pub granted_by: Option<Slot>,
+
+    #[serde(skip)]
+    data: &'static GemData,
 
     #[serde(skip)]
     #[derivative(Clone(clone_with = "clone_arc_swap"))]
@@ -64,6 +70,7 @@ impl From<RawGem> for Gem {
             level: raw.level,
             qual: raw.qual,
             alt_qual: raw.alt_qual,
+            granted_by: raw.granted_by,
 
             mod_cache: ArcSwap::from_pointee(Vec::new()),
             mod_cache_auras: ArcSwap::from_pointee(Vec::new()),
@@ -100,6 +107,7 @@ impl Gem {
             level,
             qual,
             alt_qual,
+            granted_by: None,
             mod_cache: Default::default(),
             mod_cache_auras: Default::default(),
             mod_cache_level: Default::default(),
@@ -168,8 +176,8 @@ impl Gem {
         self.invalidate_modcache();
     }
 
-    pub fn calc_mods(&self, as_aura_buff_curse: bool, extra_level: u32, extra_qual: i32) -> Arc<Vec<Mod>> {
-        let level = self.level + extra_level;
+    pub fn calc_mods(&self, as_aura_buff_curse: bool, extra_level: i32, extra_qual: i32) -> Arc<Vec<Mod>> {
+        let level = (self.level as i32 + extra_level).max(1) as u32;
         let qual = self.qual + extra_qual;
 
         if self.mod_cache_level.load(Ordering::Relaxed) != level ||
@@ -184,12 +192,12 @@ impl Gem {
         }
     }
 
-    pub fn mana_cost_level(&self, extra_level: u32) -> Option<i64> {
-        self.data().mana_cost(self.level + extra_level)
+    pub fn mana_cost_level(&self, extra_level: i32) -> Option<i64> {
+        self.data().mana_cost((self.level as i32 + extra_level).max(1) as u32)
     }
 
-    pub fn cost_multiplier_level(&self, extra_level: u32) -> Option<i64> {
-        self.data().cost_multiplier(self.level + extra_level)
+    pub fn cost_multiplier_level(&self, extra_level: i32) -> Option<i64> {
+        self.data().cost_multiplier((self.level as i32 + extra_level).max(1) as u32)
     }
 
     fn stat_value_level(&self, id: &str) -> Option<i64> {
@@ -204,8 +212,8 @@ impl Gem {
         self.data().r#static.crit_chance
     }
 
-    pub fn added_effectiveness(&self, extra_level: u32) -> Option<i64> {
-        if let Some(level_data) = self.data().per_level.get(&(self.level + extra_level)) {
+    pub fn added_effectiveness(&self, extra_level: i32) -> Option<i64> {
+        if let Some(level_data) = self.data().per_level.get(&((self.level as i32 + extra_level).max(1) as u32)) {
             if level_data.damage_effectiveness.is_some() {
                 return level_data.damage_effectiveness;
             }
@@ -213,8 +221,8 @@ impl Gem {
         self.data().r#static.damage_effectiveness
     }
 
-    pub fn damage_multiplier(&self, extra_level: u32) -> Option<i64> {
-        if let Some(level_data) = self.data().per_level.get(&(self.level + extra_level)) {
+    pub fn damage_multiplier(&self, extra_level: i32) -> Option<i64> {
+        if let Some(level_data) = self.data().per_level.get(&((self.level as i32 + extra_level).max(1) as u32)) {
             if level_data.damage_multiplier.is_some() {
                 return level_data.damage_multiplier;
             }

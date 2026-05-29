@@ -215,8 +215,7 @@ impl State {
         let mut delta = FxHashMap::default();
         if let Some(gem_link_compare) = build_compare.gem_links.get(self.build.gemlink_cur) {
             if let Some(active_gem_compare) = gem_link_compare.active_gems().nth(self.build.active_skill_cur) {
-                let supports: Vec<&Gem> = gem_link_compare.support_gems().filter(|g| g.enabled).map(|gem| gem).collect();
-                let active_gem_compare_calc = calc::calc_gem(build_compare, &supports, active_gem_compare);
+                let active_gem_compare_calc = calc::calc_gem(build_compare, gem_link_compare, active_gem_compare);
                 delta.extend(calc::compare(&self.active_skill_calc, &active_gem_compare_calc));
             }
         }
@@ -262,8 +261,7 @@ impl State {
         self.active_skill_calc.clear();
         if let Some(gem_link) = self.build.gem_links.get(self.build.gemlink_cur) {
             if let Some(active_gem) = gem_link.active_gems().nth(self.build.active_skill_cur) {
-                let supports: Vec<&Gem> = gem_link.support_gems().filter(|g| g.enabled).map(|gem| gem).collect();
-                self.active_skill_calc = calc::calc_gem(&self.build, &supports, active_gem);
+                self.active_skill_calc = calc::calc_gem(&self.build, gem_link, active_gem);
             }
         }
         if let Some(node_id) = self.hovered_node_id {
@@ -305,8 +303,7 @@ impl State {
                 PowerReportType::Gem => {
                     if let Some(gem_link) = self.build.gem_links.get(self.build.gemlink_cur) {
                         if let Some(active_gem) = gem_link.active_gems().nth(self.build.active_skill_cur) {
-                            let supports: Vec<&Gem> = gem_link.support_gems().filter(|g| g.enabled).map(|gem| gem).collect();
-                            Some(PowerReport::new_gem(&self.build, string, &supports, active_gem))
+                            Some(PowerReport::new_gem(&self.build, string, gem_link, active_gem))
                         } else {
                             None
                         }

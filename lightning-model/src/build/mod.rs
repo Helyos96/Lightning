@@ -384,7 +384,7 @@ impl Build {
 
         let mut ret = vec![];
         for (gem, link) in best_gems.values() {
-            let mut eval = Evaluator::new(self, mods, gem.data().tags, make_bitflags!(ModFlag::{Aura | Buff | Curse}), None);
+            let mut eval = Evaluator::new(self, mods, gem.data().tags, make_bitflags!(ModFlag::{Aura | Buff | Curse}), None, Some(link.slot));
             //eval.resolve();
             let mut best_supports: FxHashMap<&str, &Gem> = FxHashMap::default();
 
@@ -496,6 +496,14 @@ impl Build {
         if let Slot::TreeJewel(jewel_node_id) = slot {
             self.tree.add_jewel(jewel_node_id, self.inventory[item_idx].clone(), false);
         }
+
+        for (gem_id, level) in self.inventory[item_idx].calc_nonlocal_mods().iter().filter_map(|m| m.as_support_gem()) {
+            for link in self.gem_links.iter_mut().filter(|link| link.slot == slot) {
+                let mut gem = Gem::new(gem_id.to_string(), true, level, 0, 0);
+                gem.granted_by = Some(slot);
+                link.gems.push(gem);
+            }
+        }
     }
 
     pub fn unequip(&mut self, slot: Slot) {
@@ -514,6 +522,10 @@ impl Build {
             for socket in removed_sockets {
                 self.equipment.remove(&Slot::TreeJewel(socket));
             }
+        }
+
+        for link in self.gem_links.iter_mut().filter(|link| link.slot == slot) {
+            link.gems.retain(|gem| gem.granted_by != Some(slot));
         }
     }
 
@@ -591,7 +603,7 @@ impl Build {
     }
 
     pub fn calc_stats(&self, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>) -> Stats {
-        let mut evaluator = Evaluator::new(self, mods, tags, flags, None);
+        let mut evaluator = Evaluator::new(self, mods, tags, flags, None, None);
         evaluator.resolve();
         evaluator.resolve_stats();
         Stats { stats: evaluator.cache.resolved_stats }

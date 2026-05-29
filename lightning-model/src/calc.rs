@@ -200,7 +200,7 @@ fn calc_dmg_crit_accuracy(damage: i64, crit_chance: i64, crit_multi: i64, chance
     damage_crit + damage_noncrit
 }
 
-fn calc_min_max_dmg(eval: &mut Evaluator, active_gem: &Gem, mut base_min: i64, mut base_max: i64, mut added_min: i64, mut added_max: i64, dg: &DamageGroup, extra_level: u32) -> (i64, i64) {
+fn calc_min_max_dmg(eval: &mut Evaluator, active_gem: &Gem, mut base_min: i64, mut base_max: i64, mut added_min: i64, mut added_max: i64, dg: &DamageGroup, extra_level: i32) -> (i64, i64) {
     if let Some(damage_multiplier) = active_gem.damage_multiplier(extra_level) {
         base_min = (base_min * (10000 + damage_multiplier)) / 10000;
         base_max = (base_max * (10000 + damage_multiplier)) / 10000;
@@ -222,13 +222,13 @@ fn calc_min_max_dmg(eval: &mut Evaluator, active_gem: &Gem, mut base_min: i64, m
     (stat_min_dt.val(), stat_max_dt.val())
 }
 
-fn calc_average_dmg(eval: &mut Evaluator, active_gem: &Gem, base_min: i64, base_max: i64, added_min: i64, added_max: i64, dg: &DamageGroup, extra_level: u32) -> i64 {
+fn calc_average_dmg(eval: &mut Evaluator, active_gem: &Gem, base_min: i64, base_max: i64, added_min: i64, added_max: i64, dg: &DamageGroup, extra_level: i32) -> i64 {
     let (min, max) = calc_min_max_dmg(eval, active_gem, base_min, base_max, added_min, added_max, dg, extra_level);
     (min + max) / 2
 }
 
 
-fn calc_weapon_max_base_dmg(eval: &mut Evaluator, weapon: &Item, active_gem: &Gem, dg: &DamageGroup, extra_level: u32) -> Option<Stat> {
+fn calc_weapon_max_base_dmg(eval: &mut Evaluator, weapon: &Item, active_gem: &Gem, dg: &DamageGroup, extra_level: i32) -> Option<Stat> {
     if let Some((_, max_item)) = weapon.calc_dmg(dg.damage_type) {
         let item_class = Some(weapon.data().item_class);
         let added_max_stat = eval.eval_stat(dg.added_max_id).with_weapon(item_class);
@@ -242,7 +242,7 @@ fn calc_weapon_max_base_dmg(eval: &mut Evaluator, weapon: &Item, active_gem: &Ge
     None
 }
 
-fn calc_weapon_bleed_dmg(eval: &mut Evaluator, weapon: &Item, active_gem: &Gem, dg: &DamageGroup, extra_level: u32) -> i64 {
+fn calc_weapon_bleed_dmg(eval: &mut Evaluator, weapon: &Item, active_gem: &Gem, dg: &DamageGroup, extra_level: i32) -> i64 {
     if let Some(mut max_dmg) = calc_weapon_max_base_dmg(eval, weapon, active_gem, dg, extra_level) {
         let mut dot_multi = eval.eval_stat(StatId::DotMultiplier).to_owned();
         dot_multi.assimilate(eval.eval_stat(StatId::PhysicalDotMultiplier));
@@ -278,7 +278,7 @@ fn physical_damage_reduction_armour(amount: i64, armour: i64, pdr: i64) -> i64 {
     pdr + pdr_from_armour
 }
 
-pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> FxHashMap<&'static str, i64> {
+pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMap<&'static str, i64> {
     assert!(!active_gem.data().is_support);
     let mut ret = FxHashMap::default();
 
@@ -287,7 +287,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
     let mut mods = build.calc_mods(true);
 
     let mut best_supports: FxHashMap<&str, &Gem> = FxHashMap::default();
-    for support_gem in support_gems {
+    for support_gem in link.support_gems().filter(|gem| gem.enabled) {
         if support_gem.can_support(active_gem) {
             if let Some(existing_gem) = best_supports.get(support_gem.id.as_str()) {
                 if existing_gem.level >= support_gem.level {
@@ -305,7 +305,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
     let extra_level = mods.iter().filter(|m| tags.contains(m.tags)).flat_map(|m| m.as_gem_level()).sum();
     mods.extend_from_slice(&active_gem.calc_mods(false, extra_level, 0));
 
-    let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}), None);
+    let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}), None, Some(link.slot));
     eval.resolve();
 
     let monster_mods = Build::calc_mods_monster(build.property_int(property::Int::Level).min(83));
@@ -321,7 +321,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
 
         for slot in [Slot::Weapon, Slot::Offhand] {
             if let Some(weapon) = build.get_equipped(slot) {
-                let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}), Some(slot));
+                let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}), Some(slot), Some(link.slot));
                 eval.resolve();
                 let weapon_restrictions = &active_gem.data().active_skill.as_ref().unwrap().weapon_restrictions;
                 if !weapon_restrictions.is_empty() && !weapon_restrictions.contains(&weapon.data().item_class) {
@@ -382,7 +382,7 @@ pub fn calc_gem<'a>(build: &Build, support_gems: &[&Gem], active_gem: &Gem) -> F
                 damage_instances.push(dmg_inst);
 
                 if bleed_chance > 0 {
-                    let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Ailment | Bleed | Aura | Buff | Curse}), Some(slot));
+                    let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Ailment | Bleed | Aura | Buff | Curse}), Some(slot), Some(link.slot));
                     eval.resolve();
                     let physical_dg = &DAMAGE_GROUPS[0];
                     let local_bleed_dps = calc_weapon_bleed_dmg(&mut eval, weapon, active_gem, physical_dg, extra_level);
@@ -561,8 +561,8 @@ impl PowerReport {
         }
     }
 
-    pub fn new_gem(build: &Build, delta_str: &str, support_gems: &[&Gem], active_gem: &Gem) -> PowerReport {
-        let offence = calc_gem(build, support_gems, active_gem);
+    pub fn new_gem(build: &Build, delta_str: &str, link: &GemLink, active_gem: &Gem) -> PowerReport {
+        let offence = calc_gem(build, link, active_gem);
 
         let nodes_compare: Vec<u32> = build.tree.nodes_data.keys()
             .filter(|node_id| !build.tree.nodes.contains(node_id))
@@ -576,7 +576,7 @@ impl PowerReport {
                 local_build.tree.nodes.insert(*node_id);
                 local_build.tree.invalidate_modcache();
 
-                let calc = calc_gem(&*local_build, support_gems, active_gem);
+                let calc = calc_gem(&*local_build, link, active_gem);
                 let delta = *calc.get(delta_str).unwrap_or(&0) as f32 / *offence.get(delta_str).unwrap_or(&0) as f32;
 
                 local_build.tree.nodes.remove(node_id);

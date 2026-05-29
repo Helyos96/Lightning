@@ -5,23 +5,28 @@ use std::{fs, sync::atomic::Ordering};
 
 use lightning_model::import;
 
-fn fetch() -> Result<Build, Box<dyn std::error::Error>> {
-    const BUILD_PATH: &str = "build.json";
+const TARGET_BUILDS: &[(&str, &str)] = &[
+    ("Ben_#4007", "ben_im_jungroan"),
+    ("Ben_#4007", "ben_blazerker"),
+];
 
-    if let Ok(data) = fs::read_to_string(BUILD_PATH) {
+fn fetch(account: &str, character: &str) -> Result<Build, Box<dyn std::error::Error>> {
+    let build_path = format!("build_{}.json", character);
+
+    if let Ok(data) = fs::read_to_string(&build_path) {
         if let Ok(player) = serde_json::from_str::<Build>(&data) {
             return Ok(player);
         }
     }
 
-    let player = import::character("Ben_#4007", "ben_im_jungroan")?;
-    serde_json::to_writer(&fs::File::create(BUILD_PATH)?, &player)?;
+    let player = import::character(account, character)?;
+    serde_json::to_writer(&fs::File::create(&build_path)?, &player)?;
     Ok(player)
 }
 
 #[divan::bench]
 fn calc_mods_cached(bencher: divan::Bencher) {
-    let player = fetch().expect("Failed to get a build");
+    let player = fetch(TARGET_BUILDS[0].0, TARGET_BUILDS[0].1).expect("Failed to get a build");
 
     player.calc_mods(true);
 
@@ -32,7 +37,7 @@ fn calc_mods_cached(bencher: divan::Bencher) {
 
 #[divan::bench]
 fn calc_mods_uncached(bencher: divan::Bencher) {
-    let player = fetch().expect("Failed to get a build");
+    let player = fetch(TARGET_BUILDS[0].0, TARGET_BUILDS[0].1).expect("Failed to get a build");
 
     bencher.bench_local(|| {
         CACHE.clear();
@@ -52,7 +57,7 @@ fn calc_mods_uncached(bencher: divan::Bencher) {
 
 #[divan::bench]
 fn calc_stats(bencher: divan::Bencher) {
-    let player = fetch().expect("Failed to get a build");
+    let player = fetch(TARGET_BUILDS[0].0, TARGET_BUILDS[0].1).expect("Failed to get a build");
     let mods = player.calc_mods(true);
 
     bencher.bench_local(|| {
@@ -62,16 +67,16 @@ fn calc_stats(bencher: divan::Bencher) {
 
 #[divan::bench]
 fn calc_clone_build(bencher: divan::Bencher) {
-    let player = fetch().expect("Failed to get a build");
+    let player = fetch(TARGET_BUILDS[0].0, TARGET_BUILDS[0].1).expect("Failed to get a build");
 
     bencher.bench_local(|| {
         let _ = player.clone();
     });
 }
 
-#[divan::bench]
-fn calc_power_report_maxhp(bencher: divan::Bencher) {
-    let player = fetch().expect("Failed to get a build");
+#[divan::bench(sample_count = 40, args = TARGET_BUILDS)]
+fn calc_power_report_maxhp(bencher: divan::Bencher, (account, character): (&str, &str)) {
+    let player = fetch(account, character).expect("Failed to get a build");
     // Initialize caches
     let _base_maxhp = calc::calc_defence(&player).0["Maximum Life"];
 
@@ -80,35 +85,33 @@ fn calc_power_report_maxhp(bencher: divan::Bencher) {
     });
 }
 
-#[divan::bench]
-fn calc_power_report_dps(bencher: divan::Bencher) {
-    let player = fetch().expect("Failed to get a build");
+#[divan::bench(sample_count = 40, args = TARGET_BUILDS)]
+fn calc_power_report_dps(bencher: divan::Bencher, (account, character): (&str, &str)) {
+    let player = fetch(account, character).expect("Failed to get a build");
     let active_gem = player.gem_links[1].active_gems().nth(0).unwrap();
-    let support_gems: Vec<&Gem> = player.gem_links[1].support_gems().map(|gem| gem).collect();
 
-    lightning_model::calc::calc_gem(&player, &support_gems, active_gem);
+    lightning_model::calc::calc_gem(&player, &player.gem_links[1], active_gem);
 
     bencher.bench_local(|| {
-        let _ = calc::PowerReport::new_gem(&player, "DPS", &support_gems, active_gem);
+        let _ = calc::PowerReport::new_gem(&player, "DPS", &player.gem_links[1], active_gem);
     });
 }
 
-#[divan::bench]
-fn calc_gem(bencher: divan::Bencher) {
-    let player = fetch().expect("Failed to get a build");
+#[divan::bench(args = TARGET_BUILDS)]
+fn calc_gem(bencher: divan::Bencher, (account, character): (&str, &str)) {
+    let player = fetch(account, character).expect("Failed to get a build");
     let active_gem = player.gem_links[1].active_gems().nth(0).unwrap();
-    let support_gems: Vec<&Gem> = player.gem_links[1].support_gems().map(|gem| gem).collect();
 
-    lightning_model::calc::calc_gem(&player, &support_gems, active_gem);
+    lightning_model::calc::calc_gem(&player, &player.gem_links[1], active_gem);
 
     bencher.bench_local(|| {
-        lightning_model::calc::calc_gem(&player, &support_gems, active_gem);
+        lightning_model::calc::calc_gem(&player, &player.gem_links[1], active_gem);
     });
 }
 
 #[divan::bench]
 fn calc_defence(bencher: divan::Bencher) {
-    let player = fetch().expect("Failed to get a build");
+    let player = fetch(TARGET_BUILDS[0].0, TARGET_BUILDS[0].1).expect("Failed to get a build");
 
     lightning_model::calc::calc_defence(&player);
 

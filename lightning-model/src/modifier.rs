@@ -1,5 +1,5 @@
 use enumflags2::{bitflags, BitFlags};
-use crate::{build::{Defence, Slot, buff::Buff, property, stat::StatId}, data::{base_item::ItemClass, gem::{ActiveSkillType, GemTag}, tree::NodeType}, item::JewelRadius, stackvec::StackVec};
+use crate::{build::{Defence, Slot, buff::Buff, property, stat::StatId}, data::{base_item::ItemClass, gem::{ActiveSkillType, GemData, GemTag}, tree::NodeType}, item::JewelRadius, stackvec::StackVec};
 use crate::tree::NodeMutation;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
@@ -65,6 +65,7 @@ pub enum Condition {
     WithThisWeapon,
     NoFlaskActive,
     AffectedByGemTag(GemTag),
+    Socketed,
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -131,9 +132,10 @@ pub enum ModEffect {
     MutateNode(NodeMutation, BitFlags<NodeType>),
     RingSize(JewelRadius),
     BuildFlag(BuildFlag),
-    LevelOfGems(u32),
+    LevelOfGems(i32),
     QualityOfGems(i32),
     Buff(Buff),
+    SupportGem(&'static str, u32),
 }
 
 impl Default for ModEffect {
@@ -170,8 +172,12 @@ impl Mod {
         Self { effect: ModEffect::BuildFlag(flag), ..Default::default() }
     }
 
-    pub fn gem_level(level: u32) -> Self {
+    pub fn gem_level(level: i32) -> Self {
         Self { effect: ModEffect::LevelOfGems(level), ..Default::default() }
+    }
+
+    pub fn support_gem(id: &'static str, level: u32) -> Self {
+        Self { effect: ModEffect::SupportGem(id, level), ..Default::default() }
     }
 
     pub fn buff(buff: Buff) -> Self {
@@ -244,7 +250,15 @@ impl Mod {
         }
     }
 
-    pub fn as_gem_level(&self) -> Option<u32> {
+    pub fn as_support_gem(&self) -> Option<(&'static str, u32)> {
+        if let ModEffect::SupportGem(id, level) = &self.effect {
+            Some((id, *level))
+        } else {
+            None
+        }
+    }
+
+    pub fn as_gem_level(&self) -> Option<i32> {
         if let ModEffect::LevelOfGems(level) = &self.effect {
             Some(*level)
         } else {

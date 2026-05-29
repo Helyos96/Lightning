@@ -36,7 +36,8 @@ fn draw_skill_dropdown(ui: &mut egui::Ui, panel_skills: &mut SkillsPanelState, s
     if let Some(socketed_gem) = socketed_gem {
         edit = edit.hint_text(socketed_gem.data().display_name());
     }
-    let r = edit.show(ui).response;
+    let enabled = if let Some(socketed_gem) = socketed_gem && socketed_gem.granted_by == None { true } else { false };
+    let r = ui.add_enabled(enabled, edit);//edit.show(ui).response;
     let popup_id = egui::Id::new(format!("popup {}", i));
     if r.clicked() {
         ui.memory_mut(|m| m.open_popup(popup_id));
@@ -45,7 +46,7 @@ fn draw_skill_dropdown(ui: &mut egui::Ui, panel_skills: &mut SkillsPanelState, s
         if panel_skills.computed_gems.is_none() {
             *request_recalc = true;
         }
-    } else if r.hovered() {
+    } else if r.contains_pointer() {
         if let Some(gem) = socketed_gem.as_ref() {
             let popup_pos = r.rect.right_top() + egui::vec2(5.0, 0.0);
             let window_id = egui::Id::new("Hover Gem").with(gem.data().display_name());

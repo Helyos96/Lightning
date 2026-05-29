@@ -5,7 +5,7 @@ use crate::data::base_item::ItemClass;
 use crate::data::gem::{ActiveSkillType, GemTag};
 use crate::data::tree::NodeType;
 use crate::gem::Gem;
-use crate::data::TREE;
+use crate::data::{GEMS, TREE};
 use crate::item::{self, Item, JewelRadius};
 use crate::modifier::{BuildFlag, Condition, Mod, ModFlag, Mutation, Source, Type};
 use crate::stackvec::{StackVec};
@@ -38,6 +38,7 @@ lazy_static! {
         map.insert("minion", GemTag::Minion);
         map.insert("totem", GemTag::Totem);
         map.insert("area", GemTag::Area);
+        map.insert("aoe", GemTag::Area);
         map.insert("warcry", GemTag::Warcry);
         map.insert("fire", GemTag::Fire);
         map.insert("cold", GemTag::Cold);
@@ -81,6 +82,8 @@ const BEGINNINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, &[Condition])]
     ("damage with weapons", BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("curse skills have", flags!(GemTag::Curse), BitFlags::EMPTY, &[]),
     ("herald skills deal", flags!(GemTag::Herald), BitFlags::EMPTY, &[]),
+    ("socketed gems deal", BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::Socketed]),
+    ("socketed spells have", flags!(GemTag::Spell), BitFlags::EMPTY, &[Condition::Socketed]),
 ];
 
 const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>, &[Condition])] = &[
@@ -300,13 +303,18 @@ lazy_static! {
             regex!(r"^(?:grants )?([+-]?[0-9.]+)%? (?:additional )?(?:to )?(?:all )?([a-z -]+)$"),
             Box::new(|c| {
                 let stat_tags = parse_stat(&c[2])?;
-                let amount = if c[1].contains('.') {
+                let mut is_val100 = false;
+                let mut amount = if c[1].contains('.') {
+                    is_val100 = true;
                     parse_val100(&c[1])?
                 } else {
                     i64::from_str(&c[1]).unwrap()
                 };
 
                 Some(stat_tags.iter().map(|s| {
+                    if s.0 == StatId::CriticalStrikeChance && !is_val100 {
+                        amount = amount * 100;
+                    }
                     Mod::stat(s.0, Type::Base, amount).with_tags(s.1).with_weapons(s.2).with_flags(s.3)
                 }).collect())
             })
@@ -547,16 +555,28 @@ lazy_static! {
                 ])
             })
         ), (
-            regex!(r"^\+([0-9]+) to level of all ([a-z ]+ )?skill gems$"),
+            regex!(r"^\+?([0-9-]+) to level of (all|socketed) (?:([a-z ]+?) )??(?:(skill|support) )?gems$"),
             Box::new(|c| {
                 let mut tag = BitFlags::EMPTY;
-                if let Some(tags_str) = c.get(2) {
+                if let Some(tags_str) = c.get(3) {
                     for tag_str in tags_str.as_str().trim_end().split(' ') {
                         tag |= *TAGS.get(tag_str)?;
                     }
                 }
+                let mut m = Mod::gem_level(i32::from_str(&c[1]).unwrap()).with_tags(tag);
+                match &c[2] {
+                    "socketed" => m = m.with_conditions(stackvec![Condition::Socketed]),
+                    _ => {},
+                }
+                if let Some(cap) = c.get(4) {
+                    match cap.as_str() {
+                        "skill" => m = m.with_tags(GemTag::Active_Skill),
+                        "support" => m = m.with_tags(GemTag::Support),
+                        _ => {},
+                    }
+                }
                 Some(vec![
-                    Mod::gem_level(u32::from_str(&c[1]).unwrap()).with_tags(tag),
+                    m
                 ])
             })
         ), (
@@ -592,6 +612,16 @@ lazy_static! {
                 }?;
                 Some(vec![
                     Mod::buff(buff),
+                ])
+            })
+        ), (
+            regex!(r"^socketed gems are supported by level ([0-9]+) ([a-z ]+)$"),
+            Box::new(|c| {
+                let gem_id = GEMS.iter().find(|(_, v)| {
+                    v.display_name().to_lowercase() == format!("{} support", &c[2])
+                })?.0;
+                Some(vec![
+                    Mod::support_gem(gem_id, u32::from_str(&c[1]).unwrap()),
                 ])
             })
         ),

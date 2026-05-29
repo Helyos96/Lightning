@@ -462,7 +462,7 @@ impl GemData {
                                     stat.amount = amount;
                                 }
                             } else if modifier.as_gem_level().is_some() {
-                                modifier.effect = crate::modifier::ModEffect::LevelOfGems(amount as u32)
+                                modifier.effect = crate::modifier::ModEffect::LevelOfGems(amount as i32)
                             }
                             modifier.source = source;
                             mods.push(modifier);

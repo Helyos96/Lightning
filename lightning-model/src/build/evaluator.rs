@@ -11,6 +11,8 @@ pub struct StatCache {
 
 pub struct EvaluatorCtx<'a> {
     build: &'a Build,
+    weapon: Option<Slot>,
+    // Slot containing the Gem
     slot: Option<Slot>,
     tags: BitFlags<GemTag>,
     flags: BitFlags<ModFlag>,
@@ -27,10 +29,11 @@ pub struct Evaluator<'a> {
 }
 
 impl<'a> Evaluator<'a> {
-    pub fn new(build: &'a Build, mods: &'a [Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>, slot: Option<Slot>) -> Self {
+    pub fn new(build: &'a Build, mods: &'a [Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>, weapon: Option<Slot>, slot: Option<Slot>) -> Self {
         let ret = Self {
             ctx: EvaluatorCtx {
                 build,
+                weapon,
                 slot,
                 tags,
                 flags,
@@ -120,7 +123,7 @@ impl<'a> Evaluator<'a> {
         }
     }
 
-    pub fn gem_level_extra(&self, tags: BitFlags<GemTag>) -> u32 {
+    pub fn gem_level_extra(&self, tags: BitFlags<GemTag>) -> i32 {
         self.ctx.mods.iter().filter(|m| tags.contains(m.tags)).flat_map(|m| m.as_gem_level()).sum()
     }
 
@@ -279,7 +282,7 @@ impl<'a> EvaluatorCtx<'a> {
                 },
                 Mutation::ForEachActiveSkill(types) => {
                     let count = self.build.gem_links.iter().flat_map(|link| link.active_gems()).filter(|gem| {
-                        if let Some(active_skill) = &gem.data().active_skill {
+                        if gem.enabled && let Some(active_skill) = &gem.data().active_skill {
                             types.iter().any(|t| active_skill.types.contains(t))
                         } else {
                             false
@@ -370,10 +373,10 @@ impl<'a> EvaluatorCtx<'a> {
                 }
             },
             Condition::WithThisWeapon => {
-                if self.slot.is_none() {
+                if self.weapon.is_none() {
                     return false;
                 }
-                if !matches!(source, Source::Item(slot) if Some(slot) == self.slot) {
+                if !matches!(source, Source::Item(slot) if Some(slot) == self.weapon) {
                     return false;
                 }
             },
@@ -384,6 +387,11 @@ impl<'a> EvaluatorCtx<'a> {
             },
             Condition::AffectedByGemTag(tag) => {
                 if !self.build.gem_links.iter().flat_map(|link| link.active_gems()).filter(|gem| gem.enabled).find(|gem| gem.data().tags.contains(*tag)).is_some() {
+                    return false;
+                }
+            },
+            Condition::Socketed => {
+                if !matches!(source, Source::Item(slot) if Some(slot) == self.slot) {
                     return false;
                 }
             }

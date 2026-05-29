@@ -388,6 +388,12 @@ lazy_static! {
                 Mod::stat(StatId::AccuracyRating, Type::Base, 0).with_flags(ModFlag::Buff),
             ]),
         ].into_iter().collect()),
+        ("Hypothermia Support", [
+            ("support_hypothermia_damage_+%_vs_chilled_enemies_final", vec![
+                // TODO: enemy is chilled property
+                Mod::stat(StatId::Damage, Type::More, 0).with_flags(flags!(ModFlag::{Hit | Ailment})),
+            ]),
+        ].into_iter().collect()),
     ].into_iter().collect();
 }
 
