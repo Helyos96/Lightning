@@ -144,6 +144,12 @@ lazy_static! {
         ("totem_damage", vec![
             Mod::stat(StatId::Damage, Type::Base, 0).with_tags(GemTag::Totem),
         ]),
+        ("bleeding_damage", vec![
+            Mod::stat(StatId::Damage, Type::Base, 0).with_flags(ModFlag::Bleed),
+        ]),
+        ("bleed_on_hit_with_attacks", vec![
+            Mod::stat(StatId::ChanceToBleed, Type::Base, 0).with_tags(GemTag::Attack)
+        ]),
         ("deal_no_elemental_damage", vec![
             Mod::stat(StatId::FireDamage, Type::More, -100),
             Mod::stat(StatId::ColdDamage, Type::More, -100),
