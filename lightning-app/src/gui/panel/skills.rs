@@ -37,7 +37,7 @@ fn draw_skill_dropdown(ui: &mut egui::Ui, panel_skills: &mut SkillsPanelState, s
         edit = edit.hint_text(socketed_gem.data().display_name());
     }
     let enabled = if let Some(socketed_gem) = socketed_gem && socketed_gem.granted_by == None { true } else { false };
-    let r = ui.add_enabled(enabled, edit);//edit.show(ui).response;
+    let r = ui.add_enabled(enabled || socketed_gem.is_none(), edit);
     let popup_id = egui::Id::new(format!("popup {}", i));
     if r.clicked() {
         ui.memory_mut(|m| m.open_popup(popup_id));
