@@ -324,7 +324,10 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
     let mut to_equip = vec![];
     for item in tree_import.items.iter().chain(items_import.items.iter()) {
         if let Some(socketed_items) = &item.socketedItems {
-            let (gemlink, jewels) = extract_socketed(socketed_items);
+            let (mut gemlink, jewels) = extract_socketed(socketed_items);
+            if let Some(inventory_id) = &item.inventoryId {
+                gemlink.slot = Slot::try_from((inventory_id.as_str(), item.x.unwrap_or(0))).unwrap_or(Slot::Helm);
+            }
             build.gem_links.push(gemlink);
             for jewel in jewels {
                 build.inventory.push(Arc::new(jewel));
