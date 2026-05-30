@@ -487,15 +487,25 @@ impl Build {
             self.update_item_allocations();
         }
 
-        if slot == Slot::Weapon && ItemClass::TWO_HANDED.contains(self.inventory[item_idx].data().item_class) {
-            self.unequip(Slot::Offhand);
-        }
+        let new_item_class = self.inventory[item_idx].data().item_class;
+        if slot == Slot::Weapon && ItemClass::TWO_HANDED.contains(new_item_class) {
+            let has_quiver = self.get_equipped(Slot::Offhand)
+                .is_some_and(|offhand| offhand.data().item_class == ItemClass::Quiver);
 
-        if slot == Slot::Offhand &&
-           let Some(item) = self.get_equipped(Slot::Weapon) &&
-           ItemClass::TWO_HANDED.contains(item.data().item_class)
-        {
-            self.unequip(Slot::Weapon);
+            if !(new_item_class == ItemClass::Bow && has_quiver) {
+                self.unequip(Slot::Offhand);
+            }
+        }
+        if slot == Slot::Offhand && let Some(weapon) = self.get_equipped(Slot::Weapon) {
+            let weapon_class = weapon.data().item_class;
+
+            if ItemClass::TWO_HANDED.contains(weapon_class) {
+                let is_valid_bow_setup = weapon_class == ItemClass::Bow && new_item_class == ItemClass::Quiver;
+
+                if !is_valid_bow_setup {
+                    self.unequip(Slot::Weapon);
+                }
+            }
         }
 
         if let Slot::TreeJewel(jewel_node_id) = slot {

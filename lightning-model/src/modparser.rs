@@ -84,6 +84,7 @@ const BEGINNINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, &[Condition])]
     ("herald skills deal", flags!(GemTag::Herald), BitFlags::EMPTY, &[]),
     ("socketed gems deal", BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::Socketed]),
     ("socketed spells have", flags!(GemTag::Spell), BitFlags::EMPTY, &[Condition::Socketed]),
+    ("projectile attack skills have", flags!(GemTag::{Projectile | Attack}), BitFlags::EMPTY, &[]),
 ];
 
 const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>, &[Condition])] = &[
@@ -101,6 +102,7 @@ const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>
     ("with bow skills", flags!(GemTag::Bow), BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("with totem skills", flags!(GemTag::Totem), BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("for spell damage", flags!(GemTag::Spell), BitFlags::EMPTY, BitFlags::EMPTY, &[]),
+    ("for attack damage", flags!(GemTag::Attack), BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("with cold skills", flags!(GemTag::Cold), BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("with fire skills", flags!(GemTag::Fire), BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("with lightning skills", flags!(GemTag::Lightning), BitFlags::EMPTY, BitFlags::EMPTY, &[]),
@@ -633,6 +635,14 @@ lazy_static! {
                 Some(vec![
                     Mod::active_skill(gem_id, u32::from_str(&c[1]).unwrap()),
                 ])
+            })
+        ), (
+            regex!(r"^([a-z -]+) is doubled$"),
+            Box::new(|c| {
+                let stat_tags = parse_stat(&c[1])?;
+                Some(stat_tags.iter().map(|s| {
+                    Mod::stat(s.0, Type::More, 100).with_tags(s.1).with_weapons(s.2).with_flags(s.3).with_skill_types(&s.4)
+                }).collect())
             })
         ),
     ];
