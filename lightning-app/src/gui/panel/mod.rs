@@ -14,7 +14,11 @@ fn text_gemlink(gemlink: &GemLink) -> String {
     }
     let mut ret = String::new();
     for active_gem in gemlink.active_gems() {
-        ret += &active_gem.data().base_item.display_name;
+        if let Some(base_item) = &active_gem.data().base_item {
+            ret += &base_item.display_name;
+        } else {
+            ret += active_gem.data().display_name();
+        }
         ret += ", ";
     }
     return String::from(ret.trim_end_matches(", "));

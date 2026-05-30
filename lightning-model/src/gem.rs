@@ -176,8 +176,15 @@ impl Gem {
         self.invalidate_modcache();
     }
 
+    pub fn level_extra(&self, extra_level: i32) -> u32 {
+        if self.granted_by.is_some() {
+            return self.level;
+        }
+        (self.level as i32 + extra_level).max(1) as u32
+    }
+
     pub fn calc_mods(&self, as_aura_buff_curse: bool, extra_level: i32, extra_qual: i32) -> Arc<Vec<Mod>> {
-        let level = (self.level as i32 + extra_level).max(1) as u32;
+        let level = self.level_extra(extra_level);
         let qual = self.qual + extra_qual;
 
         if self.mod_cache_level.load(Ordering::Relaxed) != level ||
@@ -193,11 +200,11 @@ impl Gem {
     }
 
     pub fn mana_cost_level(&self, extra_level: i32) -> Option<i64> {
-        self.data().mana_cost((self.level as i32 + extra_level).max(1) as u32)
+        self.data().mana_cost(self.level_extra(extra_level))
     }
 
     pub fn cost_multiplier_level(&self, extra_level: i32) -> Option<i64> {
-        self.data().cost_multiplier((self.level as i32 + extra_level).max(1) as u32)
+        self.data().cost_multiplier(self.level_extra(extra_level))
     }
 
     fn stat_value_level(&self, id: &str) -> Option<i64> {
@@ -213,7 +220,7 @@ impl Gem {
     }
 
     pub fn added_effectiveness(&self, extra_level: i32) -> Option<i64> {
-        if let Some(level_data) = self.data().per_level.get(&((self.level as i32 + extra_level).max(1) as u32)) {
+        if let Some(level_data) = self.data().per_level.get(&(self.level_extra(extra_level))) {
             if level_data.damage_effectiveness.is_some() {
                 return level_data.damage_effectiveness;
             }
@@ -222,7 +229,7 @@ impl Gem {
     }
 
     pub fn damage_multiplier(&self, extra_level: i32) -> Option<i64> {
-        if let Some(level_data) = self.data().per_level.get(&((self.level as i32 + extra_level).max(1) as u32)) {
+        if let Some(level_data) = self.data().per_level.get(&(self.level_extra(extra_level))) {
             if level_data.damage_multiplier.is_some() {
                 return level_data.damage_multiplier;
             }

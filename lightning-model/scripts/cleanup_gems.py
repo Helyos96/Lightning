@@ -14,15 +14,22 @@ for (k,v) in gems.items():
     if "Royale" in k:
         cull.append(k)
         continue
-    if "base_item" not in v or v["base_item"] is None:
+
+    if "base_item" in v and v["base_item"] is not None:
+        if "release_state" not in v["base_item"]:
+            cull.append(k)
+            continue
+        if v["base_item"]["release_state"] != "released":
+            cull.append(k)
+            continue
+
+    if v["display_name"] is not None and ("[DNT]" in v["display_name"] or "[UNUSED]" in v["display_name"]):
         cull.append(k)
         continue
-    if "release_state" not in v["base_item"]:
-        cull.append(k)
-        continue
-    if v["base_item"]["release_state"] != "released":
-        cull.append(k)
-        continue
+
+    if v["active_skill"] is not None and v["active_skill"]["types"] is None:
+        v["active_skill"].pop("types", None)
+
     if v["tags"] is None:
         v.pop("tags", None)
 

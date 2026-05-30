@@ -143,7 +143,7 @@ lazy_static! {
 fn extract_socketed(gems: &Vec<Item>) -> (GemLink, Vec<item::Item>) {
     let mut gemlink = GemLink {
         gems: vec![],
-        slot: build::Slot::Helm,
+        slot: None,
     };
     let mut jewels = vec![];
 
@@ -326,7 +326,7 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
         if let Some(socketed_items) = &item.socketedItems {
             let (mut gemlink, jewels) = extract_socketed(socketed_items);
             if let Some(inventory_id) = &item.inventoryId {
-                gemlink.slot = Slot::try_from((inventory_id.as_str(), item.x.unwrap_or(0))).unwrap_or(Slot::Helm);
+                gemlink.slot = Slot::try_from((inventory_id.as_str(), item.x.unwrap_or(0))).ok();
             }
             build.gem_links.push(gemlink);
             for jewel in jewels {

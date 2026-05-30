@@ -1,6 +1,6 @@
 use crate::build::property;
 use crate::build::stat::StatId;
-use crate::data::gem::GemTag;
+use crate::data::gem::{ActiveSkillType, GemTag};
 use crate::modifier::{Condition, Mod, ModFlag, Mutation, Type};
 use crate::stackvec;
 use rustc_hash::FxHashMap;
@@ -370,6 +370,11 @@ lazy_static! {
         ("Herald of Ash", [
             ("physical_damage_%_to_add_as_fire", vec![
                 Mod::stat(StatId::PhysicalAsFireExtra, Type::Base, 0).with_flags(ModFlag::Buff),
+            ]),
+        ].into_iter().collect()),
+        ("Herald of the Hive", [
+            ("skill_buff_grants_damage_+%_final_per_herald_skill_affecting_you", vec![
+                Mod::stat(StatId::Damage, Type::More, 0).with_flags(ModFlag::Buff).with_mutations(stackvec![Mutation::ForEachActiveSkill(&[ActiveSkillType::Herald])]),
             ]),
         ].into_iter().collect()),
         ("Summon Lightning Golem", [

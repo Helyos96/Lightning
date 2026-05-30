@@ -136,6 +136,7 @@ pub enum ModEffect {
     QualityOfGems(i32),
     Buff(Buff),
     SupportGem(&'static str, u32),
+    ActiveSkill(&'static str, u32),
 }
 
 impl Default for ModEffect {
@@ -152,6 +153,7 @@ pub struct Mod {
     pub source: Source,
     pub weapons: BitFlags<ItemClass>,
     pub flags: BitFlags<ModFlag>,
+    pub skill_types: StackVec<ActiveSkillType, 2>,
 }
 
 impl Mod {
@@ -178,6 +180,10 @@ impl Mod {
 
     pub fn support_gem(id: &'static str, level: u32) -> Self {
         Self { effect: ModEffect::SupportGem(id, level), ..Default::default() }
+    }
+
+    pub fn active_skill(id: &'static str, level: u32) -> Self {
+        Self { effect: ModEffect::ActiveSkill(id, level), ..Default::default() }
     }
 
     pub fn buff(buff: Buff) -> Self {
@@ -224,6 +230,11 @@ impl Mod {
         self
     }
 
+    pub fn with_skill_types(mut self, skill_types: &[ActiveSkillType]) -> Self {
+        self.skill_types.extend_from_slice(skill_types);
+        self
+    }
+
     pub fn with_weapons(mut self, weapons: impl Into<BitFlags<ItemClass>>) -> Self {
         self.weapons.insert(weapons);
         self
@@ -252,6 +263,14 @@ impl Mod {
 
     pub fn as_support_gem(&self) -> Option<(&'static str, u32)> {
         if let ModEffect::SupportGem(id, level) = &self.effect {
+            Some((id, *level))
+        } else {
+            None
+        }
+    }
+
+    pub fn as_active_skill(&self) -> Option<(&'static str, u32)> {
+        if let ModEffect::ActiveSkill(id, level) = &self.effect {
             Some((id, *level))
         } else {
             None

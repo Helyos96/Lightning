@@ -118,6 +118,7 @@ impl Static {
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq)]
 pub enum ActiveSkillType {
     AND,
+    Aegis,
     AppliesCurse,
     AppliesMaim,
     Arcane,
@@ -197,6 +198,7 @@ pub enum ActiveSkillType {
     Offering,
     Orb,
     OtherThingUsesSkill,
+    OwnerCannotUse,
     Physical,
     PreventHexTransfer,
     Projectile,
@@ -222,6 +224,7 @@ pub enum ActiveSkillType {
     Stance,
     Steel,
     SummonsTotem,
+    SupportedByAutoExertion,
     SupportedByBane,
     ThresholdJewelArea,
     ThresholdJewelChaining,
@@ -311,7 +314,8 @@ pub struct SupportGemData {
     pub allowed_types: Option<FxHashSet<ActiveSkillType>>,
     #[serde(default)]
     pub excluded_types: Option<FxHashSet<ActiveSkillType>>,
-    pub support_text: String,
+    #[serde(default)]
+    pub support_text: Option<String>,
 }
 
 // Ser/Des an array into BitFlags
@@ -341,7 +345,7 @@ pub mod enumflags2_array {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GemData {
     pub active_skill: Option<ActiveSkill>,
-    pub base_item: BaseItem,
+    pub base_item: Option<BaseItem>,
     pub cast_time: Option<i64>,
     pub is_support: bool,
     pub per_level: FxHashMap<u32, Level>,
@@ -355,19 +359,23 @@ pub struct GemData {
     #[serde(default)]
     pub support_gem: Option<SupportGemData>,
     pub color: String,
+    #[serde(default)]
+    pub display_name: Option<String>,
 }
 
 impl GemData {
     pub fn display_name(&'static self) -> &'static str {
         if let Some(active_skill) = self.active_skill.as_ref() {
             &active_skill.display_name
+        } else if let Some(display_name) = &self.display_name {
+            display_name
         } else {
-            &self.base_item.display_name
+            "<No Name>"
         }
     }
 
     pub fn max_level(&self) -> i32 {
-        if let Some(max_level) = self.base_item.max_level {
+        if let Some(base_item) = &self.base_item && let Some(max_level) = base_item.max_level {
             return max_level;
         }
         if let Some(max_level) = self.per_level.keys().max().copied() {
@@ -394,8 +402,8 @@ impl GemData {
     pub fn description(&'static self) -> Option<&'static str> {
         if let Some(active_skill) = &self.active_skill {
             return Some(&active_skill.description);
-        } else if let Some(support_data) = &self.support_gem {
-            return Some(&support_data.support_text);
+        } else if let Some(support_data) = &self.support_gem && let Some(support_text) = &support_data.support_text {
+            return Some(support_text);
         }
         None
     }
@@ -451,7 +459,7 @@ impl GemData {
         if let Some(stats) = &self.r#static.stats {
             for gem_stat in stats.iter().flatten() {
                 if let Some(id) = &gem_stat.id {
-                    if let Some(modifiers) = gemstats::match_gemstat(&self.base_item.display_name, id) {
+                    if let Some(modifiers) = gemstats::match_gemstat(self.display_name(), id) {
                         for mut modifier in modifiers {
                             if as_aura_buff_curse != modifier.flags.intersects(make_bitflags!(ModFlag::{Aura | Buff | Curse})) {
                                 continue;
@@ -476,7 +484,7 @@ impl GemData {
 
         for quality_stat in &self.r#static.quality_stats {
             for (stat_name, val) in &quality_stat.stats {
-                if let Some(modifiers) = gemstats::match_gemstat(&self.base_item.display_name, stat_name) {
+                if let Some(modifiers) = gemstats::match_gemstat(self.display_name(), stat_name) {
                     for mut modifier in modifiers {
                         if as_aura_buff_curse != modifier.flags.intersects(make_bitflags!(ModFlag::{Aura | Buff | Curse})) {
                             continue;

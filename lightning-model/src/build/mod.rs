@@ -104,7 +104,7 @@ pub enum Defence {
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct GemLink {
     pub gems: Vec<Gem>,
-    pub slot: Slot,
+    pub slot: Option<Slot>,
 }
 
 impl GemLink {
@@ -384,7 +384,12 @@ impl Build {
 
         let mut ret = vec![];
         for (gem, link) in best_gems.values() {
-            let mut eval = Evaluator::new(self, mods, gem.data().tags, make_bitflags!(ModFlag::{Aura | Buff | Curse}), None, Some(link.slot));
+            let skill_types = if let Some(active_skill) = &gem.data().active_skill {
+                &active_skill.types
+            } else {
+                &FxHashSet::default()
+            };
+            let mut eval = Evaluator::new(self, mods, gem.data().tags, make_bitflags!(ModFlag::{Aura | Buff | Curse}), skill_types, None, link.slot);
             //eval.resolve();
             let mut best_supports: FxHashMap<&str, &Gem> = FxHashMap::default();
 
@@ -498,11 +503,17 @@ impl Build {
         }
 
         for (gem_id, level) in self.inventory[item_idx].calc_nonlocal_mods().iter().filter_map(|m| m.as_support_gem()) {
-            for link in self.gem_links.iter_mut().filter(|link| link.slot == slot) {
+            for link in self.gem_links.iter_mut().filter(|link| link.slot == Some(slot)) {
                 let mut gem = Gem::new(gem_id.to_string(), true, level, 0, 0);
                 gem.granted_by = Some(slot);
                 link.gems.push(gem);
             }
+        }
+
+        for (gem_id, level) in self.inventory[item_idx].calc_nonlocal_mods().iter().filter_map(|m| m.as_active_skill()) {
+            let mut gem = Gem::new(gem_id.to_string(), true, level, 0, 0);
+            gem.granted_by = Some(slot);
+            self.gem_links.push(GemLink { gems: vec![gem], slot: None });
         }
     }
 
@@ -524,9 +535,11 @@ impl Build {
             }
         }
 
-        for link in self.gem_links.iter_mut().filter(|link| link.slot == slot) {
+        for link in self.gem_links.iter_mut() {
             link.gems.retain(|gem| gem.granted_by != Some(slot));
         }
+
+        self.gem_links.retain(|link| !link.gems.is_empty());
     }
 
     pub fn get_equipped(&self, slot: Slot) -> Option<&Item> {
@@ -603,7 +616,8 @@ impl Build {
     }
 
     pub fn calc_stats(&self, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>) -> Stats {
-        let mut evaluator = Evaluator::new(self, mods, tags, flags, None, None);
+        let types = FxHashSet::default();
+        let mut evaluator = Evaluator::new(self, mods, tags, flags, &types, None, None);
         evaluator.resolve();
         evaluator.resolve_stats();
         Stats { stats: evaluator.cache.resolved_stats }

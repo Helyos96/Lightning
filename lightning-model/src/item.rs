@@ -34,8 +34,6 @@ pub struct RawItem {
     pub base_percentile: i64,
     #[serde(default)]
     pub radius: Option<JewelRadius>,
-    #[serde(default)]
-    pub inc_effect: i64,
 }
 
 #[derive(Debug, Derivative, Serialize, Deserialize)]
@@ -54,7 +52,6 @@ pub struct Item {
     pub item_level: i64,
     pub base_percentile: i64,
     pub radius: Option<JewelRadius>,
-    pub inc_effect: i64,
 
     #[serde(skip)]
     #[derivative(Clone(clone_with = "clone_arc_swap"))]
@@ -92,7 +89,6 @@ impl From<RawItem> for Item {
             item_level: raw.item_level,
             base_percentile: raw.base_percentile,
             radius: raw.radius,
-            inc_effect: raw.inc_effect,
             defence_cache: ArcSwap::from_pointee(Default::default()),
             local_modcache: ArcSwap::from_pointee(Vec::new()),
             non_local_modcache: ArcSwap::from_pointee(Vec::new()),

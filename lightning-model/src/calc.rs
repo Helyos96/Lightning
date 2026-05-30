@@ -8,7 +8,7 @@ use crate::gem::Gem;
 use crate::item::Item;
 use crate::modifier::{Mod, ModFlag, Mutation, Source, Type};
 use enumflags2::{BitFlags, make_bitflags};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use rayon::slice::ParallelSlice;
 use rayon::iter::{ParallelIterator, IntoParallelRefIterator};
 
@@ -305,7 +305,12 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
     let extra_level = mods.iter().filter(|m| tags.contains(m.tags)).flat_map(|m| m.as_gem_level()).sum();
     mods.extend_from_slice(&active_gem.calc_mods(false, extra_level, 0));
 
-    let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}), None, Some(link.slot));
+    let skill_types = if let Some(active_skill) = &active_gem.data().active_skill {
+        &active_skill.types
+    } else {
+        &FxHashSet::default()
+    };
+    let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}), skill_types, None, link.slot);
     eval.resolve();
 
     let monster_mods = Build::calc_mods_monster(build.property_int(property::Int::Level).min(83));
@@ -321,7 +326,7 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
 
         for slot in [Slot::Weapon, Slot::Offhand] {
             if let Some(weapon) = build.get_equipped(slot) {
-                let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}), Some(slot), Some(link.slot));
+                let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}), skill_types, Some(slot), link.slot);
                 eval.resolve();
                 let weapon_restrictions = &active_gem.data().active_skill.as_ref().unwrap().weapon_restrictions;
                 if !weapon_restrictions.is_empty() && !weapon_restrictions.contains(&weapon.data().item_class) {
@@ -382,7 +387,7 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
                 damage_instances.push(dmg_inst);
 
                 if bleed_chance > 0 {
-                    let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Ailment | Bleed | Aura | Buff | Curse}), Some(slot), Some(link.slot));
+                    let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Ailment | Bleed | Aura | Buff | Curse}), skill_types, Some(slot), link.slot);
                     eval.resolve();
                     let physical_dg = &DAMAGE_GROUPS[0];
                     let local_bleed_dps = calc_weapon_bleed_dmg(&mut eval, weapon, active_gem, physical_dg, extra_level);

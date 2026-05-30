@@ -16,6 +16,7 @@ pub struct EvaluatorCtx<'a> {
     slot: Option<Slot>,
     tags: BitFlags<GemTag>,
     flags: BitFlags<ModFlag>,
+    skill_types: &'a FxHashSet<ActiveSkillType>,
     build_flags: FxHashSet<BuildFlag>,
     mods: &'a [Mod],
     pub extra_mods: Vec<Mod>,
@@ -29,13 +30,14 @@ pub struct Evaluator<'a> {
 }
 
 impl<'a> Evaluator<'a> {
-    pub fn new(build: &'a Build, mods: &'a [Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>, weapon: Option<Slot>, slot: Option<Slot>) -> Self {
+    pub fn new(build: &'a Build, mods: &'a [Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>, skill_types: &'a FxHashSet<ActiveSkillType>, weapon: Option<Slot>, slot: Option<Slot>) -> Self {
         let ret = Self {
             ctx: EvaluatorCtx {
                 build,
                 weapon,
                 slot,
                 tags,
+                skill_types,
                 flags,
                 build_flags: FxHashSet::from(mods.iter().filter_map(|m| m.as_build_flag()).copied().collect()),
                 mods,
@@ -159,7 +161,7 @@ impl<'a> EvaluatorCtx<'a> {
                 if let Some(mstat) = m.as_stat() && mstat.stat == stat_id &&
                    (m.flags.is_empty() || self.flags.intersects(m.flags)) &&
                    (m.weapons.is_empty() || self.build.is_holding(&m.weapons)) &&
-                   self.tags.contains(m.tags)
+                   self.tags.contains(m.tags) && m.skill_types.iter().all(|st| self.skill_types.contains(st))
                 {
                     true
                 } else {
