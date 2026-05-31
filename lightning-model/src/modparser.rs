@@ -7,7 +7,7 @@ use crate::data::tree::NodeType;
 use crate::gem::Gem;
 use crate::data::{GEMS, TREE};
 use crate::item::{self, Item, JewelRadius};
-use crate::modifier::{BuildFlag, Condition, Mod, ModFlag, Mutation, Source, Type};
+use crate::modifier::{BuildFlag, Condition, Mod, ModEffect, ModFlag, Mutation, Source, Type};
 use crate::stackvec::{StackVec};
 use crate::stackvec;
 use crate::tree::{NodeMutation, NOTHINGNESS_NODE_ID};
@@ -83,6 +83,7 @@ const BEGINNINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, &[Condition])]
     ("curse skills have", flags!(GemTag::Curse), BitFlags::EMPTY, &[]),
     ("herald skills deal", flags!(GemTag::Herald), BitFlags::EMPTY, &[]),
     ("socketed gems deal", BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::Socketed]),
+    ("socketed skills deal", BitFlags::EMPTY, BitFlags::EMPTY, &[Condition::Socketed]),
     ("socketed spells have", flags!(GemTag::Spell), BitFlags::EMPTY, &[Condition::Socketed]),
     ("projectile attack skills have", flags!(GemTag::{Projectile | Attack}), BitFlags::EMPTY, &[]),
 ];
@@ -283,6 +284,8 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("evasion", StatId::EvasionRating, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("effect of herald buffs on you", StatId::BuffEffect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[ActiveSkillType::Herald]),
     ("effect of buffs granted by your golems", StatId::BuffEffect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[ActiveSkillType::Golem]),
+    ("effect of your marks", StatId::CurseEffect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[ActiveSkillType::Mark]),
+    ("ring slot", StatId::RingSlots, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
 ];
 
 lazy_static! {
@@ -617,26 +620,6 @@ lazy_static! {
                 ])
             })
         ), (
-            regex!(r"^socketed gems are supported by level ([0-9]+) ([a-z ]+)$"),
-            Box::new(|c| {
-                let gem_id = GEMS.iter().find(|(_, v)| {
-                    v.display_name().to_lowercase() == format!("{} support", &c[2])
-                })?.0;
-                Some(vec![
-                    Mod::support_gem(gem_id, u32::from_str(&c[1]).unwrap()),
-                ])
-            })
-        ), (
-            regex!(r"^grants level ([0-9]+) ([a-z ]+) skill$"),
-            Box::new(|c| {
-                let gem_id = GEMS.iter().find(|(_, v)| {
-                    v.display_name().to_lowercase() == &c[2]
-                })?.0;
-                Some(vec![
-                    Mod::active_skill(gem_id, u32::from_str(&c[1]).unwrap()),
-                ])
-            })
-        ), (
             regex!(r"^([a-z -]+) is doubled$"),
             Box::new(|c| {
                 let stat_tags = parse_stat(&c[1])?;
@@ -666,6 +649,28 @@ lazy_static! {
     ];
 
     static ref ENDING_PER_GENERIC: Regex = regex!("per ([0-9]+)?%? ([a-z ]+)$");
+
+    static ref ONESHOTS_REGEX: Vec<(Regex, Box<dyn Fn(&Captures) -> Option<Vec<Mod>> + Send + Sync>)> = vec![
+        (
+            regex!(r"^socketed gems are supported by level ([0-9]+) ([a-z ]+)$"),
+            Box::new(|c| {
+                let expected_name = format!("{} support", c[2].trim());
+                let gem_id = GEMS.iter().find(|(_, v)| {
+                    v.display_name().to_lowercase() == expected_name
+                })?.0;
+                Some(vec![Mod::support_gem(gem_id, u32::from_str(&c[1]).unwrap())])
+            })
+        ),
+        (
+            regex!(r"^grants level ([0-9]+) ([a-z ]+) skill$"),
+            Box::new(|c| {
+                let gem_id = GEMS.iter().find(|(_, v)| {
+                    v.display_name().to_lowercase() == &c[2]
+                })?.0;
+                Some(vec![Mod::active_skill(gem_id, u32::from_str(&c[1]).unwrap())])
+            })
+        ),
+    ];
 
     static ref ONESHOTS: FxHashMap<&'static str, Vec<Mod>> = {
         let mut map = FxHashMap::default();
@@ -709,6 +714,9 @@ lazy_static! {
         ]);
         map.insert("onslaught", vec![
             Mod::buff(Buff::Onslaught),
+        ]);
+        map.insert("reflects opposite ring", vec![
+            Mod { effect: ModEffect::ReflectOppositeRing, .. Default::default() },
         ]);
         map
     };
@@ -866,11 +874,12 @@ lazy_static! {
 }
 
 /// Attempts to parse a modifier like "30℅ increased poison damage while focussed"
-/// 1. ONESHOTS array for static string mods
-/// 2. if not oneshot, parse right to left:
-///    2.1. any amount of ENDINGS
-///    2.2. any amount of BEGINNINGS
-///    2.3. a CORES
+/// 1. ONESHOTS array for static full string mods
+/// 2. ONESHOTS_REGEX for varying full string mods
+/// 3. if not oneshot, parse right->left->middle:
+///    3.1. any amount of ENDINGS
+///    3.2. any amount of BEGINNINGS
+///    3.3. a CORES
 pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
     if let Some(cached_mods) = CACHE.get(input) {
         let mut mods_opt = cached_mods.to_owned();
@@ -889,7 +898,20 @@ pub fn parse_mod(input: &str, source: Source) -> Option<Vec<Mod>> {
         for m in &mut mods {
             m.source = source;
         }
+        CACHE.insert(input.to_string(), Some(mods.clone()));
         return Some(mods);
+    }
+
+    for oneshot in ONESHOTS_REGEX.iter() {
+        if let Some(cap) = oneshot.0.captures(&lowercase) {
+            if let Some(mut mods) = oneshot.1(&cap) {
+                for modifier in &mut mods {
+                    modifier.source = source;
+                }
+                CACHE.insert(input.to_string(), Some(mods.clone()));
+                return Some(mods);
+            }
+        }
     }
 
     let mut m = &lowercase[0..];

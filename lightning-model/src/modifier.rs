@@ -137,6 +137,7 @@ pub enum ModEffect {
     Buff(Buff),
     SupportGem(&'static str, u32),
     ActiveSkill(&'static str, u32),
+    ReflectOppositeRing,
 }
 
 impl Default for ModEffect {

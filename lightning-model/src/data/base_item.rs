@@ -76,7 +76,7 @@ impl ItemClass {
             Belt => &[Slot::Belt],
             Gloves => &[Slot::Gloves],
             Boots => &[Slot::Boots],
-            Ring => &[Slot::Ring, Slot::Ring2],
+            Ring => &[Slot::Ring(0)],
             Jewel => &[Slot::TreeJewel(0)],
             AbyssJewel => &[Slot::TreeJewel(0), Slot::AbyssalJewel(0)],
             LifeFlask | ManaFlask | HybridFlask | UtilityFlask | Tincture => &[Slot::Flask(0)],

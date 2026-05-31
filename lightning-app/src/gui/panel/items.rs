@@ -2,7 +2,7 @@ use std::{sync::Arc};
 use lightning_model::{build::Slot, item::Item, modifier::Source};
 use crate::gui::{State, utils::{draw_item, draw_item_window, draw_item_deltas, rarity_to_color}};
 
-const SLOTS: [Slot; 15] = [
+const SLOTS: [Slot; 16] = [
     Slot::Weapon,
     Slot::Offhand,
     Slot::Helm,
@@ -11,8 +11,9 @@ const SLOTS: [Slot; 15] = [
     Slot::Gloves,
     Slot::Boots,
     Slot::Belt,
-    Slot::Ring,
-    Slot::Ring2,
+    Slot::Ring(0),
+    Slot::Ring(1),
+    Slot::Ring(2),
     Slot::Flask(0),
     Slot::Flask(1),
     Slot::Flask(2),
@@ -42,8 +43,7 @@ fn format_slot(slot: Slot) -> String {
         Slot::Gloves => "Gloves".to_string(),
         Slot::Boots => "Boots".to_string(),
         Slot::Belt => "Belt".to_string(),
-        Slot::Ring => "Ring 1".to_string(),
-        Slot::Ring2 => "Ring 2".to_string(),
+        Slot::Ring(i) => format!("Ring {}", i + 1),
         Slot::Flask(i) => format!("Flask {}", i + 1),
         Slot::TreeJewel(i) => format!("Jewel {}", i),
         Slot::AbyssalJewel(i) => format!("Abyssal Socket {}", i + 1),
@@ -170,6 +170,9 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                             .spacing([10.0, 4.0])
                             .show(ui, |ui| {
                                 for slot in SLOTS {
+                                    if let Slot::Ring(i) = slot && i >= state.ring_slots {
+                                        continue;
+                                    }
                                     if let Some(hov) = draw_item_combo(ui, state, slot) {
                                         newly_hovered_idx = Some(hov);
                                     }
@@ -357,6 +360,9 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
             }
 
             for slot in potential_slots {
+                if let Slot::Ring(i) = slot && i >= state.ring_slots {
+                    continue;
+                }
                 if item.data().item_class.allowed_slots().iter().any(|&s| s.compatible(slot)) {
                     if let Some(idx) = idx_opt {
                         if state.build.equipment().get(&slot) == Some(&idx) {

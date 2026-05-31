@@ -12,7 +12,7 @@ use lightning_model::data::tree::Node;
 use lightning_model::data::GEMS;
 use lightning_model::gem::Gem;
 use lightning_model::calc::{self, PowerReport};
-use lightning_model::build::property;
+use lightning_model::build::{property, stat::StatId};
 use panel::items::ItemsPanelState;
 use panel::skills::SkillsPanelState;
 use panel::bottom::{BottomPanelState, PowerReportType};
@@ -66,6 +66,7 @@ pub struct State {
     pub power_report: Option<PowerReport>,
     pub passives_count: usize,
     pub passives_max: i64,
+    pub ring_slots: u16,
     pub abyssal_sockets: u16,
     pub hovered_node_id: Option<u32>,
     pub path_hovered: Option<Vec<u32>>,
@@ -128,6 +129,7 @@ impl State {
             power_report: None,
             passives_count: 0,
             passives_max: 0,
+            ring_slots: 0,
             abyssal_sockets: 0,
             hovered_node_id: None,
             path_hovered: None,
@@ -229,8 +231,9 @@ impl State {
         let mods = self.build.calc_mods(true);
         let stats = self.build.calc_stats(&mods, BitFlags::EMPTY, BitFlags::EMPTY);
         self.passives_count = self.build.tree.passives_count();
-        self.passives_max = stats.val(lightning_model::build::stat::StatId::PassiveSkillPoints);
-        self.abyssal_sockets = stats.val(lightning_model::build::stat::StatId::AbyssalSockets) as u16;
+        self.passives_max = stats.val(StatId::PassiveSkillPoints);
+        self.ring_slots = stats.val(StatId::RingSlots) as u16;
+        self.abyssal_sockets = stats.val(StatId::AbyssalSockets) as u16;
         let (defence_calc, mut defence_stats) = calc::calc_defence(&self.build);
         for stat in defence_stats.stats.values_mut() {
             stat.mods.sort_unstable_by(|a, b| {

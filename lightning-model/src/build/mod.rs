@@ -15,7 +15,7 @@ use crate::data::gem::{ActiveSkillType, GemTag};
 use crate::data::{MONSTER_STATS, TREE};
 use crate::gem::Gem;
 use crate::item::Item;
-use crate::modifier::{Condition, Mod, ModFlag, Mutation, Source, Type};
+use crate::modifier::{Condition, Mod, ModEffect, ModFlag, Mutation, Source, Type};
 use crate::modparser::parse_mod;
 use crate::stackvec;
 use crate::tree::PassiveTree;
@@ -40,8 +40,7 @@ pub enum Slot {
     Amulet,
     Weapon,
     Offhand,
-    Ring,
-    Ring2,
+    Ring(u16),
     Flask(u16), // u16 -> Flask slot
     TreeJewel(u32), // u32 -> Tree node holding the jewel
     AbyssalJewel(u16), // u16 -> Number of abyssal socket
@@ -50,6 +49,7 @@ pub enum Slot {
 impl Slot {
     pub fn compatible(&self, other: Slot) -> bool {
         match (self, other) {
+            (Slot::Ring(_), Slot::Ring(_)) => true,
             (Slot::Flask(_), Slot::Flask(_)) => true,
             (Slot::TreeJewel(_), Slot::TreeJewel(_)) => true,
             (Slot::AbyssalJewel(_), Slot::AbyssalJewel(_)) => true,
@@ -71,8 +71,9 @@ impl TryFrom<(&str, u16)> for Slot {
             "Amulet" => Ok(Slot::Amulet),
             "Weapon" => Ok(Slot::Weapon),
             "Offhand" => Ok(Slot::Offhand),
-            "Ring" => Ok(Slot::Ring),
-            "Ring2" => Ok(Slot::Ring2),
+            "Ring" => Ok(Slot::Ring(0)),
+            "Ring2" => Ok(Slot::Ring(1)),
+            "Ring3" => Ok(Slot::Ring(2)),
             "Flask" => {
                 if x <= 4 {
                     Ok(Slot::Flask(x))
@@ -212,6 +213,7 @@ pub static ref BANDIT_STATS: FxHashMap<BanditChoice, Vec<Mod>> = {
         Mod::stat(StatId::ChanceToBlockAttackDamage, Type::Base, 20).with_conditions(stackvec![Condition::WhileDualWielding]),
         Mod::stat(StatId::MaximumChanceToBlockAttackDamage, Type::Base, 75),
         Mod::stat(StatId::MaximumChanceToBlockSpellDamage, Type::Base, 75),
+        Mod::stat(StatId::RingSlots, Type::Base, 2),
     ];
 }
 
@@ -343,9 +345,20 @@ impl Build {
                 }
             } else {
                 for m in item.calc_nonlocal_mods().iter() {
-                    let mut new_mod = m.to_owned();
-                    new_mod.source = Source::Item(*slot);
-                    mods.push(new_mod);
+                    if let ModEffect::ReflectOppositeRing = m.effect &&
+                       let Slot::Ring(i) = slot && *i < 2 &&
+                       let Some(opposite_ring) = self.get_equipped(Slot::Ring(1 - i))
+                    {
+                        for m in opposite_ring.calc_nonlocal_mods().iter() {
+                            let mut new_mod = m.to_owned();
+                            new_mod.source = Source::Item(*slot);
+                            mods.push(new_mod);
+                        }
+                    } else {
+                        let mut new_mod = m.to_owned();
+                        new_mod.source = Source::Item(*slot);
+                        mods.push(new_mod);
+                    }
                 }
             }
         }
