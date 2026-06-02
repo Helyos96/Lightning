@@ -135,9 +135,10 @@ impl JewelRadius {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct JewelRadiusData {
-    pub inner: f32,
-    pub outer: f32,
+    pub inner: u32,
+    pub outer: u32,
 }
 
 fn clone_arc_swap<T>(cache: &ArcSwap<T>) -> ArcSwap<T> {
@@ -321,11 +322,11 @@ impl Item {
     pub fn radius_data(&self) -> Option<JewelRadiusData> {
         if let Some(radius) = self.radius {
             match radius {
-                JewelRadius::Small => Some(JewelRadiusData { inner: 0.0, outer: 960.0}),
-                JewelRadius::Medium => Some(JewelRadiusData { inner: 0.0, outer: 1440.0}),
-                JewelRadius::Large => Some(JewelRadiusData { inner: 0.0, outer: 1800.0}),
-                JewelRadius::VeryLarge => Some(JewelRadiusData { inner: 0.0, outer: 2400.0}),
-                JewelRadius::Massive => Some(JewelRadiusData { inner: 0.0, outer: 2880.0}),
+                JewelRadius::Small => Some(JewelRadiusData { inner: 0, outer: 960}),
+                JewelRadius::Medium => Some(JewelRadiusData { inner: 0, outer: 1440}),
+                JewelRadius::Large => Some(JewelRadiusData { inner: 0, outer: 1800}),
+                JewelRadius::VeryLarge => Some(JewelRadiusData { inner: 0, outer: 2400}),
+                JewelRadius::Massive => Some(JewelRadiusData { inner: 0, outer: 2880}),
                 JewelRadius::Variable => {
                     if let Some(ring_radius) = self.calc_nonlocal_mods().iter().find_map(|m| {
                         if let Some(size) = m.as_ring_size() {
@@ -336,11 +337,11 @@ impl Item {
                     })
                     {
                         match ring_radius {
-                            JewelRadius::Small => Some(JewelRadiusData { inner: 960.0, outer: 1320.0}),
-                            JewelRadius::Medium => Some(JewelRadiusData { inner: 1320.0, outer: 1680.0}),
-                            JewelRadius::Large => Some(JewelRadiusData { inner: 1680.0, outer: 2040.0}),
-                            JewelRadius::VeryLarge => Some(JewelRadiusData { inner: 2040.0, outer: 2400.0}),
-                            JewelRadius::Massive => Some(JewelRadiusData { inner: 2400.0, outer: 2880.0}),
+                            JewelRadius::Small => Some(JewelRadiusData { inner: 960, outer: 1320}),
+                            JewelRadius::Medium => Some(JewelRadiusData { inner: 1320, outer: 1680}),
+                            JewelRadius::Large => Some(JewelRadiusData { inner: 1680, outer: 2040}),
+                            JewelRadius::VeryLarge => Some(JewelRadiusData { inner: 2040, outer: 2400}),
+                            JewelRadius::Massive => Some(JewelRadiusData { inner: 2400, outer: 2880}),
                             _ => None,
                         }
                     } else {

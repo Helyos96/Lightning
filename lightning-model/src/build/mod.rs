@@ -322,14 +322,7 @@ impl Build {
         ]);
         mods.extend_from_slice(BANDIT_STATS.get(&self.bandit_choice).unwrap());
         mods.extend_from_slice(CAMPAIGN_STATS.get(&self.campaign_choice).unwrap());
-        let jewels: FxHashMap<u32, Arc<Item>> = self.equipment.iter().filter_map(|(k, v)| {
-            if let Slot::TreeJewel(id) = k {
-                Some((*id, self.inventory[*v].clone()))
-            } else {
-                None
-            }
-        }).collect();
-        mods.extend_from_slice(&self.tree.calc_mods(&jewels));
+        mods.extend_from_slice(&self.tree.calc_mods());
         for (slot, idx) in &self.equipment {
             let item = &self.inventory[*idx];
             if let Slot::TreeJewel(_) = slot {

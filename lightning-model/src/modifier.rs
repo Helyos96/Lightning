@@ -138,6 +138,7 @@ pub enum ModEffect {
     SupportGem(&'static str, u32),
     ActiveSkill(&'static str, u32),
     ReflectOppositeRing,
+    GrantsUnallocatedNodeBonuses(BitFlags<NodeType>), // Can't be a MutateNode as these only evaluate allocated nodes
 }
 
 impl Default for ModEffect {

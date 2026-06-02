@@ -274,7 +274,7 @@ impl State {
             if self.build.gem_links.len() > self.panel_skills.selected_gemlink {
                 let link_idx = self.panel_skills.selected_gemlink;
 
-                let mut vec: Vec<(_, _)> = GEMS.par_iter().filter(|(k, gem)| gem.base_item.is_some()).map_init(
+                let mut vec: Vec<(_, _)> = GEMS.par_iter().filter(|(_, gem)| gem.base_item.is_some()).map_init(
                     || self.build.clone(),
                     |local_build, (id, gem_data)| {
                         let gem = Gem::new(id.clone(), true, gem_data.max_level() as u32, 20, 0);

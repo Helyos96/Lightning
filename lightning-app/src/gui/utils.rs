@@ -166,6 +166,9 @@ pub fn draw_item(ui: &mut egui::Ui, item: &Item, source: Source, show_debug: boo
         for stat in &item.mods_expl {
             ui.label(mod_to_richtext(stat, source, show_debug));
         }
+        if item.corrupted {
+            ui.label(egui::RichText::new("Corrupted").color(egui::Color32::RED));
+        }
     });
 }
 

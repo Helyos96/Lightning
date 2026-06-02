@@ -95,6 +95,7 @@ const ENDINGS: &[(&str, BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>
     ("with attack skills", flags!(GemTag::Attack), BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("to attacks", flags!(GemTag::Attack), BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("of attacks", flags!(GemTag::Attack), BitFlags::EMPTY, BitFlags::EMPTY, &[]),
+    ("for attacks", flags!(GemTag::Attack), BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("on targets you hit with attacks", flags!(GemTag::Attack), BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("with attacks", flags!(GemTag::Attack), BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("of skills", flags!(GemTag::Grants_Active_Skill), BitFlags::EMPTY, BitFlags::EMPTY, &[]),
@@ -627,6 +628,18 @@ lazy_static! {
                     Mod::stat(s.0, Type::More, 100).with_tags(s.1).with_weapons(s.2).with_flags(s.3).with_skill_types(&s.4)
                 }).collect())
             })
+        ), (
+            regex!(r"^grants all bonuses of unallocated (small|notable) passive skills in radius$"),
+            Box::new(|c| {
+                let node_type = match &c[1] {
+                    "small" => flags!(NodeType::Normal),
+                    "notable" => flags!(NodeType::Notable),
+                    _ => return None,
+                };
+                Some(vec![
+                    Mod { effect: ModEffect::GrantsUnallocatedNodeBonuses(node_type), ..Default::default() },
+                ])
+            })
         ),
     ];
 
@@ -717,6 +730,9 @@ lazy_static! {
         ]);
         map.insert("reflects opposite ring", vec![
             Mod { effect: ModEffect::ReflectOppositeRing, .. Default::default() },
+        ]);
+        map.insert("allocated small passive skills in radius grant nothing", vec![
+            Mod::mutate_node(NodeMutation::AllocatedGrantNothing, flags!(NodeType::Normal))
         ]);
         map
     };

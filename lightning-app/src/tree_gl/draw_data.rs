@@ -221,14 +221,14 @@ pub fn jewel_radius_gl(jewels: &[(u32, JewelRadiusData)]) -> DrawData {
     for (node_id, radius_data) in jewels {
         if let Some(node) = TREE.nodes.get(node_id) {
             let (x, y) = node_pos(node);
-            let outer_scale = (radius_data.outer * 2.0) / rect.w as f32;
+            let outer_scale = (radius_data.outer as f32 * 2.0) / rect.w as f32;
             dd.append(x, y, rect, sprite, false, outer_scale);
-            if radius_data.inner > 0.0 {
+            if radius_data.inner > 0 {
                 let rect_inversed = &sprite.coords["JewelCircle1Inverse"];
                 // There are ~14 extra decorative pixels that extend outward from the "barrier" of the inner circle
                 let padding_pixels = 14.0;
                 let hole_diameter_pixels = rect_inversed.w as f32 - (padding_pixels * 2.0);
-                let inner_scale = (radius_data.inner * 2.0) / hole_diameter_pixels;
+                let inner_scale = (radius_data.inner as f32 * 2.0) / hole_diameter_pixels;
                 dd.append(x, y, rect_inversed, sprite, false, inner_scale);
             }
         }
@@ -546,6 +546,7 @@ pub fn nodes_gl_active(nodes_id: &[u32], nodes: &imbl::GenericHashMap<u32, Node,
 
 lazy_static! {
     static ref JEWELS_BASE_SPRITE: HashMap<&'static str, &'static str> = HashMap::from([
+        ("Timeless Jewel", "JewelSocketActiveRed"),
         ("Crimson Jewel", "JewelSocketActiveRed"),
         ("Viridian Jewel", "JewelSocketActiveGreen"),
         ("Cobalt Jewel", "JewelSocketActiveBlue"),

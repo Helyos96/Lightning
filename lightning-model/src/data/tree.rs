@@ -8,7 +8,7 @@ use serde_with::{serde_as, DisplayFromStr};
 use lazy_static::lazy_static;
 use enumflags2::bitflags;
 
-use crate::data::TREE;
+use crate::{data::TREE, item::{JewelRadius, JewelRadiusData}};
 
 #[derive(Default, Clone, Copy, Hash, Eq, PartialEq, Debug, Serialize, Deserialize, EnumString, AsRefStr, EnumIter)]
 pub enum Class {
@@ -320,6 +320,29 @@ pub struct TreeData {
     pub alternate_ascendancies: Vec<AlternateAscendancy>,
 }
 
+impl TreeData {
+    /// Returns nodes in radius (or ring) of a node
+    pub fn _nodes_in_radius(&self, center_id: u32, radius_data: &JewelRadiusData, include_blighted: bool) -> Vec<u32> {
+        let center_node = &self.nodes[&center_id];
+        let (inner_squared, outer_squared) = (radius_data.inner * radius_data.inner, radius_data.outer * radius_data.outer);
+        self.nodes.values().filter(|n| {
+            if n.group.is_none() || n.skill >= u16::MAX as u32 || (!include_blighted && n.is_blighted) {
+                return false;
+            }
+            let distance = center_node.distance_squared(n);
+            distance >= inner_squared as f32 && distance <= outer_squared as f32
+        }).map(|n| n.skill).collect()
+    }
+
+    /// Returns nodes in radius (or ring) of a node. Uses precomputed values when available.
+    pub fn nodes_in_radius(&self, center_id: u32, radius_data: &JewelRadiusData, include_blighted: bool) -> Vec<u32> {
+        if let Some(ret) = NODES_IN_RADIUS.get(&(center_id, *radius_data)) {
+            return ret.clone();
+        }
+        self._nodes_in_radius(center_id, radius_data, include_blighted)
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct ClusterOrbitData {
     pub passives: &'static [u16],
@@ -359,6 +382,25 @@ lazy_static! {
         let mut ret = FxHashMap::default();
         for class in Class::iter() {
             ret.insert(class, _get_class_node(class));
+        }
+        ret
+    };
+    pub static ref NODES_IN_RADIUS: FxHashMap<(u32, JewelRadiusData), Vec<u32>> = {
+        let mut ret = FxHashMap::default();
+        for (node_id, node) in TREE.nodes.iter().filter(|(_, v)| v.is_jewel_socket) {
+            if node.name == "Medium Jewel Socket" || node.name == "Small Jewel Socket" {
+                continue;
+            }
+            ret.insert((*node_id, JewelRadiusData { inner: 0, outer: 960}), TREE._nodes_in_radius(*node_id, &JewelRadiusData { inner: 0, outer: 960}, false));
+            ret.insert((*node_id, JewelRadiusData { inner: 0, outer: 1440}), TREE._nodes_in_radius(*node_id, &JewelRadiusData { inner: 0, outer: 1440}, false));
+            ret.insert((*node_id, JewelRadiusData { inner: 0, outer: 1800}), TREE._nodes_in_radius(*node_id, &JewelRadiusData { inner: 0, outer: 1800}, false));
+            ret.insert((*node_id, JewelRadiusData { inner: 0, outer: 2400}), TREE._nodes_in_radius(*node_id, &JewelRadiusData { inner: 0, outer: 2400}, false));
+            ret.insert((*node_id, JewelRadiusData { inner: 0, outer: 2880}), TREE._nodes_in_radius(*node_id, &JewelRadiusData { inner: 0, outer: 2880}, false));
+            ret.insert((*node_id, JewelRadiusData { inner: 960, outer: 1320}), TREE._nodes_in_radius(*node_id, &JewelRadiusData { inner: 960, outer: 1320}, false));
+            ret.insert((*node_id, JewelRadiusData { inner: 1320, outer: 1680}), TREE._nodes_in_radius(*node_id, &JewelRadiusData { inner: 1320, outer: 1680}, false));
+            ret.insert((*node_id, JewelRadiusData { inner: 1680, outer: 2040}), TREE._nodes_in_radius(*node_id, &JewelRadiusData { inner: 1680, outer: 2040}, false));
+            ret.insert((*node_id, JewelRadiusData { inner: 2040, outer: 2400}), TREE._nodes_in_radius(*node_id, &JewelRadiusData { inner: 2040, outer: 2400}, false));
+            ret.insert((*node_id, JewelRadiusData { inner: 2400, outer: 2880}), TREE._nodes_in_radius(*node_id, &JewelRadiusData { inner: 2400, outer: 2880}, false));
         }
         ret
     };

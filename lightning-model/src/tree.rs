@@ -3,7 +3,7 @@ use crate::build::stat::{self, StatId};
 use crate::data::tree::{Ascendancy, CLASS_START_NODES, Class, ClusterOrbitData, Node, NodeType, TreeData, node_pos};
 use crate::data::{TATTOOS, TREE};
 use crate::item::{ClusterData, Item, JewelRadiusData};
-use crate::modifier::{Mod, Mutation, Source, Type};
+use crate::modifier::{Mod, ModEffect, Mutation, Source, Type};
 use crate::modparser::parse_mod;
 use arc_swap::ArcSwap;
 use enumflags2::BitFlags;
@@ -66,11 +66,12 @@ pub struct PassiveTree {
     is_modcache_fresh: AtomicBool,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NodeMutation {
     TransformStat(StatId, StatId),
     AlsoGrantStatPct(StatId, StatId, Type, i64),
     AllocNoPath,
+    AllocatedGrantNothing,
 }
 
 impl From<RawPassiveTree> for PassiveTree {
@@ -507,61 +508,72 @@ impl PassiveTree {
         false
     }
 
-    pub fn regen_modcache(&self, jewels: &FxHashMap<u32, Arc<Item>>) {
+    pub fn node_mods(&self, node_id: u32, mods: &mut Vec<Mod>) {
+        let node_mutations = self.node_mutations(node_id, &self.nodes);
+        if let Some((mutations, _)) = node_mutations &&
+           mutations.contains(&NodeMutation::AllocatedGrantNothing)
+        {
+            return;
+        }
+        for mod_lines in &self.nodes_data[&node_id].stats {
+            for mod_str in mod_lines.split('\n') {
+                if let Some(mut modifiers) = parse_mod(mod_str, Source::Node(node_id)) {
+                    let mut extra_mods = vec![];
+                    if let Some(cluster_jewel_node_id) = self.nodes_cluster.iter().find_map(|(jewel_id, node)| {
+                        if *jewel_id == node_id {
+                            return None;
+                        }
+                        if node.skill == node_id {
+                            return Some(jewel_id);
+                        }
+                        None
+                    })
+                    {
+                        let stat = stat::calc_stat(StatId::SmallPassiveIncreasedEffect, &self.jewels[cluster_jewel_node_id].calc_nonlocal_mods()).val();
+                        if stat != 0 {
+                            for m in &mut modifiers {
+                                if let Some(mstat) = m.as_stat_mut() {
+                                    mstat.mutations.push(Mutation::IncreasedEffect(stat));
+                                }
+                            }
+                        }
+                    }
+                    if let Some((mutations, jewel_id)) = node_mutations {
+                        for modifier in &mut modifiers {
+                            for mutation in mutations {
+                                match mutation {
+                                    NodeMutation::TransformStat(a, b) => {
+                                        if let Some(stat) = modifier.as_stat_mut() &&
+                                           stat.stat == *a
+                                        {
+                                            stat.stat = *b;
+                                        }
+                                    },
+                                    NodeMutation::AlsoGrantStatPct(stat_from, stat_to, typ, pct) => {
+                                        if let Some(stat) = modifier.as_stat() &&
+                                           stat.stat == *stat_from && stat.typ == Type::Base
+                                        {
+                                            extra_mods.push(Mod::stat(*stat_to, *typ, (stat.amount * pct) / 100).with_source(Source::Item(Slot::TreeJewel(jewel_id))));
+                                        }
+                                    },
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
+                    mods.extend(modifiers);
+                    mods.extend(extra_mods);
+                }
+            }
+        }
+    }
+
+    pub fn regen_modcache(&self) {
         let mut mods = Vec::with_capacity(300);
 
         let extra_nodes = self.nodes_additional.iter().filter(|n| !self.nodes.contains(n));
         for node_id in self.nodes.iter().chain(extra_nodes) {
-            for mod_lines in &self.nodes_data[node_id].stats {
-                for mod_str in mod_lines.split('\n') {
-                    if let Some(mut modifiers) = parse_mod(mod_str, Source::Node(*node_id)) {
-                        let mut extra_mods = vec![];
-                        if let Some(cluster_jewel_node_id) = self.nodes_cluster.iter().find_map(|(jewel_id, node)| {
-                            if jewel_id == node_id {
-                                return None;
-                            }
-                            if node.skill == *node_id {
-                                return Some(jewel_id);
-                            }
-                            None
-                        }) {
-                            let stat = stat::calc_stat(StatId::SmallPassiveIncreasedEffect, &jewels[cluster_jewel_node_id].calc_nonlocal_mods()).val();
-                            if stat != 0 {
-                                for m in &mut modifiers {
-                                    if let Some(mstat) = m.as_stat_mut() {
-                                        mstat.mutations.push(Mutation::IncreasedEffect(stat));
-                                    }
-                                }
-                            }
-                        }
-                        if let Some((mutations, jewel_id)) = self.node_mutations(*node_id, &self.nodes) {
-                            for modifier in &mut modifiers {
-                                for mutation in mutations {
-                                    match mutation {
-                                        NodeMutation::TransformStat(a, b) => {
-                                            if let Some(stat) = modifier.as_stat_mut() &&
-                                               stat.stat == *a
-                                            {
-                                                stat.stat = *b;
-                                            }
-                                        },
-                                        NodeMutation::AlsoGrantStatPct(stat_from, stat_to, typ, pct) => {
-                                            if let Some(stat) = modifier.as_stat() &&
-                                               stat.stat == *stat_from && stat.typ == Type::Base
-                                            {
-                                                extra_mods.push(Mod::stat(*stat_to, *typ, (stat.amount * pct) / 100).with_source(Source::Item(Slot::TreeJewel(jewel_id))));
-                                            }
-                                        },
-                                        _ => {}
-                                    }
-                                }
-                            }
-                        }
-                        mods.extend(modifiers);
-                        mods.extend(extra_mods);
-                    }
-                }
-            }
+            self.node_mods(*node_id, &mut mods);
         }
 
         for (node_id, effect_id) in &self.masteries {
@@ -598,7 +610,15 @@ impl PassiveTree {
                     stat.mutations.push(Mutation::IncreasedEffect(effect * (distance - 2)));
                 }
 
-                mods.push(new_mod);
+                if let ModEffect::GrantsUnallocatedNodeBonuses(types) = m.effect &&
+                   let Some(radius_data) = jewel.radius_data()
+                {
+                    for node_id in TREE.nodes_in_radius(*node_id, &radius_data, false).iter().filter(|id| types.contains(TREE.nodes[id].node_type())) {
+                        self.node_mods(*node_id, &mut mods);
+                    }
+                } else {
+                    mods.push(new_mod);
+                }
             }
         }
 
@@ -606,9 +626,9 @@ impl PassiveTree {
         self.is_modcache_fresh.store(true, Ordering::Relaxed);
     }
 
-    pub fn calc_mods(&self, jewels: &FxHashMap<u32, Arc<Item>>) -> Arc<Vec<Mod>> {
+    pub fn calc_mods(&self) -> Arc<Vec<Mod>> {
         if !self.is_modcache_fresh.load(Ordering::Relaxed) {
-            self.regen_modcache(jewels);
+            self.regen_modcache();
         }
 
         arc_swap::Guard::into_inner(self.mod_cache.load())
@@ -653,7 +673,7 @@ impl PassiveTree {
         let ret = if let Some(jewel) = self.jewels.get(&node_id).cloned() {
             self._remove_jewel(node_id, &mut removed_sockets);
             if let Some(radius_data) = jewel.radius_data() {
-                for n in self.nodes_in_radius(node_id, &radius_data, true) {
+                for n in TREE.nodes_in_radius(node_id, &radius_data, true) {
                     self.node_mutations.remove(&n);
                 }
                 self.remove_orphan_nodes();
@@ -670,7 +690,7 @@ impl PassiveTree {
 
     pub fn add_jewel(&mut self, node_id: u32, jewel: Arc<Item>, is_init: bool) {
         if let Some(radius_data) = jewel.radius_data() {
-            let node_ids = self.nodes_in_radius(node_id, &radius_data, false);
+            let node_ids = TREE.nodes_in_radius(node_id, &radius_data, false);
             let mods = jewel.calc_nonlocal_mods();
             let node_mutations: Vec<(NodeMutation, BitFlags<NodeType>)> = mods.iter().filter_map(|m| m.as_node_mutation()).collect();
             for n in &node_ids {
@@ -693,19 +713,6 @@ impl PassiveTree {
         }
         self.jewels.insert(node_id, jewel);
         self.invalidate_modcache();
-    }
-
-    /// Returns nodes in radius (or ring) of a node
-    pub fn nodes_in_radius(&self, center_id: u32, radius_data: &JewelRadiusData, include_blighted: bool) -> Vec<u32> {
-        let center_node = &self.nodes_data[&center_id];
-        let (inner_squared, outer_squared) = (radius_data.inner * radius_data.inner, radius_data.outer * radius_data.outer);
-        self.nodes_data.values().filter(|n| {
-            if n.group.is_none() || n.skill >= u16::MAX as u32 || (!include_blighted && n.is_blighted) {
-                return false;
-            }
-            let distance = center_node.distance_squared(n);
-            distance >= inner_squared && distance <= outer_squared
-        }).map(|n| n.skill).collect()
     }
 
     fn add_cluster(&mut self, mut cluster_data: ClusterData, jewel_node_id: u32, base_item: &str) {
