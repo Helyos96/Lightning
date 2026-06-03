@@ -1,7 +1,21 @@
 use enumflags2::BitFlags;
 use rustc_hash::{FxHashMap, FxHashSet};
+use lazy_static::lazy_static;
 
 use crate::{build::{Build, Defence, GemLink, Slot, buff::{BUFF_MODS, Buff}, property, stat::{self, Stat, StatId}}, data::{base_item::Rarity, gem::{ActiveSkillType, GemTag}}, gem::Gem, modifier::{BuildFlag, Condition, Mod, ModEffect, ModFlag, ModStat, Mutation, Source, Type}, stackvec};
+
+lazy_static! {
+    static ref STATS_SOURCES: FxHashMap<StatId, &'static [StatId]> = {
+        let mut ret: FxHashMap<StatId, &'static [StatId]> = FxHashMap::default();
+        ret.insert(StatId::FireResistance, &[StatId::FireResistance, StatId::ElementalResistances]);
+        ret.insert(StatId::ColdResistance, &[StatId::ColdResistance, StatId::ElementalResistances]);
+        ret.insert(StatId::LightningResistance, &[StatId::LightningResistance, StatId::ElementalResistances]);
+        ret.insert(StatId::MaximumFireResistance, &[StatId::MaximumFireResistance, StatId::MaxElementalResistances]);
+        ret.insert(StatId::MaximumColdResistance, &[StatId::MaximumColdResistance, StatId::MaxElementalResistances]);
+        ret.insert(StatId::MaximumLightningResistance, &[StatId::MaximumLightningResistance, StatId::MaxElementalResistances]);
+        ret
+    };
+}
 
 #[derive(Default)]
 pub struct StatCache {
@@ -156,9 +170,10 @@ impl<'a> EvaluatorCtx<'a> {
             }
 
             let mut current_stat = Stat::default();
+            let stat_sources = STATS_SOURCES.get(&stat_id).copied().unwrap_or(std::slice::from_ref(&stat_id));
 
             for m in self.mods.iter().chain(&self.extra_mods).filter(|m| {
-                if let Some(mstat) = m.as_stat() && mstat.stat == stat_id &&
+                if let Some(mstat) = m.as_stat() && stat_sources.contains(&mstat.stat) &&
                    (m.flags.is_empty() || self.flags.intersects(m.flags)) &&
                    (m.weapons.is_empty() || self.build.is_holding(&m.weapons)) &&
                    self.tags.contains(m.tags) && !self.tags.intersects(m.tags_not) &&
@@ -404,6 +419,11 @@ impl<'a> EvaluatorCtx<'a> {
             },
             Condition::Socketed => {
                 if !matches!(source, Source::Item(slot) if Some(slot) == self.slot) {
+                    return false;
+                }
+            },
+            Condition::WhileUsing(name) => {
+                if self.build.gem_links.iter().flat_map(|link| link.active_gems()).find(|gem| gem.enabled && &gem.data().display_name() == name).is_none() {
                     return false;
                 }
             }

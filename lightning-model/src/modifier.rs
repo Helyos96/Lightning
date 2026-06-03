@@ -66,6 +66,7 @@ pub enum Condition {
     NoFlaskActive,
     AffectedByGemTag(GemTag),
     Socketed,
+    WhileUsing(&'static str),
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -128,6 +129,7 @@ impl Default for ModStat {
 pub enum ModEffect {
     Stat(ModStat),
     Allocate(u32),
+    AllocateMatching(u32, &'static str),
     ForceBool(property::Bool, bool),
     MutateNode(NodeMutation, BitFlags<NodeType>),
     RingSize(JewelRadius),

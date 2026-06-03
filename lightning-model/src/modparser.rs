@@ -258,11 +258,13 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("maximum cold resistance", StatId::MaximumColdResistance, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("maximum lightning resistance", StatId::MaximumLightningResistance, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("maximum chaos resistance", StatId::MaximumChaosResistance, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
-    ("fire resistance or all elemental resistances", StatId::FireResistance, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
+    ("maximum elemental resistances", StatId::MaxElementalResistances, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("fire resistance", StatId::FireResistance, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("cold resistance", StatId::ColdResistance, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("lightning resistance", StatId::LightningResistance, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("chaos resistance", StatId::ChaosResistance, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
+    ("all elemental resistances", StatId::ElementalResistances, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
+    ("elemental resistances", StatId::ElementalResistances, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("flask charges gained", StatId::FlaskChargesGained, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("flask effect duration", StatId::FlaskEffectDuration, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("flask recovery rate", StatId::FlaskRecoveryRate, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
@@ -458,6 +460,19 @@ lazy_static! {
                 Some(vec![Mod::allocate(*node)])
             })
         ), (
+            regex!(r"^allocates ([a-z '-]+) if you have the matching modifier on ([a-z ]+)$"),
+            Box::new(|c| {
+                let (node, _) = TREE.nodes.iter().find(|(_, v)| {
+                    v.name.to_lowercase() == &c[1]
+                })?;
+                let item_name = match &c[2] {
+                    "forbidden flesh" => "forbidden flesh",
+                    "forbidden flame" => "forbidden flame",
+                    _ => return None,
+                };
+                Some(vec![Mod { effect: ModEffect::AllocateMatching(*node, item_name), ..Default::default() }])
+            })
+        ), (
             regex!(r"^adds ([0-9]+) passive skills$"),
             Box::new(|c| {
                 Some(vec![Mod::stat(StatId::AllocatesPassiveSkills, Type::Base, i64::from_str(&c[1]).unwrap())])
@@ -521,11 +536,21 @@ lazy_static! {
                 Some(vec![Mod::mutate_node(NodeMutation::TransformStat(stat_1.0, stat_2.0), flags!(NodeType::{Normal | Notable}))])
             })
         ), (
-            regex!(r"^passives granting ([a-z -]+) in radius also grant (increased )?([a-z -]+) at ([0-9]+)% of its value$"),
+            regex!(r"^passives granting ([a-z -]+?)(?: or ([a-z -]+))? in radius also grant (increased )?([a-z -]+) at ([0-9]+)% of its value$"),
             Box::new(|c| {
                 let stat_1 = parse_stat_nomulti(&c[1])?;
-                let stat_2 = parse_stat_nomulti(&c[3])?;
-                Some(vec![Mod::mutate_node(NodeMutation::AlsoGrantStatPct(stat_1.0, stat_2.0, if c.get(2).is_some() { Type::Inc } else { Type::Base }, i64::from_str(&c[4]).unwrap()), flags!(NodeType::{Normal | Notable}))])
+                let mut ret = vec![];
+                let stat_3 = parse_stat_nomulti(&c[4])?;
+
+                let typ = if c.get(3).is_some() { Type::Inc } else { Type::Base };
+                if let Some(cap) = c.get(2) {
+                    println!("agrou {}", cap.as_str());
+                    let stat_2 = parse_stat_nomulti(cap.as_str())?;
+                    ret.push(Mod::mutate_node(NodeMutation::AlsoGrantStatPct(stat_2.0, stat_3.0, typ, i64::from_str(&c[5]).unwrap()), flags!(NodeType::{Normal | Notable})));
+                }
+
+                ret.push(Mod::mutate_node(NodeMutation::AlsoGrantStatPct(stat_1.0, stat_3.0, typ, i64::from_str(&c[5]).unwrap()), flags!(NodeType::{Normal | Notable})));
+                Some(ret)
             })
         ), (
             regex!(r"^only affects passives in ([a-z ]+) ring$"),
@@ -645,8 +670,7 @@ lazy_static! {
                     Mod { effect: ModEffect::GrantsUnallocatedNodeBonuses(node_type), ..Default::default() },
                 ])
             })
-        ),
-         (
+        ), (
             regex!(r"^passive skills in radius of ([a-z -]+) can be allocated without being connected to your tree$"),
             Box::new(|c| {
                 let node = TREE.nodes.iter().find(|(_, n)| n.name.to_lowercase() == &c[1])?;
@@ -654,6 +678,16 @@ lazy_static! {
                     Mod { effect: ModEffect::MoveRadiusCenter(*node.0), ..Default::default() },
                     Mod::mutate_node(NodeMutation::AllocNoPath, flags!(NodeType::{Normal | Notable | Keystone})),
                 ])
+            })
+        ),
+    ];
+
+    static ref ENDINGS_REGEX: Vec<(Regex, Box<dyn Fn(&Captures) -> Option<(BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>, StackVec<Condition, 2>)> + Send + Sync>)> = vec![
+        (
+            regex!(r"while (?:affected by|using) ([a-z ]+)$"),
+            Box::new(|c| {
+                let gem_name = GEMS.iter().map(|(_, v)| v.display_name()).find(|name| name.to_lowercase() == &c[1])?;
+                Some((BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, stackvec![Condition::WhileUsing(gem_name)]))
             })
         ),
     ];
@@ -755,8 +789,6 @@ lazy_static! {
     static ref MULTISTATS: FxHashMap<&'static str, Vec<StatId>> = {
         let mut map = FxHashMap::default();
         map.insert("attributes", vec![StatId::Strength, StatId::Dexterity, StatId::Intelligence]);
-        map.insert("maximum elemental resistances", vec![StatId::MaximumFireResistance, StatId::MaximumColdResistance, StatId::MaximumLightningResistance]);
-        map.insert("elemental resistances", vec![StatId::FireResistance, StatId::ColdResistance, StatId::LightningResistance]);
         map.insert("maximum resistances", vec![StatId::MaximumFireResistance, StatId::MaximumColdResistance, StatId::MaximumLightningResistance, StatId::MaximumChaosResistance]);
         map.insert("resistances", vec![StatId::FireResistance, StatId::ColdResistance, StatId::LightningResistance, StatId::ChaosResistance]);
         map.insert("elemental damage", vec![StatId::FireDamage, StatId::ColdDamage, StatId::LightningDamage]);
@@ -855,6 +887,22 @@ fn parse_ending(m: &str) -> Option<(usize, Mod)> {
             ret.flags.insert(ending.3);
             ret.conditions.extend_from_slice(ending.4);
             return Some((ending.0.len(), ret));
+        }
+    }
+
+    for ending in ENDINGS_REGEX.iter() {
+        if let Some(cap) = ending.0.captures(&m) {
+            if let Some(parse) = ending.1(&cap) {
+                ret.tags.insert(parse.0);
+                ret.weapons.insert(parse.1);
+                if !parse.1.is_empty() {
+                    // Hypothesis: Endings mentioning a weapon restriction are always about Hits
+                    ret.flags.insert(ModFlag::Hit);
+                }
+                ret.flags.insert(parse.2);
+                ret.conditions.extend_from_slice(&parse.3);
+                return Some((cap[0].len(), ret));
+            }
         }
     }
 

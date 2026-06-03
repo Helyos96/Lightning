@@ -297,6 +297,18 @@ impl Build {
                         self.tree.nodes_additional.push(n);
                     }
                 }
+                if let ModEffect::AllocateMatching(node_id, item_name) = m.effect {
+                    if !self.tree.nodes_additional.contains(&node_id) &&
+                       let Some((slot, other_item)) = self.equipment.iter().find(|(_, item_idx)| self.inventory[**item_idx].name.to_lowercase() == item_name)
+                    {
+                        if let Slot::TreeJewel(id) = slot && !self.tree.nodes.contains(id) {
+                            continue;
+                        }
+                        if self.inventory[*other_item].calc_nonlocal_mods().iter().find(|m| matches!(m.effect, ModEffect::AllocateMatching(id, _) if id == node_id)).is_some() {
+                            self.tree.nodes_additional.push(node_id);
+                        }
+                    }
+                }
             }
         }
 
@@ -518,7 +530,8 @@ impl Build {
             self.tree.add_jewel(jewel_node_id, self.inventory[item_idx].clone(), false);
         }
 
-        for (gem_id, level) in self.inventory[item_idx].calc_nonlocal_mods().iter().filter_map(|m| m.as_support_gem()) {
+        let mods = self.inventory[item_idx].calc_nonlocal_mods();
+        for (gem_id, level) in mods.iter().filter_map(|m| m.as_support_gem()) {
             for link in self.gem_links.iter_mut().filter(|link| link.slot == Some(slot)) {
                 let mut gem = Gem::new(gem_id.to_string(), true, level, 0, 0);
                 gem.granted_by = Some(slot);
@@ -526,7 +539,7 @@ impl Build {
             }
         }
 
-        for (gem_id, level) in self.inventory[item_idx].calc_nonlocal_mods().iter().filter_map(|m| m.as_active_skill()) {
+        for (gem_id, level) in mods.iter().filter_map(|m| m.as_active_skill()) {
             let mut gem = Gem::new(gem_id.to_string(), true, level, 0, 0);
             gem.granted_by = Some(slot);
             self.gem_links.push(GemLink { gems: vec![gem], slot: None });

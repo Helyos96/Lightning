@@ -402,6 +402,8 @@ pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>
         }
     }
 
+    build.update_item_allocations();
+
     build.import_account = Some((account.to_string(), character.to_string()));
     build.campaign_choice = if items_import.character.level >= 67 {
         build::CampaignChoice::ActTen

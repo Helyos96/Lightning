@@ -171,6 +171,8 @@ pub enum StatId {
     BuffEffect,
     RingSlots,
     CorruptedMagicJewelEffect,
+    ElementalResistances,
+    MaxElementalResistances,
 }
 
 impl StatId {

@@ -427,6 +427,9 @@ lazy_static! {
             let mut buckets: [Vec<u32>; 10] = Default::default();
 
             for (target_node, target_pos) in &valid_targets {
+                if target_node.skill == *center_id {
+                    continue;
+                }
                 let dx = center_pos.0 - target_pos.0;
                 let dy = center_pos.1 - target_pos.1;
                 let dist_sq = dx * dx + dy * dy;

@@ -502,7 +502,7 @@ impl Item {
     }
 
     pub fn allocates_nodes(&self) -> bool {
-        self.calc_nonlocal_mods().iter().find(|m| m.as_allocate().is_some()).is_some()
+        self.calc_nonlocal_mods().iter().find(|m| m.as_allocate().is_some() || matches!(m.effect, ModEffect::AllocateMatching(_, _))).is_some()
     }
 
     fn calc_mods(&self, local: bool) -> Vec<Mod> {

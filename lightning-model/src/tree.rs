@@ -401,6 +401,9 @@ impl PassiveTree {
         nodes.retain(|&x| x != node);
         let fdn = FindDisconnectedNodes::new(&nodes, self);
         let mut to_remove = fdn.find_nodes_remove();
+        nodes.retain(|n| !to_remove.contains(n));
+        let fdn = FindDisconnectedNodes::new(&nodes, self);
+        to_remove.extend(fdn.find_nodes_remove());
         to_remove.retain(|id| !self.is_node_alloc_nopath(*id, &nodes));
         to_remove.push(node);
         to_remove
