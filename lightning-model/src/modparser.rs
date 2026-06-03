@@ -25,29 +25,30 @@ use std::sync::{Mutex, RwLock};
 lazy_static! {
     // Currently limited to one word,
     // need to change parse_stat otherwise.
-    static ref TAGS: FxHashMap<&'static str, GemTag> = {
+    static ref TAGS: FxHashMap<&'static str, (BitFlags<GemTag>, BitFlags<GemTag>)> = {
         let mut map = FxHashMap::default();
-        map.insert("spell", GemTag::Spell);
-        map.insert("melee", GemTag::Melee);
-        map.insert("attack", GemTag::Attack);
-        map.insert("projectile", GemTag::Projectile);
-        map.insert("brand", GemTag::Brand);
-        map.insert("mine", GemTag::Mine);
-        map.insert("trap", GemTag::Trap);
-        map.insert("curse", GemTag::Curse);
-        map.insert("minion", GemTag::Minion);
-        map.insert("totem", GemTag::Totem);
-        map.insert("area", GemTag::Area);
-        map.insert("aoe", GemTag::Area);
-        map.insert("warcry", GemTag::Warcry);
-        map.insert("fire", GemTag::Fire);
-        map.insert("cold", GemTag::Cold);
-        map.insert("lightning", GemTag::Lightning);
-        map.insert("chaos", GemTag::Chaos);
-        map.insert("curse", GemTag::Curse);
-        map.insert("aura", GemTag::Aura);
-        map.insert("link", GemTag::Link);
-        map.insert("physical", GemTag::Physical);
+        map.insert("spell", (flags!(GemTag::Spell), BitFlags::EMPTY));
+        map.insert("melee", (flags!(GemTag::Melee), BitFlags::EMPTY));
+        map.insert("attack", (flags!(GemTag::Attack), BitFlags::EMPTY));
+        map.insert("projectile", (flags!(GemTag::Projectile), BitFlags::EMPTY));
+        map.insert("brand", (flags!(GemTag::Brand), BitFlags::EMPTY));
+        map.insert("mine", (flags!(GemTag::Mine), BitFlags::EMPTY));
+        map.insert("trap", (flags!(GemTag::Trap), BitFlags::EMPTY));
+        map.insert("curse", (flags!(GemTag::Curse), BitFlags::EMPTY));
+        map.insert("minion", (flags!(GemTag::Minion), BitFlags::EMPTY));
+        map.insert("totem", (flags!(GemTag::Totem), BitFlags::EMPTY));
+        map.insert("area", (flags!(GemTag::Area), BitFlags::EMPTY));
+        map.insert("aoe", (flags!(GemTag::Area), BitFlags::EMPTY));
+        map.insert("warcry", (flags!(GemTag::Warcry), BitFlags::EMPTY));
+        map.insert("fire", (flags!(GemTag::Fire), BitFlags::EMPTY));
+        map.insert("cold", (flags!(GemTag::Cold), BitFlags::EMPTY));
+        map.insert("lightning", (flags!(GemTag::Lightning), BitFlags::EMPTY));
+        map.insert("chaos", (flags!(GemTag::Chaos), BitFlags::EMPTY));
+        map.insert("curse", (flags!(GemTag::Curse), BitFlags::EMPTY));
+        map.insert("aura", (flags!(GemTag::Aura), BitFlags::EMPTY));
+        map.insert("link", (flags!(GemTag::Link), BitFlags::EMPTY));
+        map.insert("physical", (flags!(GemTag::Physical), BitFlags::EMPTY));
+        map.insert("non-exceptional", (BitFlags::EMPTY, flags!(GemTag::Exceptional)));
         map
     };
 }
@@ -287,6 +288,7 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("effect of buffs granted by your golems", StatId::BuffEffect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[ActiveSkillType::Golem]),
     ("effect of your marks", StatId::CurseEffect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[ActiveSkillType::Mark]),
     ("ring slot", StatId::RingSlots, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
+    ("effect of jewel socket passive skills containing corrupted magic jewels", StatId::CorruptedMagicJewelEffect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
 ];
 
 lazy_static! {
@@ -561,15 +563,18 @@ lazy_static! {
                 ])
             })
         ), (
-            regex!(r"^\+?([0-9-]+) to level of (all|socketed) (?:([a-z ]+?) )??(?:(skill|support) )?gems$"),
+            regex!(r"^\+?([0-9-]+) to level of (all|socketed) (?:([a-z -]+?) )??(?:(skill|support) )?gems$"),
             Box::new(|c| {
-                let mut tag = BitFlags::EMPTY;
+                let mut tags = BitFlags::EMPTY;
+                let mut tags_not = BitFlags::EMPTY;
                 if let Some(tags_str) = c.get(3) {
                     for tag_str in tags_str.as_str().trim_end().split(' ') {
-                        tag |= *TAGS.get(tag_str)?;
+                        let parsed_tags = TAGS.get(tag_str)?;
+                        tags |= parsed_tags.0;
+                        tags_not |= parsed_tags.1;
                     }
                 }
-                let mut m = Mod::gem_level(i32::from_str(&c[1]).unwrap()).with_tags(tag);
+                let mut m = Mod::gem_level(i32::from_str(&c[1]).unwrap()).with_tags(tags).with_tags_not(tags_not);
                 match &c[2] {
                     "socketed" => m = m.with_conditions(stackvec![Condition::Socketed]),
                     _ => {},
@@ -862,7 +867,7 @@ fn parse_stat_nomulti(input: &str) -> Option<(StatId, BitFlags<GemTag>, BitFlags
 
     for chunk in remainder.split_terminator(' ') {
         if let Some(t) = TAGS.get(chunk) {
-            tags.insert(*t);
+            tags.insert(t.0);
         } else if chunk == "global" {
         } else {
             return None;

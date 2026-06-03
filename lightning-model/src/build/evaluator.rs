@@ -1,7 +1,7 @@
 use enumflags2::BitFlags;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{build::{Build, Defence, GemLink, Slot, buff::{BUFF_MODS, Buff}, property, stat::{self, Stat, StatId}}, data::gem::{ActiveSkillType, GemTag}, gem::Gem, modifier::{BuildFlag, Condition, Mod, ModEffect, ModFlag, ModStat, Mutation, Source, Type}};
+use crate::{build::{Build, Defence, GemLink, Slot, buff::{BUFF_MODS, Buff}, property, stat::{self, Stat, StatId}}, data::{base_item::Rarity, gem::{ActiveSkillType, GemTag}}, gem::Gem, modifier::{BuildFlag, Condition, Mod, ModEffect, ModFlag, ModStat, Mutation, Source, Type}, stackvec};
 
 #[derive(Default)]
 pub struct StatCache {
@@ -126,7 +126,7 @@ impl<'a> Evaluator<'a> {
     }
 
     pub fn gem_level_extra(&self, tags: BitFlags<GemTag>) -> i32 {
-        self.ctx.mods.iter().filter(|m| tags.contains(m.tags)).flat_map(|m| m.as_gem_level()).sum()
+        self.ctx.mods.iter().filter(|m| tags.contains(m.tags) && !tags.intersects(m.tags_not)).flat_map(|m| m.as_gem_level()).sum()
     }
 
     pub fn eval_stat(&mut self, stat_id: StatId) -> &Stat {
@@ -161,7 +161,8 @@ impl<'a> EvaluatorCtx<'a> {
                 if let Some(mstat) = m.as_stat() && mstat.stat == stat_id &&
                    (m.flags.is_empty() || self.flags.intersects(m.flags)) &&
                    (m.weapons.is_empty() || self.build.is_holding(&m.weapons)) &&
-                   self.tags.contains(m.tags) && m.skill_types.iter().all(|st| self.skill_types.contains(st))
+                   self.tags.contains(m.tags) && !self.tags.intersects(m.tags_not) &&
+                   m.skill_types.iter().all(|st| self.skill_types.contains(st))
                 {
                     true
                 } else {
@@ -176,6 +177,15 @@ impl<'a> EvaluatorCtx<'a> {
                 }
 
                 let source = m.source;
+                if let Source::Item(Slot::TreeJewel(idx)) = source {
+                    let item = self.build.get_equipped(Slot::TreeJewel(idx)).unwrap();
+                    if item.corrupted && item.rarity == Rarity::Magic {
+                        let corrupted_magic_effect = self.eval_stat(cache, StatId::CorruptedMagicJewelEffect).mult();
+                        if corrupted_magic_effect != 10000 {
+                            m = m.with_mutations(stackvec![Mutation::CustomMult(corrupted_magic_effect)])
+                        }
+                    }
+                }
                 if let Some(stat) = m.as_stat_mut() && !stat.mutations.is_empty() {
                     self.apply_mutations(cache, stat, source);
                 }

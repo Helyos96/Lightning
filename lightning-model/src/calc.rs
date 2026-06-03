@@ -298,11 +298,13 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
         }
     }
 
+    // TODO: the way extra_level is computed will ignore Condition::Socketed
     for support_gem in best_supports.values() {
-        mods.extend_from_slice(&support_gem.calc_mods(false, 0, 0));
+        let extra_level = mods.iter().filter(|m| support_gem.data().tags.contains(m.tags)).flat_map(|m| m.as_gem_level()).sum();
+        mods.extend_from_slice(&support_gem.calc_mods(false, extra_level, 0));
     }
 
-    let extra_level = mods.iter().filter(|m| tags.contains(m.tags)).flat_map(|m| m.as_gem_level()).sum();
+    let extra_level = mods.iter().filter(|m| tags.contains(m.tags) && !tags.intersects(m.tags_not)).flat_map(|m| m.as_gem_level()).sum();
     mods.extend_from_slice(&active_gem.calc_mods(false, extra_level, 0));
 
     let skill_types = if let Some(active_skill) = &active_gem.data().active_skill {

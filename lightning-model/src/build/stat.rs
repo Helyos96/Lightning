@@ -170,6 +170,7 @@ pub enum StatId {
     DamageTaken,
     BuffEffect,
     RingSlots,
+    CorruptedMagicJewelEffect,
 }
 
 impl StatId {

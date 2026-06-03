@@ -152,6 +152,7 @@ pub struct Mod {
     pub effect: ModEffect,
     pub conditions: StackVec<Condition, CONDITIONS_COUNT>,
     pub tags: BitFlags<GemTag>,
+    pub tags_not: BitFlags<GemTag>,
     pub source: Source,
     pub weapons: BitFlags<ItemClass>,
     pub flags: BitFlags<ModFlag>,
@@ -224,6 +225,11 @@ impl Mod {
 
     pub fn with_tags(mut self, tags: impl Into<BitFlags<GemTag>>) -> Self {
         self.tags.insert(tags);
+        self
+    }
+
+    pub fn with_tags_not(mut self, tags: impl Into<BitFlags<GemTag>>) -> Self {
+        self.tags_not.insert(tags);
         self
     }
 

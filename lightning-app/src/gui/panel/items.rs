@@ -352,12 +352,12 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
             // 2. Calculate equip deltas
             let mut potential_slots = vec![];
             potential_slots.extend_from_slice(&SLOTS);
-            for jewel_node in state.build.tree.jewel_slots() {
+            /*for jewel_node in state.build.tree.jewel_slots() {
                 potential_slots.push(Slot::TreeJewel(jewel_node));
             }
             for i in 0..state.abyssal_sockets {
                 potential_slots.push(Slot::AbyssalJewel(i));
-            }
+            }*/
 
             for slot in potential_slots {
                 if let Slot::Ring(i) = slot && i >= state.ring_slots {

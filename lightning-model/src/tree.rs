@@ -55,7 +55,8 @@ pub struct PassiveTree {
     pub jewels: FxHashMap<u32, Arc<Item>>,
 
     #[serde(skip)]
-    pub node_mutations: FxHashMap<u32, (Vec<NodeMutation>, u32)>,
+    // key is node id, second u32 is jewel id (the source of the mutation)
+    pub node_mutations: FxHashMap<u32, Vec<(Vec<NodeMutation>, u32)>>,
     #[serde(skip)]
     pub nodes_data: imbl::GenericHashMap<u32, Node, rustc_hash::FxBuildHasher, archery::ArcK>,
     #[serde(skip)]
@@ -494,24 +495,24 @@ impl PassiveTree {
         }
     }
 
-    pub fn node_mutations(&self, node_id: u32, nodes: &FxHashSet<u32>) -> Option<(&Vec<NodeMutation>, u32)> {
-        if let Some((mutations, jewel_id)) = self.node_mutations.get(&node_id) && nodes.contains(jewel_id) {
-            return Some((mutations, *jewel_id));
+    pub fn node_mutations(&self, node_id: u32, nodes: &FxHashSet<u32>) -> Option<Vec<(&NodeMutation, u32)>> {
+        if let Some(mutations) = self.node_mutations.get(&node_id) {
+            return Some(mutations.iter().filter(|(_, jewel_id)| nodes.contains(jewel_id)).flat_map(|(muts, jewel_id)| muts.iter().map(move |m| (m, *jewel_id))).collect());
         }
         None
     }
 
     pub fn is_node_alloc_nopath(&self, node_id: u32, nodes: &FxHashSet<u32>) -> bool {
         if let Some(mutations) = self.node_mutations(node_id, nodes) {
-            return mutations.0.iter().find(|m| matches!(m, NodeMutation::AllocNoPath)).is_some();
+            return mutations.iter().find(|m| matches!(m.0, NodeMutation::AllocNoPath)).is_some();
         }
         false
     }
 
     pub fn node_mods(&self, node_id: u32, mods: &mut Vec<Mod>) {
         let node_mutations = self.node_mutations(node_id, &self.nodes);
-        if let Some((mutations, _)) = node_mutations &&
-           mutations.contains(&NodeMutation::AllocatedGrantNothing)
+        if let Some(mutations) = &node_mutations &&
+           mutations.iter().find(|(mutation, _)| **mutation == NodeMutation::AllocatedGrantNothing).is_some()
         {
             return;
         }
@@ -538,10 +539,10 @@ impl PassiveTree {
                             }
                         }
                     }
-                    if let Some((mutations, jewel_id)) = node_mutations {
+                    if let Some(mutations) = &node_mutations {
                         for modifier in &mut modifiers {
                             for mutation in mutations {
-                                match mutation {
+                                match mutation.0 {
                                     NodeMutation::TransformStat(a, b) => {
                                         if let Some(stat) = modifier.as_stat_mut() &&
                                            stat.stat == *a
@@ -553,7 +554,7 @@ impl PassiveTree {
                                         if let Some(stat) = modifier.as_stat() &&
                                            stat.stat == *stat_from && stat.typ == Type::Base
                                         {
-                                            extra_mods.push(Mod::stat(*stat_to, *typ, (stat.amount * pct) / 100).with_source(Source::Item(Slot::TreeJewel(jewel_id))));
+                                            extra_mods.push(Mod::stat(*stat_to, *typ, (stat.amount * pct) / 100).with_source(Source::Item(Slot::TreeJewel(mutation.1))));
                                         }
                                     },
                                     _ => {}
@@ -613,7 +614,7 @@ impl PassiveTree {
                 if let ModEffect::GrantsUnallocatedNodeBonuses(types) = m.effect &&
                    let Some(radius_data) = jewel.radius_data()
                 {
-                    for node_id in TREE.nodes_in_radius(*node_id, &radius_data, false).iter().filter(|id| types.contains(TREE.nodes[id].node_type())) {
+                    for node_id in TREE.nodes_in_radius(*node_id, &radius_data, false).iter().filter(|id| types.contains(TREE.nodes[id].node_type()) && !self.nodes.contains(id)) {
                         self.node_mods(*node_id, &mut mods);
                     }
                 } else {
@@ -674,7 +675,9 @@ impl PassiveTree {
             self._remove_jewel(node_id, &mut removed_sockets);
             if let Some(radius_data) = jewel.radius_data() {
                 for n in TREE.nodes_in_radius(node_id, &radius_data, true) {
-                    self.node_mutations.remove(&n);
+                    if let Some(node_mutations) = self.node_mutations.get_mut(&n) {
+                        node_mutations.retain(|muts| muts.1 != node_id);
+                    }
                 }
                 self.remove_orphan_nodes();
             }
@@ -703,7 +706,7 @@ impl PassiveTree {
                     }
                 }
                 if !mutations.is_empty() {
-                    self.node_mutations.insert(*n, (mutations, node_id));
+                    self.node_mutations.entry(*n).or_default().push((mutations, node_id));
                 }
             }
         }

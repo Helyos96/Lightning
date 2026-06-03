@@ -387,21 +387,62 @@ lazy_static! {
     };
     pub static ref NODES_IN_RADIUS: FxHashMap<(u32, JewelRadiusData), Vec<u32>> = {
         let mut ret = FxHashMap::default();
-        for (node_id, node) in TREE.nodes.iter().filter(|(_, v)| v.is_jewel_socket) {
-            if node.name == "Medium Jewel Socket" || node.name == "Small Jewel Socket" {
+
+        let mut positions: FxHashMap<u32, (f32, f32)> = FxHashMap::default();
+        for (node_id, node) in &TREE.nodes {
+            if node.group.is_some() && node.orbit.is_some() && node.orbit_index.is_some() {
+                positions.insert(*node_id, node_pos(node));
+            }
+        }
+
+        let valid_targets: Vec<(&Node, (f32, f32))> = TREE.nodes.values()
+            .filter(|n| n.group.is_some() && n.skill < u16::MAX as u32 && !n.is_blighted)
+            .filter_map(|n| positions.get(&n.skill).map(|&pos| (n, pos)))
+            .collect();
+
+        let radii_configs = [
+            JewelRadiusData { inner: 0, outer: 960 },
+            JewelRadiusData { inner: 0, outer: 1440 },
+            JewelRadiusData { inner: 0, outer: 1800 },
+            JewelRadiusData { inner: 0, outer: 2400 },
+            JewelRadiusData { inner: 0, outer: 2880 },
+            JewelRadiusData { inner: 960, outer: 1320 },
+            JewelRadiusData { inner: 1320, outer: 1680 },
+            JewelRadiusData { inner: 1680, outer: 2040 },
+            JewelRadiusData { inner: 2040, outer: 2400 },
+            JewelRadiusData { inner: 2400, outer: 2880 },
+        ];
+
+        let radii_squared: Vec<(f32, f32)> = radii_configs.iter()
+            .map(|r| ((r.inner * r.inner) as f32, (r.outer * r.outer) as f32))
+            .collect();
+
+        for (center_id, center_node) in TREE.nodes.iter().filter(|(_, v)| v.is_jewel_socket || v.is_keystone) {
+            if center_node.name == "Medium Jewel Socket" || center_node.name == "Small Jewel Socket" {
                 continue;
             }
-            ret.insert((*node_id, JewelRadiusData { inner: 0, outer: 960}), TREE._nodes_in_radius(*node_id, &JewelRadiusData { inner: 0, outer: 960}, false));
-            ret.insert((*node_id, JewelRadiusData { inner: 0, outer: 1440}), TREE._nodes_in_radius(*node_id, &JewelRadiusData { inner: 0, outer: 1440}, false));
-            ret.insert((*node_id, JewelRadiusData { inner: 0, outer: 1800}), TREE._nodes_in_radius(*node_id, &JewelRadiusData { inner: 0, outer: 1800}, false));
-            ret.insert((*node_id, JewelRadiusData { inner: 0, outer: 2400}), TREE._nodes_in_radius(*node_id, &JewelRadiusData { inner: 0, outer: 2400}, false));
-            ret.insert((*node_id, JewelRadiusData { inner: 0, outer: 2880}), TREE._nodes_in_radius(*node_id, &JewelRadiusData { inner: 0, outer: 2880}, false));
-            ret.insert((*node_id, JewelRadiusData { inner: 960, outer: 1320}), TREE._nodes_in_radius(*node_id, &JewelRadiusData { inner: 960, outer: 1320}, false));
-            ret.insert((*node_id, JewelRadiusData { inner: 1320, outer: 1680}), TREE._nodes_in_radius(*node_id, &JewelRadiusData { inner: 1320, outer: 1680}, false));
-            ret.insert((*node_id, JewelRadiusData { inner: 1680, outer: 2040}), TREE._nodes_in_radius(*node_id, &JewelRadiusData { inner: 1680, outer: 2040}, false));
-            ret.insert((*node_id, JewelRadiusData { inner: 2040, outer: 2400}), TREE._nodes_in_radius(*node_id, &JewelRadiusData { inner: 2040, outer: 2400}, false));
-            ret.insert((*node_id, JewelRadiusData { inner: 2400, outer: 2880}), TREE._nodes_in_radius(*node_id, &JewelRadiusData { inner: 2400, outer: 2880}, false));
+
+            let Some(&center_pos) = positions.get(center_id) else { continue };
+
+            let mut buckets: [Vec<u32>; 10] = Default::default();
+
+            for (target_node, target_pos) in &valid_targets {
+                let dx = center_pos.0 - target_pos.0;
+                let dy = center_pos.1 - target_pos.1;
+                let dist_sq = dx * dx + dy * dy;
+
+                for (i, (inner_sq, outer_sq)) in radii_squared.iter().enumerate() {
+                    if dist_sq >= *inner_sq && dist_sq <= *outer_sq {
+                        buckets[i].push(target_node.skill);
+                    }
+                }
+            }
+
+            for (i, config) in radii_configs.iter().enumerate() {
+                ret.insert((*center_id, config.clone()), buckets[i].clone()); 
+            }
         }
+
         ret
     };
 }
