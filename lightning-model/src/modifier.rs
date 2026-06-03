@@ -139,6 +139,7 @@ pub enum ModEffect {
     ActiveSkill(&'static str, u32),
     ReflectOppositeRing,
     GrantsUnallocatedNodeBonuses(BitFlags<NodeType>), // Can't be a MutateNode as these only evaluate allocated nodes
+    MoveRadiusCenter(u32),
 }
 
 impl Default for ModEffect {

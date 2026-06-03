@@ -646,6 +646,16 @@ lazy_static! {
                 ])
             })
         ),
+         (
+            regex!(r"^passive skills in radius of ([a-z -]+) can be allocated without being connected to your tree$"),
+            Box::new(|c| {
+                let node = TREE.nodes.iter().find(|(_, n)| n.name.to_lowercase() == &c[1])?;
+                Some(vec![
+                    Mod { effect: ModEffect::MoveRadiusCenter(*node.0), ..Default::default() },
+                    Mod::mutate_node(NodeMutation::AllocNoPath, flags!(NodeType::{Normal | Notable | Keystone})),
+                ])
+            })
+        ),
     ];
 
     // amounts can be modified by parsing code

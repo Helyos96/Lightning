@@ -674,7 +674,8 @@ impl PassiveTree {
         let ret = if let Some(jewel) = self.jewels.get(&node_id).cloned() {
             self._remove_jewel(node_id, &mut removed_sockets);
             if let Some(radius_data) = jewel.radius_data() {
-                for n in TREE.nodes_in_radius(node_id, &radius_data, true) {
+                let center_node_id = jewel.calc_nonlocal_mods().iter().find_map(|m| if let ModEffect::MoveRadiusCenter(new_id) = m.effect { Some(new_id) } else { None }).unwrap_or(node_id);
+                for n in TREE.nodes_in_radius(center_node_id, &radius_data, true) {
                     if let Some(node_mutations) = self.node_mutations.get_mut(&n) {
                         node_mutations.retain(|muts| muts.1 != node_id);
                     }
@@ -693,9 +694,10 @@ impl PassiveTree {
 
     pub fn add_jewel(&mut self, node_id: u32, jewel: Arc<Item>, is_init: bool) {
         if let Some(radius_data) = jewel.radius_data() {
-            let node_ids = TREE.nodes_in_radius(node_id, &radius_data, false);
             let mods = jewel.calc_nonlocal_mods();
             let node_mutations: Vec<(NodeMutation, BitFlags<NodeType>)> = mods.iter().filter_map(|m| m.as_node_mutation()).collect();
+            let center_node_id = mods.iter().find_map(|m| if let ModEffect::MoveRadiusCenter(new_id) = m.effect { Some(new_id) } else { None }).unwrap_or(node_id);
+            let node_ids = TREE.nodes_in_radius(center_node_id, &radius_data, false);
             for n in &node_ids {
                 let mut mutations = vec![];
                 for (mutation, allowed_types) in &node_mutations {

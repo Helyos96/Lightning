@@ -8,6 +8,7 @@ use lightning_model::build::{Build, Slot};
 use lightning_model::calc::PowerReport;
 use lightning_model::data::TREE;
 use lightning_model::item::JewelRadiusData;
+use lightning_model::modifier::ModEffect;
 use rustc_hash::FxHashMap;
 
 fn load_texture(img: &RgbaImage, gl: &glow::Context) -> glow::Texture {
@@ -404,7 +405,8 @@ impl TreeGl {
                let Some(item) = build.inventory.get(*item_idx) &&
                let Some(radius_data) = item.radius_data()
             {
-                Some((*node_id, radius_data))
+                let node_id = item.calc_nonlocal_mods().iter().find_map(|m| if let ModEffect::MoveRadiusCenter(new_id) = m.effect { Some(new_id) } else { None }).unwrap_or(*node_id);
+                Some((node_id, radius_data))
             } else {
                 None
             }
