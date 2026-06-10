@@ -301,7 +301,7 @@ impl Stat {
         (amount * self.mult()) / 10000
     }
 
-    fn val100(&self) -> i64 {
+    pub fn val100(&self) -> i64 {
         if let Some(overrid) = self.overrid {
             overrid * 100
         } else {

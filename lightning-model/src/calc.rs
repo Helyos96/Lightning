@@ -242,17 +242,57 @@ fn calc_weapon_max_base_dmg(eval: &mut Evaluator, weapon: &Item, active_gem: &Ge
     None
 }
 
-fn calc_weapon_bleed_dmg(eval: &mut Evaluator, weapon: &Item, active_gem: &Gem, dg: &DamageGroup, extra_level: i32) -> i64 {
+/// Damaging ailments inflicted by critical strikes gain a bonus +50% DoT
+/// multiplier, additive with other DoT multipliers. Returns the ailment
+/// damage averaged over crit and non-crit hits (crit_chance is per 10000).
+fn avg_ailment_dmg_crit(base: i64, dot_multi: i64, crit_chance: i64) -> i64 {
+    let noncrit = (base * (100 + dot_multi)) / 100;
+    let crit = (base * (100 + dot_multi + 50)) / 100;
+    (noncrit * (10000 - crit_chance) + crit * crit_chance) / 10000
+}
+
+fn calc_weapon_bleed_dmg(eval: &mut Evaluator, weapon: &Item, active_gem: &Gem, dg: &DamageGroup, extra_level: i32, crit_chance: i64) -> i64 {
     if let Some(mut max_dmg) = calc_weapon_max_base_dmg(eval, weapon, active_gem, dg, extra_level) {
         let mut dot_multi = eval.eval_stat(StatId::DotMultiplier).to_owned();
         dot_multi.assimilate(eval.eval_stat(StatId::PhysicalDotMultiplier));
         max_dmg.adjust_mod(&Mod::stat(StatId::Damage, Type::More, -30).with_source(Source::Custom("Bleeds deal 70%")));
-        max_dmg.adjust_mod(&Mod::stat(StatId::Damage, Type::More, dot_multi.val()).with_source(Source::Custom("Bleed Multi")));
-        return max_dmg.val();
+        return avg_ailment_dmg_crit(max_dmg.val(), dot_multi.val(), crit_chance);
     }
     0
 }
 
+
+/// Poison deals chaos damage over time. Its base DPS is 30% of the hit's
+/// combined flat physical and chaos damage (after conversion, before hit modifiers).
+fn calc_poison_dps(eval: &mut Evaluator, portions: &[Vec<DamagePortion>; 5], weapon: Option<ItemClass>, crit_chance: i64) -> i64 {
+    let mut generic = eval.eval_stat(StatId::Damage).with_weapon(weapon);
+    generic.assimilate(eval.eval_stat(StatId::DamageOverTime));
+    generic.assimilate(eval.eval_stat(StatId::ChaosDamageOverTime));
+
+    let mut dot_multi = eval.eval_stat(StatId::DotMultiplier).to_owned();
+    dot_multi.assimilate(eval.eval_stat(StatId::ChaosDotMultiplier));
+
+    let mut dps = 0i64;
+    for dt in [DamageType::Physical, DamageType::Chaos] {
+        for portion in &portions[dt.as_index()] {
+            let mut inc = generic.inc;
+            let mut more = generic.more;
+
+            let source_types = portion.source_types | DamageType::Chaos;
+            for type_idx in 0..5 {
+                if source_types.contains(DAMAGE_GROUPS[type_idx].damage_type) {
+                    let type_stat = eval.eval_stat(DAMAGE_GROUPS[type_idx].stat_id).with_weapon(weapon);
+                    inc += type_stat.inc;
+                    more = (more * type_stat.more) / 100;
+                }
+            }
+
+            dps += ((portion.amount * 30) / 100) * (100 + inc) * more / 10000;
+        }
+    }
+
+    avg_ailment_dmg_crit(dps, dot_multi.val(), crit_chance)
+}
 
 fn calc_crit_chance(eval: &mut Evaluator, crit_chance: Option<i64>) -> i64 {
     let mut crit_chance_stat = eval.eval_stat(StatId::CriticalStrikeChance).to_owned();
@@ -322,6 +362,9 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
 
     let mut damage_instances = vec![];
     let mut bleed_dps = 0;
+    let mut poison_dps = 0;
+    let mut poison_hit_chance = 100;
+    let poison_chance = eval.eval_stat(StatId::ChanceToPoison).val().min(100);
 
     if tags.contains(GemTag::Attack) {
         let bleed_chance = eval.eval_stat(StatId::ChanceToBleed).val();
@@ -392,9 +435,19 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
                     let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Ailment | Bleed | Aura | Buff | Curse}), skill_types, Some(slot), link.slot);
                     eval.resolve();
                     let physical_dg = &DAMAGE_GROUPS[0];
-                    let local_bleed_dps = calc_weapon_bleed_dmg(&mut eval, weapon, active_gem, physical_dg, extra_level);
+                    let local_bleed_dps = calc_weapon_bleed_dmg(&mut eval, weapon, active_gem, physical_dg, extra_level, crit_chance);
                     if local_bleed_dps > bleed_dps {
                         bleed_dps = local_bleed_dps;
+                    }
+                }
+
+                if poison_chance > 0 {
+                    let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Ailment | Poison | Aura | Buff | Curse}), skill_types, Some(slot), link.slot);
+                    eval.resolve();
+                    let local_poison_dps = calc_poison_dps(&mut eval, &portions, item_class, crit_chance);
+                    if local_poison_dps > poison_dps {
+                        poison_dps = local_poison_dps;
+                        poison_hit_chance = chance_to_hit;
                     }
                 }
             }
@@ -432,9 +485,17 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
                 damage.push(calc_dmg_crit_accuracy(final_damages[i], crit_chance, crit_multi, 100));
             }
         }
+
+        if poison_chance > 0 {
+            let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Ailment | Poison | Aura | Buff | Curse}), skill_types, None, link.slot);
+            eval.resolve();
+            poison_dps = calc_poison_dps(&mut eval, &portions, None, crit_chance);
+        }
     }
 
     ret.insert("Bleed DPS", bleed_dps);
+    let poison_duration = eval.eval_stat(StatId::PoisonDuration).val100();
+    ret.insert("Poison Duration", poison_duration);
 
     if ret.contains_key("Crit Chance") || ret.contains_key("Crit Chance (MH)") || ret.contains_key("Crit Chance (OH)") {
         ret.insert("Crit Multi", crit_multi);
@@ -485,6 +546,11 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
         let dps = (average_damage * 1000) / time;
         ret.insert("DPS", dps);
         ret.insert("Speed", time);
+
+        if poison_dps > 0 {
+            poison_dps = (poison_dps * poison_duration * poison_hit_chance * poison_chance) / (time * 100 * 10);
+            ret.insert("Poison DPS", poison_dps);
+        }
     }
     ret
 }
