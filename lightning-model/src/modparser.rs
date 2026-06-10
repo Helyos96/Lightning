@@ -14,6 +14,7 @@ use crate::tree::{NodeMutation, NOTHINGNESS_NODE_ID};
 use enumflags2::{make_bitflags as flags, BitFlags, bitflags};
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
+use std::sync::LazyLock;
 use dashmap::DashMap;
 use rustc_hash::FxHashMap;
 use rust_decimal::Decimal;
@@ -49,6 +50,7 @@ lazy_static! {
         map.insert("link", (flags!(GemTag::Link), BitFlags::EMPTY));
         map.insert("physical", (flags!(GemTag::Physical), BitFlags::EMPTY));
         map.insert("non-exceptional", (BitFlags::EMPTY, flags!(GemTag::Exceptional)));
+        map.insert("strength", (flags!(GemTag::Strength), BitFlags::EMPTY));
         map
     };
 }
@@ -293,395 +295,329 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("effect of jewel socket passive skills containing corrupted magic jewels", StatId::CorruptedMagicJewelEffect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
 ];
 
+type ModParserFn = fn(&Captures) -> Option<Vec<Mod>>;
+
+macro_rules! define_cores {
+    ( $( $pattern:literal => $handler:expr ),* $(,)? ) => {
+        vec![
+            $(
+                (Regex::new($pattern).unwrap(), $handler as ModParserFn),
+            )*
+        ]
+    };
+}
+
+static CORES: LazyLock<Vec<(Regex, ModParserFn)>> = LazyLock::new(|| { define_cores! {
+    r"^(?:grants )?([0-9]+)% (increased|reduced) ([a-z -]+)$" => |c| {
+        let stat_tags = parse_stat(&c[3])?;
+        let mut amount = i64::from_str(&c[1]).unwrap();
+        amount = match &c[2] {
+            "reduced" => amount.neg(),
+            "increased" => amount,
+            _ => unreachable!(),
+        };
+        Some(stat_tags.iter().map(|s| {
+            Mod::stat(s.0, Type::Inc, amount).with_tags(s.1).with_weapons(s.2).with_flags(s.3).with_skill_types(&s.4)
+        }).collect())
+    },
+    r"^(?:grants )?([+-]?[0-9.]+)%? (?:additional )?(?:to )?(?:all )?([a-z -]+)$" => |c| {
+        let stat_tags = parse_stat(&c[2])?;
+        let mut is_val100 = false;
+        let mut amount = if c[1].contains('.') {
+            is_val100 = true;
+            parse_val100(&c[1])?
+        } else {
+            i64::from_str(&c[1]).unwrap()
+        };
+
+        Some(stat_tags.iter().map(|s| {
+            if s.0 == StatId::CriticalStrikeChance && !is_val100 {
+                amount = amount * 100;
+            }
+            Mod::stat(s.0, Type::Base, amount).with_tags(s.1).with_weapons(s.2).with_flags(s.3).with_skill_types(&s.4)
+        }).collect())
+    },
+    r"^([0-9]+)% (increased|reduced) ([a-z -]+) and ([a-z -]+)$" => |c| {
+        let stat_tags_1 = parse_stat(&c[3])?;
+        let stat_tags_2 = parse_stat(&c[4])?;
+        let mut amount = i64::from_str(&c[1]).unwrap();
+        amount = match &c[2] {
+            "reduced" => amount.neg(),
+            "increased" => amount,
+            _ => unreachable!(),
+        };
+        let mut ret: Vec<Mod> = stat_tags_1.iter().map(|s| {
+            Mod::stat(s.0, Type::Inc, amount).with_tags(s.1).with_weapons(s.2).with_flags(s.3).with_skill_types(&s.4)
+        }).collect();
+        ret.extend(stat_tags_2.iter().map(|s| {
+            Mod::stat(s.0, Type::Inc, amount).with_tags(s.1).with_weapons(s.2).with_flags(s.3).with_skill_types(&s.4)
+        }));
+        Some(ret)
+    },
+    r"^([0-9]+)% more ([a-z -]+)$" => |c| {
+        let stat_tags = parse_stat(&c[2])?;
+        Some(stat_tags.iter().map(|s| {
+            Mod::stat(s.0, Type::More, i64::from_str(&c[1]).unwrap()).with_tags(s.1).with_weapons(s.2).with_flags(s.3).with_skill_types(&s.4)
+        }).collect())
+    },
+    r"^([0-9]+)% less ([a-z -]+)$" => |c| {
+        let stat_tags = parse_stat(&c[2])?;
+        Some(stat_tags.iter().map(|s| {
+            Mod::stat(s.0, Type::More, i64::from_str(&c[1]).unwrap().neg()).with_tags(s.1).with_weapons(s.2).with_flags(s.3).with_skill_types(&s.4)
+        }).collect())
+    },
+    r"^\+([0-9]+)%? to ([a-z -]+) and ([a-z ]+)$" => |c| {
+        let stat_tags_1 = parse_stat_nomulti(&c[2])?;
+        let stat_tags_2 = parse_stat_nomulti(&c[3])?;
+        Some(vec![
+            Mod::stat(stat_tags_1.0, Type::Base, i64::from_str(&c[1]).unwrap()).with_tags(stat_tags_1.1).with_weapons(stat_tags_1.2),
+            Mod::stat(stat_tags_2.0, Type::Base, i64::from_str(&c[1]).unwrap()).with_tags(stat_tags_2.1).with_weapons(stat_tags_2.2),
+        ])
+    },
+    r"^\+([0-9]+)%? to ([a-z]+) and ([a-z]+) resistances$" => |c| {
+        let stat_tags_1 = STATS_MAP.get(format!("{} resistance", &c[2]).as_str()).cloned()?;
+        let stat_tags_2 = STATS_MAP.get(format!("{} resistance", &c[3]).as_str()).cloned()?;
+        Some(vec![
+            Mod::stat(stat_tags_1.0, Type::Base, i64::from_str(&c[1]).unwrap()).with_tags(stat_tags_1.1),
+            Mod::stat(stat_tags_2.0, Type::Base, i64::from_str(&c[1]).unwrap()).with_tags(stat_tags_2.1),
+        ])
+    },
+    r"^adds ([0-9]+) to ([0-9]+) ([a-z -]+)$" => |c| {
+        let stat_tags_1 = STATS_MAP.get(format!("added minimum {}", &c[3]).as_str()).cloned()?;
+        let stat_tags_2 = STATS_MAP.get(format!("added maximum {}", &c[3]).as_str()).cloned()?;
+        Some(vec![
+            Mod::stat(stat_tags_1.0, Type::Base, i64::from_str(&c[1]).unwrap()).with_tags(stat_tags_1.1).with_weapons(stat_tags_1.2),
+            Mod::stat(stat_tags_2.0, Type::Base, i64::from_str(&c[2]).unwrap()).with_tags(stat_tags_2.1).with_weapons(stat_tags_2.2),
+        ])
+    },
+    r"^([0-9]+) to ([0-9]+) added ([a-z -]+)$" => |c| {
+        let stat_tags_1 = STATS_MAP.get(format!("added minimum {}", &c[3]).as_str()).cloned()?;
+        let stat_tags_2 = STATS_MAP.get(format!("added maximum {}", &c[3]).as_str()).cloned()?;
+        Some(vec![
+            Mod::stat(stat_tags_1.0, Type::Base, i64::from_str(&c[1]).unwrap()).with_tags(stat_tags_1.1).with_weapons(stat_tags_1.2),
+            Mod::stat(stat_tags_2.0, Type::Base, i64::from_str(&c[2]).unwrap()).with_tags(stat_tags_2.1).with_weapons(stat_tags_2.2),
+        ])
+    },
+    r"^regenerate ([0-9.]+)(% of)? (life|mana) per second$" => |c| {
+        let stat = match(&c[3], c.get(2).is_some()) {
+            ("life", false) => StatId::LifeRegeneration,
+            ("life", true) => StatId::LifeRegenerationPct,
+            ("mana", false) => StatId::ManaRegeneration,
+            ("mana", true) => StatId::ManaRegenerationPct,
+            _ => unreachable!(),
+        };
+
+        Some(vec![Mod::stat(stat, Type::Base, parse_val100(&c[1])?)])
+    },
+    r"^(?:damage )?penetrates (?:([0-9]+)% )?([a-z]+) resistance$" => |c| {
+        let stat_tags_1 = STATS_MAP.get(format!("{} damage penetration", &c[2]).as_str()).cloned()?;
+        let amount = if let Some(cap) = c.get(1) {
+            i64::from_str(cap.as_str()).unwrap()
+        } else {
+            1
+        };
+        Some(vec![Mod::stat(stat_tags_1.0, Type::Base, amount).with_tags(stat_tags_1.1)])
+    },
+    r"^(?:damage )?penetrates ([0-9]+)% elemental resistances$" => |c| {
+        let val = i64::from_str(&c[1]).ok()?;
+        Some(vec![
+            Mod::stat(StatId::FireDamagePen, Type::Base, val),
+            Mod::stat(StatId::ColdDamagePen, Type::Base, val),
+            Mod::stat(StatId::LightningDamagePen, Type::Base, val),
+        ])
+    },
+    r"^your ([a-z -]+) is equal to ([0-9]+)% of your ([a-z -]+)$" => |c| {
+        let stat_tags_1 = parse_stat_nomulti(&c[1])?;
+        let stat_tags_2 = parse_stat_nomulti(&c[3])?;
+        let pct = i64::from_str(&c[2]).unwrap();
+        Some(vec![Mod::stat(stat_tags_1.0, Type::Override, 0).with_tags(stat_tags_1.1).with_weapons(stat_tags_2.2).with_flags(stat_tags_1.3).with_mutations(stackvec!(Mutation::StatPct((pct, stat_tags_2.0))))])
+    },
+    r"^grants ([0-9]+) ([a-z -]+)$" => |c| {
+        let stat_tags_1 = parse_stat_nomulti(&c[2])?;
+        Some(vec![Mod::stat(stat_tags_1.0, Type::Base, i64::from_str(&c[1]).unwrap())])
+    },
+    r"^allocates ([a-z '-]+)$" => |c| {
+        let (node, _) = TREE.nodes.iter().find(|(_, v)| {
+            v.name.to_lowercase() == &c[1]
+        })?;
+        Some(vec![Mod::allocate(*node)])
+    },
+    r"^allocates ([a-z '-]+) if you have the matching modifier on ([a-z ]+)$" => |c| {
+        let (node, _) = TREE.nodes.iter().find(|(_, v)| {
+            v.name.to_lowercase() == &c[1]
+        })?;
+        let item_name = match &c[2] {
+            "forbidden flesh" => "forbidden flesh",
+            "forbidden flame" => "forbidden flame",
+            _ => return None,
+        };
+        Some(vec![Mod { effect: ModEffect::AllocateMatching(*node, item_name), ..Default::default() }])
+    },
+    r"^adds ([0-9]+) passive skills$" => |c| {
+        Some(vec![Mod::stat(StatId::AllocatesPassiveSkills, Type::Base, i64::from_str(&c[1]).unwrap())])
+    },
+    r"^([0-9]+) added passive skills? (are|is a) jewel sockets?$" => |c| {
+        Some(vec![Mod::stat(StatId::AddedPassivesAreJewelSockets, Type::Base, i64::from_str(&c[1]).unwrap())])
+    },
+    r"^adds ([0-9]+) jewel socket passive skills$" => |c| {
+        Some(vec![Mod::stat(StatId::AddedPassivesAreJewelSockets, Type::Base, i64::from_str(&c[1]).unwrap())])
+    },
+    r"^adds ([0-9]+) small passive skills? which grants? nothing$" => |c| {
+        Some(vec![
+            Mod::stat(StatId::AllocatesPassiveSkills, Type::Base, i64::from_str(&c[1]).unwrap()),
+            Mod::stat(StatId::AddedPassiveSkillsGrantNode, Type::Base, NOTHINGNESS_NODE_ID as i64),
+        ])
+    },
+    r"^has ([0-9]+) abyssal sockets?$" => |c| {
+        Some(vec![Mod::stat(StatId::AbyssalSockets, Type::Base, i64::from_str(&c[1]).unwrap())])
+    },
+    r"^attacks have ([0-9]+) abyssal sockets?$" => |c| {
+        Some(vec![Mod::stat(StatId::AbyssalSockets, Type::Base, i64::from_str(&c[1]).unwrap())])
+    },
+    r"^added small passive skills have ([0-9]+)% increased effect$" => |c| {
+        Some(vec![Mod::stat(StatId::SmallPassiveIncreasedEffect, Type::Base, i64::from_str(&c[1]).unwrap())])
+    },
+    r"^([0-9]+)% of (physical|cold|fire|lightning|chaos) damage converted to (fire|cold|lightning|chaos) damage$" => |c| {
+        let stat = CONVERSIONS.get(&(&c[2], &c[3]))?;
+        Some(vec![Mod::stat(*stat, Type::Base, i64::from_str(&c[1]).unwrap())])
+    },
+    r"^ignites you inflict deal damage ([0-9]+)% faster$" => |c| {
+        Some(vec![Mod::stat(StatId::FasterIgnite, Type::Base, i64::from_str(&c[1]).unwrap())])
+    },
+    r"^([a-z -]+) from passives in radius is transformed to ([a-z -]+)$" => |c| {
+        let stat_1 = parse_stat_nomulti(&c[1])?;
+        let stat_2 = parse_stat_nomulti(&c[2])?;
+        Some(vec![Mod::mutate_node(NodeMutation::TransformStat(stat_1.0, stat_2.0), flags!(NodeType::{Normal | Notable}))])
+    },
+    r"^([a-z -]+) from passives in radius is transformed to ([a-z -]+)$" => |c| {
+        let stat_1 = parse_stat_nomulti(&c[1])?;
+        let stat_2 = parse_stat_nomulti(&c[2])?;
+        Some(vec![Mod::mutate_node(NodeMutation::TransformStat(stat_1.0, stat_2.0), flags!(NodeType::{Normal | Notable}))])
+    },
+    r"^passives granting ([a-z -]+?)(?: or ([a-z -]+))? in radius also grant (increased )?([a-z -]+) at ([0-9]+)% of its value$" => |c| {
+        let stat_1 = parse_stat_nomulti(&c[1])?;
+        let mut ret = vec![];
+        let stat_3 = parse_stat_nomulti(&c[4])?;
+
+        let typ = if c.get(3).is_some() { Type::Inc } else { Type::Base };
+        if let Some(cap) = c.get(2) {
+            println!("agrou {}", cap.as_str());
+            let stat_2 = parse_stat_nomulti(cap.as_str())?;
+            ret.push(Mod::mutate_node(NodeMutation::AlsoGrantStatPct(stat_2.0, stat_3.0, typ, i64::from_str(&c[5]).unwrap()), flags!(NodeType::{Normal | Notable})));
+        }
+
+        ret.push(Mod::mutate_node(NodeMutation::AlsoGrantStatPct(stat_1.0, stat_3.0, typ, i64::from_str(&c[5]).unwrap()), flags!(NodeType::{Normal | Notable})));
+        Some(ret)
+    },
+    r"^only affects passives in ([a-z ]+) ring$" => |c| {
+        let size = JewelRadius::from_str(&c[1])?;
+        Some(vec![Mod::ring_size(size)])
+    },
+    r"^this jewel's socket has ([0-9]+)% increased effect per allocated passive skill between it and your class' starting location" => |c| {
+        Some(vec![Mod::stat(StatId::ItemEffectDistanceClass, Type::Base, i64::from_str(&c[1]).unwrap())])
+    },
+    r"^flasks applied to you have ([0-9]+)% increased effect$" => |c| {
+        Some(vec![Mod::stat(StatId::FlaskEffect, Type::Inc, i64::from_str(&c[1]).unwrap())])
+    },
+    r"^inherent attack speed bonus from dual wielding is doubled$" => |_| {
+        // Hack: a 9% more on top of the existing 10% more is 19.9% instead of 20%
+        Some(vec![Mod::stat(StatId::AttackSpeed, Type::More, 9).with_conditions(stackvec![Condition::WhileDualWielding])])
+    },
+    r"^increases and reductions to spell damage also apply to attacks at ([0-9]+)% of their value$" => |c| {
+        Some(vec![Mod::stat(StatId::Damage, Type::Inc, 1).with_tags(GemTag::Attack).with_mutations(stackvec![Mutation::StatIncPct(i64::from_str(&c[1]).unwrap(), StatId::SpellDamage)])])
+    },
+    r"^attacks with this weapon have added fire damage equal to ([0-9]+)% of player's maximum life$" => |c| {
+        Some(vec![
+            Mod::stat(StatId::AddedMinFireDamage, Type::Base, 1).with_tags(GemTag::Attack).with_mutations(stackvec![Mutation::StatPct((i64::from_str(&c[1]).unwrap(), StatId::MaximumLife))]).with_conditions(stackvec![Condition::WithThisWeapon]),
+            Mod::stat(StatId::AddedMaxFireDamage, Type::Base, 1).with_tags(GemTag::Attack).with_mutations(stackvec![Mutation::StatPct((i64::from_str(&c[1]).unwrap(), StatId::MaximumLife))]).with_conditions(stackvec![Condition::WithThisWeapon]),
+        ])
+    },
+    r"^\+?([0-9-]+) to level of (all|socketed) (?:([a-z -]+?) )??(?:(skill|support) )?gems$" => |c| {
+        let mut tags = BitFlags::EMPTY;
+        let mut tags_not = BitFlags::EMPTY;
+        if let Some(tags_str) = c.get(3) {
+            for tag_str in tags_str.as_str().trim_end().split(' ') {
+                let parsed_tags = TAGS.get(tag_str)?;
+                tags |= parsed_tags.0;
+                tags_not |= parsed_tags.1;
+            }
+        }
+        let mut m = Mod::gem_level(i32::from_str(&c[1]).unwrap()).with_tags(tags).with_tags_not(tags_not);
+        match &c[2] {
+            "socketed" => m = m.with_conditions(stackvec![Condition::Socketed]),
+            _ => {},
+        }
+        if let Some(cap) = c.get(4) {
+            match cap.as_str() {
+                "skill" => m = m.with_tags(GemTag::Active_Skill),
+                "support" => m = m.with_tags(GemTag::Support),
+                _ => {},
+            }
+        }
+        Some(vec![
+            m
+        ])
+    },
+    r"^gain ([0-9]+)% of (?:(wand|bow|claw) )?([a-z ]+) as extra ([a-z ]+)$" => |c| {
+        let pct = i64::from_str(&c[1]).unwrap();
+        let source = &c[3];
+        let target = &c[4];
+        if let Some(stat) = EXTRA_DAMAGE.get(&(&source, &target)) {
+            let mut m = Mod::stat(*stat, Type::Base, pct);
+            if let Some(weapon) = c.get(2) {
+                let weapons = match weapon.as_str() {
+                    "wand" => flags!(ItemClass::Wand),
+                    "bow" => flags!(ItemClass::Bow),
+                    "claw" => flags!(ItemClass::Claw),
+                    _ => return None,
+                };
+                m = m.with_weapons(weapons);
+            }
+            return Some(vec![m]);
+        }
+        let source_stat = parse_stat_nomulti(source)?;
+        let target_stat = parse_stat_nomulti(target)?;
+        Some(vec![Mod::stat(target_stat.0, Type::Base, 1).with_tags(target_stat.1).with_mutations(stackvec![Mutation::StatPct((pct, source_stat.0))])])
+    },
+    r"^you have ([a-z ]+)$" => |c| {
+        let buff = match &c[1] {
+            "diamond shrine buff" => Some(Buff::DiamondShrine),
+            "massive shrine buff" => Some(Buff::MassiveShrine),
+            _ => None,
+        }?;
+        Some(vec![
+            Mod::buff(buff),
+        ])
+    },
+    r"^([a-z -]+) is doubled$" => |c| {
+        let stat_tags = parse_stat(&c[1])?;
+        Some(stat_tags.iter().map(|s| {
+            Mod::stat(s.0, Type::More, 100).with_tags(s.1).with_weapons(s.2).with_flags(s.3).with_skill_types(&s.4)
+        }).collect())
+    },
+    r"^grants all bonuses of unallocated (small|notable) passive skills in radius$" => |c| {
+        let node_type = match &c[1] {
+            "small" => flags!(NodeType::Normal),
+            "notable" => flags!(NodeType::Notable),
+            _ => return None,
+        };
+        Some(vec![
+            Mod { effect: ModEffect::GrantsUnallocatedNodeBonuses(node_type), ..Default::default() },
+        ])
+    },
+    r"^passive skills in radius of ([a-z -]+) can be allocated without being connected to your tree$" => |c| {
+        let node = TREE.nodes.iter().find(|(_, n)| n.name.to_lowercase() == &c[1])?;
+        Some(vec![
+            Mod { effect: ModEffect::MoveRadiusCenter(*node.0), ..Default::default() },
+            Mod::mutate_node(NodeMutation::AllocNoPath, flags!(NodeType::{Normal | Notable | Keystone})),
+        ])
+    },
+    r"^auras from your skills have ([0-9]+)% increased effect on you$" => |c| {
+        Some(vec![Mod::stat(StatId::AuraEffect, Type::Inc, i64::from_str(&c[1]).unwrap())])
+    },
+}});
+
 lazy_static! {
-    static ref CORES: Vec<(Regex, Box<dyn Fn(&Captures) -> Option<Vec<Mod>> + Send + Sync>)> = vec![
-        (
-            regex!(r"^(?:grants )?([0-9]+)% (increased|reduced) ([a-z -]+)$"),
-            Box::new(|c| {
-                let stat_tags = parse_stat(&c[3])?;
-                let mut amount = i64::from_str(&c[1]).unwrap();
-                amount = match &c[2] {
-                    "reduced" => amount.neg(),
-                    "increased" => amount,
-                    _ => panic!(),
-                };
-                Some(stat_tags.iter().map(|s| {
-                    Mod::stat(s.0, Type::Inc, amount).with_tags(s.1).with_weapons(s.2).with_flags(s.3).with_skill_types(&s.4)
-                }).collect())
-            })
-        ), (
-            regex!(r"^(?:grants )?([+-]?[0-9.]+)%? (?:additional )?(?:to )?(?:all )?([a-z -]+)$"),
-            Box::new(|c| {
-                let stat_tags = parse_stat(&c[2])?;
-                let mut is_val100 = false;
-                let mut amount = if c[1].contains('.') {
-                    is_val100 = true;
-                    parse_val100(&c[1])?
-                } else {
-                    i64::from_str(&c[1]).unwrap()
-                };
-
-                Some(stat_tags.iter().map(|s| {
-                    if s.0 == StatId::CriticalStrikeChance && !is_val100 {
-                        amount = amount * 100;
-                    }
-                    Mod::stat(s.0, Type::Base, amount).with_tags(s.1).with_weapons(s.2).with_flags(s.3).with_skill_types(&s.4)
-                }).collect())
-            })
-        ), (
-            regex!(r"^([0-9]+)% (increased|reduced) ([a-z -]+) and ([a-z -]+)$"),
-            Box::new(|c| {
-                let stat_tags_1 = parse_stat(&c[3])?;
-                let stat_tags_2 = parse_stat(&c[4])?;
-                let mut amount = i64::from_str(&c[1]).unwrap();
-                amount = match &c[2] {
-                    "reduced" => amount.neg(),
-                    "increased" => amount,
-                    _ => panic!(),
-                };
-                let mut ret: Vec<Mod> = stat_tags_1.iter().map(|s| {
-                    Mod::stat(s.0, Type::Inc, amount).with_tags(s.1).with_weapons(s.2).with_flags(s.3).with_skill_types(&s.4)
-                }).collect();
-                ret.extend(stat_tags_2.iter().map(|s| {
-                    Mod::stat(s.0, Type::Inc, amount).with_tags(s.1).with_weapons(s.2).with_flags(s.3).with_skill_types(&s.4)
-                }));
-                Some(ret)
-            })
-        ), (
-            regex!(r"^([0-9]+)% more ([a-z -]+)$"),
-            Box::new(|c| {
-                let stat_tags = parse_stat(&c[2])?;
-                Some(stat_tags.iter().map(|s| {
-                    Mod::stat(s.0, Type::More, i64::from_str(&c[1]).unwrap()).with_tags(s.1).with_weapons(s.2).with_flags(s.3).with_skill_types(&s.4)
-                }).collect())
-            })
-        ), (
-            regex!(r"^([0-9]+)% less ([a-z -]+)$"),
-            Box::new(|c| {
-                let stat_tags = parse_stat(&c[2])?;
-                Some(stat_tags.iter().map(|s| {
-                    Mod::stat(s.0, Type::More, i64::from_str(&c[1]).unwrap().neg()).with_tags(s.1).with_weapons(s.2).with_flags(s.3).with_skill_types(&s.4)
-                }).collect())
-            })
-        ), (
-            regex!(r"^\+([0-9]+)%? to ([a-z -]+) and ([a-z ]+)$"),
-            Box::new(|c| {
-                let stat_tags_1 = parse_stat_nomulti(&c[2])?;
-                let stat_tags_2 = parse_stat_nomulti(&c[3])?;
-                Some(vec![
-                    Mod::stat(stat_tags_1.0, Type::Base, i64::from_str(&c[1]).unwrap()).with_tags(stat_tags_1.1).with_weapons(stat_tags_1.2),
-                    Mod::stat(stat_tags_2.0, Type::Base, i64::from_str(&c[1]).unwrap()).with_tags(stat_tags_2.1).with_weapons(stat_tags_2.2),
-                ])
-            })
-        ), (
-            regex!(r"^\+([0-9]+)%? to ([a-z]+) and ([a-z]+) resistances$"),
-            Box::new(|c| {
-                let stat_tags_1 = STATS_MAP.get(format!("{} resistance", &c[2]).as_str()).cloned()?;
-                let stat_tags_2 = STATS_MAP.get(format!("{} resistance", &c[3]).as_str()).cloned()?;
-                Some(vec![
-                    Mod::stat(stat_tags_1.0, Type::Base, i64::from_str(&c[1]).unwrap()).with_tags(stat_tags_1.1),
-                    Mod::stat(stat_tags_2.0, Type::Base, i64::from_str(&c[1]).unwrap()).with_tags(stat_tags_2.1),
-                ])
-            })
-        ), (
-            regex!(r"^adds ([0-9]+) to ([0-9]+) ([a-z -]+)$"),
-            Box::new(|c| {
-                let stat_tags_1 = STATS_MAP.get(format!("added minimum {}", &c[3]).as_str()).cloned()?;
-                let stat_tags_2 = STATS_MAP.get(format!("added maximum {}", &c[3]).as_str()).cloned()?;
-                Some(vec![
-                    Mod::stat(stat_tags_1.0, Type::Base, i64::from_str(&c[1]).unwrap()).with_tags(stat_tags_1.1).with_weapons(stat_tags_1.2),
-                    Mod::stat(stat_tags_2.0, Type::Base, i64::from_str(&c[2]).unwrap()).with_tags(stat_tags_2.1).with_weapons(stat_tags_2.2),
-                ])
-            })
-        ), (
-            regex!(r"^([0-9]+) to ([0-9]+) added ([a-z -]+)$"),
-            Box::new(|c| {
-                let stat_tags_1 = STATS_MAP.get(format!("added minimum {}", &c[3]).as_str()).cloned()?;
-                let stat_tags_2 = STATS_MAP.get(format!("added maximum {}", &c[3]).as_str()).cloned()?;
-                Some(vec![
-                    Mod::stat(stat_tags_1.0, Type::Base, i64::from_str(&c[1]).unwrap()).with_tags(stat_tags_1.1).with_weapons(stat_tags_1.2),
-                    Mod::stat(stat_tags_2.0, Type::Base, i64::from_str(&c[2]).unwrap()).with_tags(stat_tags_2.1).with_weapons(stat_tags_2.2),
-                ])
-            })
-        ), (
-            regex!(r"^regenerate ([0-9.]+)(% of)? (life|mana) per second$"),
-            Box::new(|c| {
-                let stat = match(&c[3], c.get(2).is_some()) {
-                    ("life", false) => StatId::LifeRegeneration,
-                    ("life", true) => StatId::LifeRegenerationPct,
-                    ("mana", false) => StatId::ManaRegeneration,
-                    ("mana", true) => StatId::ManaRegenerationPct,
-                    _ => panic!(),
-                };
-
-                Some(vec![Mod::stat(stat, Type::Base, parse_val100(&c[1])?)])
-            })
-        ), (
-            regex!(r"^(?:damage )?penetrates (?:([0-9]+)% )?([a-z]+) resistance$"),
-            Box::new(|c| {
-                let stat_tags_1 = STATS_MAP.get(format!("{} damage penetration", &c[2]).as_str()).cloned()?;
-                let amount = if let Some(cap) = c.get(1) {
-                    i64::from_str(cap.as_str()).unwrap()
-                } else {
-                    1
-                };
-                Some(vec![Mod::stat(stat_tags_1.0, Type::Base, amount).with_tags(stat_tags_1.1)])
-            })
-        ), (
-            regex!(r"^(?:damage )?penetrates ([0-9]+)% elemental resistances$"),
-            Box::new(|c| {
-                let val = i64::from_str(&c[1]).ok()?;
-                Some(vec![
-                    Mod::stat(StatId::FireDamagePen, Type::Base, val),
-                    Mod::stat(StatId::ColdDamagePen, Type::Base, val),
-                    Mod::stat(StatId::LightningDamagePen, Type::Base, val),
-                ])
-            })
-        ), (
-            regex!(r"^your ([a-z -]+) is equal to ([0-9]+)% of your ([a-z -]+)$"),
-            Box::new(|c| {
-                let stat_tags_1 = parse_stat_nomulti(&c[1])?;
-                let stat_tags_2 = parse_stat_nomulti(&c[3])?;
-                let pct = i64::from_str(&c[2]).unwrap();
-                Some(vec![Mod::stat(stat_tags_1.0, Type::Override, 0).with_tags(stat_tags_1.1).with_weapons(stat_tags_2.2).with_flags(stat_tags_1.3).with_mutations(stackvec!(Mutation::StatPct((pct, stat_tags_2.0))))])
-            })
-        ), (
-            regex!(r"^grants ([0-9]+) ([a-z -]+)$"),
-            Box::new(|c| {
-                let stat_tags_1 = parse_stat_nomulti(&c[2])?;
-                Some(vec![Mod::stat(stat_tags_1.0, Type::Base, i64::from_str(&c[1]).unwrap())])
-            })
-        ), (
-            regex!(r"^allocates ([a-z '-]+)$"),
-            Box::new(|c| {
-                let (node, _) = TREE.nodes.iter().find(|(_, v)| {
-                    v.name.to_lowercase() == &c[1]
-                })?;
-                Some(vec![Mod::allocate(*node)])
-            })
-        ), (
-            regex!(r"^allocates ([a-z '-]+) if you have the matching modifier on ([a-z ]+)$"),
-            Box::new(|c| {
-                let (node, _) = TREE.nodes.iter().find(|(_, v)| {
-                    v.name.to_lowercase() == &c[1]
-                })?;
-                let item_name = match &c[2] {
-                    "forbidden flesh" => "forbidden flesh",
-                    "forbidden flame" => "forbidden flame",
-                    _ => return None,
-                };
-                Some(vec![Mod { effect: ModEffect::AllocateMatching(*node, item_name), ..Default::default() }])
-            })
-        ), (
-            regex!(r"^adds ([0-9]+) passive skills$"),
-            Box::new(|c| {
-                Some(vec![Mod::stat(StatId::AllocatesPassiveSkills, Type::Base, i64::from_str(&c[1]).unwrap())])
-            })
-        ), (
-            regex!(r"^([0-9]+) added passive skills? (are|is a) jewel sockets?$"),
-            Box::new(|c| {
-                Some(vec![Mod::stat(StatId::AddedPassivesAreJewelSockets, Type::Base, i64::from_str(&c[1]).unwrap())])
-            })
-        ), (
-            regex!(r"^adds ([0-9]+) jewel socket passive skills$"),
-            Box::new(|c| {
-                Some(vec![Mod::stat(StatId::AddedPassivesAreJewelSockets, Type::Base, i64::from_str(&c[1]).unwrap())])
-            })
-        ), (
-            regex!(r"^adds ([0-9]+) small passive skills? which grants? nothing$"),
-            Box::new(|c| {
-                Some(vec![
-                    Mod::stat(StatId::AllocatesPassiveSkills, Type::Base, i64::from_str(&c[1]).unwrap()),
-                    Mod::stat(StatId::AddedPassiveSkillsGrantNode, Type::Base, NOTHINGNESS_NODE_ID as i64),
-                ])
-            })
-        ), (
-            regex!(r"^has ([0-9]+) abyssal sockets?$"),
-            Box::new(|c| {
-                Some(vec![Mod::stat(StatId::AbyssalSockets, Type::Base, i64::from_str(&c[1]).unwrap())])
-            })
-        ), (
-            regex!(r"^attacks have ([0-9]+) abyssal sockets?$"),
-            Box::new(|c| {
-                Some(vec![Mod::stat(StatId::AbyssalSockets, Type::Base, i64::from_str(&c[1]).unwrap())])
-            })
-        ), (
-            regex!(r"^added small passive skills have ([0-9]+)% increased effect$"),
-            Box::new(|c| {
-                Some(vec![Mod::stat(StatId::SmallPassiveIncreasedEffect, Type::Base, i64::from_str(&c[1]).unwrap())])
-            })
-        ), (
-            regex!(r"^([0-9]+)% of (physical|cold|fire|lightning|chaos) damage converted to (fire|cold|lightning|chaos) damage$"),
-            Box::new(|c| {
-                let stat = CONVERSIONS.get(&(&c[2], &c[3]))?;
-                Some(vec![Mod::stat(*stat, Type::Base, i64::from_str(&c[1]).unwrap())])
-            })
-        ), (
-            regex!(r"^ignites you inflict deal damage ([0-9]+)% faster$"),
-            Box::new(|c| {
-                Some(vec![Mod::stat(StatId::FasterIgnite, Type::Base, i64::from_str(&c[1]).unwrap())])
-            })
-        ), (
-            regex!(r"^([a-z -]+) from passives in radius is transformed to ([a-z -]+)$"),
-            Box::new(|c| {
-                let stat_1 = parse_stat_nomulti(&c[1])?;
-                let stat_2 = parse_stat_nomulti(&c[2])?;
-                Some(vec![Mod::mutate_node(NodeMutation::TransformStat(stat_1.0, stat_2.0), flags!(NodeType::{Normal | Notable}))])
-            })
-        ), (
-            regex!(r"^([a-z -]+) from passives in radius is transformed to ([a-z -]+)$"),
-            Box::new(|c| {
-                let stat_1 = parse_stat_nomulti(&c[1])?;
-                let stat_2 = parse_stat_nomulti(&c[2])?;
-                Some(vec![Mod::mutate_node(NodeMutation::TransformStat(stat_1.0, stat_2.0), flags!(NodeType::{Normal | Notable}))])
-            })
-        ), (
-            regex!(r"^passives granting ([a-z -]+?)(?: or ([a-z -]+))? in radius also grant (increased )?([a-z -]+) at ([0-9]+)% of its value$"),
-            Box::new(|c| {
-                let stat_1 = parse_stat_nomulti(&c[1])?;
-                let mut ret = vec![];
-                let stat_3 = parse_stat_nomulti(&c[4])?;
-
-                let typ = if c.get(3).is_some() { Type::Inc } else { Type::Base };
-                if let Some(cap) = c.get(2) {
-                    println!("agrou {}", cap.as_str());
-                    let stat_2 = parse_stat_nomulti(cap.as_str())?;
-                    ret.push(Mod::mutate_node(NodeMutation::AlsoGrantStatPct(stat_2.0, stat_3.0, typ, i64::from_str(&c[5]).unwrap()), flags!(NodeType::{Normal | Notable})));
-                }
-
-                ret.push(Mod::mutate_node(NodeMutation::AlsoGrantStatPct(stat_1.0, stat_3.0, typ, i64::from_str(&c[5]).unwrap()), flags!(NodeType::{Normal | Notable})));
-                Some(ret)
-            })
-        ), (
-            regex!(r"^only affects passives in ([a-z ]+) ring$"),
-            Box::new(|c| {
-                let size = JewelRadius::from_str(&c[1])?;
-                Some(vec![Mod::ring_size(size)])
-            })
-        ), (
-            regex!(r"^this jewel's socket has ([0-9]+)% increased effect per allocated passive skill between it and your class' starting location"),
-            Box::new(|c| {
-                Some(vec![Mod::stat(StatId::ItemEffectDistanceClass, Type::Base, i64::from_str(&c[1]).unwrap())])
-            })
-        ), (
-            regex!(r"^flasks applied to you have ([0-9]+)% increased effect$"),
-            Box::new(|c| {
-                Some(vec![Mod::stat(StatId::FlaskEffect, Type::Inc, i64::from_str(&c[1]).unwrap())])
-            })
-        ), (
-            regex!(r"^inherent attack speed bonus from dual wielding is doubled$"),
-            Box::new(|_| {
-                // Hack: a 9% more on top of the existing 10% more is 19.9% instead of 20%
-                Some(vec![Mod::stat(StatId::AttackSpeed, Type::More, 9).with_conditions(stackvec![Condition::WhileDualWielding])])
-            })
-        ), (
-            regex!(r"^increases and reductions to spell damage also apply to attacks at ([0-9]+)% of their value$"),
-            Box::new(|c| {
-                Some(vec![Mod::stat(StatId::Damage, Type::Inc, 1).with_tags(GemTag::Attack).with_mutations(stackvec![Mutation::StatIncPct(i64::from_str(&c[1]).unwrap(), StatId::SpellDamage)])])
-            })
-        ), (
-            regex!(r"^attacks with this weapon have added fire damage equal to ([0-9]+)% of player's maximum life$"),
-            Box::new(|c| {
-                Some(vec![
-                    Mod::stat(StatId::AddedMinFireDamage, Type::Base, 1).with_tags(GemTag::Attack).with_mutations(stackvec![Mutation::StatPct((i64::from_str(&c[1]).unwrap(), StatId::MaximumLife))]).with_conditions(stackvec![Condition::WithThisWeapon]),
-                    Mod::stat(StatId::AddedMaxFireDamage, Type::Base, 1).with_tags(GemTag::Attack).with_mutations(stackvec![Mutation::StatPct((i64::from_str(&c[1]).unwrap(), StatId::MaximumLife))]).with_conditions(stackvec![Condition::WithThisWeapon]),
-                ])
-            })
-        ), (
-            regex!(r"^\+?([0-9-]+) to level of (all|socketed) (?:([a-z -]+?) )??(?:(skill|support) )?gems$"),
-            Box::new(|c| {
-                let mut tags = BitFlags::EMPTY;
-                let mut tags_not = BitFlags::EMPTY;
-                if let Some(tags_str) = c.get(3) {
-                    for tag_str in tags_str.as_str().trim_end().split(' ') {
-                        let parsed_tags = TAGS.get(tag_str)?;
-                        tags |= parsed_tags.0;
-                        tags_not |= parsed_tags.1;
-                    }
-                }
-                let mut m = Mod::gem_level(i32::from_str(&c[1]).unwrap()).with_tags(tags).with_tags_not(tags_not);
-                match &c[2] {
-                    "socketed" => m = m.with_conditions(stackvec![Condition::Socketed]),
-                    _ => {},
-                }
-                if let Some(cap) = c.get(4) {
-                    match cap.as_str() {
-                        "skill" => m = m.with_tags(GemTag::Active_Skill),
-                        "support" => m = m.with_tags(GemTag::Support),
-                        _ => {},
-                    }
-                }
-                Some(vec![
-                    m
-                ])
-            })
-        ), (
-            regex!(r"^gain ([0-9]+)% of (?:(wand|bow|claw) )?([a-z ]+) as extra ([a-z ]+)$"),
-            Box::new(|c| {
-                let pct = i64::from_str(&c[1]).unwrap();
-                let source = &c[3];
-                let target = &c[4];
-                if let Some(stat) = EXTRA_DAMAGE.get(&(&source, &target)) {
-                    let mut m = Mod::stat(*stat, Type::Base, pct);
-                    if let Some(weapon) = c.get(2) {
-                        let weapons = match weapon.as_str() {
-                            "wand" => flags!(ItemClass::Wand),
-                            "bow" => flags!(ItemClass::Bow),
-                            "claw" => flags!(ItemClass::Claw),
-                            _ => return None,
-                        };
-                        m = m.with_weapons(weapons);
-                    }
-                    return Some(vec![m]);
-                }
-                let source_stat = parse_stat_nomulti(source)?;
-                let target_stat = parse_stat_nomulti(target)?;
-                Some(vec![Mod::stat(target_stat.0, Type::Base, 1).with_tags(target_stat.1).with_mutations(stackvec![Mutation::StatPct((pct, source_stat.0))])])
-            })
-        ), (
-            regex!(r"^you have ([a-z ]+)$"),
-            Box::new(|c| {
-                let buff = match &c[1] {
-                    "diamond shrine buff" => Some(Buff::DiamondShrine),
-                    "massive shrine buff" => Some(Buff::MassiveShrine),
-                    _ => None,
-                }?;
-                Some(vec![
-                    Mod::buff(buff),
-                ])
-            })
-        ), (
-            regex!(r"^([a-z -]+) is doubled$"),
-            Box::new(|c| {
-                let stat_tags = parse_stat(&c[1])?;
-                Some(stat_tags.iter().map(|s| {
-                    Mod::stat(s.0, Type::More, 100).with_tags(s.1).with_weapons(s.2).with_flags(s.3).with_skill_types(&s.4)
-                }).collect())
-            })
-        ), (
-            regex!(r"^grants all bonuses of unallocated (small|notable) passive skills in radius$"),
-            Box::new(|c| {
-                let node_type = match &c[1] {
-                    "small" => flags!(NodeType::Normal),
-                    "notable" => flags!(NodeType::Notable),
-                    _ => return None,
-                };
-                Some(vec![
-                    Mod { effect: ModEffect::GrantsUnallocatedNodeBonuses(node_type), ..Default::default() },
-                ])
-            })
-        ), (
-            regex!(r"^passive skills in radius of ([a-z -]+) can be allocated without being connected to your tree$"),
-            Box::new(|c| {
-                let node = TREE.nodes.iter().find(|(_, n)| n.name.to_lowercase() == &c[1])?;
-                Some(vec![
-                    Mod { effect: ModEffect::MoveRadiusCenter(*node.0), ..Default::default() },
-                    Mod::mutate_node(NodeMutation::AllocNoPath, flags!(NodeType::{Normal | Notable | Keystone})),
-                ])
-            })
-        ),
-    ];
-
     static ref ENDINGS_REGEX: Vec<(Regex, Box<dyn Fn(&Captures) -> Option<(BitFlags<GemTag>, BitFlags<ItemClass>, BitFlags<ModFlag>, StackVec<Condition, 2>)> + Send + Sync>)> = vec![
         (
             regex!(r"while (?:affected by|using) ([a-z ]+)$"),
@@ -696,14 +632,14 @@ lazy_static! {
     static ref ENDINGS_MUTATIONS: Vec<(Regex, Mutation)> = vec![
         (regex!(",? ?up to(?: a maximum of)? ([0-9]+)%?$"), Mutation::UpTo(1)),
         (regex!("per ([0-9]+) of your lowest attribute$"), Mutation::MultiplierStatLowest((1, &[StatId::Strength, StatId::Dexterity, StatId::Intelligence]))),
-        (regex!("per ([0-9]+) maximum energy shield on shield$"), Mutation::MultiplierSlotDefence((1, Slot::Offhand, Defence::EnergyShield))),
+        (regex!("per ([0-9]+) maximum energy shield on shield$"), Mutation::MultiplierSlotDefences((1, Slot::Offhand, flags!(Defence::EnergyShield)))),
         (regex!("per level$"), Mutation::MultiplierProperty((1, property::Int::Level))),
         (regex!("per frenzy charge$"), Mutation::MultiplierProperty((1, property::Int::FrenzyCharges))),
         (regex!("per power charge$"), Mutation::MultiplierProperty((1, property::Int::PowerCharges))),
         (regex!("per endurance charge$"), Mutation::MultiplierProperty((1, property::Int::EnduranceCharges))),
         (regex!("per fortification$"), Mutation::MultiplierProperty((1, property::Int::Fortification))),
         (regex!("per ([0-9]+)% quality$"), Mutation::MultiplierQuality(1)),
-        (regex!("per ([0-9]+)% chance to block on equipped shield$"), Mutation::MultiplierSlotDefence((5, Slot::Offhand, Defence::Block))),
+        (regex!("per ([0-9]+)% chance to block on equipped shield$"), Mutation::MultiplierSlotDefences((5, Slot::Offhand, flags!(Defence::Block)))),
         (regex!("per ([0-9]+) player maximum life$"), Mutation::MultiplierStat((1, StatId::MaximumLife))),
         (regex!("equal to your overcapped fire resistance$"), Mutation::MultiplierOvercap(1, StatId::FireResistance, StatId::MaximumFireResistance)),
         (regex!("for each of your aura or herald skills affecting you$"), Mutation::ForEachActiveSkill(&[ActiveSkillType::Aura, ActiveSkillType::Herald])),
@@ -782,6 +718,9 @@ lazy_static! {
         ]);
         map.insert("allocated small passive skills in radius grant nothing", vec![
             Mod::mutate_node(NodeMutation::AllocatedGrantNothing, flags!(NodeType::Normal))
+        ]);
+        map.insert("enemies taunted by you cannot evade attacks", vec![
+            Mod::stat(StatId::ChanceToHit, Type::Override, 100).with_conditions(stackvec![Condition::PropertyBool((true, property::Bool::EnemyTaunted))]),
         ]);
         map
     };

@@ -261,18 +261,19 @@ impl<'a> EvaluatorCtx<'a> {
                     }
                     amount = lowest.map_or(0, |l| (amount * l) / mutation.0);
                 },
-                Mutation::MultiplierSlotDefence((per, slot, defence)) => {
-                    let def_amount = if let Some(item) = self.build.get_equipped(*slot) {
+                Mutation::MultiplierSlotDefences((per, slot, defences_flags)) => {
+                    let mut def_amount = 0;
+                    if let Some(item) = self.build.get_equipped(*slot) {
                         let defences = item.calc_defence();
-                        match defence {
-                            Defence::Armour => defences.armour.val(),
-                            Defence::Evasion => defences.evasion.val(),
-                            Defence::EnergyShield => defences.energy_shield.val(),
-                            Defence::Block => defences.block_chance.val(),
+                        for defence in defences_flags.iter() {
+                            match defence {
+                                Defence::Armour => def_amount += defences.armour.val(),
+                                Defence::Evasion => def_amount += defences.evasion.val(),
+                                Defence::EnergyShield => def_amount += defences.energy_shield.val(),
+                                Defence::Block => def_amount += defences.block_chance.val(),
+                            }
                         }
-                    } else {
-                        0
-                    };
+                    }
                     amount = (amount * def_amount) / per;
                 },
                 Mutation::StatPct((pct, stat_id)) => {

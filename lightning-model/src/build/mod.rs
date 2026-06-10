@@ -28,6 +28,7 @@ use lazy_static::lazy_static;
 use stat::{Stat, StatId, Stats};
 use strum::EnumCount;
 use strum_macros::{AsRefStr, EnumIter};
+use enumflags2::bitflags;
 
 #[derive(Serialize, Deserialize, Default, Eq, PartialEq, Hash, Clone, Copy, Debug, strum_macros::Display)]
 pub enum Slot {
@@ -94,6 +95,8 @@ impl TryFrom<(&str, u16)> for Slot {
     }
 }
 
+#[bitflags]
+#[repr(u16)]
 #[derive(Clone, Copy, Debug)]
 pub enum Defence {
     Armour,

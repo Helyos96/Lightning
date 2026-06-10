@@ -41,6 +41,12 @@ lazy_static! {
         ("spell_maximum_base_chaos_damage", vec![
             Mod::stat(StatId::BaseMaxChaosDamage, Type::Base, 0).with_tags(GemTag::Spell),
         ]),
+        ("local_minimum_added_physical_damage", vec![
+            Mod::stat(StatId::BaseMinPhysicalDamage, Type::Base, 0),
+        ]),
+        ("local_maximum_added_physical_damage", vec![
+            Mod::stat(StatId::BaseMaxPhysicalDamage, Type::Base, 0),
+        ]),
         ("minimum_added_fire_damage", vec![
             Mod::stat(StatId::AddedMinFireDamage, Type::Base, 0),
         ]),

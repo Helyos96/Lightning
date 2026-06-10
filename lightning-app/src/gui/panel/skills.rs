@@ -48,7 +48,7 @@ fn draw_skill_dropdown(ui: &mut egui::Ui, panel_skills: &mut SkillsPanelState, s
         }
     } else if r.contains_pointer() {
         if let Some(gem) = socketed_gem.as_ref() {
-            let popup_pos = r.rect.right_top() + egui::vec2(5.0, 0.0);
+            let popup_pos = r.rect.right_bottom() + egui::vec2(5.0, 0.0);
             let window_id = egui::Id::new("Hover Gem").with(gem.data().display_name());
             let custom_frame = egui::Frame::window(&ui.ctx().style())
                 .stroke(egui::Stroke::new(3.0, COLOR_DESC))

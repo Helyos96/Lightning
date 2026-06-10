@@ -88,7 +88,7 @@ impl From<RawPassiveTree> for PassiveTree {
             tattoos: raw.tattoos,
             jewels: raw.jewels,
 
-            // Skipped fields
+            // Serde skipped fields
             node_mutations: Default::default(),
             nodes_data: init_data(),
             mod_cache: ArcSwap::from_pointee(Vec::new()),
@@ -677,7 +677,9 @@ impl PassiveTree {
         let ret = if let Some(jewel) = self.jewels.get(&node_id).cloned() {
             self._remove_jewel(node_id, &mut removed_sockets);
             if let Some(radius_data) = jewel.radius_data() {
-                let center_node_id = jewel.calc_nonlocal_mods().iter().find_map(|m| if let ModEffect::MoveRadiusCenter(new_id) = m.effect { Some(new_id) } else { None }).unwrap_or(node_id);
+                let center_node_id = jewel.calc_nonlocal_mods().iter().find_map(|m|
+                    if let ModEffect::MoveRadiusCenter(new_id) = m.effect { Some(new_id) } else { None }
+                ).unwrap_or(node_id);
                 for n in TREE.nodes_in_radius(center_node_id, &radius_data, true) {
                     if let Some(node_mutations) = self.node_mutations.get_mut(&n) {
                         node_mutations.retain(|muts| muts.1 != node_id);

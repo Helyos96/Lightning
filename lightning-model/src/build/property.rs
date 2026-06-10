@@ -35,6 +35,7 @@ pub enum Bool {
     OnFullLife,
     OnLowLife,
     OnFullEnergyShield,
+    EnemyTaunted,
 }
 
 pub fn int_data(p: Int) -> &'static IntData {

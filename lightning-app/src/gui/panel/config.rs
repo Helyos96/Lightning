@@ -19,6 +19,7 @@ lazy_static! {
         (property::Bool::OnFullLife, "Are you on Full Life?"),
         (property::Bool::OnFullEnergyShield, "Are you on Full ES?"),
         (property::Bool::OnLowLife, "Are you on Low Life?"),
+        (property::Bool::EnemyTaunted, "Is the Enemy Taunted?"),
     ];
 }
 
