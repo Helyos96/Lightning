@@ -228,18 +228,17 @@ fn calc_average_dmg(eval: &mut Evaluator, active_gem: &Gem, base_min: i64, base_
 }
 
 
-fn calc_weapon_max_base_dmg(eval: &mut Evaluator, weapon: &Item, active_gem: &Gem, dg: &DamageGroup, extra_level: i32) -> Option<Stat> {
-    if let Some((_, max_item)) = weapon.calc_dmg(dg.damage_type) {
-        let item_class = Some(weapon.data().item_class);
-        let added_max_stat = eval.eval_stat(dg.added_max_id).with_weapon(item_class);
-        let (_, max) = calc_min_max_dmg(eval, active_gem, 0, max_item, 0, added_max_stat.val(), dg, extra_level);
-        let dmg_stat_dt = eval.eval_stat(dg.stat_id).with_weapon(item_class);
-        let mut dmg_stat = eval.eval_stat(StatId::Damage).with_weapon(item_class);
-        dmg_stat.assimilate(&dmg_stat_dt);
-        dmg_stat.adjust(Type::Base, max);
-        return Some(dmg_stat);
+fn calc_max_base_dmg(eval: &mut Evaluator, active_gem: &Gem, base_max: i64, item_class: Option<ItemClass>, dg: &DamageGroup, extra_level: i32) -> Option<Stat> {
+    if base_max <= 0 {
+        return None;
     }
-    None
+    let added_max_stat = eval.eval_stat(dg.added_max_id).with_weapon(item_class);
+    let (_, max) = calc_min_max_dmg(eval, active_gem, 0, base_max, 0, added_max_stat.val(), dg, extra_level);
+    let dmg_stat_dt = eval.eval_stat(dg.stat_id).with_weapon(item_class);
+    let mut dmg_stat = eval.eval_stat(StatId::Damage).with_weapon(item_class);
+    dmg_stat.assimilate(&dmg_stat_dt);
+    dmg_stat.adjust(Type::Base, max);
+    Some(dmg_stat)
 }
 
 /// Damaging ailments inflicted by critical strikes gain a bonus +50% DoT
@@ -251,8 +250,8 @@ fn avg_ailment_dmg_crit(base: i64, dot_multi: i64, crit_chance: i64) -> i64 {
     (noncrit * (10000 - crit_chance) + crit * crit_chance) / 10000
 }
 
-fn calc_weapon_bleed_dmg(eval: &mut Evaluator, weapon: &Item, active_gem: &Gem, dg: &DamageGroup, extra_level: i32, crit_chance: i64) -> i64 {
-    if let Some(mut max_dmg) = calc_weapon_max_base_dmg(eval, weapon, active_gem, dg, extra_level) {
+fn calc_bleed_dmg(eval: &mut Evaluator, active_gem: &Gem, base_max: i64, item_class: Option<ItemClass>, dg: &DamageGroup, extra_level: i32, crit_chance: i64) -> i64 {
+    if let Some(mut max_dmg) = calc_max_base_dmg(eval, active_gem, base_max, item_class, dg, extra_level) {
         let mut dot_multi = eval.eval_stat(StatId::DotMultiplier).to_owned();
         dot_multi.assimilate(eval.eval_stat(StatId::PhysicalDotMultiplier));
         max_dmg.adjust_mod(&Mod::stat(StatId::Damage, Type::More, -30).with_source(Source::Custom("Bleeds deal 70%")));
@@ -302,10 +301,12 @@ fn calc_crit_chance(eval: &mut Evaluator, crit_chance: Option<i64>) -> i64 {
     crit_chance_stat.val().min(10000)
 }
 
-fn calc_chance_hit_weapon(eval: &mut Evaluator, monster_stats: &Stats, weapon: &Item) -> i64 {
+fn calc_chance_to_hit(eval: &mut Evaluator, monster_stats: &Stats, weapon: Option<&Item>) -> i64 {
     let mut chance_to_hit_stat = eval.eval_stat(StatId::ChanceToHit).to_owned();
     let mut accuracy_stat = eval.eval_stat(StatId::AccuracyRating).to_owned();
-    accuracy_stat.assimilate(&weapon.accuracy());
+    if let Some(weapon) = weapon {
+        accuracy_stat.assimilate(&weapon.accuracy());
+    }
     let accuracy = accuracy_stat.val() as f32;
     let monster_evasion = monster_stats.val(StatId::EvasionRating) as f32;
     let chance_to_hit_from_accuracy = ((((1.25 * accuracy) / (accuracy + (monster_evasion * 0.2).powf(0.9))) * 100.0) as i64).clamp(0, 100);
@@ -316,6 +317,23 @@ fn calc_chance_hit_weapon(eval: &mut Evaluator, monster_stats: &Stats, weapon: &
 fn physical_damage_reduction_armour(amount: i64, armour: i64, pdr: i64) -> i64 {
     let pdr_from_armour = (armour * 100) / (armour + 5 * amount);
     pdr + pdr_from_armour
+}
+
+/// Hypothesis: weaponless attacks have a 5% base crit chance
+const WEAPONLESS_CRIT_CHANCE: i64 = 500;
+
+/// Returns the item in `slot` if the attack skill can use it.
+fn attack_item<'a>(build: &'a Build, active_gem: &Gem, slot: Slot) -> Option<&'a Item> {
+    let item = build.get_equipped(slot)?;
+    let weapon_restrictions = &active_gem.data().active_skill.as_ref()?.weapon_restrictions;
+    if weapon_restrictions.is_empty() {
+        if !item.data().tags.contains("weapon") {
+            return None;
+        }
+    } else if !weapon_restrictions.contains(&item.data().item_class) {
+        return None;
+    }
+    Some(item)
 }
 
 pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMap<&'static str, i64> {
@@ -370,15 +388,20 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
         let bleed_chance = eval.eval_stat(StatId::ChanceToBleed).val();
 
         for slot in [Slot::Weapon, Slot::Offhand] {
-            if let Some(weapon) = build.get_equipped(slot) {
+            if let Some(item) = attack_item(build, active_gem, slot) {
                 let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}), skill_types, Some(slot), link.slot);
                 eval.resolve();
-                let weapon_restrictions = &active_gem.data().active_skill.as_ref().unwrap().weapon_restrictions;
-                if !weapon_restrictions.is_empty() && !weapon_restrictions.contains(&weapon.data().item_class) {
-                    continue;
-                }
-                let chance_to_hit = calc_chance_hit_weapon(&mut eval, &monster_stats, weapon);
-                let crit_chance = calc_crit_chance(&mut eval, weapon.crit_chance());
+                // Weaponless attacks (e.g. Shield Charge) get their base damage
+                // from the gem instead of an equipped weapon
+                let is_weapon = item.data().tags.contains("weapon");
+                let item_class = if is_weapon { Some(item.data().item_class) } else { None };
+                let (chance_to_hit, crit_chance) = if is_weapon {
+                    (calc_chance_to_hit(&mut eval, &monster_stats, Some(item)),
+                     calc_crit_chance(&mut eval, item.crit_chance()))
+                } else {
+                    (calc_chance_to_hit(&mut eval, &monster_stats, None),
+                     calc_crit_chance(&mut eval, active_gem.crit_chance().or(Some(WEAPONLESS_CRIT_CHANCE))))
+                };
 
                 if crit_chance > 0 {
                     if slot == Slot::Weapon {
@@ -390,14 +413,17 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
                     }
                 }
 
-                let item_class = Some(weapon.data().item_class);
-
                 let mut base_damages = [0i64; 5];
                 for (i, dg) in DAMAGE_GROUPS.iter().enumerate() {
-                    let (min_item, max_item) = weapon.calc_dmg(dg.damage_type).unwrap_or((0, 0));
+                    let (base_min, base_max) = if is_weapon {
+                        item.calc_dmg(dg.damage_type).unwrap_or((0, 0))
+                    } else {
+                        (eval.eval_stat(dg.base_min_id).with_weapon(None).val(),
+                         eval.eval_stat(dg.base_max_id).with_weapon(None).val())
+                    };
                     let added_min = eval.eval_stat(dg.added_min_id).with_weapon(item_class).val();
                     let added_max = eval.eval_stat(dg.added_max_id).with_weapon(item_class).val();
-                    base_damages[i] = calc_average_dmg(&mut eval, active_gem, min_item, max_item, added_min, added_max, dg, extra_level);
+                    base_damages[i] = calc_average_dmg(&mut eval, active_gem, base_min, base_max, added_min, added_max, dg, extra_level);
                 }
 
                 let portions = apply_conversion(&mut eval, &base_damages);
@@ -435,7 +461,12 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
                     let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Ailment | Bleed | Aura | Buff | Curse}), skill_types, Some(slot), link.slot);
                     eval.resolve();
                     let physical_dg = &DAMAGE_GROUPS[0];
-                    let local_bleed_dps = calc_weapon_bleed_dmg(&mut eval, weapon, active_gem, physical_dg, extra_level, crit_chance);
+                    let base_max = if is_weapon {
+                        item.calc_dmg(physical_dg.damage_type).map_or(0, |(_, max)| max)
+                    } else {
+                        eval.eval_stat(physical_dg.base_max_id).with_weapon(None).val()
+                    };
+                    let local_bleed_dps = calc_bleed_dmg(&mut eval, active_gem, base_max, item_class, physical_dg, extra_level, crit_chance);
                     if local_bleed_dps > bleed_dps {
                         bleed_dps = local_bleed_dps;
                     }
@@ -512,13 +543,16 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
             let mut div = 0;
             let mut time = 0;
             for slot in [Slot::Weapon, Slot::Offhand] {
-                if let Some(weapon) = build.get_equipped(slot) {
-                    let weapon_restrictions = &active_gem.data().active_skill.as_ref().unwrap().weapon_restrictions;
-                    if weapon_restrictions.is_empty() || weapon_restrictions.contains(&weapon.data().item_class) {
-                        if let Some(item_speed) = weapon.attack_speed() {
-                            time += item_speed;
-                            div += 1;
-                        }
+                if let Some(item) = attack_item(build, active_gem, slot) {
+                    if let Some(item_speed) = item.attack_speed() {
+                        time += item_speed;
+                        div += 1;
+                    } else if !item.data().tags.contains("weapon") &&
+                        let Some(cast_time) = active_gem.data().cast_time
+                    {
+                        // TODO: weaponless skills should have their own base attack time but it's missing from gems.json
+                        time += cast_time;
+                        div += 1;
                     }
                 }
             }

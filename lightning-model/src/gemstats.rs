@@ -1,4 +1,4 @@
-use crate::build::property;
+use crate::build::{property, Defence, Slot};
 use crate::build::stat::StatId;
 use crate::data::gem::{ActiveSkillType, GemTag};
 use crate::modifier::{Condition, Mod, ModFlag, Mutation, Type};
@@ -46,6 +46,57 @@ lazy_static! {
         ]),
         ("local_maximum_added_physical_damage", vec![
             Mod::stat(StatId::BaseMaxPhysicalDamage, Type::Base, 0),
+        ]),
+        ("local_minimum_added_fire_damage", vec![
+            Mod::stat(StatId::BaseMinFireDamage, Type::Base, 0),
+        ]),
+        ("local_maximum_added_fire_damage", vec![
+            Mod::stat(StatId::BaseMaxFireDamage, Type::Base, 0),
+        ]),
+        ("local_minimum_added_cold_damage", vec![
+            Mod::stat(StatId::BaseMinColdDamage, Type::Base, 0),
+        ]),
+        ("local_maximum_added_cold_damage", vec![
+            Mod::stat(StatId::BaseMaxColdDamage, Type::Base, 0),
+        ]),
+        ("local_minimum_added_lightning_damage", vec![
+            Mod::stat(StatId::BaseMinLightningDamage, Type::Base, 0),
+        ]),
+        ("local_maximum_added_lightning_damage", vec![
+            Mod::stat(StatId::BaseMaxLightningDamage, Type::Base, 0),
+        ]),
+        ("local_minimum_added_chaos_damage", vec![
+            Mod::stat(StatId::BaseMinChaosDamage, Type::Base, 0),
+        ]),
+        ("local_maximum_added_chaos_damage", vec![
+            Mod::stat(StatId::BaseMaxChaosDamage, Type::Base, 0),
+        ]),
+        ("minimum_added_physical_damage_per_15_shield_armour_and_evasion_rating", vec![
+            Mod::stat(StatId::AddedMinPhysicalDamage, Type::Base, 0).with_mutations(stackvec![Mutation::MultiplierSlotDefences((15, Slot::Offhand, flags!(Defence::{Armour | Evasion})))]),
+        ]),
+        ("maximum_added_physical_damage_per_15_shield_armour_and_evasion_rating", vec![
+            Mod::stat(StatId::AddedMaxPhysicalDamage, Type::Base, 0).with_mutations(stackvec![Mutation::MultiplierSlotDefences((15, Slot::Offhand, flags!(Defence::{Armour | Evasion})))]),
+        ]),
+        ("minimum_added_physical_damage_per_15_shield_armour", vec![
+            Mod::stat(StatId::AddedMinPhysicalDamage, Type::Base, 0).with_mutations(stackvec![Mutation::MultiplierSlotDefences((15, Slot::Offhand, flags!(Defence::Armour)))]),
+        ]),
+        ("maximum_added_physical_damage_per_15_shield_armour", vec![
+            Mod::stat(StatId::AddedMaxPhysicalDamage, Type::Base, 0).with_mutations(stackvec![Mutation::MultiplierSlotDefences((15, Slot::Offhand, flags!(Defence::Armour)))]),
+        ]),
+        ("minimum_added_fire_damage_per_15_shield_armour", vec![
+            Mod::stat(StatId::AddedMinFireDamage, Type::Base, 0).with_mutations(stackvec![Mutation::MultiplierSlotDefences((15, Slot::Offhand, flags!(Defence::Armour)))]),
+        ]),
+        ("maximum_added_fire_damage_per_15_shield_armour", vec![
+            Mod::stat(StatId::AddedMaxFireDamage, Type::Base, 0).with_mutations(stackvec![Mutation::MultiplierSlotDefences((15, Slot::Offhand, flags!(Defence::Armour)))]),
+        ]),
+        ("minimum_added_cold_damage_per_15_shield_evasion", vec![
+            Mod::stat(StatId::AddedMinColdDamage, Type::Base, 0).with_mutations(stackvec![Mutation::MultiplierSlotDefences((15, Slot::Offhand, flags!(Defence::Evasion)))]),
+        ]),
+        ("maximum_added_cold_damage_per_15_shield_evasion", vec![
+            Mod::stat(StatId::AddedMaxColdDamage, Type::Base, 0).with_mutations(stackvec![Mutation::MultiplierSlotDefences((15, Slot::Offhand, flags!(Defence::Evasion)))]),
+        ]),
+        ("critical_strike_chance_+_per_10_es_on_shield", vec![
+            Mod::stat(StatId::CriticalStrikeChance, Type::Base, 0).with_mutations(stackvec![Mutation::MultiplierSlotDefences((10, Slot::Offhand, flags!(Defence::EnergyShield)))]),
         ]),
         ("minimum_added_fire_damage", vec![
             Mod::stat(StatId::AddedMinFireDamage, Type::Base, 0),
