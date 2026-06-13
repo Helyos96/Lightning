@@ -293,6 +293,13 @@ fn calc_poison_dps(eval: &mut Evaluator, portions: &[Vec<DamagePortion>; 5], wea
     avg_ailment_dmg_crit(dps, dot_multi.val(), crit_chance)
 }
 
+fn double_damage_effect(eval: &mut Evaluator) -> i64 {
+    let triple = eval.eval_stat(StatId::ChanceToDealTripleDamage).val().clamp(0, 100);
+    let double = eval.eval_stat(StatId::ChanceToDealDoubleDamage).val().clamp(0, 100);
+    let effective_double = double.min(100 - triple);
+    10000 + (2 * triple + effective_double) * 100
+}
+
 fn calc_crit_chance(eval: &mut Evaluator, crit_chance: Option<i64>) -> i64 {
     let mut crit_chance_stat = eval.eval_stat(StatId::CriticalStrikeChance).to_owned();
     if let Some(crit_chance) = crit_chance {
@@ -437,13 +444,14 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
 
                 let portions = apply_conversion(&mut eval, &base_damages);
                 let final_damages = apply_damage_mods_portions(&portions, &mut eval, item_class, false);
+                let double_damage = double_damage_effect(&mut eval);
 
                 let mut dmg_inst = DamageInstance {
                     source: DamageSource::Slot(slot),
                     instance_type: vec![],
                 };
                 for (i, dg) in DAMAGE_GROUPS.iter().enumerate() {
-                    let mut avg_damage = final_damages[i];
+                    let mut avg_damage = (final_damages[i] * double_damage) / 10000;
                     if avg_damage <= 0 { continue; }
 
                     if dg.damage_type == DamageType::Physical {
@@ -515,20 +523,22 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
 
         let portions = apply_conversion(&mut eval, &base_damages);
         let final_damages = apply_damage_mods_portions(&portions, &mut eval, None, true);
+        let double_damage = double_damage_effect(&mut eval);
 
         let mut dmg_inst = DamageInstance {
             source: DamageSource::Gem,
             instance_type: vec![],
         };
         for (i, dg) in DAMAGE_GROUPS.iter().enumerate() {
-            if final_damages[i] > 0 {
+            let avg_damage = (final_damages[i] * double_damage) / 10000;
+            if avg_damage > 0 {
                 dmg_inst.instance_type.push(DamageInstanceType {
                     typ: dg.damage_type,
-                    amount: final_damages[i],
+                    amount: avg_damage,
                     chance_to_hit: 100,
                     crit_chance,
                 });
-                damage.push(calc_dmg_crit_accuracy(final_damages[i], crit_chance, crit_multi, 100));
+                damage.push(calc_dmg_crit_accuracy(avg_damage, crit_chance, crit_multi, 100));
             }
         }
 
