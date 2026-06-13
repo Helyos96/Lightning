@@ -189,6 +189,7 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("chance to block", StatId::ChanceToBlockAttackDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]), // local on shields
     ("chance to suppress spell damage", StatId::ChanceToSuppressSpellDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("chance to deal double damage", StatId::ChanceToDealDoubleDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
+    ("chance to deal triple damage", StatId::ChanceToDealTripleDamage, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("fire damage over time multiplier", StatId::FireDotMultiplier, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("cold damage over time multiplier", StatId::ColdDotMultiplier, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("chaos damage over time multiplier", StatId::ChaosDotMultiplier, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
@@ -625,6 +626,12 @@ lazy_static! {
             Box::new(|c| {
                 let gem_name = GEMS.iter().map(|(_, v)| v.display_name()).find(|name| name.to_lowercase() == &c[1])?;
                 Some((BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, stackvec![Condition::WhileUsing(gem_name)]))
+            })
+        ), (
+            regex!(r"while you have at least ([0-9]+) ([a-z -]+)$"),
+            Box::new(|c| {
+                let stat_id = STATS_MAP.get(&c[2])?.0;
+                Some((BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, stackvec![Condition::GreaterEqualStat((i64::from_str(&c[1]).unwrap(), stat_id))]))
             })
         ),
     ];

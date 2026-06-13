@@ -128,6 +128,7 @@ pub enum StatId {
     ChanceToHit,
     ChanceToEvade,
     ChanceToDealDoubleDamage,
+    ChanceToDealTripleDamage,
     PhysicalDamageReduction,
     ShockAsThoughDamage,
     AddedAttackTime,
