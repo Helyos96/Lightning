@@ -293,6 +293,7 @@ const STATS: &[(&'static str, StatId, BitFlags<GemTag>, BitFlags<ItemClass>, Bit
     ("effect of your marks", StatId::CurseEffect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[ActiveSkillType::Mark]),
     ("ring slot", StatId::RingSlots, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
     ("effect of jewel socket passive skills containing corrupted magic jewels", StatId::CorruptedMagicJewelEffect, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
+    ("chance to impale enemies on hit", StatId::ChanceToImpale, BitFlags::EMPTY, BitFlags::EMPTY, BitFlags::EMPTY, &[]),
 ];
 
 type ModParserFn = fn(&Captures) -> Option<Vec<Mod>>;

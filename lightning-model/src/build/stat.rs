@@ -78,6 +78,8 @@ pub enum StatId {
     SkillEffectDuration,
     Duration,
     ImpaleEffect,
+    ChanceToImpale,
+    MaxImpaleStacks,
     MinimumFrenzyCharges,
     MinimumPowerCharges,
     MinimumEnduranceCharges,

@@ -272,6 +272,12 @@ lazy_static! {
         ("golem_buff_effect", vec![
             Mod::stat(StatId::BuffEffect, Type::Base, 0).with_tags(GemTag::Golem),
         ]),
+        ("attacks_impale_on_hit", vec![
+            Mod::stat(StatId::ChanceToImpale, Type::Base, 0),
+        ]),
+        ("impale_debuff_effect", vec![
+            Mod::stat(StatId::ImpaleEffect, Type::Base, 0),
+        ]),
     ];
 
     // HashMap<gemname<HashMap<statname>>>>
@@ -488,6 +494,9 @@ pub fn match_gemstat(gem_basename: &str, mut stat: &str) -> Option<Vec<Mod>> {
         typ_override = Some(Type::Inc);
         ret
     } else if let Some(ret) = stat.strip_suffix("_%") {
+        typ_override = Some(Type::Base);
+        ret
+    } else if let Some(ret) = stat.strip_suffix("_%_chance") {
         typ_override = Some(Type::Base);
         ret
     } else if let Some(ret) = stat.strip_suffix("_+") {

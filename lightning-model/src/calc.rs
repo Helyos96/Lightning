@@ -319,6 +319,13 @@ fn physical_damage_reduction_armour(amount: i64, armour: i64, pdr: i64) -> i64 {
     pdr + pdr_from_armour
 }
 
+/// Impale records 10% of the hit's pre-mitigation physical damage, scaled by
+/// impale effect, and reflects it on each subsequent hit while stacks last.
+/// Returns the average damage stored per stack, scaled by impale chance.
+fn calc_impale_stored_dmg(eval: &mut Evaluator, phys_damage: i64, impale_chance: i64) -> i64 {
+    eval.eval_stat(StatId::ImpaleEffect).val_custom((phys_damage * 10 * impale_chance) / 10000)
+}
+
 /// Hypothesis: weaponless attacks have a 5% base crit chance
 const WEAPONLESS_CRIT_CHANCE: i64 = 500;
 
@@ -382,6 +389,8 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
     let mut bleed_dps = 0;
     let mut poison_dps = 0;
     let mut poison_hit_chance = 100;
+    // (stored damage per stack, crit chance, chance to hit) per weapon slot
+    let mut impale_sources: Vec<(i64, i64, i64)> = vec![];
     let poison_chance = eval.eval_stat(StatId::ChanceToPoison).val().min(100);
 
     if tags.contains(GemTag::Attack) {
@@ -438,6 +447,12 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
                     if avg_damage <= 0 { continue; }
 
                     if dg.damage_type == DamageType::Physical {
+                        let impale_chance = eval.eval_stat(StatId::ChanceToImpale).val().min(100);
+                        if impale_chance > 0 {
+                            // Impale records the hit's physical damage before mitigation
+                            let stored = calc_impale_stored_dmg(&mut eval, avg_damage, impale_chance);
+                            impale_sources.push((stored, crit_chance, chance_to_hit));
+                        }
                         let pdr = physical_damage_reduction_armour(avg_damage, monster_stats.val(StatId::Armour), 0);
                         avg_damage = (avg_damage * (100 - pdr)) / 100;
                     }
@@ -577,7 +592,26 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
     ret.insert("Average Damage", average_damage);
 
     if time != 0 {
-        let dps = (average_damage * 1000) / time;
+        let mut dps = (average_damage * 1000) / time;
+
+        if !impale_sources.is_empty() {
+            let max_stacks = eval.eval_stat(StatId::MaxImpaleStacks).val();
+            let stacks100 = (max_stacks * 100).min(800000 / time);
+            let mut impale_damage = 0;
+            for &(stored, crit_chance, chance_to_hit) in &impale_sources {
+                // Armour mitigates the combined stack damage when it's dealt
+                let combined = (stored * stacks100) / 100;
+                let pdr = physical_damage_reduction_armour(combined, monster_stats.val(StatId::Armour), 0);
+                let mitigated = (combined * (100 - pdr)) / 100;
+                impale_damage += calc_dmg_crit_accuracy(mitigated, crit_chance, crit_multi, chance_to_hit);
+            }
+            let impale_dps = (impale_damage * 1000) / time;
+            if impale_dps > 0 {
+                ret.insert("Impale DPS", impale_dps);
+                dps += impale_dps;
+            }
+        }
+
         ret.insert("DPS", dps);
         ret.insert("Speed", time);
 

@@ -188,6 +188,7 @@ pub static ref BANDIT_STATS: FxHashMap<BanditChoice, Vec<Mod>> = {
         Mod::stat(StatId::MaximumPowerCharges, Type::Base, 3),
         Mod::stat(StatId::MaximumEnduranceCharges, Type::Base, 3),
         Mod::stat(StatId::MaximumRage, Type::Base, 30),
+        Mod::stat(StatId::MaxImpaleStacks, Type::Base, 5),
         Mod::stat(StatId::Damage, Type::More, 1)
             .with_mutations(stackvec![Mutation::MultiplierProperty((1, property::Int::Rage))])
             .with_tags(GemTag::Attack),
