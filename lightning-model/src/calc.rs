@@ -1,4 +1,4 @@
-use crate::build::evaluator::Evaluator;
+use crate::build::evaluator::{Evaluator, ModDB};
 use crate::build::stat::{Stat, StatId, Stats};
 use crate::build::{self, Build, GemLink, Slot, property};
 use crate::data::base_item::ItemClass;
@@ -378,15 +378,15 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
 
     let extra_level = mods.iter().filter(|m| tags.contains(m.tags) && !tags.intersects(m.tags_not)).flat_map(|m| m.as_gem_level()).sum();
     mods.extend_from_slice(&active_gem.calc_mods(false, extra_level, 0));
+    let mod_db = ModDB::new(&mods);
 
     let skill_types = if let Some(active_skill) = &active_gem.data().active_skill {
         &active_skill.types
     } else {
         &FxHashSet::default()
     };
-    let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}), skill_types, None, link.slot);
+    let mut eval = Evaluator::new(build, &mod_db, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}), skill_types, None, link.slot);
     eval.resolve();
-
     let monster_mods = Build::calc_mods_monster(build.property_int(property::Int::Level).min(83));
     let monster_stats = build::stat::calc_stats(&monster_mods);
 
@@ -405,7 +405,7 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
 
         for slot in [Slot::Weapon, Slot::Offhand] {
             if let Some(item) = attack_item(build, active_gem, slot) {
-                let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}), skill_types, Some(slot), link.slot);
+                let mut eval = Evaluator::new(build, &mod_db, tags, make_bitflags!(ModFlag::{Hit | Aura | Buff | Curse}), skill_types, Some(slot), link.slot);
                 eval.resolve();
                 // Weaponless attacks (e.g. Shield Charge) get their base damage
                 // from the gem instead of an equipped weapon
@@ -481,7 +481,7 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
                 damage_instances.push(dmg_inst);
 
                 if bleed_chance > 0 {
-                    let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Ailment | Bleed | Aura | Buff | Curse}), skill_types, Some(slot), link.slot);
+                    let mut eval = Evaluator::new(build, &mod_db, tags, make_bitflags!(ModFlag::{Ailment | Bleed | Aura | Buff | Curse}), skill_types, Some(slot), link.slot);
                     eval.resolve();
                     let physical_dg = &DAMAGE_GROUPS[0];
                     let base_max = if is_weapon {
@@ -496,7 +496,7 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
                 }
 
                 if poison_chance > 0 {
-                    let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Ailment | Poison | Aura | Buff | Curse}), skill_types, Some(slot), link.slot);
+                    let mut eval = Evaluator::new(build, &mod_db, tags, make_bitflags!(ModFlag::{Ailment | Poison | Aura | Buff | Curse}), skill_types, Some(slot), link.slot);
                     eval.resolve();
                     let local_poison_dps = calc_poison_dps(&mut eval, &portions, item_class, crit_chance);
                     if local_poison_dps > poison_dps {
@@ -543,7 +543,7 @@ pub fn calc_gem<'a>(build: &Build, link: &GemLink, active_gem: &Gem) -> FxHashMa
         }
 
         if poison_chance > 0 {
-            let mut eval = Evaluator::new(build, &mods, tags, make_bitflags!(ModFlag::{Ailment | Poison | Aura | Buff | Curse}), skill_types, None, link.slot);
+            let mut eval = Evaluator::new(build, &mod_db, tags, make_bitflags!(ModFlag::{Ailment | Poison | Aura | Buff | Curse}), skill_types, None, link.slot);
             eval.resolve();
             poison_dps = calc_poison_dps(&mut eval, &portions, None, crit_chance);
         }

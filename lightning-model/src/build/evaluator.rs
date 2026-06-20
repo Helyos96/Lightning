@@ -1,6 +1,9 @@
+use std::rc::Rc;
+
 use enumflags2::BitFlags;
 use rustc_hash::{FxHashMap, FxHashSet};
 use lazy_static::lazy_static;
+use strum::{EnumCount, IntoEnumIterator};
 
 use crate::{build::{Build, Defence, GemLink, Slot, buff::{BUFF_MODS, Buff}, property, stat::{self, Stat, StatId}}, data::{base_item::Rarity, gem::{ActiveSkillType, GemTag}}, gem::Gem, modifier::{BuildFlag, Condition, Mod, ModEffect, ModFlag, ModStat, Mutation, Source, Type}, stackvec};
 
@@ -17,6 +20,13 @@ lazy_static! {
     };
 }
 
+pub struct ModDB<'a> {
+    mods_by_stat: [Vec<&'a Mod>; StatId::COUNT],
+    mods_buff: Vec<&'a Mod>,
+    mods_gem_level: Vec<&'a Mod>,
+    build_flags: FxHashSet<BuildFlag>,
+}
+
 #[derive(Default)]
 pub struct StatCache {
     pub resolved_stats: FxHashMap<StatId, Stat>,
@@ -31,10 +41,8 @@ pub struct EvaluatorCtx<'a> {
     tags: BitFlags<GemTag>,
     flags: BitFlags<ModFlag>,
     skill_types: &'a FxHashSet<ActiveSkillType>,
-    build_flags: FxHashSet<BuildFlag>,
-    mods: &'a [Mod],
+    db: &'a ModDB<'a>,
     pub extra_mods: Vec<Mod>,
-    buffs: FxHashSet<Buff>,
 }
 
 /// Evaluate Stats from a collection of Mods
@@ -43,8 +51,31 @@ pub struct Evaluator<'a> {
     pub cache: StatCache,
 }
 
+impl<'a> ModDB<'a> {
+    pub fn new(mods: &'a [Mod]) -> Self {
+        let mut mods_by_stat = std::array::from_fn(|_| Vec::new());
+        let mut mods_buff = vec![];
+        let mut mods_gem_level = vec![];
+        let mut build_flags = FxHashSet::default();
+
+        for m in mods {
+            match m.effect {
+                ModEffect::Stat(mstat) => {
+                    mods_by_stat[mstat.stat.as_usize()].push(m);
+                },
+                ModEffect::LevelOfGems(_) => mods_gem_level.push(m),
+                ModEffect::Buff(_) => mods_buff.push(m),
+                ModEffect::BuildFlag(flag) => { build_flags.insert(flag); },
+                _ => {},
+            }
+        }
+
+        ModDB { mods_by_stat, mods_buff, mods_gem_level, build_flags }
+    }
+}
+
 impl<'a> Evaluator<'a> {
-    pub fn new(build: &'a Build, mods: &'a [Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>, skill_types: &'a FxHashSet<ActiveSkillType>, weapon: Option<Slot>, slot: Option<Slot>) -> Self {
+    pub fn new(build: &'a Build, db: &'a ModDB, tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>, skill_types: &'a FxHashSet<ActiveSkillType>, weapon: Option<Slot>, slot: Option<Slot>) -> Self {
         let ret = Self {
             ctx: EvaluatorCtx {
                 build,
@@ -53,10 +84,8 @@ impl<'a> Evaluator<'a> {
                 tags,
                 skill_types,
                 flags,
-                build_flags: FxHashSet::from(mods.iter().filter_map(|m| m.as_build_flag()).copied().collect()),
-                mods,
+                db,
                 extra_mods: Default::default(),
-                buffs: Default::default(),
             },
             cache: Default::default(),
         };
@@ -64,9 +93,8 @@ impl<'a> Evaluator<'a> {
     }
 
     fn resolve_buffs(&mut self) {
-        let buff_mods: Vec<&Mod> = self.ctx.mods.iter().chain(&self.ctx.extra_mods).filter(|m| m.as_buff().is_some()).collect();
         let mut new_mods = vec![];
-        for m in buff_mods {
+        for m in &self.ctx.db.mods_buff {
             let passes_conditions_bor = m.conditions.is_empty() || m.conditions.iter().any(|c| self.ctx.check_condition(&mut self.cache, c, m.source));
             if !passes_conditions_bor {
                 continue;
@@ -87,7 +115,7 @@ impl<'a> Evaluator<'a> {
     }
 
     fn resolve_flags_post(&mut self) {
-        for f in &self.ctx.build_flags {
+        for f in &self.ctx.db.build_flags {
             match f {
                 BuildFlag::EleMaxResHighest => {
                     let fire = self.ctx.eval_stat(&mut self.cache, StatId::MaximumFireResistance).val();
@@ -104,9 +132,7 @@ impl<'a> Evaluator<'a> {
     }
 
     pub fn resolve_stats(&mut self) {
-        let stat_ids: FxHashSet<StatId> = self.ctx.mods.iter().chain(&self.ctx.extra_mods).filter_map(|m| m.as_stat()).map(|mstat| mstat.stat).collect();
-
-        for stat_id in stat_ids {
+        for stat_id in StatId::iter() {
             self.ctx.eval_stat(&mut self.cache, stat_id);
         }
     }
@@ -121,7 +147,7 @@ impl<'a> Evaluator<'a> {
                 self.cache.resolved_stats.entry(StatId::Armour).or_default().adjust_mod_move(Mod::stat(StatId::Armour, Type::Flat, val).with_source(Source::Item(*slot)));
             }
             if defence.energy_shield.val() != 0 {
-                if self.ctx.build_flags.contains(&BuildFlag::ItemsGrantLifeInsteadES) {
+                if self.ctx.db.build_flags.contains(&BuildFlag::ItemsGrantLifeInsteadES) {
                     self.ctx.extra_mods.push(Mod::stat(StatId::MaximumLife, Type::Base, defence.energy_shield.val()).with_source(Source::Item(*slot)));
                 } else {
                     let val = self.ctx.eval_stat(&mut self.cache, StatId::MaximumEnergyShield).val_custom(defence.energy_shield.val());
@@ -140,7 +166,7 @@ impl<'a> Evaluator<'a> {
     }
 
     pub fn gem_level_extra(&self, tags: BitFlags<GemTag>) -> i32 {
-        self.ctx.mods.iter().filter(|m| tags.contains(m.tags) && !tags.intersects(m.tags_not)).flat_map(|m| m.as_gem_level()).sum()
+        self.ctx.db.mods_gem_level.iter().filter(|m| tags.contains(m.tags) && !tags.intersects(m.tags_not)).flat_map(|m| m.as_gem_level()).sum()
     }
 
     pub fn eval_stat(&mut self, stat_id: StatId) -> &Stat {
@@ -171,8 +197,9 @@ impl<'a> EvaluatorCtx<'a> {
 
             let mut current_stat = Stat::default();
             let stat_sources = STATS_SOURCES.get(&stat_id).copied().unwrap_or(std::slice::from_ref(&stat_id));
+            let mods = stat_sources.iter().flat_map(|&source_id| self.db.mods_by_stat[source_id as usize].iter().copied());
 
-            for m in self.mods.iter().chain(&self.extra_mods).filter(|m| {
+            for m in mods.chain(&self.extra_mods).filter(|m| {
                 if let Some(mstat) = m.as_stat() && stat_sources.contains(&mstat.stat) &&
                    (m.flags.is_empty() || self.flags.intersects(m.flags)) &&
                    (m.weapons.is_empty() || self.build.is_holding(&m.weapons)) &&

@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::{fs, io};
 use std::path::Path;
 
-use crate::build::evaluator::Evaluator;
+use crate::build::evaluator::{Evaluator, ModDB};
 use crate::data::base_item::ItemClass;
 use crate::data::gem::{ActiveSkillType, GemTag};
 use crate::data::{MONSTER_STATS, TREE};
@@ -404,6 +404,8 @@ impl Build {
             }
         }
 
+        let mod_db = ModDB::new(mods);
+
         let mut ret = vec![];
         for (gem, link) in best_gems.values() {
             let skill_types = if let Some(active_skill) = &gem.data().active_skill {
@@ -411,8 +413,8 @@ impl Build {
             } else {
                 &FxHashSet::default()
             };
-            let mut eval = Evaluator::new(self, mods, gem.data().tags, make_bitflags!(ModFlag::{Aura | Buff | Curse}), skill_types, None, link.slot);
-            //eval.resolve();
+
+            let mut eval = Evaluator::new(self, &mod_db, gem.data().tags, make_bitflags!(ModFlag::{Aura | Buff | Curse}), skill_types, None, link.slot);
             let mut best_supports: FxHashMap<&str, &Gem> = FxHashMap::default();
 
             // Find best unique support gems in link
@@ -650,10 +652,11 @@ impl Build {
 
     pub fn calc_stats(&self, mods: &[Mod], tags: BitFlags<GemTag>, flags: BitFlags<ModFlag>) -> Stats {
         let types = FxHashSet::default();
-        let mut evaluator = Evaluator::new(self, mods, tags, flags, &types, None, None);
-        evaluator.resolve();
-        evaluator.resolve_stats();
-        Stats { stats: evaluator.cache.resolved_stats }
+        let mod_db = ModDB::new(mods);
+        let mut eval = Evaluator::new(self, &mod_db, tags, flags, &types, None, None);
+        eval.resolve();
+        eval.resolve_stats();
+        Stats { stats: eval.cache.resolved_stats }
     }
 
     pub fn save(&self, dir: &Path) -> io::Result<()> {

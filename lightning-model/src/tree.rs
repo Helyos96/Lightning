@@ -18,7 +18,7 @@ use std::fmt;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::convert::AsRef;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Use a split architecture so that we can run PassiveTree::init() automatically
@@ -65,6 +65,24 @@ pub struct PassiveTree {
     #[serde(skip)]
     #[derivative(Clone(clone_with = "clone_atomic_bool"))]
     is_modcache_fresh: AtomicBool,
+    #[serde(skip)]
+    #[derivative(Clone(clone_with = "clone_node_modcache"))]
+    node_modcache: Mutex<NodeModCache>,
+}
+
+/// Caches the parsed mods of individual nodes so that regenerating the
+/// tree-wide mod cache doesn't have to recompute every allocated node.
+#[derive(Debug, Default, Clone)]
+struct NodeModCache {
+    mods: FxHashMap<u32, Arc<Vec<Mod>>>,
+    /// A node's mods depend on which mutation-source jewels (node_mutations)
+    /// are allocated. `nodes` can be mutated directly (e.g. by PowerReport),
+    /// so remember the allocated set (sorted) the entries were computed with.
+    active_mutation_jewels: Vec<u32>,
+}
+
+fn clone_node_modcache(cache: &Mutex<NodeModCache>) -> Mutex<NodeModCache> {
+    Mutex::new(cache.lock().unwrap().clone())
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -93,6 +111,7 @@ impl From<RawPassiveTree> for PassiveTree {
             nodes_data: init_data(),
             mod_cache: ArcSwap::from_pointee(Vec::new()),
             is_modcache_fresh: AtomicBool::new(false),
+            node_modcache: Default::default(),
         };
 
         tree.init();
@@ -139,6 +158,7 @@ impl Default for PassiveTree {
             nodes_cluster: Default::default(),
             mod_cache: Default::default(),
             is_modcache_fresh: Default::default(),
+            node_modcache: Default::default(),
             tattoos: Default::default(),
             node_mutations: Default::default(),
             jewels: Default::default(),
@@ -572,13 +592,41 @@ impl PassiveTree {
         }
     }
 
+    /// Invalidates the per-node mods cache. Must be called whenever data a
+    /// node's mods are computed from changes: node stats (tattoos, cluster
+    /// nodes) or jewels (node_mutations, cluster small passive effect).
+    /// Allocation changes are handled by regen_modcache() itself.
+    fn clear_node_modcache(&self) {
+        let mut cache = self.node_modcache.lock().unwrap();
+        cache.mods.clear();
+        cache.active_mutation_jewels.clear();
+    }
+
     pub fn regen_modcache(&self) {
         let mut mods = Vec::with_capacity(300);
 
+        let mut node_cache = self.node_modcache.lock().unwrap();
+        let mut active_jewels: Vec<u32> = self.node_mutations.values()
+            .flat_map(|muts| muts.iter().map(|(_, jewel_id)| *jewel_id))
+            .filter(|jewel_id| self.nodes.contains(jewel_id))
+            .collect();
+        active_jewels.sort_unstable();
+        active_jewels.dedup();
+        if active_jewels != node_cache.active_mutation_jewels {
+            node_cache.mods.clear();
+            node_cache.active_mutation_jewels = active_jewels;
+        }
+
         let extra_nodes = self.nodes_additional.iter().filter(|n| !self.nodes.contains(n));
         for node_id in self.nodes.iter().chain(extra_nodes) {
-            self.node_mods(*node_id, &mut mods);
+            let node_mods = node_cache.mods.entry(*node_id).or_insert_with(|| {
+                let mut v = Vec::new();
+                self.node_mods(*node_id, &mut v);
+                Arc::new(v)
+            });
+            mods.extend_from_slice(node_mods);
         }
+        drop(node_cache);
 
         for (node_id, effect_id) in &self.masteries {
             if let Some(effect) = self.nodes_data[node_id]
@@ -687,6 +735,7 @@ impl PassiveTree {
                 }
                 self.remove_orphan_nodes();
             }
+            self.clear_node_modcache();
             self.invalidate_modcache();
             removed_sockets
         } else {
@@ -722,6 +771,7 @@ impl PassiveTree {
             self.add_cluster(cluster_data, node_id, &jewel.base_item);
         }
         self.jewels.insert(node_id, jewel);
+        self.clear_node_modcache();
         self.invalidate_modcache();
     }
 
@@ -937,6 +987,7 @@ impl PassiveTree {
             }
         }
         self.masteries.remove(&node_id);
+        self.clear_node_modcache();
         self.invalidate_modcache();
     }
 
