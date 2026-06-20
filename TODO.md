@@ -32,7 +32,7 @@
 	* Add selection on right click
 	* ~~Fix Masteries~~
 * Minions
-* Impale
+* ~~Impale~~
 * Damaging Ailments
 	* ~~Bleed~~
 	* Ignite
