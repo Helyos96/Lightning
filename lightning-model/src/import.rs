@@ -36,25 +36,30 @@ struct Property {
 }
 
 #[derive(Debug, Deserialize)]
+struct ExplicitMod {
+    description: String,
+}
+
+#[derive(Debug, Deserialize)]
 struct Item {
     baseType: String,
     name: String,
     #[serde(default)]
     rarity: Rarity,
     #[serde(default)]
-    implicitMods: Vec<String>,
+    implicitMods: Vec<ExplicitMod>,
     #[serde(default)]
     utilityMods: Vec<String>,
     #[serde(default)]
-    explicitMods: Vec<String>,
+    explicitMods: Vec<ExplicitMod>,
     #[serde(default)]
-    fracturedMods: Vec<String>,
+    fracturedMods: Vec<ExplicitMod>,
     #[serde(default)]
     enchantMods: Vec<String>,
     #[serde(default)]
-    craftedMods: Vec<String>,
+    craftedMods: Vec<ExplicitMod>,
     #[serde(default)]
-    mutatedMods: Vec<String>,
+    mutatedMods: Vec<ExplicitMod>,
     socketedItems: Option<Vec<Item>>,
     inventoryId: Option<String>,
     #[serde(default)]
@@ -210,12 +215,12 @@ fn conv_item(item: &Item) -> Option<item::Item> {
         .chain(&item.craftedMods)
         .chain(&item.fracturedMods)
         .chain(&item.mutatedMods)
-        .flat_map(|mod_str| process_mod_string(mod_str))
+        .flat_map(|mod_str| process_mod_string(&mod_str.description))
         .collect();
 
     let mods_impl: Vec<String> = item.utilityMods.iter()
-        .chain(&item.implicitMods)
-        .flat_map(|mod_str| process_mod_string(mod_str))
+        .chain(item.implicitMods.iter().map(|m| &m.description))
+        .flat_map(|mod_str| process_mod_string(&mod_str))
         .collect();
 
     let raw_item = item::RawItem {
@@ -270,17 +275,19 @@ impl std::fmt::Display for ParseError {
 impl std::error::Error for ParseError {}
 
 pub fn character(account: &str, character: &str) -> Result<Build, Box<dyn Error>> {
-    let client = reqwest::blocking::ClientBuilder::new().user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0").build()?;
+    let client = reqwest::blocking::ClientBuilder::new().user_agent("Mozilla/5.0 (X11; Linux x86_64; rv:153.0) Gecko/20100101 Firefox/153.0").build()?;
 
     // Passive Tree
     let url = format!("https://pathofexile.com/character-window/get-passive-skills?realm=pc&accountName={account}&character={character}").replace('#', "%23");
     println!("{url}");
-    let tree_import = client.get(url).send()?.json::<PassiveTreeImport>()?;
+    let tree_text = client.get(url).send()?.text()?;
+    let tree_import = serde_json::from_str::<PassiveTreeImport>(&tree_text)?;
 
     // Items, Skills, CharData
     let url = format!("https://pathofexile.com/character-window/get-items?realm=pc&accountName={account}&character={character}").replace('#', "%23");
     println!("{url}");
-    let items_import = client.get(url).send()?.json::<ItemsSkillsChar>()?;
+    let items_text = client.get(url).send()?.text()?;
+    let items_import = serde_json::from_str::<ItemsSkillsChar>(&items_text)?;
 
     let mut build = Build::new_player();
     let mut abyssal_jewel_idx = 0;
