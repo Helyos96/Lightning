@@ -60,6 +60,7 @@ pub enum Ascendancy {
     Pathfinder,
     Ascendant,
     Reliquarian,
+    Luminary,
     Aul,
     Farrul,
     Catarina,
@@ -74,6 +75,8 @@ pub enum Ascendancy {
     Warlock,
     Primalist,
     Warden,
+    Abyssal,
+    Brinerot,
 }
 
 impl Ascendancy {
@@ -121,20 +124,8 @@ impl Ascendancy {
             Pathfinder => Some(Ranger),
             Ascendant => Some(Scion),
             Reliquarian => Some(Scion),
-            Aul => None,
-            Farrul => None,
-            Catarina => None,
-            Oshabi => None,
-            Olroth => None,
-            KingInTheMists => None,
-            Delirious => None,
-            Lycia => None,
-            Trialmaster => None,
-            Necromantic => None,
-            Breachlord => None,
-            Warlock => None,
-            Primalist => None,
-            Warden => None,
+            Luminary => Some(Scion),
+            _ => None,
         }
     }
 }

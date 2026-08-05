@@ -145,6 +145,7 @@ pub enum ActiveSkillType {
     ChillingArea,
     Cold,
     Cooldown,
+    CreatesCorpse,
     CreatesMinion,
     CreatesSentinelMinion,
     Damage,
@@ -199,6 +200,7 @@ pub enum ActiveSkillType {
     Orb,
     OtherThingUsesSkill,
     OwnerCannotUse,
+    Pact,
     Physical,
     PreventHexTransfer,
     Projectile,
@@ -215,6 +217,7 @@ pub enum ActiveSkillType {
     RemoteMined,
     RequiresOffHandNotWeapon,
     RequiresShield,
+    RequiresStaff,
     ReservationBecomesCost,
     Retaliation,
     SingleMainProjectile,
@@ -226,6 +229,8 @@ pub enum ActiveSkillType {
     SummonsTotem,
     SupportedByAutoExertion,
     SupportedByBane,
+    SupportedByCrabTotem,
+    SupportedBySpellTotem,
     ThresholdJewelArea,
     ThresholdJewelChaining,
     ThresholdJewelDuration,
@@ -306,6 +311,7 @@ pub enum GemTag {
     Awakened,
     Support,
     Retaliation,
+    Pact,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
