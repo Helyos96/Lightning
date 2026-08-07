@@ -5,11 +5,11 @@ use crate::gui::{State, UiState};
 
 pub const HEIGHT: f32 = 40.0;
 
-pub fn draw(ctx: &egui::Context, state: &mut State) {
-    egui::TopBottomPanel::top("TopPanel")
+pub fn draw(ui: &mut egui::Ui, state: &mut State) {
+    egui::Panel::top("TopPanel")
         .resizable(false)
-        .exact_height(HEIGHT)
-        .show(ctx, |ui| {
+        .exact_size(HEIGHT)
+        .show(ui, |ui| {
             ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                 if ui.button("<< Builds").clicked() {
                     state.ui_state = UiState::ChooseBuild;

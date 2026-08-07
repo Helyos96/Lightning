@@ -95,14 +95,14 @@ fn draw_calc_result_row(ui: &mut egui::Ui, label: &str, val: Option<&i64>, fmt: 
     }
 }
 
-pub fn draw(ctx: &egui::Context, state: &mut State) {
-    egui::SidePanel::left("LeftPanel")
+pub fn draw(ui: &mut egui::Ui, state: &mut State) {
+    egui::Panel::left("LeftPanel")
         .resizable(false)
-        .exact_width(WIDTH)
-        .show(ctx, |ui| {
-            egui::TopBottomPanel::bottom("left_panel_bottom")
+        .exact_size(WIDTH)
+        .show(ui, |ui| {
+            egui::Panel::bottom("left_panel_bottom")
                 .resizable(false)
-                .show_inside(ui, |ui| {
+                .show(ui, |ui| {
                     ui.add_space(4.0); // Optional padding
                     ui.vertical_centered(|ui| {
                         if ui.button("Settings").clicked() {
@@ -117,7 +117,7 @@ pub fn draw(ctx: &egui::Context, state: &mut State) {
                     ui.add_space(4.0);
                 });
 
-            egui::CentralPanel::default().show_inside(ui, |ui| {
+            egui::CentralPanel::default().show(ui, |ui| {
                 egui::ScrollArea::new([false, true]).show(ui, |ui| {
                     egui::Grid::new("grid_ui_select").show(ui, |ui| {
                         if ui.add_enabled(state.ui_state != UiState::Main(MainState::Tree), egui::Button::new("Tree")).clicked() { state.ui_state = UiState::Main(MainState::Tree); }

@@ -52,11 +52,11 @@ const POWER_REPORT_OPTIONS: &[(&'static str, PowerReportType)] = &[
     ("Spell Block", PowerReportType::Defence),
 ];
 
-pub fn draw(ctx: &egui::Context, state: &mut State) {
-    egui::TopBottomPanel::bottom("BottomPanel")
+pub fn draw(ui: &mut egui::Ui, state: &mut State) {
+    egui::Panel::bottom("BottomPanel")
         .resizable(false)
-        .exact_height(HEIGHT)
-        .show(ctx, |ui| {
+        .exact_size(HEIGHT)
+        .show(ui, |ui| {
             ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                 let search = egui::TextEdit::singleline(&mut state.panel_bottom.search).desired_width(120.0).hint_text("Search");
                 let response = search.show(ui).response;

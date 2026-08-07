@@ -23,9 +23,9 @@ lazy_static! {
     ];
 }
 
-pub fn draw(ctx: &egui::Context, state: &mut State) {
+pub fn draw(ui: &mut egui::Ui, state: &mut State) {
     egui::CentralPanel::default()
-        .show(ctx, |ui| {
+        .show(ui, |ui| {
             egui_flex::Flex::horizontal()
                 .wrap(true)
                 .align_items(egui_flex::FlexAlign::Start)

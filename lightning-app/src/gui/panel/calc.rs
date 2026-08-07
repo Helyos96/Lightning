@@ -7,8 +7,8 @@ use lightning_model::modifier::{Source, Type};
 use egui::Color32;
 use egui_extras::{Column, TableBuilder};
 
-pub fn draw(ctx: &egui::Context, state: &mut State) {
-    egui::CentralPanel::default().show(ctx, |ui| {
+pub fn draw(ui: &mut egui::Ui, state: &mut State) {
+    egui::CentralPanel::default().show(ui, |ui| {
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             ui.heading(egui::RichText::new("Defence Calculations").size(24.0).color(Color32::WHITE));
             egui_flex::Flex::horizontal()

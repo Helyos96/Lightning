@@ -185,7 +185,7 @@ pub fn draw_item_window(ui: &mut egui::Ui, item: &Item, pos: impl Into<egui::Pos
         .title_bar(false)
         .resizable(false)
         .fixed_pos(pos)
-        .frame(egui::Frame::window(&ui.ctx().style()))
+        .frame(egui::Frame::window(&ui.style()))
         .show(ui.ctx(), |ui| {
             draw_item(ui, item, Source::Innate, show_debug);
             if let Some(deltas) = deltas {

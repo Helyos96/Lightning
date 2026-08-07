@@ -112,11 +112,11 @@ fn set_vsync(surface: &Surface<WindowSurface>, context: &PossiblyCurrentContext,
 }
 
 struct GlowApp {
-    window: Option<Window>,
+    egui_glow: Option<egui_glow::EguiGlow>,
     gl_context: Option<PossiblyCurrentContext>,
     gl_surface: Option<Surface<WindowSurface>>,
     gl: Option<Arc<glow::Context>>,
-    egui_glow: Option<egui_glow::EguiGlow>,
+    window: Option<Window>,
     state: State,
     tree_gl: TreeGl,
     ui_zoom_factor: u32,
@@ -160,7 +160,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
         let (window, surface, context) = create_window(event_loop);
         let gl = std::sync::Arc::new(glow_context(&context));
         let egui_glow = egui_glow::EguiGlow::new(event_loop, gl.clone(), None, Some(2.0), true);
-        egui_glow.egui_ctx.style_mut(|style| {
+        egui_glow.egui_ctx.global_style_mut(|style| {
             style.animation_time = 0.0;
             style.text_styles.get_mut(&egui::TextStyle::Body).unwrap().size = 14.0;
             style.text_styles.get_mut(&egui::TextStyle::Button).unwrap().size = 14.0;
@@ -456,7 +456,7 @@ impl winit::application::ApplicationHandler<()> for GlowApp {
                                     state.mouse_tree_drag = Some(state.mouse_pos);
                                     state.hovered_node_id = None;
                                     window.request_redraw();
-                                } else if !egui_glow.egui_ctx.is_pointer_over_area() && gui::is_over_tree(&state.mouse_pos) {
+                                } else if !egui_glow.egui_ctx.is_pointer_over_egui() && gui::is_over_tree(&state.mouse_pos) {
                                     let (x, y) = to_tree_coords((x, y), state.dimensions, state.tree_translate, state.zoom);
                                     let hovered_node_id = state.quadtree_hover.get_hovered_node(x, y);
                                     if hovered_node_id != state.hovered_node_id {

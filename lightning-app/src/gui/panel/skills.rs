@@ -40,7 +40,7 @@ fn draw_skill_dropdown(ui: &mut egui::Ui, panel_skills: &mut SkillsPanelState, s
     let r = ui.add_enabled(enabled || socketed_gem.is_none(), edit);
     let popup_id = egui::Id::new(format!("popup {}", i));
     if r.clicked() {
-        ui.memory_mut(|m| m.open_popup(popup_id));
+        egui::Popup::open_id(ui.ctx(), popup_id);
         panel_skills.selected_gem = Some(i);
         name.clear();
         if panel_skills.computed_gems.is_none() {
@@ -50,7 +50,7 @@ fn draw_skill_dropdown(ui: &mut egui::Ui, panel_skills: &mut SkillsPanelState, s
         if let Some(gem) = socketed_gem.as_ref() {
             let popup_pos = r.rect.right_bottom() + egui::vec2(5.0, 0.0);
             let window_id = egui::Id::new("Hover Gem").with(gem.data().display_name());
-            let custom_frame = egui::Frame::window(&ui.ctx().style())
+            let custom_frame = egui::Frame::window(&ui.style())
                 .stroke(egui::Stroke::new(3.0, COLOR_DESC))
                 .corner_radius(egui::CornerRadius::ZERO);
             egui::Window::new("Hover Gem")
@@ -65,14 +65,12 @@ fn draw_skill_dropdown(ui: &mut egui::Ui, panel_skills: &mut SkillsPanelState, s
                 });
         }
     }
-    if ui.memory(|m| m.is_popup_open(popup_id)) {
+    if egui::Popup::is_id_open(ui.ctx(), popup_id) {
         if let Some(computed_gems) = panel_skills.computed_gems.as_ref() {
-            egui::popup_below_widget(
-                ui,
-                popup_id,
-                &r,
-                egui::PopupCloseBehavior::CloseOnClick,
-                |ui| {
+            egui::Popup::menu(&r)
+                .id(popup_id)
+                .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
+                .show(|ui| {
                     // Disable label text selection, otherwise the cursor doesn't select the entire line
                     // when you hover a label.
                     ui.style_mut().interaction.selectable_labels = false;
@@ -129,9 +127,9 @@ fn gem_from_display_name(display_name: &str) -> Gem {
     Gem::new(id.clone(), true, gem.max_level() as u32, 20, 0)
 }
 
-pub fn draw(ctx: &egui::Context, state: &mut State) {
+pub fn draw(ui: &mut egui::Ui, state: &mut State) {
     let mut action: Option<Action> = None;
-    egui::CentralPanel::default().show(ctx, |ui| {
+    egui::CentralPanel::default().show(ui, |ui| {
         egui::ScrollArea::vertical().show(ui, |ui| {
             egui_flex::Flex::horizontal()
                 .wrap(true)

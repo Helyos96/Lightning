@@ -154,10 +154,10 @@ fn draw_item_combo(ui: &mut egui::Ui, state: &mut State, slot: Slot) -> Option<u
     hovered_idx
 }
 
-pub fn draw(ctx: &egui::Context, state: &mut State) {
+pub fn draw(ui: &mut egui::Ui, state: &mut State) {
     let mut newly_hovered_idx = None;
 
-    egui::CentralPanel::default().show(ctx, |ui| {
+    egui::CentralPanel::default().show(ui, |ui| {
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
            egui_flex::Flex::horizontal()
                 .wrap(true)

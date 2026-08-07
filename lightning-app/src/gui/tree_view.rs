@@ -4,9 +4,9 @@ use lightning_model::build::Slot;
 use lightning_model::data::tree::NodeType;
 use lightning_model::modifier::Source;
 
-fn get_align(ctx: &egui::Context) -> (egui::Align2, egui::Vec2) {
-    let content_rect = ctx.content_rect();
-    let pointer_pos = ctx.input(|i| i.pointer.hover_pos()).unwrap_or_default();
+fn get_align(ui: &egui::Ui) -> (egui::Align2, egui::Vec2) {
+    let content_rect = ui.content_rect();
+    let pointer_pos = ui.input(|i| i.pointer.hover_pos()).unwrap_or_default();
     let cutoff = ((content_rect.width() - super::panel::left::WIDTH) * 0.65) + super::panel::left::WIDTH;
     let is_left = pointer_pos.x <= cutoff;
     let tree_center = (content_rect.height() / 2.0) + (super::panel::top::HEIGHT / 2.0);
@@ -27,12 +27,12 @@ fn get_align(ctx: &egui::Context) -> (egui::Align2, egui::Vec2) {
     (egui::Align2([h_align, v_align]), egui::Vec2::new(h_margin, v_margin))
 }
 
-fn draw_hover_window(ctx: &egui::Context, state: &mut State) {
+fn draw_hover_window(ui: &mut egui::Ui, state: &mut State) {
     let node = state.build.tree.nodes_data.get(&state.hovered_node_id.unwrap()).unwrap();
-    let c = ctx.style().visuals.window_fill;
+    let c = ui.style().visuals.window_fill;
     let background_color = egui::Color32::from_rgba_premultiplied(c.r(), c.g(), c.b(), 210);
-    let (align, margin) = get_align(ctx);
-    let pointer_pos = ctx.input(|i| i.pointer.hover_pos()).unwrap_or_default();
+    let (align, margin) = get_align(ui);
+    let pointer_pos = ui.input(|i| i.pointer.hover_pos()).unwrap_or_default();
     egui::Window::new("Hover")
         .collapsible(false)
         .movable(false)
@@ -40,8 +40,8 @@ fn draw_hover_window(ctx: &egui::Context, state: &mut State) {
         .resizable(false)
         .pivot(align)
         .fixed_pos(pointer_pos + margin)
-        .frame(egui::Frame::window(&ctx.style()).fill(background_color))
-        .show(ctx, |ui| {
+        .frame(egui::Frame::window(&ui.style()).fill(background_color))
+        .show(ui, |ui| {
             ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
                 let mut item_spacing = ui.spacing().item_spacing;
                 item_spacing.y += 5.0;
@@ -187,8 +187,8 @@ fn draw_hover_window(ctx: &egui::Context, state: &mut State) {
         });
 }
 
-pub fn draw(ctx: &egui::Context, state: &mut State) {
+pub fn draw(ui: &mut egui::Ui, state: &mut State) {
     if state.hovered_node_id.is_some() {
-        draw_hover_window(ctx, state);
+        draw_hover_window(ui, state);
     }
 }
