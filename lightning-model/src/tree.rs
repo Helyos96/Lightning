@@ -341,7 +341,7 @@ impl PassiveTree {
             .as_ref()
             .unwrap()
             .iter()
-            .filter(|id| (!PATH_OF_THE.contains(*id) && (!self.nodes_data[id].is_ascendancy_start || self.nodes_data[id].ascendancy == self.ascendancy)) || self.nodes.contains(id)).copied()
+            .filter(|id| (!PATH_OF_THE.contains(*id) && (!self.nodes_data[*id].is_ascendancy_start || self.nodes_data[*id].ascendancy == self.ascendancy)) || self.nodes.contains(id)).copied()
             .collect();
 
         if PATH_OF_THE.contains(&node_id) {
@@ -350,7 +350,7 @@ impl PassiveTree {
                 .as_ref()
                 .unwrap()
                 .iter()
-                .filter(|id| self.nodes_data[id].ascendancy.is_some() && !self.nodes.contains(id)).copied()
+                .filter(|id| self.nodes_data[*id].ascendancy.is_some() && !self.nodes.contains(id)).copied()
                 .collect();
             v.extend(nodes_out);
         } else {
@@ -359,7 +359,7 @@ impl PassiveTree {
                 .as_ref()
                 .unwrap()
                 .iter()
-                .filter(|id| self.nodes_data.contains_key(id) && !self.nodes_data[id].is_mastery).copied()
+                .filter(|id| self.nodes_data.contains_key(*id) && !self.nodes_data[*id].is_mastery).copied()
                 .collect();
             v.extend(nodes_out);
         }
@@ -406,7 +406,7 @@ impl PassiveTree {
     }
 
     pub fn passives_count(&self) -> usize {
-        self.nodes.iter().filter(|n| self.nodes_data[n].ascendancy.is_none() && self.nodes_data[n].class_start_index.is_none()).count()
+        self.nodes.iter().filter(|n| self.nodes_data[*n].ascendancy.is_none() && self.nodes_data[*n].class_start_index.is_none()).count()
     }
 
     /// Find the shortest path to link a node to
@@ -469,7 +469,7 @@ impl PassiveTree {
     }
 
     pub fn jewel_slots(&self) -> Vec<u32> {
-        self.nodes.iter().filter(|n| self.nodes_data[n].node_type() == NodeType::JewelSocket).copied().collect()
+        self.nodes.iter().filter(|n| self.nodes_data[*n].node_type() == NodeType::JewelSocket).copied().collect()
     }
 
     pub fn set_class(&mut self, class: Class) {
@@ -665,7 +665,7 @@ impl PassiveTree {
                 if let ModEffect::GrantsUnallocatedNodeBonuses(types) = m.effect &&
                    let Some(radius_data) = jewel.radius_data()
                 {
-                    for node_id in TREE.nodes_in_radius(*node_id, &radius_data, false).iter().filter(|id| types.contains(TREE.nodes[id].node_type()) && !self.nodes.contains(id)) {
+                    for node_id in TREE.nodes_in_radius(*node_id, &radius_data, false).iter().filter(|id| types.contains(TREE.nodes[*id].node_type()) && !self.nodes.contains(id)) {
                         self.node_mods(*node_id, &mut mods);
                     }
                 } else {

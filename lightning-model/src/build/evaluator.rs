@@ -401,7 +401,7 @@ impl<'a> EvaluatorCtx<'a> {
             },
             Condition::GreaterEqualMasteryAllocated((mastery_str, count)) => {
                 let count_tree = self.build.tree.masteries.keys().filter(|node_id| {
-                    &self.build.tree.nodes_data[node_id].name == *mastery_str
+                    &self.build.tree.nodes_data[*node_id].name == *mastery_str
                 }).count() as u32;
                 if count_tree < *count {
                     return false;
